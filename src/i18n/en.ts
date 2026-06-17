@@ -1,0 +1,210 @@
+const en = {
+  // ── App ──────────────────────────────────────────────────────────────────────
+  appName: 'Pwen Books',
+  tagline: 'Your book marketplace in Lao PDR',
+
+  // ── Navigation ────────────────────────────────────────────────────────────────
+  nav: {
+    home: 'Home',
+    catalog: 'Books',
+    cart: 'Cart',
+    orders: 'My Orders',
+    profile: 'Profile',
+    search: 'Search',
+    support: 'Support',
+    signIn: 'Sign In',
+    signOut: 'Sign Out',
+    admin: 'Admin',
+  },
+
+  // ── Home ──────────────────────────────────────────────────────────────────────
+  home: {
+    hero: 'Find books from stores across Lao PDR',
+    heroSub: 'Compare prices, order online, delivered to your door.',
+    searchPlaceholder: 'Search by title, author, or ISBN…',
+    featured: 'Featured Books',
+    trending: 'Trending Now',
+    forYou: 'Recommended for You',
+    categories: 'Browse Categories',
+    recentlyViewed: 'Recently Viewed',
+    viewAll: 'View All',
+  },
+
+  // ── Catalog ───────────────────────────────────────────────────────────────────
+  catalog: {
+    title: 'Books',
+    filters: 'Filters',
+    clearFilters: 'Clear Filters',
+    sortBy: 'Sort By',
+    sortOptions: {
+      priceAsc: 'Price: Low to High',
+      priceDesc: 'Price: High to Low',
+      newest: 'Newest',
+      popular: 'Most Popular',
+    },
+    noResults: 'No books found matching your filters.',
+    showing: 'Showing {{count}} books',
+  },
+
+  // ── Book ──────────────────────────────────────────────────────────────────────
+  book: {
+    addToCart: 'Add to Cart',
+    buyNow: 'Buy Now',
+    outOfStock: 'Out of Stock',
+    available: 'Available',
+    lowStock: 'Low Stock',
+    priceFrom: 'From',
+    compareStores: 'Compare Store Prices',
+    estimatedDelivery: 'Estimated Delivery',
+    pages: 'Pages',
+    language: 'Language',
+    publisher: 'Publisher',
+    published: 'Published',
+    isbn: 'ISBN',
+    category: 'Category',
+    description: 'Description',
+    relatedBooks: 'You May Also Like',
+  },
+
+  // ── Cart ──────────────────────────────────────────────────────────────────────
+  cart: {
+    title: 'Shopping Cart',
+    empty: 'Your cart is empty.',
+    continueShopping: 'Continue Shopping',
+    subtotal: 'Subtotal',
+    deliveryFee: 'Delivery Fee',
+    deliveryFeeNote: 'Paid on delivery to courier',
+    checkout: 'Proceed to Checkout',
+    remove: 'Remove',
+    saveForLater: 'Save for Later',
+    qty: 'Qty',
+    itemsFrom: 'Items from {{count}} store(s)',
+  },
+
+  // ── Checkout ──────────────────────────────────────────────────────────────────
+  checkout: {
+    title: 'Checkout',
+    deliveryInfo: 'Delivery Information',
+    fullName: 'Full Name',
+    phone: 'Phone Number',
+    address: 'Delivery Address',
+    notes: 'Notes (optional)',
+    paymentMethod: 'Payment Method',
+    paymentMethods: {
+      QR_PAYMENT: 'QR Code Payment',
+      BANK_TRANSFER: 'Bank Transfer',
+      CASH_ON_DELIVERY: 'Cash on Delivery',
+    },
+    orderSummary: 'Order Summary',
+    placeOrder: 'Place Order',
+    total: 'Total',
+    confirmOrder: 'Confirm Order',
+  },
+
+  // ── Payment ───────────────────────────────────────────────────────────────────
+  payment: {
+    qrTitle: 'Scan to Pay',
+    qrInstructions: 'Scan the QR code with your banking app, then upload your receipt below.',
+    uploadReceipt: 'Upload Receipt',
+    receiptUploaded: 'Receipt uploaded. Awaiting verification.',
+    verifying: 'Verifying payment…',
+    verified: 'Payment verified!',
+    rejected: 'Payment rejected. Please contact support.',
+    requiresReview: 'Under manual review.',
+    transferTo: 'Transfer to',
+    amount: 'Amount',
+    reference: 'Reference',
+  },
+
+  // ── Orders ────────────────────────────────────────────────────────────────────
+  orders: {
+    title: 'My Orders',
+    empty: 'You have no orders yet.',
+    orderNumber: 'Order #',
+    placedOn: 'Placed on',
+    status: 'Status',
+    viewDetail: 'View Details',
+    tracking: 'Tracking',
+    courier: 'Courier',
+    trackingNumber: 'Tracking Number',
+    estimatedDelivery: 'Est. Delivery',
+  },
+
+  // ── Auth ──────────────────────────────────────────────────────────────────────
+  auth: {
+    signIn: 'Sign In',
+    signUp: 'Create Account',
+    phone: 'Phone Number',
+    email: 'Email',
+    otp: 'Enter OTP',
+    sendOtp: 'Send OTP',
+    verifyOtp: 'Verify',
+    continueWithGoogle: 'Continue with Google',
+    or: 'or',
+    name: 'Full Name',
+    haveAccount: 'Already have an account?',
+    noAccount: "Don't have an account?",
+  },
+
+  // ── Common ────────────────────────────────────────────────────────────────────
+  common: {
+    loading: 'Loading…',
+    error: 'Something went wrong.',
+    retry: 'Retry',
+    save: 'Save',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    edit: 'Edit',
+    add: 'Add',
+    search: 'Search',
+    close: 'Close',
+    confirm: 'Confirm',
+    back: 'Back',
+    next: 'Next',
+    yes: 'Yes',
+    no: 'No',
+    all: 'All',
+    active: 'Active',
+    inactive: 'Inactive',
+    unknown: 'Unknown',
+    copied: 'Copied!',
+    lak: 'LAK',
+    usd: 'USD',
+    required: 'Required',
+    optional: 'Optional',
+  },
+
+  // ── Admin ──────────────────────────────────────────────────────────────────────
+  admin: {
+    dashboard: 'Dashboard',
+    books: 'Books',
+    bookstores: 'Bookstores',
+    pricing: 'Pricing',
+    orders: 'Orders',
+    payments: 'Payments',
+    deliveries: 'Deliveries',
+    analytics: 'Analytics',
+    notifications: 'Notifications',
+    settings: 'Settings',
+    auditLog: 'Audit Log',
+    gmv: 'Gross Merchandise Value',
+    revenue: 'Revenue',
+    margin: 'Gross Margin',
+    pendingPayments: 'Pending Payments',
+    pendingDeliveries: 'Pending Deliveries',
+    topBooks: 'Top Books',
+    addBook: 'Add Book',
+    addBookstore: 'Add Bookstore',
+    importCsv: 'Import CSV',
+    verifyPayment: 'Verify Payment',
+    rejectPayment: 'Reject Payment',
+    assignCourier: 'Assign Courier',
+    updateTracking: 'Update Tracking',
+    sendWhatsApp: 'Send WhatsApp',
+    marginRule: 'Margin Rule',
+    globalMargin: 'Global Default Margin',
+  },
+}
+
+export default en
+export type Translations = typeof en

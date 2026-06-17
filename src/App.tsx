@@ -1,0 +1,110 @@
+import { Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AuthProvider, useAuth } from '@/context/AuthContext'
+import { CartProvider } from '@/context/CartContext'
+import { LanguageProvider } from '@/context/LanguageContext'
+import { ToastProvider } from '@/components/ui/Toast'
+import { CustomerLayout } from '@/components/layout/CustomerLayout'
+import { AdminLayout } from '@/components/layout/AdminLayout'
+import { PageLoader } from '@/components/ui/LoadingSpinner'
+import '@/i18n'
+
+// Customer pages
+const Home       = lazy(() => import('@/pages/customer/Home').then(m => ({ default: m.Home })))
+const Catalog    = lazy(() => import('@/pages/customer/Catalog').then(m => ({ default: m.Catalog })))
+const BookDetail = lazy(() => import('@/pages/customer/BookDetail').then(m => ({ default: m.BookDetail })))
+const Cart       = lazy(() => import('@/pages/customer/Cart').then(m => ({ default: m.Cart })))
+const Checkout   = lazy(() => import('@/pages/customer/Checkout').then(m => ({ default: m.Checkout })))
+const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ default: m.Orders })))
+const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
+const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
+const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
+
+// Admin pages
+const AdminDashboard  = lazy(() => import('@/pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
+const AdminBooks      = lazy(() => import('@/pages/admin/Books').then(m => ({ default: m.AdminBooks })))
+const AdminBookstores = lazy(() => import('@/pages/admin/Bookstores').then(m => ({ default: m.AdminBookstores })))
+const AdminPricing    = lazy(() => import('@/pages/admin/Pricing').then(m => ({ default: m.AdminPricing })))
+const AdminOrders     = lazy(() => import('@/pages/admin/AdminOrders').then(m => ({ default: m.AdminOrders })))
+const AdminPayments   = lazy(() => import('@/pages/admin/Payments').then(m => ({ default: m.AdminPayments })))
+const AdminDeliveries = lazy(() => import('@/pages/admin/Deliveries').then(m => ({ default: m.AdminDeliveries })))
+const AdminAnalytics  = lazy(() => import('@/pages/admin/Analytics').then(m => ({ default: m.AdminAnalytics })))
+const AdminSettings   = lazy(() => import('@/pages/admin/Settings').then(m => ({ default: m.AdminSettings })))
+
+const qc = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60 * 2, retry: 1 },
+  },
+})
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { profile, loading } = useAuth()
+  if (loading) return <PageLoader />
+  if (!profile || profile.role === 'CUSTOMER') return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
+export function App() {
+  return (
+    <QueryClientProvider client={qc}>
+      <BrowserRouter>
+        <AuthProvider>
+          <LanguageProvider>
+            <CartProvider>
+              <ToastProvider>
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* Customer Routes */}
+                    <Route element={<CustomerLayout><Suspense fallback={<PageLoader />}><div /></Suspense></CustomerLayout>} path="__unused__" />
+
+                    <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
+                    <Route path="/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
+                    <Route path="/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
+                    <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
+                    <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
+                    <Route path="/orders" element={<CustomerLayout><Orders /></CustomerLayout>} />
+                    <Route path="/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
+                    <Route path="/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
+                    <Route path="/auth" element={<Auth />} />
+
+                    {/* Admin Routes */}
+                    <Route path="/admin" element={
+                      <AdminGuard><AdminLayout><AdminDashboard /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/books" element={
+                      <AdminGuard><AdminLayout><AdminBooks /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/bookstores" element={
+                      <AdminGuard><AdminLayout><AdminBookstores /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/pricing" element={
+                      <AdminGuard><AdminLayout><AdminPricing /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/orders" element={
+                      <AdminGuard><AdminLayout><AdminOrders /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/payments" element={
+                      <AdminGuard><AdminLayout><AdminPayments /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/deliveries" element={
+                      <AdminGuard><AdminLayout><AdminDeliveries /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/analytics" element={
+                      <AdminGuard><AdminLayout><AdminAnalytics /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/settings" element={
+                      <AdminGuard><AdminLayout><AdminSettings /></AdminLayout></AdminGuard>
+                    } />
+
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Suspense>
+              </ToastProvider>
+            </CartProvider>
+          </LanguageProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  )
+}

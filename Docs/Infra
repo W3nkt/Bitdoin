@@ -1,0 +1,104 @@
+Yes — that stack can work well for MVP, with one correction:
+
+## Updated Stack
+
+| Layer              | Tool                              |
+| ------------------ | --------------------------------- |
+| Frontend hosting   | **GitHub Pages**                  |
+| Frontend framework | **React + Vite**                  |
+| Database           | **Supabase Postgres**             |
+| Auth               | **Supabase Auth**                 |
+| File storage       | **Supabase Storage**              |
+| AI                 | **Gemini API**                    |
+| Backend/API        | **Supabase Edge Functions**       |
+| Deployment         | **GitHub Actions → GitHub Pages** |
+
+## Important Architecture Change
+
+Because **GitHub Pages only hosts static frontend files**, you should not use a traditional backend server there.
+
+Use this instead:
+
+```text
+React PWA on GitHub Pages
+        |
+        v
+Supabase
+├── Postgres database
+├── Auth
+├── Storage
+├── Row Level Security
+└── Edge Functions
+        |
+        v
+Gemini API
+```
+
+## Why This Is Better for Your Budget
+
+* GitHub Pages is free for static hosting.
+* Supabase gives you database, auth, storage, and serverless functions.
+* Gemini handles AI receipt reading, search assistance, and recommendations.
+* No separate backend hosting required.
+
+## Revised Recommendation
+
+Use:
+
+```text
+React + Vite + TypeScript + Tailwind
+Supabase Auth
+Supabase Postgres
+Supabase Storage
+Supabase Edge Functions
+Gemini API
+GitHub Pages
+```
+
+Avoid:
+
+```text
+Next.js server-side rendering
+NestJS backend
+Railway/Render backend hosting
+```
+
+For GitHub Pages, **Vite React** is simpler and safer than Next.js.
+
+## AI Prompt Update
+
+Use this instruction in Cursor/Claude Code:
+
+```text
+Revise the project architecture to use:
+
+- React + Vite + TypeScript
+- Tailwind CSS
+- Supabase Postgres
+- Supabase Auth
+- Supabase Storage
+- Supabase Edge Functions
+- Gemini API
+- GitHub Pages deployment
+
+Do not use Next.js, NestJS, Prisma, Railway, or Vercel.
+
+The app must be a static PWA hosted on GitHub Pages. All backend logic must be handled by Supabase Row Level Security, Supabase RPC functions, and Supabase Edge Functions.
+```
+
+## Key Constraint
+
+Never expose your **Gemini API key** in the React frontend.
+
+Put Gemini calls inside:
+
+```text
+Supabase Edge Functions
+```
+
+This is especially important for:
+
+* Receipt verification
+* AI chat
+* Semantic search
+* Recommendation generation

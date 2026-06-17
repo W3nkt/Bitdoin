@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply text-gray-900 antialiased;
+    font-family: 'Inter', 'Noto Sans Lao', sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Lao text support */
+  :lang(lo) {
+    font-family: 'Noto Sans Lao', sans-serif;
+    line-height: 1.8;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .shadow-up {
+    box-shadow: 0 -2px 8px -2px rgb(0 0 0 / 0.08);
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

@@ -1,0 +1,144 @@
+import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
+} from 'recharts'
+import { supabase } from '@/lib/supabase'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { StatCard } from '@/components/ui/Card'
+import { formatPrice } from '@/lib/utils'
+import { DollarSign, TrendingUp, ShoppingBag, Users } from 'lucide-react'
+
+const COLORS = ['#1e3a5f', '#f97316', '#22c55e', '#8b5cf6', '#06b6d4']
+
+export function AdminAnalytics() {
+  const { t } = useTranslation()
+
+  const { data: summary, isLoading } = useQuery({
+    queryKey: ['admin', 'analytics'],
+    queryFn: async () => {
+      const [ordersRes, paymentsRes, itemsRes, usersRes] = await Promise.all([
+        supabase.from('orders').select('total_amount, subtotal_amount, status, created_at, currency'),
+        supabase.from('payments').select('amount, verification_status'),
+        supabase.from('order_items').select('book_id, quantity, final_price, margin_percent, bookstore_id, bookstore:bookstores(name)'),
+        supabase.from('users').select('id, role').eq('role', 'CUSTOMER'),
+      ])
+
+      const orders = ordersRes.data ?? []
+      const payments = paymentsRes.data ?? []
+      const items = itemsRes.data ?? []
+
+      const gmv = orders.reduce((s, o) => s + Number(o.total_amount), 0)
+      const revenue = payments.filter(p => p.verification_status === 'VERIFIED').reduce((s, p) => s + Number(p.amount), 0)
+      const grossMargin = items.reduce((s, i) => {
+        const mp = Number(i.margin_percent) / 100
+        return s + Number(i.final_price) * Number(i.quantity) * mp / (1 + mp)
+      }, 0)
+      const avgOrderValue = orders.length ? gmv / orders.length : 0
+      const totalCustomers = usersRes.data?.length ?? 0
+
+      // Revenue by month (last 6 months)
+      const byMonth: Record<string, number> = {}
+      orders.forEach(o => {
+        const month = new Date(o.created_at).toLocaleString('default', { month: 'short' })
+        byMonth[month] = (byMonth[month] ?? 0) + Number(o.total_amount)
+      })
+      const monthlyData = Object.entries(byMonth).map(([month, total]) => ({ month, total }))
+
+      // Margin by bookstore
+      const byStore: Record<string, { name: string; margin: number; count: number }> = {}
+      items.forEach(i => {
+        const sId = i.bookstore_id as string
+        const sName = (i.bookstore as { name?: string } | undefined)?.name ?? sId
+        if (!byStore[sId]) byStore[sId] = { name: sName, margin: 0, count: 0 }
+        const mp = Number(i.margin_percent) / 100
+        byStore[sId].margin += Number(i.final_price) * Number(i.quantity) * mp / (1 + mp)
+        byStore[sId].count += Number(i.quantity)
+      })
+      const storeMargins = Object.values(byStore).sort((a, b) => b.margin - a.margin)
+
+      // Top books
+      const byBook: Record<string, { title: string; qty: number }> = {}
+      items.forEach(i => {
+        const bId = i.book_id as string
+        if (!byBook[bId]) byBook[bId] = { title: bId, qty: 0 }
+        byBook[bId].qty += Number(i.quantity)
+      })
+      const topBooks = Object.values(byBook).sort((a, b) => b.qty - a.qty).slice(0, 5)
+
+      return { gmv, revenue, grossMargin, avgOrderValue, totalCustomers, monthlyData, storeMargins, topBooks }
+    },
+  })
+
+  if (isLoading) return <LoadingSpinner />
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-xl font-bold text-gray-900">{t('admin.analytics')}</h1>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard label={t('admin.gmv')} value={formatPrice(summary?.gmv ?? 0)} icon={<DollarSign className="h-5 w-5" />} color="blue" />
+        <StatCard label={t('admin.revenue')} value={formatPrice(summary?.revenue ?? 0)} icon={<TrendingUp className="h-5 w-5" />} color="green" />
+        <StatCard label={t('admin.margin')} value={formatPrice(summary?.grossMargin ?? 0)} icon={<ShoppingBag className="h-5 w-5" />} color="purple" />
+        <StatCard label="Customers" value={summary?.totalCustomers ?? 0} icon={<Users className="h-5 w-5" />} color="orange" />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Monthly revenue */}
+        {summary?.monthlyData && summary.monthlyData.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Revenue (LAK)</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={summary.monthlyData}>
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => (v / 1000).toFixed(0) + 'K'} />
+                <Tooltip formatter={v => formatPrice(v as number)} />
+                <Line type="monotone" dataKey="total" stroke="#1e3a5f" strokeWidth={2} dot={{ fill: '#1e3a5f' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Margin by bookstore */}
+        {summary?.storeMargins && summary.storeMargins.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Margin by Bookstore (LAK)</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={summary.storeMargins}>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} tickFormatter={s => s.slice(0, 10)} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={v => formatPrice(v as number)} />
+                <Bar dataKey="margin" fill="#f97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Top books pie */}
+        {summary?.topBooks && summary.topBooks.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Books by Volume</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={summary.topBooks} dataKey="qty" nameKey="title" cx="50%" cy="50%" outerRadius={80} label={({ title, qty }) => `${qty}`}>
+                  {summary.topBooks.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Legend formatter={(value) => <span className="text-xs text-gray-600">{value?.slice(0, 20)}</span>} />
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* AOV */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col justify-center items-center">
+          <p className="text-xs text-gray-400 uppercase tracking-wide">Average Order Value</p>
+          <p className="text-4xl font-bold text-primary-700 mt-2">{formatPrice(summary?.avgOrderValue ?? 0)}</p>
+          <p className="text-xs text-gray-400 mt-1">per order</p>
+        </div>
+      </div>
+    </div>
+  )
+}

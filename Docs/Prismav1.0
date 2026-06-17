@@ -1,0 +1,381 @@
+Absolutely — here is the **database design deliverable** for your book marketplace.
+
+# Database Schema — Prisma v1.0
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  OPERATIONS
+  FINANCE
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_REVIEW
+  PROCESSING
+  PURCHASING_FROM_BOOKSTORE
+  PARTIALLY_SHIPPED
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  OUT_OF_STOCK
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFIED
+  REQUIRES_REVIEW
+  REJECTED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  QR_PAYMENT
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+}
+
+enum DeliveryStatus {
+  NOT_ASSIGNED
+  READY_FOR_SHIPMENT
+  SHIPPED
+  DELIVERED
+  FAILED
+  RETURNED
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  LOW_STOCK
+  OUT_OF_STOCK
+  UNKNOWN
+}
+
+enum NotificationChannel {
+  IN_APP
+  WHATSAPP
+  MESSENGER
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String?  @unique
+  email       String?  @unique
+  role        UserRole @default(CUSTOMER)
+  language    String   @default("lo")
+  currency    String   @default("LAK")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orders      Order[]
+  addresses   Address[]
+  payments    Payment[]
+  auditLogs   AuditLog[]
+}
+
+model Address {
+  id          String   @id @default(uuid())
+  userId      String
+  fullName    String
+  phone       String
+  addressLine String
+  city        String?
+  province    String?
+  country     String   @default("Lao PDR")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Bookstore {
+  id           String   @id @default(uuid())
+  name         String
+  contactName  String?
+  phone        String?
+  whatsapp     String?
+  messengerUrl String?
+  address      String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  prices       BookPrice[]
+  orderItems   OrderItem[]
+}
+
+model Book {
+  id              String   @id @default(uuid())
+  isbn            String?  @unique
+  title           String
+  author          String?
+  publisher       String?
+  language        String
+  categoryId      String?
+  description     String?
+  pages           Int?
+  publicationDate DateTime?
+  coverImageUrl   String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        Category?   @relation(fields: [categoryId], references: [id])
+  prices          BookPrice[]
+  orderItems      OrderItem[]
+  recommendations Recommendation[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  nameLo    String
+  nameEn    String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  books     Book[]
+}
+
+model BookPrice {
+  id              String             @id @default(uuid())
+  bookId          String
+  bookstoreId     String
+  bookstorePrice  Decimal            @db.Decimal(12, 2)
+  marginPercent   Decimal            @db.Decimal(5, 2)
+  finalPrice      Decimal            @db.Decimal(12, 2)
+  availability    AvailabilityStatus @default(UNKNOWN)
+  lastCheckedAt   DateTime?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  book            Book       @relation(fields: [bookId], references: [id])
+  bookstore       Bookstore  @relation(fields: [bookstoreId], references: [id])
+
+  @@unique([bookId, bookstoreId])
+}
+
+model MarginRule {
+  id             String   @id @default(uuid())
+  name           String
+  categoryId     String?
+  bookstoreId    String?
+  minPrice        Decimal? @db.Decimal(12, 2)
+  maxPrice        Decimal? @db.Decimal(12, 2)
+  marginPercent  Decimal  @db.Decimal(5, 2)
+  priority        Int      @default(100)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  userId    String?
+  sessionId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items     CartItem[]
+}
+
+model CartItem {
+  id          String   @id @default(uuid())
+  cartId      String
+  bookId      String
+  bookstoreId String
+  quantity    Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  cart        Cart     @relation(fields: [cartId], references: [id])
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  orderNumber     String        @unique
+  customerId      String
+  status          OrderStatus   @default(PENDING_PAYMENT)
+  paymentStatus   PaymentStatus @default(PENDING)
+  subtotalAmount  Decimal       @db.Decimal(12, 2)
+  totalAmount     Decimal       @db.Decimal(12, 2)
+  currency        String        @default("LAK")
+  deliveryFeeNote String        @default("Delivery fee paid on delivery")
+  customerName    String
+  customerPhone   String
+  deliveryAddress String
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  customer        User          @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  payments        Payment[]
+  deliveries      Delivery[]
+}
+
+model OrderItem {
+  id              String             @id @default(uuid())
+  orderId         String
+  bookId          String
+  bookstoreId     String
+  quantity        Int
+  bookstorePrice  Decimal            @db.Decimal(12, 2)
+  marginPercent   Decimal            @db.Decimal(5, 2)
+  finalPrice      Decimal            @db.Decimal(12, 2)
+  fulfillmentStatus OrderStatus      @default(PROCESSING)
+  createdAt       DateTime           @default(now())
+
+  order           Order              @relation(fields: [orderId], references: [id])
+  book            Book               @relation(fields: [bookId], references: [id])
+  bookstore       Bookstore          @relation(fields: [bookstoreId], references: [id])
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  orderId              String
+  userId               String
+  method               PaymentMethod
+  amount               Decimal       @db.Decimal(12, 2)
+  currency             String        @default("LAK")
+  receiptImageUrl      String?
+  verificationStatus   PaymentStatus @default(PENDING)
+  transactionReference String?
+  bankName             String?
+  senderName           String?
+  transferredAt        DateTime?
+  aiConfidenceScore    Decimal?      @db.Decimal(5, 2)
+  aiExtractedData      Json?
+  reviewedByUserId     String?
+  reviewedAt           DateTime?
+  rejectionReason      String?
+  createdAt            DateTime      @default(now())
+
+  order                Order         @relation(fields: [orderId], references: [id])
+  user                 User          @relation(fields: [userId], references: [id])
+}
+
+model Delivery {
+  id                  String         @id @default(uuid())
+  orderId             String
+  courier             String
+  trackingNumber      String?
+  status              DeliveryStatus @default(NOT_ASSIGNED)
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  estimatedDeliveryAt DateTime?
+  notes               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  order               Order          @relation(fields: [orderId], references: [id])
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String?
+  channel   NotificationChannel
+  recipient String
+  subject   String?
+  message   String
+  status    String              @default("PENDING")
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+}
+
+model Recommendation {
+  id        String   @id @default(uuid())
+  bookId    String
+  type      String
+  score     Decimal  @db.Decimal(5, 2)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  book      Book     @relation(fields: [bookId], references: [id])
+}
+
+model SearchLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  query     String
+  language  String?
+  results   Int?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  entity    String
+  entityId  String?
+  action    String
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+}
+```
+
+# Key Design Notes
+
+## Price Calculation
+
+Use this when creating or updating `BookPrice`:
+
+```ts
+finalPrice = bookstorePrice * (1 + marginPercent / 100)
+```
+
+## Multi-Bookstore Cart
+
+Each cart item stores:
+
+```ts
+bookId
+bookstoreId
+quantity
+```
+
+This allows one customer cart to contain books sourced from different bookstores.
+
+## Partial Fulfillment
+
+Each `OrderItem` has its own `fulfillmentStatus`.
+
+That means one order can have:
+
+* Book A delivered
+* Book B still processing
+* Book C out of stock
+
+## AI Receipt Verification
+
+Store AI output in:
+
+```ts
+aiConfidenceScore
+aiExtractedData
+verificationStatus
+```
+
+Manual finance review is still supported.
+
+## Delivery Fee
+
+Delivery fee is **not included in the order total** because the customer pays it directly to the courier upon delivery.
+
+Next: say **“api”** and I’ll generate the full backend API specification.
