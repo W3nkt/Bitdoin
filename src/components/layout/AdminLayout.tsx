@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
+import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 
 interface AdminLayoutProps { children: ReactNode }
 
@@ -36,13 +37,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-primary-700">
       <div className="flex items-center gap-3 px-5 h-16 border-b border-primary-600">
-        <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center">
-          <BookOpen className="h-4 w-4 text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-white">Pwen Books</p>
-          <p className="text-[10px] text-primary-200">Admin</p>
-        </div>
+        <PwenLogoLockup
+          markClassName="h-8 w-8"
+          textClassName="text-sm text-white"
+          subTextClassName="text-primary-200"
+        />
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-primary-100">
+          Admin
+        </span>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -119,7 +121,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl hover:bg-gray-100">
             <Menu className="h-5 w-5 text-gray-600" />
           </button>
-          <span className="font-semibold text-gray-800">Pwen Books Admin</span>
+          <PwenLogoLockup
+            markClassName="h-7 w-7"
+            textClassName="text-sm text-gray-800"
+            subTextClassName="text-gray-500"
+          />
           {sidebarOpen && (
             <button className="ml-auto p-2 rounded-xl hover:bg-gray-100" onClick={() => setSidebarOpen(false)}>
               <X className="h-5 w-5 text-gray-600" />
