@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { publicAsset } from '@/lib/assets'
 
 type Method = 'email' | 'phone'
 type EmailStep = 'signin' | 'signup'
@@ -97,7 +98,7 @@ export function Auth() {
         {/* Logo */}
         <div className="text-center mb-8">
           <img
-            src="/icons/Bitdoin-Logo.png"
+            src={publicAsset('icons/Bitdoin-Logo.png')}
             alt={t('appName')}
             className="mx-auto mb-3 h-24 w-48 object-contain"
           />

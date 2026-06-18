@@ -6,6 +6,7 @@ import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
+import { publicAsset } from '@/lib/assets'
 
 interface CustomerLayoutProps {
   children: ReactNode
@@ -39,7 +40,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           {/* Logo */}
           <Link to="/" className="flex flex-shrink-0 items-center" aria-label={t('appName')}>
             <img
-              src="/icons/Bitdoin-Logo.png"
+              src={publicAsset('icons/Bitdoin-Logo.png')}
               alt={t('appName')}
               className="h-10 w-28 object-contain object-left md:h-12 md:w-32"
             />

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { publicAsset } from '@/lib/assets'
 
 interface PwenLogoMarkProps {
   className?: string
@@ -16,7 +17,7 @@ interface PwenLogoLockupProps {
 export function PwenLogoMark({ className, title = 'Bitdoin' }: PwenLogoMarkProps) {
   return (
     <img
-      src="/icons/Bitdoin Logo H.png"
+      src={publicAsset('icons/Bitdoin Logo H.png')}
       alt={title}
       className={cn('h-8 w-8 flex-shrink-0 object-contain', className)}
     />

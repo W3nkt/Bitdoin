@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/Toast'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
+import { publicAsset } from '@/lib/assets'
 import { formatPrice, generateOrderNumber } from '@/lib/utils'
 import type { CheckoutForm, PaymentMethod } from '@/types'
 
@@ -33,19 +34,19 @@ const logisticsOptions = [
     value: 'HAL Logistics',
     label_en: 'HAL Logistics',
     label_lo: 'ຮຸ່ງອາລຸນ ຂົນສົ່ງດ່ວນ',
-    logo: '/icons/HAL.png',
+    logo: publicAsset('icons/HAL.png'),
   },
   {
     value: 'Unitel Logistics',
     label_en: 'Unitel Logistics',
     label_lo: 'ຢູນີເທວ ຂົນສົ່ງດ່ວນ',
-    logo: '/icons/Unitel.png',
+    logo: publicAsset('icons/Unitel.png'),
   },
   {
     value: 'Anousith Express',
     label_en: 'Anousith Express',
     label_lo: 'ອານຸສິດ ຂົນສົ່ງດ່ວນ',
-    logo: '/icons/Anousith.png',
+    logo: publicAsset('icons/Anousith.png'),
   },
   {
     value: 'Bus',

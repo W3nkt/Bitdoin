@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
+import { publicAsset } from '@/lib/assets'
 
 interface AdminLayoutProps { children: ReactNode }
 
@@ -38,7 +39,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Logo area */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-white/10 flex-shrink-0">
         <img
-          src="/icons/Bitdoin Logo H.png"
+          src={publicAsset('icons/Bitdoin Logo H.png')}
           alt="Bitdoin"
           className="h-10 w-10 rounded-lg bg-white object-contain"
         />
@@ -128,7 +129,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <Menu className="h-5 w-5 text-gray-600" />
           </button>
           <img
-            src="/icons/Bitdoin Logo H.png"
+            src={publicAsset('icons/Bitdoin Logo H.png')}
             alt="Bitdoin"
             className="h-9 w-9 rounded-lg bg-white object-contain"
           />
