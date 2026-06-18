@@ -9,7 +9,7 @@
   }
 
   body {
-    @apply text-gray-900 antialiased;
+    @apply text-gray-900 antialiased bg-gray-50;
     font-family: 'Inter', 'Noto Sans Lao', sans-serif;
   }
 
@@ -17,7 +17,6 @@
     box-sizing: border-box;
   }
 
-  /* Lao text support */
   :lang(lo) {
     font-family: 'Noto Sans Lao', sans-serif;
     line-height: 1.8;
@@ -43,4 +42,35 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Frosted glass */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-dark {
+    background: rgba(15, 31, 53, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Book cover hero background blur */
+  .hero-blur {
+    filter: blur(24px) saturate(1.2);
+    transform: scale(1.15);
+  }
+}
+
+@keyframes progress-bar {
+  from { width: 0% }
+  to   { width: 100% }
 }

@@ -30,7 +30,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm',
+              'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm',
               'placeholder:text-gray-400',
               'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200',
               'disabled:bg-gray-50 disabled:text-gray-500',
@@ -75,7 +75,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm resize-none',
+            'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm resize-none',
             'placeholder:text-gray-400',
             'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200',
             error && 'border-red-400',
@@ -112,7 +112,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm',
+            'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm',
             'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200',
             error && 'border-red-400',
             className,

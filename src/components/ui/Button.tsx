@@ -13,16 +13,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary:   'bg-primary-700 text-white hover:bg-primary-800 focus:ring-primary-500',
-  secondary: 'bg-accent-500 text-white hover:bg-accent-600 focus:ring-accent-400',
-  outline:   'border border-primary-700 text-primary-700 hover:bg-primary-50 focus:ring-primary-500',
-  ghost:     'text-gray-600 hover:bg-gray-100 focus:ring-gray-400',
-  danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+  primary:   'bg-primary-700 text-white hover:bg-primary-800 active:scale-95 shadow-sm',
+  secondary: 'bg-accent-500 text-white hover:bg-accent-600 active:scale-95 shadow-sm',
+  outline:   'border-2 border-primary-700 text-primary-700 hover:bg-primary-50',
+  ghost:     'text-gray-600 hover:bg-gray-100',
+  danger:    'bg-red-600 text-white hover:bg-red-700 active:scale-95',
 }
 
 const sizes: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2 text-sm',
+  sm: 'px-3.5 py-1.5 text-xs',
+  md: 'px-4 py-2.5 text-sm',
   lg: 'px-6 py-3 text-base',
 }
 
@@ -32,9 +32,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus:outline-none focus:ring-2 focus:ring-offset-2',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-150',
+        'focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-2',
+        'disabled:opacity-40 disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
         fullWidth && 'w-full',

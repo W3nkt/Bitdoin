@@ -1,7 +1,7 @@
 import type { Translations } from './en'
 
 const lo: Translations = {
-  appName: 'ຮ້ານໜັງສືໂປວ',
+  appName: 'ບິດດອຍ',
   tagline: 'ຕະຫຼາດໜັງສືໃນ ສປປ ລາວ',
 
   nav: {
@@ -27,6 +27,11 @@ const lo: Translations = {
     categories: 'ໝວດໝູ່',
     recentlyViewed: 'ເບິ່ງລ່າສຸດ',
     viewAll: 'ເບິ່ງທັງໝົດ',
+    emptyBooks: 'ຍັງບໍ່ມີໜັງສື',
+    quotes: {
+      thousandLives: 'ນັກອ່ານໄດ້ມີຊີວິດນັບພັນຊີວິດ ກ່ອນທີ່ຈະຈາກໄປ.',
+      portableMagic: 'ໜັງສືແມ່ນເວດມົນທີ່ພົກພາໄດ້.',
+    },
   },
 
   catalog: {
@@ -42,6 +47,8 @@ const lo: Translations = {
     },
     noResults: 'ບໍ່ພົບໜັງສືທີ່ກົງກັບການຄົ້ນຫາ',
     showing: 'ພົບ {{count}} ລາຍການ',
+    sortTitle: 'ຊື່ A-Z',
+    clearSearch: 'ລ້າງການຄົ້ນຫາ',
   },
 
   book: {
@@ -61,6 +68,8 @@ const lo: Translations = {
     category: 'ໝວດໝູ່',
     description: 'ລາຍລະອຽດ',
     relatedBooks: 'ໜັງສືທີ່ກ່ຽວຂ້ອງ',
+    notFound: 'ບໍ່ພົບໜັງສື',
+    margin: 'ກຳໄລ',
   },
 
   cart: {
@@ -82,6 +91,13 @@ const lo: Translations = {
     deliveryInfo: 'ຂໍ້ມູນການຈັດສົ່ງ',
     fullName: 'ຊື່ ແລະ ນາມສະກຸນ',
     phone: 'ເບີໂທລະສັບ',
+    logisticsProvider: 'ບໍລິສັດຂົນສົ່ງ',
+    province: 'ແຂວງ',
+    district: 'ເມືອງ',
+    selectLogistics: 'ເລືອກບໍລິສັດຂົນສົ່ງ',
+    selectProvince: 'ເລືອກແຂວງ',
+    selectDistrict: 'ເລືອກເມືອງ',
+    addressDetail: 'ບ້ານ, ຖະໜົນ, ຈຸດສັງເກດ ຫຼື ຈຸດຮັບສິນຄ້າ',
     address: 'ທີ່ຢູ່ຈັດສົ່ງ',
     notes: 'ໝາຍເຫດ (ຖ້າມີ)',
     paymentMethod: 'ວິທີຈ່າຍ',
@@ -92,6 +108,7 @@ const lo: Translations = {
     },
     orderSummary: 'ສະຫຼຸບຄຳສັ່ງ',
     placeOrder: 'ສົ່ງຄຳສັ່ງ',
+    orderPlaced: 'ສັ່ງຊື້ສຳເລັດ! #{{orderNumber}}',
     total: 'ລວມທັງໝົດ',
     confirmOrder: 'ຢືນຢັນ',
   },
@@ -99,6 +116,7 @@ const lo: Translations = {
   payment: {
     qrTitle: 'ສະແກນ QR ເພື່ອຊຳລະ',
     qrInstructions: 'ໃຊ້ແອັບທະນາຄານສະແກນ QR ແລ້ວອັບໂຫລດໃບຮັບເງິນ',
+    qrCode: 'ລະຫັດ QR',
     uploadReceipt: 'ອັບໂຫລດໃບຮັບ',
     receiptUploaded: 'ອັບໂຫລດແລ້ວ ລໍຖ້າກວດສອບ',
     verifying: 'ກຳລັງກວດສອບ…',
@@ -108,6 +126,7 @@ const lo: Translations = {
     transferTo: 'ໂອນໄປ',
     amount: 'ຈຳນວນ',
     reference: 'ລະຫັດອ້າງອີງ',
+    method: 'ວິທີຊຳລະ',
   },
 
   orders: {
@@ -121,13 +140,27 @@ const lo: Translations = {
     courier: 'ຜູ້ສົ່ງ',
     trackingNumber: 'ລະຫັດຕິດຕາມ',
     estimatedDelivery: 'ກຳນົດສົ່ງ',
+    notFound: 'ບໍ່ພົບຄຳສັ່ງຊື້',
+    items: 'ລາຍການ',
+    manageAll: 'ເບິ່ງຄຳສັ່ງຊື້ທັງໝົດຂອງທ່ານ',
   },
 
   auth: {
     signIn: 'ເຂົ້າສູ່ລະບົບ',
     signUp: 'ສ້າງບັນຊີ',
+    emailMethod: 'ອີເມລ',
+    phoneOtpMethod: 'OTP ໂທລະສັບ',
     phone: 'ເບີໂທລະສັບ',
     email: 'ອີເມລ',
+    password: 'ລະຫັດຜ່ານ',
+    passwordPlaceholder: 'ຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ',
+    passwordDots: '••••••••',
+    emailPlaceholder: 'you@example.com',
+    namePlaceholder: 'ຊື່ຂອງທ່ານ',
+    signInWithPhone: 'ເຂົ້າລະບົບດ້ວຍເບີໂທ',
+    codeSentTo: 'ສົ່ງລະຫັດໄປທີ່ {{phone}}',
+    accountCreated: 'ສ້າງບັນຊີແລ້ວ! ຕອນນີ້ທ່ານສາມາດເຂົ້າລະບົບໄດ້.',
+    otpSent: 'ສົ່ງ OTP ແລ້ວ!',
     otp: 'ໃສ່ລະຫັດ OTP',
     sendOtp: 'ສົ່ງ OTP',
     verifyOtp: 'ຢືນຢັນ',
@@ -136,6 +169,32 @@ const lo: Translations = {
     name: 'ຊື່ ແລະ ນາມສະກຸນ',
     haveAccount: 'ມີບັນຊີແລ້ວ?',
     noAccount: 'ຍັງບໍ່ມີບັນຊີ?',
+  },
+
+  sidebar: {
+    browse: 'ເລືອກເບິ່ງ',
+    bestSeller: 'ຂາຍດີ',
+    justArrived: 'ມາໃໝ່',
+    editorPicks: 'ຄັດເລືອກ',
+    allBooks: 'ໜັງສືທັງໝົດ',
+    category: 'ໝວດໝູ່',
+    language: 'ພາສາ',
+    lao: 'ລາວ',
+    english: 'ອັງກິດ',
+    note: 'ປຽບທຽບລາຄາຈາກຮ້ານໜັງສື ສັ່ງຄັ້ງດຽວ ແລ້ວໃຫ້ ບິດດອຍ ປະສານງານສ່ວນທີ່ເຫຼືອ.',
+  },
+
+  profile: {
+    preferences: 'ການຕັ້ງຄ່າ',
+    currency: 'ສະກຸນເງິນ',
+    managePlatform: 'ຈັດການແພລດຟອມ',
+  },
+
+  quotes: {
+    specialDay: 'ມື້ພິເສດ',
+    quoteLabel: 'ຄຳຄົມ {{number}}',
+    previous: 'ຄຳຄົມກ່ອນໜ້າ',
+    next: 'ຄຳຄົມຖັດໄປ',
   },
 
   common: {
@@ -148,6 +207,7 @@ const lo: Translations = {
     edit: 'ແກ້ໄຂ',
     add: 'ເພີ່ມ',
     search: 'ຄົ້ນຫາ',
+    view: 'ເບິ່ງ',
     close: 'ປິດ',
     confirm: 'ຢືນຢັນ',
     back: 'ກັບຄືນ',

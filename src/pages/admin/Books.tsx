@@ -136,9 +136,13 @@ export function AdminBooks() {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">{t('admin.books')}</h1>
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{t('admin.books')}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Manage the book catalog</p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" icon={<Upload className="h-4 w-4" />}>
             {t('admin.importCsv')}
@@ -149,20 +153,21 @@ export function AdminBooks() {
         </div>
       </div>
 
+      {/* Search bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Search books…"
-          className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-4 text-sm focus:border-primary-400 focus:outline-none bg-white"
+          placeholder="Search by title, author or ISBN…"
+          className="w-full rounded-2xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none bg-white shadow-sm transition-shadow focus:shadow-card"
         />
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Book</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
@@ -173,13 +178,18 @@ export function AdminBooks() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {data?.data.map(book => (
-                <tr key={book.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={book.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {/* Portrait book thumbnail */}
+                      <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
                         {book.cover_image_url
                           ? <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center"><BookOpen className="h-4 w-4 text-gray-300" /></div>
+                          : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                              <BookOpen className="h-4 w-4 text-primary-300" />
+                            </div>
+                          )
                         }
                       </div>
                       <div className="min-w-0">
@@ -189,19 +199,27 @@ export function AdminBooks() {
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="text-xs text-gray-500">
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
                       {(book.category as { name_en?: string } | undefined)?.name_en ?? '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">{book.language}</td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">{book.isbn ?? '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(book)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-700">
-                        <Edit2 className="h-4 w-4" />
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => openEdit(book)}
+                        className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setDeleteModal(book)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
+                      <button
+                        onClick={() => setDeleteModal(book)}
+                        className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Remove"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </td>
@@ -210,7 +228,7 @@ export function AdminBooks() {
             </tbody>
           </table>
           {data && data.count > PAGE_SIZE && (
-            <div className="px-4 py-2 border-t border-gray-50">
+            <div className="px-4 py-3 border-t border-gray-50">
               <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
             </div>
           )}
@@ -233,7 +251,7 @@ export function AdminBooks() {
         <form className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="ISBN" {...register('isbn')} />
-            <Input label="Language" {...register('language')} />
+            <Select label="Language" options={langOptions} placeholder="Select language" {...register('language')} />
           </div>
           <Input label="Title" required error={errors.title?.message} {...register('title', { required: true })} />
           <Input label="Author" {...register('author')} />

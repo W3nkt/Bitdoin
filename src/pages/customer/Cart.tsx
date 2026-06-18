@@ -26,14 +26,18 @@ export function Cart() {
   const storeCount = new Set(items.map(i => i.bookstore_id)).size
 
   return (
-    <div className="space-y-4 pb-32">
+    // Extra bottom padding: tab bar (56px) + fixed summary bar (~110px) + buffer
+    <div className="space-y-3 pb-44 md:pb-28">
       <h1 className="text-lg font-bold text-gray-900">{t('cart.title')}</h1>
       <p className="text-xs text-gray-400">
         {t('cart.itemsFrom').replace('{{count}}', String(storeCount))}
       </p>
 
       {items.map(item => (
-        <div key={`${item.book_id}-${item.bookstore_id}`} className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3">
+        <div
+          key={`${item.book_id}-${item.bookstore_id}`}
+          className="bg-white rounded-2xl border border-gray-100 p-3 flex gap-3"
+        >
           {/* Cover */}
           <div className="w-16 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
             {item.book?.cover_image_url ? (
@@ -50,20 +54,23 @@ export function Cart() {
             <p className="text-sm font-semibold text-gray-900 line-clamp-2">{item.book?.title}</p>
             <p className="text-xs text-gray-400 mt-0.5">{item.bookstore?.name}</p>
 
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2.5 flex items-center justify-between">
+              {/* Quantity — touch-friendly buttons */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => updateQty(item.book_id, item.bookstore_id, item.quantity - 1)}
-                  className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
+                  className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  aria-label="Decrease quantity"
                 >
-                  <Minus className="h-3 w-3" />
+                  <Minus className="h-3.5 w-3.5 text-gray-600" />
                 </button>
-                <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+                <span className="text-sm font-semibold w-6 text-center tabular-nums">{item.quantity}</span>
                 <button
                   onClick={() => updateQty(item.book_id, item.bookstore_id, item.quantity + 1)}
-                  className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50"
+                  className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  aria-label="Increase quantity"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-3.5 w-3.5 text-gray-600" />
                 </button>
               </div>
 
@@ -73,7 +80,8 @@ export function Cart() {
                 </p>
                 <button
                   onClick={() => removeItem(item.book_id, item.bookstore_id)}
-                  className="text-red-400 hover:text-red-600"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 active:bg-red-100 transition-colors"
+                  aria-label="Remove item"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -83,8 +91,8 @@ export function Cart() {
         </div>
       ))}
 
-      {/* Summary */}
-      <div className="fixed bottom-16 left-0 right-0 z-20 bg-white border-t border-gray-100 shadow-up">
+      {/* Fixed summary bar — above bottom tab bar on mobile */}
+      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-100 shadow-up">
         <div className="max-w-5xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="text-gray-600">{t('cart.subtotal')}</span>

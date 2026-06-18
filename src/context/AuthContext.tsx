@@ -8,6 +8,8 @@ interface AuthContextValue {
   supabaseUser: SupabaseUser | null
   profile: User | null
   loading: boolean
+  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
+  signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: string | null }>
   signInWithOtp: (phone: string) => Promise<{ error: string | null }>
   verifyOtp: (phone: string, token: string) => Promise<{ error: string | null }>
   signInWithGoogle: () => Promise<void>
@@ -51,6 +53,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  async function signInWithEmail(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error: error?.message ?? null }
+  }
+
+  async function signUpWithEmail(email: string, password: string, name: string) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    })
+    return { error: error?.message ?? null }
+  }
+
   async function signInWithOtp(phone: string) {
     const { error } = await supabase.auth.signInWithOtp({ phone })
     return { error: error?.message ?? null }
@@ -76,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       session, supabaseUser, profile, loading,
-      signInWithOtp, verifyOtp, signInWithGoogle, signOut, refreshProfile,
+      signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signOut, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

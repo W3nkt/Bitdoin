@@ -1,6 +1,6 @@
 const en = {
   // ── App ──────────────────────────────────────────────────────────────────────
-  appName: 'Pwen Books',
+  appName: 'Bitdoin',
   tagline: 'Your book marketplace in Lao PDR',
 
   // ── Navigation ────────────────────────────────────────────────────────────────
@@ -28,6 +28,11 @@ const en = {
     categories: 'Browse Categories',
     recentlyViewed: 'Recently Viewed',
     viewAll: 'View All',
+    emptyBooks: 'No books yet',
+    quotes: {
+      thousandLives: 'A reader lives a thousand lives before he dies.',
+      portableMagic: 'Books are a uniquely portable magic.',
+    },
   },
 
   // ── Catalog ───────────────────────────────────────────────────────────────────
@@ -44,6 +49,8 @@ const en = {
     },
     noResults: 'No books found matching your filters.',
     showing: 'Showing {{count}} books',
+    sortTitle: 'Title A-Z',
+    clearSearch: 'Clear search',
   },
 
   // ── Book ──────────────────────────────────────────────────────────────────────
@@ -64,6 +71,8 @@ const en = {
     category: 'Category',
     description: 'Description',
     relatedBooks: 'You May Also Like',
+    notFound: 'Book not found.',
+    margin: 'margin',
   },
 
   // ── Cart ──────────────────────────────────────────────────────────────────────
@@ -87,6 +96,13 @@ const en = {
     deliveryInfo: 'Delivery Information',
     fullName: 'Full Name',
     phone: 'Phone Number',
+    logisticsProvider: 'Logistics Company',
+    province: 'Province',
+    district: 'District',
+    selectLogistics: 'Select logistics company',
+    selectProvince: 'Select province',
+    selectDistrict: 'Select district',
+    addressDetail: 'Village, street, landmark, or pickup point',
     address: 'Delivery Address',
     notes: 'Notes (optional)',
     paymentMethod: 'Payment Method',
@@ -97,6 +113,7 @@ const en = {
     },
     orderSummary: 'Order Summary',
     placeOrder: 'Place Order',
+    orderPlaced: 'Order placed! #{{orderNumber}}',
     total: 'Total',
     confirmOrder: 'Confirm Order',
   },
@@ -105,6 +122,7 @@ const en = {
   payment: {
     qrTitle: 'Scan to Pay',
     qrInstructions: 'Scan the QR code with your banking app, then upload your receipt below.',
+    qrCode: 'QR Code',
     uploadReceipt: 'Upload Receipt',
     receiptUploaded: 'Receipt uploaded. Awaiting verification.',
     verifying: 'Verifying payment…',
@@ -114,6 +132,7 @@ const en = {
     transferTo: 'Transfer to',
     amount: 'Amount',
     reference: 'Reference',
+    method: 'Method',
   },
 
   // ── Orders ────────────────────────────────────────────────────────────────────
@@ -128,14 +147,28 @@ const en = {
     courier: 'Courier',
     trackingNumber: 'Tracking Number',
     estimatedDelivery: 'Est. Delivery',
+    notFound: 'Order not found.',
+    items: 'Items',
+    manageAll: 'View all your orders',
   },
 
   // ── Auth ──────────────────────────────────────────────────────────────────────
   auth: {
     signIn: 'Sign In',
     signUp: 'Create Account',
+    emailMethod: 'Email',
+    phoneOtpMethod: 'Phone OTP',
     phone: 'Phone Number',
     email: 'Email',
+    password: 'Password',
+    passwordPlaceholder: 'Min. 8 characters',
+    passwordDots: '••••••••',
+    emailPlaceholder: 'you@example.com',
+    namePlaceholder: 'Your name',
+    signInWithPhone: 'Sign in with phone',
+    codeSentTo: 'Code sent to {{phone}}',
+    accountCreated: 'Account created! You can now sign in.',
+    otpSent: 'OTP sent!',
     otp: 'Enter OTP',
     sendOtp: 'Send OTP',
     verifyOtp: 'Verify',
@@ -144,6 +177,32 @@ const en = {
     name: 'Full Name',
     haveAccount: 'Already have an account?',
     noAccount: "Don't have an account?",
+  },
+
+  sidebar: {
+    browse: 'Browse',
+    bestSeller: 'Best Seller',
+    justArrived: 'Just Arrived',
+    editorPicks: 'Editor Picks',
+    allBooks: 'All Books',
+    category: 'Category',
+    language: 'Language',
+    lao: 'Lao',
+    english: 'English',
+    note: 'Compare bookstore prices, order once, and let Bitdoin coordinate the rest.',
+  },
+
+  profile: {
+    preferences: 'Preferences',
+    currency: 'Currency',
+    managePlatform: 'Manage the platform',
+  },
+
+  quotes: {
+    specialDay: 'Special Day',
+    quoteLabel: 'Quote {{number}}',
+    previous: 'Previous quote',
+    next: 'Next quote',
   },
 
   // ── Common ────────────────────────────────────────────────────────────────────
@@ -157,6 +216,7 @@ const en = {
     edit: 'Edit',
     add: 'Add',
     search: 'Search',
+    view: 'View',
     close: 'Close',
     confirm: 'Confirm',
     back: 'Back',

@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Pwen Books',
-        short_name: 'Pwen Books',
+        name: 'Bitdoin',
+        short_name: 'Bitdoin',
         description: 'Book marketplace for Lao PDR',
         theme_color: '#1e3a5f',
         background_color: '#ffffff',

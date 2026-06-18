@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import type { Order } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Button } from '@/components/ui/Button'
-import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
 import { formatPrice, formatDateTime, orderStatusLabel, orderStatusColor, paymentStatusLabel, paymentStatusColor } from '@/lib/utils'
@@ -17,7 +16,6 @@ export function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { profile } = useAuth()
   const { currency, language } = useLanguage()
   const { success, error } = useToast()
   const qc = useQueryClient()
@@ -38,18 +36,19 @@ export function OrderDetail() {
   })
 
   if (isLoading) return <LoadingSpinner />
-  if (!order) return <div className="py-12 text-center text-gray-400">Order not found.</div>
+  if (!order) return <div className="py-12 text-center text-gray-400">{t('orders.notFound')}</div>
 
   const payment = order.payments?.[0]
   const delivery = order.deliveries?.[0]
   const needsPayment = order.payment_status === 'PENDING' && payment?.method !== 'CASH_ON_DELIVERY'
+  const paymentMethodLabel = payment ? t(`checkout.paymentMethods.${payment.method}`) : ''
 
   async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !payment) return
     setUploading(true)
     try {
-      const path = `receipts/${order.id}/${Date.now()}-${file.name}`
+      const path = `receipts/${order!.id}/${Date.now()}-${file.name}`
       const { error: uploadErr } = await supabase.storage.from('receipts').upload(path, file)
       if (uploadErr) throw uploadErr
 
@@ -61,7 +60,7 @@ export function OrderDetail() {
         .eq('id', payment.id)
 
       await supabase.functions.invoke('verify-receipt', {
-        body: { payment_id: payment.id, receipt_url: publicUrl, expected_amount: order.total_amount },
+        body: { payment_id: payment.id, receipt_url: publicUrl, expected_amount: order!.total_amount },
       })
 
       await qc.invalidateQueries({ queryKey: ['order', id] })
@@ -95,7 +94,7 @@ export function OrderDetail() {
 
       {/* Items */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700">Items</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('orders.items')}</h3>
         {order.items?.map(item => (
           <div key={item.id} className="flex items-center gap-3">
             <div className="w-10 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
@@ -105,7 +104,7 @@ export function OrderDetail() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.book?.title}</p>
-              <p className="text-xs text-gray-400">{item.bookstore?.name} · qty {item.quantity}</p>
+              <p className="text-xs text-gray-400">{item.bookstore?.name} - {t('cart.qty')} {item.quantity}</p>
             </div>
             <p className="text-sm font-semibold text-gray-800">
               {formatPrice(item.final_price * item.quantity, currency)}
@@ -113,14 +112,14 @@ export function OrderDetail() {
           </div>
         ))}
         <div className="border-t pt-2 flex justify-between text-sm font-bold">
-          <span>Total</span>
+          <span>{t('checkout.total')}</span>
           <span className="text-primary-700">{formatPrice(order.total_amount, currency)}</span>
         </div>
       </div>
 
       {/* Delivery info */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
-        <h3 className="text-sm font-semibold text-gray-700">Delivery</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{t('checkout.deliveryInfo')}</h3>
         <p className="text-sm text-gray-600">{order.customer_name}</p>
         <p className="text-sm text-gray-600">{order.customer_phone}</p>
         <p className="text-sm text-gray-600">{order.delivery_address}</p>
@@ -137,8 +136,8 @@ export function OrderDetail() {
       {/* Payment & Receipt */}
       {payment && (
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-gray-700">Payment</h3>
-          <p className="text-xs text-gray-500">Method: {payment.method.replace('_', ' ')}</p>
+          <h3 className="text-sm font-semibold text-gray-700">{t('checkout.paymentMethod')}</h3>
+          <p className="text-xs text-gray-500">{t('payment.method')}: {paymentMethodLabel}</p>
 
           {payment.verification_status === 'VERIFIED' && (
             <div className="flex items-center gap-2 text-green-700 text-sm font-medium">
@@ -153,7 +152,7 @@ export function OrderDetail() {
                   <p className="text-sm font-semibold text-gray-700">{t('payment.qrTitle')}</p>
                   <p className="text-xs text-gray-400 mt-1">{t('payment.qrInstructions')}</p>
                   <div className="mt-3 w-32 h-32 bg-gray-200 rounded-xl mx-auto flex items-center justify-center text-xs text-gray-400">
-                    QR Code
+                    {t('payment.qrCode')}
                   </div>
                   <p className="mt-2 text-lg font-bold text-primary-700">{formatPrice(order.total_amount, currency)}</p>
                 </div>

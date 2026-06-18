@@ -83,72 +83,82 @@ export function AdminOrders() {
   ]
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">{t('admin.orders')}</h1>
-        {data && <p className="text-sm text-gray-400">{data.count} orders</p>}
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">{t('admin.orders')}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {data ? `${data.count} orders total` : 'Manage customer orders'}
+          </p>
+        </div>
       </div>
 
+      {/* Search + filter row */}
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search order # or customer…"
-            className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-4 text-sm focus:outline-none focus:border-primary-400 bg-white"
+            className="w-full rounded-2xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:border-primary-400 bg-white shadow-sm transition-shadow focus:shadow-card"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-          className="rounded-xl border border-gray-200 bg-white px-3 text-sm focus:outline-none"
-        >
-          {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <div className="relative">
+          <select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
+            className="appearance-none rounded-2xl border border-gray-200 bg-white pl-3.5 pr-9 py-2.5 text-sm focus:outline-none focus:border-primary-400 shadow-sm cursor-pointer"
+          >
+            {statusOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        </div>
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Order</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Customer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase hidden lg:table-cell">Payment</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Customer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Payment</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {data?.data.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50">
+                <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="text-xs font-mono font-medium text-gray-900">{order.order_number}</p>
-                    <p className="text-xs text-gray-400">{formatDateTime(order.created_at)}</p>
+                    <p className="text-xs font-mono font-semibold text-gray-900">{order.order_number}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(order.created_at)}</p>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <p className="text-xs text-gray-700">{order.customer_name}</p>
+                    <p className="text-xs font-medium text-gray-700">{order.customer_name}</p>
                     <p className="text-xs text-gray-400">{order.customer_phone}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', orderStatusColor(order.status))}>
+                    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', orderStatusColor(order.status))}>
                       {orderStatusLabel(order.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', paymentStatusColor(order.payment_status))}>
+                    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', paymentStatusColor(order.payment_status))}>
                       {paymentStatusLabel(order.payment_status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-xs font-semibold text-gray-800">
+                  <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
                     {formatPrice(order.total_amount)}
                   </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => { setDetailOrder(order); setNewStatus(order.status) }}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-700"
+                      className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                      title="View order"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
@@ -158,7 +168,7 @@ export function AdminOrders() {
             </tbody>
           </table>
           {data && data.count > PAGE_SIZE && (
-            <div className="px-4 py-2 border-t">
+            <div className="px-4 py-3 border-t border-gray-50">
               <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
             </div>
           )}
@@ -176,9 +186,9 @@ export function AdminOrders() {
         }
       >
         {orderDetail ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Status updater */}
-            <div className="flex gap-3 items-end p-3 bg-gray-50 rounded-xl">
+            <div className="flex gap-3 items-end p-4 bg-gray-50 rounded-2xl border border-gray-100">
               <div className="flex-1">
                 <Select
                   label="Update Status"
@@ -190,30 +200,32 @@ export function AdminOrders() {
               <Button size="sm" loading={updating} onClick={updateStatus}>Update</Button>
             </div>
 
-            {/* Items */}
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Items</h4>
-              {orderDetail.items?.map(item => (
-                <div key={item.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{item.book?.title}</p>
-                    <p className="text-xs text-gray-400">{item.bookstore?.name} · qty {item.quantity}</p>
-                  </div>
-                  <p className="text-sm font-semibold">{formatPrice(item.final_price * item.quantity)}</p>
-                </div>
-              ))}
+            {/* Customer + address */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Customer</p>
+                <p className="text-sm font-semibold text-gray-800">{orderDetail.customer_name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{orderDetail.customer_phone}</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Delivery Address</p>
+                <p className="text-sm text-gray-700 leading-relaxed">{orderDetail.delivery_address}</p>
+              </div>
             </div>
 
-            {/* Customer */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-gray-400">Customer</p>
-                <p className="font-medium">{orderDetail.customer_name}</p>
-                <p className="text-gray-500">{orderDetail.customer_phone}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Delivery Address</p>
-                <p className="font-medium">{orderDetail.delivery_address}</p>
+            {/* Items */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Items</p>
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                {orderDetail.items?.map(item => (
+                  <div key={item.id} className="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{item.book?.title}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{item.bookstore?.name} · qty {item.quantity}</p>
+                    </div>
+                    <p className="text-sm font-bold text-gray-900">{formatPrice(item.final_price * item.quantity)}</p>
+                  </div>
+                ))}
               </div>
             </div>
 

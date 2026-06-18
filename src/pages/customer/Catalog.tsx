@@ -1,19 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { SlidersHorizontal, X, Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Book, Category, SearchFilters } from '@/types'
 import { BookCard } from '@/components/ui/BookCard'
+import { BrowseSidebar } from '@/components/ui/BrowseSidebar'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
 import { Pagination } from '@/components/ui/Pagination'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
 
-const PAGE_SIZE = 12
+const PAGE_SIZE = 15
 
 export function Catalog() {
   const { t } = useTranslation()
@@ -21,11 +20,11 @@ export function Catalog() {
   const { addItem } = useCart()
   const { success } = useToast()
 
-  const [showFilters, setShowFilters] = useState(false)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>({
     query: searchParams.get('q') ?? '',
     category_id: searchParams.get('category') ?? '',
+    language: searchParams.get('language') ?? '',
   })
   const [sort, setSort] = useState('newest')
 
@@ -34,6 +33,7 @@ export function Catalog() {
       ...prev,
       query: searchParams.get('q') ?? '',
       category_id: searchParams.get('category') ?? '',
+      language: searchParams.get('language') ?? '',
     }))
     setPage(1)
   }, [searchParams])
@@ -61,8 +61,7 @@ export function Catalog() {
       if (filters.language) query = query.eq('language', filters.language)
       if (filters.isbn) query = query.eq('isbn', filters.isbn)
 
-      if (sort === 'newest') query = query.order('created_at', { ascending: false })
-      else if (sort === 'priceAsc') query = query.order('id')
+      if (sort === 'title') query = query.order('title', { ascending: true })
       else query = query.order('created_at', { ascending: false })
 
       const from = (page - 1) * PAGE_SIZE
@@ -80,11 +79,12 @@ export function Catalog() {
     const params = new URLSearchParams()
     if (next.query) params.set('q', next.query)
     if (next.category_id) params.set('category', next.category_id)
+    if (next.language) params.set('language', next.language)
     setSearchParams(params)
   }
 
   function clearFilters() {
-    setFilters({ query: '', category_id: '' })
+    setFilters({ query: '', category_id: '', language: '' })
     setSearchParams({})
     setPage(1)
   }
@@ -104,122 +104,91 @@ export function Catalog() {
     success(book.title)
   }
 
-  const hasFilters = !!(filters.query || filters.category_id || filters.language || filters.min_price)
+  const hasFilters = !!(filters.query || filters.category_id || filters.language)
 
   return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            value={filters.query ?? ''}
-            onChange={e => applyFilters({ query: e.target.value })}
-            placeholder={t('home.searchPlaceholder')}
-            className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
-          />
-          {filters.query && (
-            <button
-              onClick={() => applyFilters({ query: '' })}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-            >
-              <X className="h-4 w-4 text-gray-400" />
-            </button>
-          )}
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 hover:border-primary-400 transition-colors"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          {t('catalog.filters')}
-          {hasFilters && <span className="h-2 w-2 rounded-full bg-accent-500" />}
-        </button>
-        <select
-          value={sort}
-          onChange={e => setSort(e.target.value)}
-          className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-600 focus:outline-none"
-        >
-          <option value="newest">{t('catalog.sortOptions.newest')}</option>
-          <option value="priceAsc">{t('catalog.sortOptions.priceAsc')}</option>
-          <option value="priceDesc">{t('catalog.sortOptions.priceDesc')}</option>
-        </select>
-      </div>
+    <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
+      <BrowseSidebar
+        categories={categories}
+        activeCategoryId={filters.category_id}
+        onSelectCategory={categoryId => applyFilters({ category_id: categoryId })}
+        onSelectQuickLink={value => setSort(value === 'newest' ? 'newest' : 'title')}
+        showFilters
+        activeLanguage={filters.language}
+        onSelectLanguage={language => applyFilters({ language })}
+        className="lg:sticky lg:top-16"
+      />
 
-      {/* Filters panel */}
-      {showFilters && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
-          <div>
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Category</label>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button
-                onClick={() => applyFilters({ category_id: '' })}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                  !filters.category_id ? 'bg-primary-700 text-white border-primary-700' : 'border-gray-200 text-gray-600'
-                }`}
-              >
-                {t('common.all')}
-              </button>
-              {categories?.map(cat => (
+      <div className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-accent-600">{t('catalog.title')}</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={filters.query ?? ''}
+                onChange={e => applyFilters({ query: e.target.value })}
+                placeholder={t('home.searchPlaceholder')}
+                className="h-11 w-full border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
+              />
+              {filters.query && (
                 <button
-                  key={cat.id}
-                  onClick={() => applyFilters({ category_id: cat.id })}
-                  className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                    filters.category_id === cat.id ? 'bg-primary-700 text-white border-primary-700' : 'border-gray-200 text-gray-600'
-                  }`}
+                  onClick={() => applyFilters({ query: '' })}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                  aria-label={t('catalog.clearSearch')}
                 >
-                  {cat.name_en}
+                  <X className="h-4 w-4" />
                 </button>
-              ))}
+              )}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Min Price (LAK)"
-              type="number"
-              value={filters.min_price ?? ''}
-              onChange={e => applyFilters({ min_price: e.target.value ? Number(e.target.value) : undefined })}
-            />
-            <Input
-              label="Max Price (LAK)"
-              type="number"
-              value={filters.max_price ?? ''}
-              onChange={e => applyFilters({ max_price: e.target.value ? Number(e.target.value) : undefined })}
-            />
+
+          <div className="flex items-center gap-2">
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="h-10 px-3 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900"
+              >
+                {t('catalog.clearFilters')}
+              </button>
+            )}
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value)}
+              className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
+            >
+              <option value="newest">{t('catalog.sortOptions.newest')}</option>
+              <option value="title">{t('catalog.sortTitle')}</option>
+            </select>
           </div>
-          {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-4 w-4" /> {t('catalog.clearFilters')}
-            </Button>
-          )}
         </div>
-      )}
 
-      {/* Results count */}
-      {data && (
-        <p className="text-xs text-gray-500">
-          {t('catalog.showing').replace('{{count}}', String(data.count))}
-        </p>
-      )}
+        {data && (
+          <p className="mb-4 text-xs text-slate-500">
+            {t('catalog.showing').replace('{{count}}', String(data.count))}
+          </p>
+        )}
 
-      {/* Grid */}
-      {isLoading ? (
-        <LoadingSpinner />
-      ) : data?.data.length === 0 ? (
-        <div className="py-16 text-center text-gray-400">
-          <p className="text-sm">{t('catalog.noResults')}</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {data?.data.map(book => (
-            <BookCard key={book.id} book={book} onAddToCart={handleAddToCart} />
-          ))}
-        </div>
-      )}
+        {isLoading ? (
+          <div className="flex justify-center py-16"><LoadingSpinner /></div>
+        ) : data?.data.length === 0 ? (
+          <div className="py-16 text-center text-slate-400">
+            <p className="text-sm">{t('catalog.noResults')}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {data?.data.map(book => (
+              <BookCard key={book.id} book={book} onAddToCart={handleAddToCart} compact />
+            ))}
+          </div>
+        )}
 
-      {data && data.count > PAGE_SIZE && (
-        <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
-      )}
+        {data && data.count > PAGE_SIZE && (
+          <div className="mt-8">
+            <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

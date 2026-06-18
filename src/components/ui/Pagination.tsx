@@ -18,11 +18,12 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
         className={cn(
-          'rounded-lg p-2 transition-colors',
-          page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600',
+          'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+          page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600 active:bg-gray-200',
         )}
+        aria-label="Previous page"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-5 w-5" />
       </button>
 
       {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
@@ -30,10 +31,10 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
           key={p}
           onClick={() => onChange(p)}
           className={cn(
-            'h-8 w-8 rounded-lg text-sm font-medium transition-colors',
+            'h-10 w-10 rounded-xl text-sm font-medium transition-colors',
             p === page
               ? 'bg-primary-700 text-white'
-              : 'text-gray-600 hover:bg-gray-100',
+              : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
           )}
         >
           {p}
@@ -44,11 +45,12 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
         disabled={page >= totalPages}
         onClick={() => onChange(page + 1)}
         className={cn(
-          'rounded-lg p-2 transition-colors',
-          page >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600',
+          'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+          page >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600 active:bg-gray-200',
         )}
+        aria-label="Next page"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-5 w-5" />
       </button>
     </div>
   )

@@ -256,6 +256,9 @@ export interface LocalCart {
 export interface CheckoutForm {
   full_name: string
   phone: string
+  logistics_provider: string
+  province: string
+  district: string
   delivery_address: string
   notes?: string
   payment_method: PaymentMethod

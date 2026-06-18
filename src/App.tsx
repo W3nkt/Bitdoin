@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
@@ -40,8 +40,10 @@ const qc = new QueryClient({
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { profile, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <PageLoader />
-  if (!profile || profile.role === 'CUSTOMER') return <Navigate to="/" replace />
+  if (!profile) return <Navigate to="/auth" state={{ from: location.pathname }} replace />
+  if (profile.role === 'CUSTOMER') return <Navigate to="/" replace />
   return <>{children}</>
 }
 

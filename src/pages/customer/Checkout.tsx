@@ -1,27 +1,58 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Bus } from 'lucide-react'
 import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
-import { Input, Textarea, Select } from '@/components/ui/Input'
+import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { formatPrice, generateOrderNumber } from '@/lib/utils'
 import type { CheckoutForm, PaymentMethod } from '@/types'
 
 const schema = z.object({
   full_name: z.string().min(2),
   phone: z.string().min(8),
+  logistics_provider: z.string().min(1),
+  province: z.string().min(1),
+  district: z.string().min(1),
   delivery_address: z.string().min(10),
   notes: z.string().optional(),
   payment_method: z.enum(['QR_PAYMENT', 'BANK_TRANSFER', 'CASH_ON_DELIVERY']),
   language: z.enum(['lo', 'en']),
 })
+
+const logisticsOptions = [
+  {
+    value: 'HAL Logistics',
+    label_en: 'HAL Logistics',
+    label_lo: 'ຮຸ່ງອາລຸນ ຂົນສົ່ງດ່ວນ',
+    logo: '/icons/HAL.png',
+  },
+  {
+    value: 'Unitel Logistics',
+    label_en: 'Unitel Logistics',
+    label_lo: 'ຢູນີເທວ ຂົນສົ່ງດ່ວນ',
+    logo: '/icons/Unitel.png',
+  },
+  {
+    value: 'Anousith Express',
+    label_en: 'Anousith Express',
+    label_lo: 'ອານຸສິດ ຂົນສົ່ງດ່ວນ',
+    logo: '/icons/Anousith.png',
+  },
+  {
+    value: 'Bus',
+    label_en: 'Bus',
+    label_lo: 'ຝາກລົດເມ',
+  },
+]
 
 export function Checkout() {
   const { t } = useTranslation()
@@ -32,17 +63,37 @@ export function Checkout() {
   const { success, error } = useToast()
   const [placing, setPlacing] = useState(false)
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<CheckoutForm>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
     defaultValues: {
       full_name: profile?.name ?? '',
       phone: profile?.phone ?? '',
       language,
       payment_method: 'QR_PAYMENT',
+      logistics_provider: '',
+      province: '',
+      district: '',
     },
   })
 
   const paymentMethod = watch('payment_method')
+  const selectedProvinceId = watch('province')
+  const selectedLogistics = watch('logistics_provider')
+
+  const provinceOptions = useMemo(() => LAOS_ADMIN_DIVISIONS.map(province => ({
+    value: province.id,
+    label: language === 'lo' ? province.name_lo : province.name_en,
+  })), [language])
+
+  const selectedProvince = LAOS_ADMIN_DIVISIONS.find(province => province.id === selectedProvinceId)
+  const districtOptions = selectedProvince?.districts.map(district => ({
+    value: district.code,
+    label: language === 'lo' ? district.name_lo : district.name_en,
+  })) ?? []
+
+  useEffect(() => {
+    setValue('district', '')
+  }, [selectedProvinceId, setValue])
 
   if (items.length === 0) {
     navigate('/cart')
@@ -55,6 +106,19 @@ export function Checkout() {
     try {
       const orderNumber = generateOrderNumber()
       const total = subtotal()
+      const provinceLabel = selectedProvince
+        ? language === 'lo' ? selectedProvince.name_lo : selectedProvince.name_en
+        : form.province
+      const selectedDistrict = selectedProvince?.districts.find(district => district.code === form.district)
+      const districtLabel = selectedDistrict
+        ? language === 'lo' ? selectedDistrict.name_lo : selectedDistrict.name_en
+        : form.district
+      const deliveryAddress = [
+        `${t('checkout.logisticsProvider')}: ${form.logistics_provider}`,
+        `${t('checkout.province')}: ${provinceLabel}`,
+        `${t('checkout.district')}: ${districtLabel}`,
+        `${t('checkout.address')}: ${form.delivery_address}`,
+      ].join('\n')
 
       const { data: order, error: orderErr } = await supabase
         .from('orders')
@@ -68,7 +132,7 @@ export function Checkout() {
           currency,
           customer_name: form.full_name,
           customer_phone: form.phone,
-          delivery_address: form.delivery_address,
+          delivery_address: deliveryAddress,
           notes: form.notes,
         })
         .select()
@@ -99,7 +163,7 @@ export function Checkout() {
       })
 
       clearCart()
-      success('Order placed! #' + orderNumber)
+      success(t('checkout.orderPlaced', { orderNumber }))
       navigate(`/orders/${order.id}`)
     } catch {
       error(t('common.error'))
@@ -135,10 +199,74 @@ export function Checkout() {
             error={errors.phone?.message}
             {...register('phone')}
           />
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-700">
+              {t('checkout.logisticsProvider')}<span className="text-red-500 ml-0.5">*</span>
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {logisticsOptions.map(option => (
+                <label
+                  key={option.value}
+                  className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
+                    selectedLogistics === option.value
+                      ? 'border-primary-400 bg-primary-50 text-primary-900'
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    value={option.value}
+                    {...register('logistics_provider')}
+                    className="h-4 w-4 shrink-0 text-primary-700"
+                  />
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-white">
+                    {option.logo ? (
+                      <img
+                        src={option.logo}
+                        alt=""
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <Bus className="h-6 w-6 text-primary-700" aria-hidden="true" />
+                    )}
+                  </span>
+                  <span className="min-w-0 font-medium leading-snug">
+                    {language === 'lo' ? option.label_lo : option.label_en}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {errors.logistics_provider?.message && (
+              <p className="text-xs text-red-600">{errors.logistics_provider.message}</p>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select
+              label={t('checkout.province')}
+              required
+              placeholder={t('checkout.selectProvince')}
+              options={provinceOptions}
+              error={errors.province?.message}
+              {...register('province')}
+            />
+            <Select
+              label={t('checkout.district')}
+              required
+              placeholder={t('checkout.selectDistrict')}
+              options={districtOptions}
+              disabled={!selectedProvince}
+              error={errors.district?.message}
+              {...register('district')}
+            />
+          </div>
+
           <Textarea
             label={t('checkout.address')}
             required
             rows={3}
+            placeholder={t('checkout.addressDetail')}
             error={errors.delivery_address?.message}
             {...register('delivery_address')}
           />

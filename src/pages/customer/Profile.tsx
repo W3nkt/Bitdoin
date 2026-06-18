@@ -11,6 +11,11 @@ export function Profile() {
   const navigate = useNavigate()
   const { profile, signOut } = useAuth()
   const { language, setLanguage, currency, setCurrency } = useLanguage()
+  const roleLabel = profile?.role === 'ADMIN'
+    ? t('nav.admin')
+    : profile?.role === 'CUSTOMER'
+      ? t('nav.profile')
+      : profile?.role
 
   async function handleSignOut() {
     await signOut()
@@ -39,7 +44,7 @@ export function Profile() {
         <h2 className="mt-3 text-lg font-bold text-gray-900">{profile.name}</h2>
         <p className="text-sm text-gray-400">{profile.email ?? profile.phone}</p>
         <span className="mt-1 rounded-full bg-primary-100 px-3 py-0.5 text-xs font-medium text-primary-700">
-          {profile.role}
+          {roleLabel}
         </span>
       </div>
 
@@ -50,18 +55,18 @@ export function Profile() {
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-gray-800">{t('orders.title')}</p>
-          <p className="text-xs text-gray-400">View all your orders</p>
+          <p className="text-xs text-gray-400">{t('orders.manageAll')}</p>
         </div>
       </Card>
 
       {/* Language & Currency */}
       <Card padding>
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Preferences</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('profile.preferences')}</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700">Language</span>
+              <span className="text-sm text-gray-700">{t('book.language')}</span>
             </div>
             <div className="flex rounded-xl border border-gray-200 overflow-hidden">
               {(['lo', 'en'] as const).map(lang => (
@@ -72,7 +77,7 @@ export function Profile() {
                     language === lang ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {lang === 'lo' ? 'ລາວ' : 'ENG'}
+                  {lang === 'lo' ? t('sidebar.lao') : t('sidebar.english')}
                 </button>
               ))}
             </div>
@@ -81,7 +86,7 @@ export function Profile() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-700">Currency</span>
+              <span className="text-sm text-gray-700">{t('profile.currency')}</span>
             </div>
             <div className="flex rounded-xl border border-gray-200 overflow-hidden">
               {(['LAK', 'USD'] as const).map(cur => (
@@ -107,8 +112,8 @@ export function Profile() {
             <Shield className="h-5 w-5 text-purple-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-gray-800">Admin Dashboard</p>
-            <p className="text-xs text-gray-400">Manage the platform</p>
+            <p className="text-sm font-semibold text-gray-800">{t('admin.dashboard')}</p>
+            <p className="text-xs text-gray-400">{t('profile.managePlatform')}</p>
           </div>
         </Card>
       )}

@@ -1,0 +1,1 @@
+Error sending confirmation OTP to provider: The number +856202986XXXX is unverified. Trial accounts cannot send messages to unverified numbers; verify +856202986XXXX at twilio.com/user/account/phone-numbers/verified, or purchase a Twilio number to send messages to unverified numbers More information: https://www.twilio.com/docs/errors/21608

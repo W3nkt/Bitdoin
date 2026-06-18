@@ -1,16 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingUp, CreditCard, Truck, BookOpen, ShoppingBag } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { DollarSign, TrendingUp, CreditCard, Truck, ShoppingBag } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { StatCard } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { formatPrice, formatDate, orderStatusLabel, orderStatusColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 import type { Order } from '@/types'
 
 export function AdminDashboard() {
   const { t } = useTranslation()
+  const { profile } = useAuth()
 
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['admin', 'stats'],
@@ -27,7 +29,7 @@ export function AdminDashboard() {
       const revenue = verifiedPayments.reduce((s, p) => s + Number(p.amount), 0)
       const pendingPayments = payments.filter(p => p.verification_status === 'PENDING').length
       const pendingDeliveries = orders.filter(
-        o => o.status === 'PROCESSING' || o.status === 'READY_FOR_SHIPMENT' || o.status === 'PURCHASED_FROM_BOOKSTORE'
+        o => o.status === 'PROCESSING' || o.status === 'PURCHASING_FROM_BOOKSTORE'
       ).length
 
       return { gmv, revenue, pendingPayments, pendingDeliveries, totalOrders: orders.length }
@@ -55,26 +57,33 @@ export function AdminDashboard() {
         .limit(100)
       if (!data) return []
       const counts: Record<string, { title: string; count: number }> = {}
-      data.forEach((item: { book?: { title?: string }; book_id?: string }) => {
-        const id = item.book_id ?? ''
-        if (!counts[id]) counts[id] = { title: (item.book as { title?: string })?.title ?? '', count: 0 }
+      data.forEach(item => {
+        const id = String(item.book_id ?? '')
+        const bookData = item.book as { title?: string }[] | { title?: string } | null
+        const title = Array.isArray(bookData) ? bookData[0]?.title ?? '' : bookData?.title ?? ''
+        if (!counts[id]) counts[id] = { title, count: 0 }
         counts[id].count++
       })
       return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5)
     },
   })
 
+  const firstName = profile?.name?.split(' ')[0] ?? 'there'
+
   if (loadingStats) return <LoadingSpinner />
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">{t('admin.dashboard')}</h1>
-        <p className="text-sm text-gray-400">Welcome back. Here's what's happening.</p>
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Good morning, {firstName}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Here's what's happening on the platform today.</p>
+        </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      {/* Stats grid — 2 cols mobile, 5 cols desktop */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard
           label={t('admin.gmv')}
           value={formatPrice(stats?.gmv ?? 0)}
@@ -110,7 +119,7 @@ export function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top books chart */}
         {topBooks && topBooks.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <div className="bg-white rounded-2xl shadow-card p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('admin.topBooks')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={topBooks}>
@@ -124,23 +133,29 @@ export function AdminDashboard() {
         )}
 
         {/* Recent orders */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <div className="bg-white rounded-2xl shadow-card p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">Recent Orders</h3>
           <div className="space-y-2">
-            {recentOrders?.map(order => (
-              <div key={order.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-gray-800 text-xs">{order.order_number}</p>
-                  <p className="text-gray-400 text-xs">{formatDate(order.created_at)}</p>
+            {recentOrders?.map(order => {
+              const initial = order.order_number?.charAt(order.order_number.length - 2) ?? '#'
+              return (
+                <div key={order.id} className="flex items-center gap-3 py-1.5">
+                  <div className="h-8 w-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-primary-700">{initial}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-800 text-xs truncate">{order.order_number}</p>
+                    <p className="text-gray-400 text-xs">{formatDate(order.created_at)}</p>
+                  </div>
+                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0', orderStatusColor(order.status))}>
+                    {orderStatusLabel(order.status)}
+                  </span>
+                  <span className="text-xs font-semibold text-gray-800 flex-shrink-0 ml-1">
+                    {formatPrice(order.total_amount)}
+                  </span>
                 </div>
-                <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', orderStatusColor(order.status))}>
-                  {orderStatusLabel(order.status)}
-                </span>
-                <span className="text-xs font-semibold text-gray-800">
-                  {formatPrice(order.total_amount)}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
