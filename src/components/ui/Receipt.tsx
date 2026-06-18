@@ -27,12 +27,28 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
     if (!receiptRef.current) return
     setSaving(true)
     try {
+      await document.fonts?.ready
+      await waitForImages(receiptRef.current)
+
+      const receiptElement = receiptRef.current
       const { default: html2canvas } = await import('html2canvas')
-      const canvas = await html2canvas(receiptRef.current, {
+      const canvas = await html2canvas(receiptElement, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
+        width: receiptElement.scrollWidth,
+        height: receiptElement.scrollHeight,
+        windowWidth: Math.max(document.documentElement.clientWidth, receiptElement.scrollWidth),
+        windowHeight: Math.max(document.documentElement.clientHeight, receiptElement.scrollHeight),
+        onclone: clonedDocument => {
+          const clonedReceipt = clonedDocument.querySelector<HTMLElement>('[data-receipt-capture]')
+          if (clonedReceipt) {
+            clonedReceipt.style.height = 'auto'
+            clonedReceipt.style.maxHeight = 'none'
+          }
+        },
       })
       const link = document.createElement('a')
       link.download = `receipt-${order.order_number}.png`
@@ -46,7 +62,11 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
   return (
     <div className="space-y-3">
       {/* Downloadable receipt card */}
-      <div ref={receiptRef} className="bg-white rounded-2xl border-2 border-primary-100 overflow-hidden">
+      <div
+        ref={receiptRef}
+        data-receipt-capture
+        className="h-auto bg-white rounded-2xl border-2 border-primary-100 overflow-hidden"
+      >
 
         {/* Header */}
         <div className="bg-primary-700 px-5 py-4 flex items-center justify-between">
@@ -85,9 +105,9 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
         {/* Delivery */}
         <div className="px-5 py-4 border-b border-gray-50 space-y-1.5">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('checkout.deliveryInfo')}</p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {deliveryFields.map(field => (
-              <ReceiptRow key={field.key} label={field.label} value={field.value} />
+              <ReceiptRow key={field.key} label={field.label} value={field.value} stacked />
             ))}
           </div>
           {order.deliveries?.[0] && (
@@ -112,12 +132,12 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">{t('orders.items')}</p>
             <div className="space-y-2">
               {order.items.map(item => (
-                <div key={item.id} className="flex justify-between items-start gap-2 text-xs">
-                  <span className="text-gray-600 flex-1 line-clamp-2">
+                <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 text-xs">
+                  <span className="min-w-0 whitespace-normal break-words text-gray-600 leading-relaxed">
                     {item.book?.title}
                     <span className="text-gray-400"> ×{item.quantity}</span>
                   </span>
-                  <span className="font-semibold text-gray-800 flex-shrink-0">
+                  <span className="whitespace-nowrap font-semibold text-gray-800">
                     {formatPrice(item.final_price * item.quantity, currency)}
                   </span>
                 </div>
@@ -177,11 +197,45 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
   )
 }
 
-function ReceiptRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function ReceiptRow({
+  label,
+  value,
+  mono = false,
+  stacked = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  stacked?: boolean
+}) {
+  if (stacked) {
+    return (
+      <div className="text-xs">
+        <p className="font-medium text-gray-400">{label}</p>
+        <p className={`mt-1 whitespace-pre-wrap break-words leading-relaxed text-gray-700 ${mono ? 'font-mono' : ''}`}>
+          {value}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex justify-between items-start gap-4 text-xs">
       <span className="text-gray-400 flex-shrink-0">{label}</span>
-      <span className={`text-gray-700 text-right break-all ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className={`min-w-0 whitespace-pre-wrap break-words text-right text-gray-700 ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </span>
     </div>
   )
+}
+
+async function waitForImages(container: HTMLElement) {
+  const images = Array.from(container.querySelectorAll('img'))
+  await Promise.all(images.map(image => {
+    if (image.complete) return Promise.resolve()
+    return new Promise<void>(resolve => {
+      image.addEventListener('load', () => resolve(), { once: true })
+      image.addEventListener('error', () => resolve(), { once: true })
+    })
+  }))
 }
