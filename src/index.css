@@ -10,7 +10,7 @@
 
   body {
     @apply text-gray-900 antialiased bg-gray-50;
-    font-family: 'Inter', 'Noto Sans Lao', sans-serif;
+    font-family: 'Inter', 'Noto Sans Thai', 'Noto Sans Lao', sans-serif;
   }
 
   * {
@@ -20,6 +20,11 @@
   :lang(lo) {
     font-family: 'Noto Sans Lao', sans-serif;
     line-height: 1.8;
+  }
+
+  :lang(th) {
+    font-family: 'Noto Sans Thai', sans-serif;
+    line-height: 1.65;
   }
 }
 

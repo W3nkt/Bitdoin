@@ -34,8 +34,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'Noto Sans Lao', 'sans-serif'],
+        sans: ['Inter', 'Noto Sans Thai', 'Noto Sans Lao', 'sans-serif'],
         lao:  ['Noto Sans Lao', 'sans-serif'],
+        thai: ['Noto Sans Thai', 'sans-serif'],
       },
       boxShadow: {
         'book':       '0 20px 60px -8px rgba(0,0,0,0.4), 0 6px 20px -4px rgba(0,0,0,0.25)',

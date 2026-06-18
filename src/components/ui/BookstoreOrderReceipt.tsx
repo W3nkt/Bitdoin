@@ -80,7 +80,7 @@ export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderRe
       <div
         ref={ref}
         className="w-[720px] bg-white text-gray-900"
-        style={{ fontFamily: '"Noto Sans Lao", Inter, sans-serif' }}
+        style={{ fontFamily: '"Noto Sans Lao", "Noto Sans Thai", Inter, sans-serif' }}
       >
         <div className="flex items-center justify-between border-b-4 border-[#f59e0b] px-8 py-6">
           <div className="flex h-24 w-72 items-center">

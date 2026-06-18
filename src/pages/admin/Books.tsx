@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Edit2, Trash2, BookOpen, Upload } from 'lucide-react'
@@ -13,6 +13,8 @@ import { Pagination } from '@/components/ui/Pagination'
 import { useToast } from '@/components/ui/Toast'
 
 const PAGE_SIZE = 15
+const MAX_COVER_SIZE = 5 * 1024 * 1024
+const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 interface BookForm {
   isbn: string
@@ -37,8 +39,18 @@ export function AdminBooks() {
   const [deleteModal, setDeleteModal] = useState<Book | null>(null)
   const [editBook, setEditBook] = useState<Book | null>(null)
   const [saving, setSaving] = useState(false)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [coverError, setCoverError] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<BookForm>()
+
+  useEffect(() => {
+    return () => {
+      if (coverPreview?.startsWith('blob:')) URL.revokeObjectURL(coverPreview)
+    }
+  }, [coverPreview])
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -64,6 +76,10 @@ export function AdminBooks() {
   function openAdd() {
     setEditBook(null)
     reset({})
+    setCoverFile(null)
+    setCoverPreview(null)
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
     setModalOpen(true)
   }
 
@@ -80,12 +96,57 @@ export function AdminBooks() {
       pages: book.pages ? String(book.pages) : '',
       publication_date: book.publication_date?.split('T')[0] ?? '',
     })
+    setCoverFile(null)
+    setCoverPreview(book.cover_image_url ?? null)
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
     setModalOpen(true)
+  }
+
+  function closeBookModal() {
+    setModalOpen(false)
+    setCoverFile(null)
+    setCoverPreview(null)
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
+  }
+
+  function handleCoverChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    setCoverError(null)
+
+    if (!file) return
+    if (!ALLOWED_COVER_TYPES.includes(file.type)) {
+      setCoverError('Choose a JPG, PNG, or WebP image.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > MAX_COVER_SIZE) {
+      setCoverError('The cover image must be 5 MB or smaller.')
+      event.target.value = ''
+      return
+    }
+
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+  }
+
+  async function uploadCover(file: File) {
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `covers/${crypto.randomUUID()}.${extension}`
+    const { error: uploadError } = await supabase.storage
+      .from('books')
+      .upload(path, file, { contentType: file.type, upsert: false })
+
+    if (uploadError) throw uploadError
+    const { data: { publicUrl } } = supabase.storage.from('books').getPublicUrl(path)
+    return publicUrl
   }
 
   async function onSubmit(form: BookForm) {
     setSaving(true)
-    const payload = {
+    let uploadedCoverUrl: string | null = null
+    const payload: Record<string, string | number | null> = {
       isbn: form.isbn || null,
       title: form.title,
       author: form.author || null,
@@ -97,6 +158,11 @@ export function AdminBooks() {
       publication_date: form.publication_date || null,
     }
     try {
+      if (coverFile) {
+        uploadedCoverUrl = await uploadCover(coverFile)
+        payload.cover_image_url = uploadedCoverUrl
+      }
+
       if (editBook) {
         const { error: err } = await supabase.from('books').update(payload).eq('id', editBook.id)
         if (err) throw err
@@ -107,9 +173,14 @@ export function AdminBooks() {
         success('Book added')
       }
       await qc.invalidateQueries({ queryKey: ['admin', 'books'] })
-      setModalOpen(false)
-    } catch {
-      error(t('common.error'))
+      closeBookModal()
+    } catch (err) {
+      if (uploadedCoverUrl) {
+        const uploadedPath = uploadedCoverUrl.split('/books/')[1]
+        if (uploadedPath) await supabase.storage.from('books').remove([uploadedPath])
+      }
+      const message = err instanceof Error ? err.message : t('common.error')
+      error(message)
     } finally {
       setSaving(false)
     }
@@ -238,17 +309,49 @@ export function AdminBooks() {
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeBookModal}
         title={editBook ? 'Edit Book' : t('admin.addBook')}
         size="lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="ghost" onClick={closeBookModal}>{t('common.cancel')}</Button>
             <Button loading={saving} onClick={handleSubmit(onSubmit)}>{t('common.save')}</Button>
           </>
         }
       >
         <form className="space-y-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">Book Cover</span>
+            <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+              <div className="flex h-28 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+                {coverPreview ? (
+                  <img src={coverPreview} alt="Book cover preview" className="h-full w-full object-cover" />
+                ) : (
+                  <BookOpen className="h-6 w-6 text-gray-300" />
+                )}
+              </div>
+              <div className="space-y-2">
+                <input
+                  ref={coverInputRef}
+                  id="book-cover"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={handleCoverChange}
+                />
+                <label
+                  htmlFor="book-cover"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                >
+                  <Upload className="h-4 w-4" />
+                  {coverPreview ? 'Change image' : 'Upload image'}
+                </label>
+                <p className="text-xs text-gray-500">JPG, PNG, or WebP. Maximum 5 MB.</p>
+                {coverFile && <p className="max-w-xs truncate text-xs text-gray-600">{coverFile.name}</p>}
+                {coverError && <p className="text-xs text-red-600">{coverError}</p>}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="ISBN" {...register('isbn')} />
             <Select label="Language" options={langOptions} placeholder="Select language" {...register('language')} />
