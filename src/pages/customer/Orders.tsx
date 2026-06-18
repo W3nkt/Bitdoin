@@ -60,10 +60,29 @@ export function Orders() {
         <button
           key={order.id}
           onClick={() => navigate(`/orders/${order.id}`)}
-          className="w-full bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-sm transition-shadow"
+          className="group w-full overflow-hidden rounded-2xl border border-gray-100 bg-white text-left transition-all hover:border-primary-200 hover:shadow-sm"
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
+          <div className="flex min-h-36 items-stretch">
+            <div className="relative w-24 flex-shrink-0 bg-gray-100 sm:w-28">
+              {order.items?.[0]?.book?.cover_image_url ? (
+                <img
+                  src={order.items[0].book.cover_image_url}
+                  alt={order.items[0].book.title}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Package className="h-8 w-8 text-gray-300" />
+                </div>
+              )}
+              {(order.items?.length ?? 0) > 1 && (
+                <span className="absolute bottom-2 right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-gray-950/75 px-1.5 text-[10px] font-bold text-white">
+                  +{(order.items?.length ?? 0) - 1}
+                </span>
+              )}
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col justify-center px-4 py-4">
               <p className="text-xs text-gray-400">{t('orders.orderNumber')}{order.order_number}</p>
               <p className="text-xs text-gray-400 mt-0.5">{t('orders.placedOn')} {formatDate(order.created_at, language)}</p>
 
@@ -76,25 +95,18 @@ export function Orders() {
                 </span>
               </div>
 
-              <div className="mt-2 flex gap-1 overflow-hidden">
-                {order.items?.slice(0, 3).map(item => (
-                  <div key={item.id} className="w-8 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                    {item.book?.cover_image_url && (
-                      <img src={item.book.cover_image_url} alt={item.book.title} className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                ))}
-                {(order.items?.length ?? 0) > 3 && (
-                  <div className="w-8 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400 flex-shrink-0">
-                    +{(order.items?.length ?? 0) - 3}
-                  </div>
-                )}
-              </div>
+              {order.items?.[0]?.book?.title && (
+                <p className="mt-3 line-clamp-1 text-sm font-semibold text-gray-800">
+                  {order.items[0].book.title}
+                </p>
+              )}
             </div>
 
-            <div className="text-right flex-shrink-0">
-              <p className="text-base font-bold text-primary-700">{formatPrice(order.total_amount, currency)}</p>
-              <ChevronRight className="h-4 w-4 text-gray-300 ml-auto mt-1" />
+            <div className="flex flex-shrink-0 flex-col items-end justify-center gap-2 py-4 pl-1 pr-4 text-right">
+              <p className="text-sm font-bold text-primary-700 sm:text-base">
+                {formatPrice(order.total_amount, currency)}
+              </p>
+              <ChevronRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500" />
             </div>
           </div>
         </button>

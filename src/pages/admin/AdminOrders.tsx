@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Eye, ChevronDown } from 'lucide-react'
+import { Search, Eye, ChevronDown, CreditCard, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { Order, OrderStatus } from '@/types'
+import type { Order, OrderItem, OrderStatus } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Input'
 import { Pagination } from '@/components/ui/Pagination'
 import { useToast } from '@/components/ui/Toast'
+import { StorageImage } from '@/components/ui/StorageImage'
+import { BookstoreOrderReceipt } from '@/components/ui/BookstoreOrderReceipt'
 import { formatPrice, formatDateTime, orderStatusLabel, orderStatusColor, paymentStatusLabel, paymentStatusColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +20,7 @@ const PAGE_SIZE = 15
 
 export function AdminOrders() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const { success, error } = useToast()
 
@@ -26,6 +30,9 @@ export function AdminOrders() {
   const [detailOrder, setDetailOrder] = useState<Order | null>(null)
   const [newStatus, setNewStatus] = useState('')
   const [updating, setUpdating] = useState(false)
+  const [receiptItem, setReceiptItem] = useState<OrderItem | null>(null)
+  const [sharingItemId, setSharingItemId] = useState<string | null>(null)
+  const bookstoreReceiptRef = useRef<HTMLDivElement>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', search, statusFilter, page],
@@ -67,6 +74,79 @@ export function AdminOrders() {
       error(t('common.error'))
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function handleBookstoreWhatsApp(item: OrderItem) {
+    if (!orderDetail || !item.bookstore?.whatsapp) return
+
+    const phone = item.bookstore.whatsapp.replace(/\D/g, '')
+    const message = `ສັ່ງປຶມ: ${item.book?.title ?? ''} | ຈຳນວນ: ${item.quantity} ຫົວ | ຂໍ້ມູນການຈັດສົ່ງລະອຽດຢູ່ໃນໃບບິນ`
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+    const fallbackWindow = typeof navigator.share !== 'function'
+      ? window.open('', '_blank')
+      : null
+    if (fallbackWindow) fallbackWindow.opener = null
+
+    setReceiptItem(item)
+    setSharingItemId(item.id)
+
+    try {
+      await new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+      await document.fonts?.ready
+      if (!bookstoreReceiptRef.current) throw new Error('Receipt is not ready')
+
+      const { default: html2canvas } = await import('html2canvas')
+      const canvas = await html2canvas(bookstoreReceiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(result => {
+          if (result) resolve(result)
+          else reject(new Error('Could not create receipt image'))
+        }, 'image/png')
+      })
+      const filename = `bookstore-order-${orderDetail.order_number}.png`
+      const file = new File([blob], filename, { type: 'image/png' })
+
+      if (navigator.canShare?.({ files: [file] })) {
+        fallbackWindow?.close()
+        await navigator.share({
+          files: [file],
+          title: `Order ${orderDetail.order_number}`,
+          text: message,
+        })
+        success('Bookstore receipt shared')
+        return
+      }
+
+      const objectUrl = URL.createObjectURL(blob)
+      const download = document.createElement('a')
+      download.href = objectUrl
+      download.download = filename
+      download.click()
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+
+      if (fallbackWindow) {
+        fallbackWindow.location.href = whatsappUrl
+      } else {
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+      }
+      success('Receipt downloaded. Attach it to the opened WhatsApp message.')
+    } catch (shareError) {
+      fallbackWindow?.close()
+      if ((shareError as DOMException)?.name !== 'AbortError') {
+        console.error('[handleBookstoreWhatsApp]', shareError)
+        error(t('common.error'))
+      }
+    } finally {
+      setSharingItemId(null)
     }
   }
 
@@ -125,14 +205,18 @@ export function AdminOrders() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Customer</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Payment</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Payment</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {data?.data.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                <tr
+                  key={order.id}
+                  className="hover:bg-gray-50/80 transition-colors cursor-pointer"
+                  onClick={() => { setDetailOrder(order); setNewStatus(order.status) }}
+                >
                   <td className="px-4 py-3">
                     <p className="text-xs font-mono font-semibold text-gray-900">{order.order_number}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(order.created_at)}</p>
@@ -146,7 +230,7 @@ export function AdminOrders() {
                       {orderStatusLabel(order.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
+                  <td className="px-4 py-3 hidden md:table-cell">
                     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', paymentStatusColor(order.payment_status))}>
                       {paymentStatusLabel(order.payment_status)}
                     </span>
@@ -154,7 +238,7 @@ export function AdminOrders() {
                   <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
                     {formatPrice(order.total_amount)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => { setDetailOrder(order); setNewStatus(order.status) }}
                       className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
@@ -231,16 +315,72 @@ export function AdminOrders() {
 
             {/* WhatsApp message to bookstores */}
             {orderDetail.items?.map(item => item.bookstore?.whatsapp && (
-              <a
+              <button
+                type="button"
                 key={item.id}
-                href={`https://wa.me/${item.bookstore.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Book: ${item.book?.title} | Qty: ${item.quantity} | Order: ${orderDetail.order_number} | Please confirm availability.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs text-green-600 hover:text-green-700 py-1"
+                onClick={() => handleBookstoreWhatsApp(item)}
+                disabled={sharingItemId !== null}
+                className="flex items-center gap-2 py-1 text-left text-xs font-medium text-green-600 transition-colors hover:text-green-700 disabled:cursor-wait disabled:opacity-50"
               >
-                📱 WhatsApp {item.bookstore.name}
-              </a>
+                <MessageCircle className="h-4 w-4" />
+                {sharingItemId === item.id ? 'ກຳລັງສ້າງໃບສັ່ງ...' : `WhatsApp ${item.bookstore.name}`}
+              </button>
             ))}
+
+            {receiptItem && (
+              <div className="pointer-events-none fixed left-[-10000px] top-0">
+                <BookstoreOrderReceipt
+                  ref={bookstoreReceiptRef}
+                  order={orderDetail}
+                  item={receiptItem}
+                />
+              </div>
+            )}
+
+            {/* Payment status */}
+            {orderDetail.payments?.[0] && orderDetail.payments[0].method !== 'CASH_ON_DELIVERY' && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Payment</p>
+                <div className={cn(
+                  'rounded-xl border p-3 flex items-center justify-between gap-3',
+                  orderDetail.payments[0].verification_status === 'REQUIRES_REVIEW'
+                    ? 'bg-orange-50 border-orange-200'
+                    : orderDetail.payments[0].verification_status === 'VERIFIED'
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-gray-50 border-gray-100'
+                )}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CreditCard className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-gray-400">{orderDetail.payments[0].method.replace(/_/g, ' ')}</p>
+                      <span className={cn(
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
+                        paymentStatusColor(orderDetail.payments[0].verification_status as Parameters<typeof paymentStatusLabel>[0])
+                      )}>
+                        {paymentStatusLabel(orderDetail.payments[0].verification_status as Parameters<typeof paymentStatusLabel>[0])}
+                      </span>
+                    </div>
+                  </div>
+                  {orderDetail.payments[0].verification_status === 'REQUIRES_REVIEW' && (
+                    <Button
+                      size="sm"
+                      onClick={() => { setDetailOrder(null); navigate('/admin/payments') }}
+                    >
+                      Review →
+                    </Button>
+                  )}
+                </div>
+                {orderDetail.payments[0].receipt_image_url && (
+                  <div className="mt-2 rounded-xl overflow-hidden border border-gray-100">
+                    <StorageImage
+                      src={orderDetail.payments[0].receipt_image_url}
+                      alt="Payment receipt"
+                      className="w-full max-h-40 object-contain bg-gray-50"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : <LoadingSpinner />}
       </Modal>

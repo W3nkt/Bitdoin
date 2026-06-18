@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, Eye } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, ReceiptText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { Payment } from '@/types'
+import type { Order, Payment } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Receipt } from '@/components/ui/Receipt'
+import { StorageImage } from '@/components/ui/StorageImage'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
+import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice, formatDateTime, paymentStatusLabel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -18,9 +21,11 @@ export function AdminPayments() {
   const qc = useQueryClient()
   const { profile } = useAuth()
   const { success, error } = useToast()
+  const { currency, language } = useLanguage()
 
   const [tab, setTab] = useState<'pending' | 'all'>('pending')
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null)
+  const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [actioning, setActioning] = useState(false)
 
@@ -29,12 +34,26 @@ export function AdminPayments() {
     queryFn: async () => {
       let q = supabase
         .from('payments')
-        .select('*, order:orders(order_number, total_amount, customer_name, customer_phone), user:users(name)')
+        .select('*, order:orders(order_number, total_amount, customer_name, customer_phone)')
         .order('created_at', { ascending: false })
       if (tab === 'pending') q = q.in('verification_status', ['PENDING', 'REQUIRES_REVIEW'])
       const { data } = await q
       return (data ?? []) as Payment[]
     },
+  })
+
+  // Fetch full order with items for the receipt modal
+  const { data: receiptOrder, isLoading: loadingReceiptOrder } = useQuery({
+    queryKey: ['admin', 'receipt-order', receiptPayment?.order_id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('*, items:order_items(*, book:books(*), bookstore:bookstores(name)), payments(*), deliveries(*)')
+        .eq('id', receiptPayment!.order_id)
+        .single()
+      return data as Order
+    },
+    enabled: !!receiptPayment,
   })
 
   async function verifyPayment(payment: Payment) {
@@ -104,7 +123,7 @@ export function AdminPayments() {
         </div>
       </div>
 
-      {/* Pill-style tab switcher with count badge */}
+      {/* Pill-style tab switcher */}
       <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit">
         <button
           onClick={() => setTab('pending')}
@@ -115,13 +134,10 @@ export function AdminPayments() {
           }`}
         >
           Needs Review
-          {tab === 'pending' && pendingCount > 0 && (
-            <span className="inline-flex items-center justify-center h-4 min-w-4 rounded-full bg-accent-500 text-white text-[10px] font-bold px-1">
-              {pendingCount}
-            </span>
-          )}
-          {tab !== 'pending' && pendingCount > 0 && (
-            <span className="inline-flex items-center justify-center h-4 min-w-4 rounded-full bg-orange-100 text-orange-600 text-[10px] font-bold px-1">
+          {pendingCount > 0 && (
+            <span className={`inline-flex items-center justify-center h-4 min-w-4 rounded-full text-[10px] font-bold px-1 ${
+              tab === 'pending' ? 'bg-accent-500 text-white' : 'bg-orange-100 text-orange-600'
+            }`}>
               {pendingCount}
             </span>
           )}
@@ -154,7 +170,11 @@ export function AdminPayments() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {payments?.map(payment => (
-                <tr key={payment.id} className="hover:bg-gray-50/60 transition-colors">
+                <tr
+                  key={payment.id}
+                  className="hover:bg-gray-50/80 transition-colors cursor-pointer"
+                  onClick={() => setDetailPayment(payment)}
+                >
                   <td className="px-4 py-3">
                     <p className="text-xs font-mono font-semibold text-gray-900">
                       {(payment.order as { order_number?: string } | undefined)?.order_number ?? '—'}
@@ -183,7 +203,6 @@ export function AdminPayments() {
                   <td className="px-4 py-3 hidden lg:table-cell">
                     {payment.ai_confidence_score !== null && payment.ai_confidence_score !== undefined ? (
                       <div className="flex items-center gap-2">
-                        {/* Progress bar indicator */}
                         <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
@@ -202,14 +221,25 @@ export function AdminPayments() {
                       <span className="text-xs text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setDetailPayment(payment)}
-                      className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
-                      title="Review payment"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1">
+                      {payment.verification_status === 'VERIFIED' && (
+                        <button
+                          onClick={() => setReceiptPayment(payment)}
+                          className="p-2 rounded-xl hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
+                          title="View receipt"
+                        >
+                          <ReceiptText className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setDetailPayment(payment)}
+                        className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        title="Review payment"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -218,7 +248,7 @@ export function AdminPayments() {
         </div>
       )}
 
-      {/* Detail modal */}
+      {/* Payment review modal */}
       <Modal
         open={!!detailPayment}
         onClose={() => { setDetailPayment(null); setRejectionReason('') }}
@@ -280,11 +310,11 @@ export function AdminPayments() {
               )}
             </div>
 
-            {/* Receipt image with rounded corners */}
+            {/* Receipt image */}
             {detailPayment.receipt_image_url && (
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Receipt</p>
-                <img
+                <StorageImage
                   src={detailPayment.receipt_image_url}
                   alt="Receipt"
                   className="w-full max-h-72 object-contain rounded-2xl border border-gray-100 shadow-sm"
@@ -292,6 +322,7 @@ export function AdminPayments() {
               </div>
             )}
 
+            {/* Action buttons for pending / needs-review payments */}
             {(detailPayment.verification_status === 'PENDING' || detailPayment.verification_status === 'REQUIRES_REVIEW') && (
               <div className="space-y-3 pt-1 border-t border-gray-100">
                 <Input
@@ -300,7 +331,6 @@ export function AdminPayments() {
                   value={rejectionReason}
                   onChange={e => setRejectionReason(e.target.value)}
                 />
-                {/* Verify on right (primary action), reject on left (danger) */}
                 <div className="flex gap-3">
                   <Button
                     variant="danger"
@@ -322,7 +352,47 @@ export function AdminPayments() {
                 </div>
               </div>
             )}
+
+            {/* For already-verified payments in the review modal, offer receipt view */}
+            {detailPayment.verification_status === 'VERIFIED' && (
+              <div className="pt-1 border-t border-gray-100">
+                <Button
+                  fullWidth
+                  variant="outline"
+                  icon={<ReceiptText className="h-4 w-4" />}
+                  onClick={() => { setDetailPayment(null); setReceiptPayment(detailPayment) }}
+                >
+                  View & Download Receipt
+                </Button>
+              </div>
+            )}
           </div>
+        )}
+      </Modal>
+
+      {/* Receipt modal */}
+      <Modal
+        open={!!receiptPayment}
+        onClose={() => setReceiptPayment(null)}
+        title="Payment Receipt"
+        size="lg"
+        footer={
+          <Button variant="ghost" onClick={() => setReceiptPayment(null)}>{t('common.close')}</Button>
+        }
+      >
+        {receiptPayment && (
+          loadingReceiptOrder ? (
+            <LoadingSpinner />
+          ) : receiptOrder ? (
+            <Receipt
+              order={receiptOrder}
+              payment={receiptOrder.payments?.[0] ?? receiptPayment}
+              language={language}
+              currency={currency}
+            />
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">{t('orders.notFound')}</p>
+          )
         )}
       </Modal>
     </div>

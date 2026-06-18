@@ -1,0 +1,187 @@
+import { useRef, useState } from 'react'
+import { CheckCircle, Download, ExternalLink } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import type { Order, Payment, Language, Currency } from '@/types'
+import { Button } from './Button'
+import { publicAsset } from '@/lib/assets'
+import { localizeDeliveryAddress } from '@/lib/deliveryAddress'
+import { formatPrice, formatDate, formatDateTime } from '@/lib/utils'
+
+interface ReceiptProps {
+  order: Order
+  payment: Payment
+  language?: Language
+  currency?: Currency
+}
+
+export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: ReceiptProps) {
+  const { t } = useTranslation()
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const [saving, setSaving] = useState(false)
+
+  const verifiedAt = payment.reviewed_at ?? payment.created_at
+  const platformUrl = 'bitdoin.la'
+  const deliveryFields = localizeDeliveryAddress(order.delivery_address, language)
+
+  async function handleSaveImage() {
+    if (!receiptRef.current) return
+    setSaving(true)
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+      const link = document.createElement('a')
+      link.download = `receipt-${order.order_number}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Downloadable receipt card */}
+      <div ref={receiptRef} className="bg-white rounded-2xl border-2 border-primary-100 overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-primary-700 px-5 py-4 flex items-center justify-between">
+          <img
+            src={publicAsset('icons/Bitdoin-Logo.png')}
+            alt="Bitdoin"
+            className="h-8 object-contain brightness-0 invert"
+            crossOrigin="anonymous"
+          />
+          <div className="text-right">
+            <p className="text-white/60 text-[10px] uppercase tracking-wide">{t('payment.receipt')}</p>
+            <p className="text-white font-mono text-xs font-bold">#{order.order_number}</p>
+          </div>
+        </div>
+
+        {/* Verified banner */}
+        <div className="bg-green-50 border-b border-green-100 px-5 py-3 flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-green-700">{t('payment.verified')}</p>
+            <p className="text-[11px] text-green-600">{formatDateTime(verifiedAt, language)}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[10px] text-gray-400">{t('payment.amount')}</p>
+            <p className="text-sm font-bold text-primary-700">{formatPrice(payment.amount, currency)}</p>
+          </div>
+        </div>
+
+        {/* Bill to */}
+        <div className="px-5 py-4 border-b border-gray-50">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('payment.billTo')}</p>
+          <p className="text-sm font-semibold text-gray-800">{order.customer_name}</p>
+          <p className="text-xs text-gray-500">{order.customer_phone}</p>
+        </div>
+
+        {/* Delivery */}
+        <div className="px-5 py-4 border-b border-gray-50 space-y-1.5">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('checkout.deliveryInfo')}</p>
+          <div className="space-y-2">
+            {deliveryFields.map(field => (
+              <ReceiptRow key={field.key} label={field.label} value={field.value} />
+            ))}
+          </div>
+          {order.deliveries?.[0] && (
+            <div className="mt-2 space-y-1.5 pt-2 border-t border-dashed border-gray-100">
+              <ReceiptRow label={t('orders.courier')} value={order.deliveries[0].courier} />
+              {order.deliveries[0].tracking_number && (
+                <ReceiptRow label={t('orders.trackingNumber')} value={order.deliveries[0].tracking_number} mono />
+              )}
+              {order.deliveries[0].estimated_delivery_at && (
+                <ReceiptRow label={t('orders.estimatedDelivery')} value={formatDate(order.deliveries[0].estimated_delivery_at, language)} />
+              )}
+            </div>
+          )}
+          {!order.deliveries?.[0] && (
+            <p className="text-[11px] text-gray-400 italic">{t('orders.courier')}: —</p>
+          )}
+        </div>
+
+        {/* Items */}
+        {order.items && order.items.length > 0 && (
+          <div className="px-5 py-4 border-b border-gray-50">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">{t('orders.items')}</p>
+            <div className="space-y-2">
+              {order.items.map(item => (
+                <div key={item.id} className="flex justify-between items-start gap-2 text-xs">
+                  <span className="text-gray-600 flex-1 line-clamp-2">
+                    {item.book?.title}
+                    <span className="text-gray-400"> ×{item.quantity}</span>
+                  </span>
+                  <span className="font-semibold text-gray-800 flex-shrink-0">
+                    {formatPrice(item.final_price * item.quantity, currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-dashed border-gray-200 mt-3 pt-3 flex justify-between text-sm font-bold">
+              <span className="text-gray-700">{t('checkout.total')}</span>
+              <span className="text-primary-700">{formatPrice(order.total_amount, currency)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Payment details */}
+        <div className="px-5 py-4 border-b border-gray-50 space-y-2">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('payment.paymentDetails')}</p>
+          <ReceiptRow label={t('payment.method')} value={t(`checkout.paymentMethods.${payment.method}`)} />
+          {payment.transaction_reference && (
+            <ReceiptRow label={t('payment.reference')} value={payment.transaction_reference} mono />
+          )}
+          {payment.sender_name && (
+            <ReceiptRow label={t('payment.sender')} value={payment.sender_name} />
+          )}
+          {payment.bank_name && (
+            <ReceiptRow label={t('payment.bankNameLabel')} value={payment.bank_name} />
+          )}
+          {payment.transferred_at && (
+            <ReceiptRow label={t('payment.transferDate')} value={formatDate(payment.transferred_at, language)} />
+          )}
+        </div>
+
+        {/* Tracking footer */}
+        <div className="bg-primary-50 px-5 py-4 text-center">
+          <p className="text-[11px] text-gray-500 mb-1">{t('payment.trackingNote')}</p>
+          <p className="text-base font-mono font-bold text-primary-700">#{order.order_number}</p>
+          <a
+            href={`https://${platformUrl}`}
+            className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-primary-500 hover:text-primary-700 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {platformUrl} <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </div>
+
+      {/* Download button */}
+      <Button
+        fullWidth
+        variant="outline"
+        loading={saving}
+        icon={<Download className="h-4 w-4" />}
+        onClick={handleSaveImage}
+      >
+        {t('payment.downloadReceipt')}
+      </Button>
+    </div>
+  )
+}
+
+function ReceiptRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between items-start gap-4 text-xs">
+      <span className="text-gray-400 flex-shrink-0">{label}</span>
+      <span className={`text-gray-700 text-right break-all ${mono ? 'font-mono' : ''}`}>{value}</span>
+    </div>
+  )
+}

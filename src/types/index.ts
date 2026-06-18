@@ -207,6 +207,21 @@ export interface Payment {
   user?: User
 }
 
+export interface PaymentAccount {
+  id: string
+  method: PaymentMethod
+  label: string
+  bank_name: string
+  account_name?: string
+  account_number?: string
+  qr_image_url?: string
+  instructions?: string
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Delivery {
   id: string
   order_id: string

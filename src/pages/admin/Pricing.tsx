@@ -1,7 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit2, Tag, Calculator, ArrowRight } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpDown,
+  Calculator,
+  Edit2,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+} from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
 import type { BookPrice, MarginRule } from '@/types'
@@ -10,6 +21,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui/Toast'
+import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice, calcFinalPrice } from '@/lib/utils'
 
 interface PriceForm {
@@ -31,16 +43,25 @@ interface MarginForm {
   priority: string
 }
 
+type PriceSortKey = 'book' | 'store' | 'storePrice' | 'margin' | 'finalPrice' | 'stock'
+type SortDirection = 'asc' | 'desc'
+
 export function AdminPricing() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const { success, error } = useToast()
+  const { language } = useLanguage()
 
   const [tab, setTab] = useState<'prices' | 'rules'>('prices')
   const [priceModal, setPriceModal] = useState(false)
   const [editPrice, setEditPrice] = useState<BookPrice | null>(null)
   const [marginModal, setMarginModal] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortKey, setSortKey] = useState<PriceSortKey>('book')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [deletePrice, setDeletePrice] = useState<BookPrice | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const { register: rPrice, handleSubmit: hsPrice, reset: resetPrice, watch: watchPrice } = useForm<PriceForm>()
   const { register: rMargin, handleSubmit: hsMargin, reset: resetMargin } = useForm<MarginForm>()
@@ -140,6 +161,35 @@ export function AdminPricing() {
     }
   }
 
+  function handleSort(key: PriceSortKey) {
+    if (sortKey === key) {
+      setSortDirection(current => current === 'asc' ? 'desc' : 'asc')
+      return
+    }
+    setSortKey(key)
+    setSortDirection('asc')
+  }
+
+  async function handleDeletePrice() {
+    if (!deletePrice) return
+    setDeleting(true)
+    try {
+      const { error: deleteError } = await supabase
+        .from('book_prices')
+        .delete()
+        .eq('id', deletePrice.id)
+      if (deleteError) throw deleteError
+
+      await qc.invalidateQueries({ queryKey: ['admin', 'prices'] })
+      setDeletePrice(null)
+      success('Price row deleted')
+    } catch {
+      error(t('common.error'))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const availOptions = [
     { value: 'AVAILABLE', label: 'Available' },
     { value: 'LOW_STOCK', label: 'Low Stock' },
@@ -149,6 +199,41 @@ export function AdminPricing() {
 
   const bookOptions = books?.map(b => ({ value: b.id, label: b.title })) ?? []
   const storeOptions = bookstores?.map(b => ({ value: b.id, label: b.name })) ?? []
+  const visiblePrices = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase()
+    const filtered = (prices ?? []).filter(price => {
+      const bookTitle = (price.book as { title?: string } | undefined)?.title ?? ''
+      const storeName = (price.bookstore as { name?: string } | undefined)?.name ?? ''
+      return !query || [
+        bookTitle,
+        storeName,
+        price.availability,
+        String(price.bookstore_price),
+        String(price.margin_percent),
+        String(price.final_price),
+      ].some(value => value.toLocaleLowerCase().includes(query))
+    })
+
+    return [...filtered].sort((a, b) => {
+      const bookA = (a.book as { title?: string } | undefined)?.title ?? ''
+      const bookB = (b.book as { title?: string } | undefined)?.title ?? ''
+      const storeA = (a.bookstore as { name?: string } | undefined)?.name ?? ''
+      const storeB = (b.bookstore as { name?: string } | undefined)?.name ?? ''
+      const values: Record<PriceSortKey, [string | number, string | number]> = {
+        book: [bookA, bookB],
+        store: [storeA, storeB],
+        storePrice: [a.bookstore_price, b.bookstore_price],
+        margin: [a.margin_percent, b.margin_percent],
+        finalPrice: [a.final_price, b.final_price],
+        stock: [a.availability, b.availability],
+      }
+      const [left, right] = values[sortKey]
+      const result = typeof left === 'number' && typeof right === 'number'
+        ? left - right
+        : String(left).localeCompare(String(right), language)
+      return sortDirection === 'asc' ? result : -result
+    })
+  }, [language, prices, searchQuery, sortDirection, sortKey])
 
   return (
     <div className="space-y-5">
@@ -192,20 +277,35 @@ export function AdminPricing() {
       {tab === 'prices' && (
         isLoading ? <LoadingSpinner /> : (
           <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+            <div className="flex flex-col gap-2 border-b border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="w-full sm:max-w-sm">
+                <Input
+                  type="search"
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder="Search book, store, price, or stock"
+                  leftIcon={<Search className="h-4 w-4" />}
+                  aria-label="Search book prices"
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                {visiblePrices.length} of {prices?.length ?? 0} rows
+              </p>
+            </div>
             <table className="w-full text-sm">
               <thead className="bg-gray-50/80 border-b border-gray-100">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Book</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Store</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Store Price</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Margin</th>
-                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Final Price</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Stock</th>
+                  <SortableHeader label="Book" sortValue="book" activeKey={sortKey} direction={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Store" sortValue="store" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden md:table-cell" />
+                  <SortableHeader label="Store Price" sortValue="storePrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Margin" sortValue="margin" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Final Price" sortValue="finalPrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
+                  <SortableHeader label="Stock" sortValue="stock" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell" />
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {prices?.map(price => (
+                {visiblePrices.map(price => (
                   <tr key={price.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900 truncate max-w-xs text-xs">
@@ -232,26 +332,45 @@ export function AdminPricing() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => {
-                          setEditPrice(price)
-                          resetPrice({
-                            book_id: price.book_id,
-                            bookstore_id: price.bookstore_id,
-                            bookstore_price: String(price.bookstore_price),
-                            margin_percent: String(price.margin_percent),
-                            availability: price.availability,
-                            notes: price.notes ?? '',
-                          })
-                          setPriceModal(true)
-                        }}
-                        className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => {
+                            setEditPrice(price)
+                            resetPrice({
+                              book_id: price.book_id,
+                              bookstore_id: price.bookstore_id,
+                              bookstore_price: String(price.bookstore_price),
+                              margin_percent: String(price.margin_percent),
+                              availability: price.availability,
+                              notes: price.notes ?? '',
+                            })
+                            setPriceModal(true)
+                          }}
+                          className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                          title={t('common.edit')}
+                          aria-label={t('common.edit')}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletePrice(price)}
+                          className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          title={t('common.delete')}
+                          aria-label={t('common.delete')}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
+                {visiblePrices.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                      No price rows match your search.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -356,6 +475,68 @@ export function AdminPricing() {
           <Input label="Max Price" type="number" {...rMargin('max_price')} />
         </form>
       </Modal>
+
+      <Modal
+        open={!!deletePrice}
+        onClose={() => !deleting && setDeletePrice(null)}
+        title="Delete Price Row"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" disabled={deleting} onClick={() => setDeletePrice(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" loading={deleting} onClick={handleDeletePrice}>
+              {t('common.delete')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-6 text-gray-600">
+          Delete the price for <strong className="text-gray-900">
+            {(deletePrice?.book as { title?: string } | undefined)?.title ?? 'this book'}
+          </strong> at <strong className="text-gray-900">
+            {(deletePrice?.bookstore as { name?: string } | undefined)?.name ?? 'this store'}
+          </strong>? This cannot be undone.
+        </p>
+      </Modal>
     </div>
+  )
+}
+
+function SortableHeader({
+  label,
+  sortValue,
+  activeKey,
+  direction,
+  onSort,
+  align = 'left',
+  className = '',
+}: {
+  label: string
+  sortValue: PriceSortKey
+  activeKey: PriceSortKey
+  direction: SortDirection
+  onSort: (key: PriceSortKey) => void
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  const active = activeKey === sortValue
+  const Icon = active ? direction === 'asc' ? ArrowUp : ArrowDown : ArrowUpDown
+
+  return (
+    <th className={`px-4 py-3 ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortValue)}
+        className={`flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-primary-700 ${
+          active ? 'text-primary-700' : 'text-gray-500'
+        } ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}
+        aria-label={`Sort by ${label}`}
+      >
+        <span>{label}</span>
+        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+      </button>
+    </th>
   )
 }
