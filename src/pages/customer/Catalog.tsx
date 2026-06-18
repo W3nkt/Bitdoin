@@ -12,7 +12,7 @@ import { Pagination } from '@/components/ui/Pagination'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
 
-const PAGE_SIZE = 15
+const PAGE_SIZE = 18
 
 export function Catalog() {
   const { t } = useTranslation()
@@ -43,6 +43,35 @@ export function Catalog() {
     queryFn: async () => {
       const { data } = await supabase.from('categories').select('*').order('name_en')
       return (data ?? []) as Category[]
+    },
+  })
+
+  const { data: availableLanguages = [] } = useQuery({
+    queryKey: ['books', 'languages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('books')
+        .select('language')
+        .eq('is_active', true)
+        .not('language', 'is', null)
+
+      if (error) throw error
+
+      const preferredOrder = ['Lao', 'English', 'Thai']
+      return [...new Set(
+        (data ?? [])
+          .map(book => book.language?.trim())
+          .filter((language): language is string => !!language),
+      )].sort((a, b) => {
+        const aIndex = preferredOrder.indexOf(a)
+        const bIndex = preferredOrder.indexOf(b)
+        if (aIndex !== -1 || bIndex !== -1) {
+          if (aIndex === -1) return 1
+          if (bIndex === -1) return -1
+          return aIndex - bIndex
+        }
+        return a.localeCompare(b)
+      })
     },
   })
 
@@ -114,6 +143,7 @@ export function Catalog() {
         onSelectCategory={categoryId => applyFilters({ category_id: categoryId })}
         onSelectQuickLink={value => setSort(value === 'newest' ? 'newest' : 'title')}
         showFilters
+        availableLanguages={availableLanguages}
         activeLanguage={filters.language}
         onSelectLanguage={language => applyFilters({ language })}
         className="lg:sticky lg:top-16"

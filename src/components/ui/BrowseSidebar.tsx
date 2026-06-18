@@ -12,6 +12,7 @@ interface BrowseSidebarProps {
   onSelectQuickLink?: (value: string) => void
   className?: string
   showFilters?: boolean
+  availableLanguages?: string[]
   activeLanguage?: string
   onSelectLanguage?: (language: string) => void
 }
@@ -29,6 +30,7 @@ export function BrowseSidebar({
   onSelectQuickLink,
   className,
   showFilters = false,
+  availableLanguages = [],
   activeLanguage = '',
   onSelectLanguage,
 }: BrowseSidebarProps) {
@@ -42,6 +44,22 @@ export function BrowseSidebar({
     : t('sidebar.allBooks')
 
   function close() { setExpanded(false) }
+
+  function languageLabel(value: string) {
+    const translationKeys: Record<string, string> = {
+      Lao: 'sidebar.lao',
+      English: 'sidebar.english',
+      Thai: 'sidebar.thai',
+      Chinese: 'sidebar.chinese',
+      French: 'sidebar.french',
+    }
+    return translationKeys[value] ? t(translationKeys[value]) : value
+  }
+
+  const languageOptions = [
+    { label: t('common.all'), value: '' },
+    ...availableLanguages.map(value => ({ label: languageLabel(value), value })),
+  ]
 
   return (
     <aside className={cn(
@@ -118,11 +136,7 @@ export function BrowseSidebar({
                 {t('sidebar.language')}
               </p>
               <div className="grid grid-cols-3 gap-1">
-                {[
-                  { label: t('common.all'),      value: ''        },
-                  { label: t('sidebar.lao'),     value: 'Lao'     },
-                  { label: t('sidebar.english'), value: 'English' },
-                ].map(option => (
+                {languageOptions.map(option => (
                   <button
                     key={option.value || 'all'}
                     onClick={() => onSelectLanguage?.(option.value)}

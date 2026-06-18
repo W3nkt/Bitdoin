@@ -209,6 +209,9 @@ const en = {
     language: 'Language',
     lao: 'Lao',
     english: 'English',
+    thai: 'Thai',
+    chinese: 'Chinese',
+    french: 'French',
     note: 'Compare bookstore prices, order once, and let Bitdoin coordinate the rest.',
   },
 
