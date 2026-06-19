@@ -31,7 +31,7 @@ export async function createCheckoutOrder(input: {
       quantity: item.quantity,
     })),
   })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data as GuestOrderAccess
 }
 
@@ -40,7 +40,7 @@ export async function trackOrder(orderNumber: string, customerPhone: string) {
     p_order_number: orderNumber.trim(),
     p_customer_phone: customerPhone.trim(),
   })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return (data ?? null) as Order | null
 }
 
@@ -49,7 +49,7 @@ export async function issueReceiptToken(orderNumber: string, customerPhone: stri
     p_order_number: orderNumber,
     p_customer_phone: customerPhone,
   })
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return data as { order_id: string; access_token: string }
 }
 
@@ -68,7 +68,7 @@ export async function uploadGuestReceipt(input: {
   const { error: uploadError } = await supabase.storage
     .from('receipts')
     .upload(path, input.file, { contentType: input.file.type, upsert: false })
-  if (uploadError) throw uploadError
+  if (uploadError) throw new Error(uploadError.message)
 
   const receiptUrl = supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl
   const { error: submitError } = await supabase.rpc('submit_guest_receipt', {
@@ -78,7 +78,7 @@ export async function uploadGuestReceipt(input: {
     p_receipt_path: path,
     p_receipt_url: receiptUrl,
   })
-  if (submitError) throw submitError
+  if (submitError) throw new Error(submitError.message)
 
   return { receiptUrl, accessToken: access.access_token }
 }

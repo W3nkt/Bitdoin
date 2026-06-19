@@ -89,6 +89,13 @@ const lo: Translations = {
 
   checkout: {
     orderComplete: 'ສັ່ງຊື້ສຳເລັດ',
+    choosePayment: 'ເລືອກວິທີຊຳລະ',
+    completePayment: 'ຊຳລະ ແລະ ສົ່ງຫຼັກຖານ',
+    stepDelivery: 'ຈັດສົ່ງ',
+    stepMethod: 'ວິທີຊຳລະ',
+    stepPay: 'ຊຳລະ/ອັບໂຫລດ',
+    loadingPayment: 'ກຳລັງກຽມຂໍ້ມູນການຊຳລະ…',
+    orderSaved: 'ບັນທຶກຄຳສັ່ງແລ້ວ. ກະລຸນາລອງໂຫລດຂໍ້ມູນການຊຳລະອີກຄັ້ງ.',
     title: 'ກວດສອບ & ສັ່ງຊື້',
     deliveryInfo: 'ຂໍ້ມູນການຈັດສົ່ງ',
     fullName: 'ຊື່ ແລະ ນາມສະກຸນ',
@@ -116,6 +123,12 @@ const lo: Translations = {
   },
 
   payment: {
+    payNow: 'ຊຳລະຄຳສັ່ງນີ້',
+    payThenUpload: 'ສະແກນ QR ຫຼື ໂອນເງິນ ແລ້ວອັບໂຫລດຫຼັກຖານຢູ່ດ້ານລຸ່ມ.',
+    submitProof: 'ອັບໂຫລດຫຼັກຖານການຊຳລະ',
+    submitProofNote: 'ຄຳສັ່ງຈະຖືກສົ່ງໃຫ້ແອັດມິນກວດຫຼັງຈາກອັບໂຫລດ.',
+    uploadAndSubmit: 'ອັບໂຫລດ ແລະ ສົ່ງໃຫ້ແອັດມິນ',
+    tapQr: 'ແຕະ QR ເພື່ອເບິ່ງຮູບໃຫຍ່',
     imageOnly: 'ກະລຸນາອັບໂຫລດຮູບ JPG, PNG ຫຼື WebP.',
     fileTooLarge: 'ຮູບຫຼັກຖານຕ້ອງບໍ່ເກີນ 10 MB.',
     accountUnavailable: 'ຍັງບໍ່ມີຂໍ້ມູນບັນຊີຊຳລະ. ກະລຸນາຕິດຕໍ່ພະນັກງານ.',

@@ -31,7 +31,7 @@ returns text
 language sql
 immutable
 as $$
-  select encode(digest(coalesce(value, ''), 'sha256'), 'hex');
+  select encode(extensions.digest(coalesce(value, ''), 'sha256'), 'hex');
 $$;
 
 create or replace function public.guest_receipt_path_allowed(
@@ -113,7 +113,7 @@ begin
   end if;
 
   v_order_number := 'PB-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12));
-  v_access_token := encode(gen_random_bytes(24), 'hex');
+  v_access_token := encode(extensions.gen_random_bytes(24), 'hex');
 
   insert into public.orders (
     order_number,
@@ -330,7 +330,7 @@ begin
     raise exception 'Order not found';
   end if;
 
-  v_access_token := encode(gen_random_bytes(24), 'hex');
+  v_access_token := encode(extensions.gen_random_bytes(24), 'hex');
 
   update public.orders
   set guest_access_token_hash = public.hash_guest_token(v_access_token)

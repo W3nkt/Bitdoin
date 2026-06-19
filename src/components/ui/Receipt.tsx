@@ -36,7 +36,7 @@ export function Receipt({
       : 'bg-orange-50 border-orange-100'
   const statusClass = isVerified ? 'text-green-700' : isCOD ? 'text-blue-700' : 'text-orange-700'
   const detailClass = isVerified ? 'text-green-600' : isCOD ? 'text-blue-600' : 'text-orange-600'
-  const platformUrl = 'bitdoin.la'
+  const trackingUrl = `https://w3nkt.github.io/Bitdoin/#/track?order=${encodeURIComponent(order.order_number)}`
   const deliveryFields = localizeDeliveryAddress(order.delivery_address, language)
   const storePriceTotal = order.items?.reduce(
     (sum, item) => sum + Number(item.bookstore_price) * item.quantity,
@@ -93,16 +93,16 @@ export function Receipt({
       <div ref={receiptRef} className="bg-white rounded-2xl border-2 border-primary-100 overflow-hidden">
 
         {/* Header */}
-        <div className="bg-primary-700 px-5 py-4 flex items-center justify-between">
+        <div className="bg-orange-50 border-b border-orange-100 px-5 py-4 flex items-center justify-between">
           <img
             src={publicAsset('icons/Bitdoin-Logo.png')}
             alt="Bitdoin"
-            className="h-8 object-contain brightness-0 invert"
+            className="h-9 w-auto object-contain"
             crossOrigin="anonymous"
           />
           <div className="text-right">
-            <p className="text-white/60 text-[10px] uppercase tracking-wide">{t('payment.receipt')}</p>
-            <p className="text-white font-mono text-xs font-bold">#{order.order_number}</p>
+            <p className="text-orange-700/70 text-[10px] uppercase tracking-wide">{t('payment.receipt')}</p>
+            <p className="text-primary-800 font-mono text-xs font-bold">#{order.order_number}</p>
           </div>
         </div>
 
@@ -133,14 +133,14 @@ export function Receipt({
 
         {/* Bill to */}
         <div className="px-5 py-4 border-b border-gray-50">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('payment.billTo')}</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-900">{t('payment.billTo')}</p>
           <p className="text-sm font-semibold text-gray-800">{order.customer_name}</p>
           <p className="text-xs text-gray-500">{order.customer_phone}</p>
         </div>
 
         {/* Delivery */}
         <div className="px-5 py-4 border-b border-gray-50 space-y-1.5">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">{t('checkout.deliveryInfo')}</p>
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-900">{t('checkout.deliveryInfo')}</p>
           <div className="space-y-2">
             {deliveryFields.map(field => (
               <ReceiptRow key={field.key} label={field.label} value={field.value} />
@@ -165,20 +165,20 @@ export function Receipt({
         {/* Items */}
         {order.items && order.items.length > 0 && (
           <div className="px-5 py-4 border-b border-gray-50">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">{t('orders.items')}</p>
-            <div className="space-y-2">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-900">{t('orders.items')}</p>
+            <div className="divide-y divide-dashed divide-gray-100">
               {order.items.map(item => (
-                <div key={item.id} className="flex justify-between items-start gap-2 text-xs">
-                  <span className="text-gray-600 flex-1 line-clamp-2">
+                <div key={item.id} className="flex justify-between items-start gap-4 py-2.5 text-xs first:pt-1">
+                  <span className="min-w-0 flex-1 break-words pr-2 leading-5 text-gray-600">
                     {item.book?.title}
-                    <span className="text-gray-400"> ×{item.quantity}</span>
+                    <span className="whitespace-nowrap text-gray-400"> ×{item.quantity}</span>
                     {showAdminPricing && (
-                      <span className="mt-0.5 block text-[10px] text-gray-400">
+                      <span className="mt-1 block text-[10px] leading-4 text-gray-400">
                         Store: {formatPrice(Number(item.bookstore_price), currency)} · Final: {formatPrice(Number(item.final_price), currency)}
                       </span>
                     )}
                   </span>
-                  <span className="font-semibold text-gray-800 flex-shrink-0">
+                  <span className="flex-shrink-0 pt-0.5 font-semibold leading-5 text-gray-800">
                     {formatPrice(item.final_price * item.quantity, currency)}
                   </span>
                 </div>
@@ -221,14 +221,21 @@ export function Receipt({
         {/* Tracking footer */}
         <div className="bg-primary-50 px-5 py-4 text-center">
           <p className="text-[11px] text-gray-500 mb-1">{t('payment.trackingNote')}</p>
-          <p className="text-base font-mono font-bold text-primary-700">#{order.order_number}</p>
           <a
-            href={`https://${platformUrl}`}
-            className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-primary-500 hover:text-primary-700 transition-colors"
+            href={trackingUrl}
+            className="inline-flex items-center gap-1 font-mono text-base font-bold text-primary-700 transition-colors hover:text-primary-900"
             target="_blank"
             rel="noopener noreferrer"
           >
-            {platformUrl} <ExternalLink className="h-3 w-3" />
+            #{order.order_number} <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          <a
+            href={trackingUrl}
+            className="mt-1.5 flex items-center justify-center gap-1 text-[11px] text-primary-500 transition-colors hover:text-primary-700"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('orders.tracking')} <ExternalLink className="h-3 w-3" />
           </a>
         </div>
       </div>

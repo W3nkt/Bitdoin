@@ -12,11 +12,12 @@ import { useToast } from '@/components/ui/Toast'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
-import { createCheckoutOrder, trackOrder } from '@/lib/guestOrders'
+import { createCheckoutOrder, trackOrder, type GuestOrderAccess } from '@/lib/guestOrders'
 import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const schema = z.object({
@@ -65,7 +66,14 @@ export function Checkout() {
   const { currency, language } = useLanguage()
   const { success, error } = useToast()
   const [placing, setPlacing] = useState(false)
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentStep, setPaymentStep] = useState<2 | 3>(2)
+  const [checkoutDraft, setCheckoutDraft] = useState<CheckoutForm | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('QR_PAYMENT')
+  const [placedAccess, setPlacedAccess] = useState<GuestOrderAccess | null>(null)
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null)
+  const [loadingPlacedOrder, setLoadingPlacedOrder] = useState(false)
+  const [paymentLoadError, setPaymentLoadError] = useState('')
   const [guestAccessToken, setGuestAccessToken] = useState<string>()
   const [placedPhone, setPlacedPhone] = useState('')
 
@@ -82,7 +90,6 @@ export function Checkout() {
     },
   })
 
-  const paymentMethod = watch('payment_method')
   const selectedProvinceId = watch('province')
   const selectedLogistics = watch('logistics_provider')
 
@@ -101,14 +108,25 @@ export function Checkout() {
     setValue('district', '')
   }, [selectedProvinceId, setValue])
 
-  if (items.length === 0 && !placedOrder) {
-    navigate('/cart')
-    return null
-  }
+  const shouldReturnToCart = items.length === 0 && !placedAccess && !paymentModalOpen
+
+  useEffect(() => {
+    if (shouldReturnToCart) navigate('/cart', { replace: true })
+  }, [navigate, shouldReturnToCart])
 
   async function onSubmit(form: CheckoutForm) {
+    setCheckoutDraft(form)
+    setSelectedPaymentMethod(form.payment_method)
+    setPaymentStep(2)
+    setPaymentModalOpen(true)
+  }
+
+  async function confirmOrder() {
+    if (!checkoutDraft) return
+    setPaymentStep(3)
     setPlacing(true)
     try {
+      const form = checkoutDraft
       const provinceLabel = selectedProvince
         ? language === 'lo' ? selectedProvince.name_lo : selectedProvince.name_en
         : form.province
@@ -129,29 +147,54 @@ export function Checkout() {
         deliveryAddress,
         notes: form.notes,
         currency,
-        paymentMethod: form.payment_method as PaymentMethod,
+        paymentMethod: selectedPaymentMethod,
         items,
       })
-      const order = await trackOrder(access.order_number, form.phone)
-      if (!order) throw new Error('The order was created but could not be loaded')
-
       setPlacedPhone(form.phone)
       setGuestAccessToken(access.access_token)
-      setPlacedOrder(order)
-      clearCart()
+      setPlacedAccess(access)
       success(t('checkout.orderPlaced', { orderNumber: access.order_number }))
+      await loadPlacedOrder(access.order_number, form.phone)
     } catch (checkoutError) {
       console.error('[checkout]', checkoutError)
       error(checkoutError instanceof Error ? checkoutError.message : t('common.error'))
+      setPaymentStep(2)
     } finally {
       setPlacing(false)
     }
   }
 
+  async function loadPlacedOrder(orderNumber: string, phone: string) {
+    setLoadingPlacedOrder(true)
+    setPaymentLoadError('')
+    try {
+      const order = await trackOrder(orderNumber, phone)
+      if (!order) throw new Error('The order was created but could not be loaded')
+      setPlacedOrder(order)
+      if (order.payments?.[0]?.method === 'CASH_ON_DELIVERY') clearCart()
+    } catch (loadError) {
+      console.error('[load placed order]', loadError)
+      setPaymentLoadError(loadError instanceof Error ? loadError.message : t('common.error'))
+    } finally {
+      setLoadingPlacedOrder(false)
+    }
+  }
+
   function closePayment() {
-    if (!placedOrder) return
-    sessionStorage.setItem(`pwen-track-phone:${placedOrder.order_number}`, placedPhone)
-    navigate(`/track?order=${encodeURIComponent(placedOrder.order_number)}`)
+    const orderNumber = placedOrder?.order_number ?? placedAccess?.order_number
+    if (!orderNumber) {
+      setPaymentModalOpen(false)
+      setPaymentStep(2)
+      return
+    }
+    clearCart()
+    sessionStorage.setItem(`pwen-track-phone:${orderNumber}`, placedPhone)
+    navigate(`/track?order=${encodeURIComponent(orderNumber)}`)
+  }
+
+  function completeCheckout(order: Order) {
+    setPlacedOrder(order)
+    clearCart()
   }
 
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
@@ -159,6 +202,8 @@ export function Checkout() {
     { value: 'BANK_TRANSFER',    label: t('checkout.paymentMethods.BANK_TRANSFER') },
     { value: 'CASH_ON_DELIVERY', label: t('checkout.paymentMethods.CASH_ON_DELIVERY') },
   ]
+
+  if (shouldReturnToCart) return null
 
   return (
     <div className="max-w-lg mx-auto space-y-5 pb-8">
@@ -259,24 +304,6 @@ export function Checkout() {
           />
         </section>
 
-        {/* Payment */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-700">{t('checkout.paymentMethod')}</h2>
-          <div className="space-y-2">
-            {paymentOptions.map(opt => (
-              <label
-                key={opt.value}
-                className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${
-                  paymentMethod === opt.value ? 'border-primary-400 bg-primary-50' : 'border-gray-200'
-                }`}
-              >
-                <input type="radio" value={opt.value} {...register('payment_method')} className="text-primary-700" />
-                <span className="text-sm font-medium text-gray-800">{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-
         {/* Order summary */}
         <section className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
           <h2 className="text-sm font-semibold text-gray-700">{t('checkout.orderSummary')}</h2>
@@ -299,25 +326,128 @@ export function Checkout() {
       </form>
 
       <Modal
-        open={!!placedOrder}
+        open={paymentModalOpen}
         onClose={closePayment}
-        title={t('checkout.orderComplete')}
+        title={paymentStep === 2 ? t('checkout.choosePayment') : t('checkout.completePayment')}
         size="xl"
-        footer={
+        footer={placedAccess ? (
           <Button type="button" variant="ghost" onClick={closePayment}>
             {t('tracking.viewTracking')}
           </Button>
-        }
+        ) : undefined}
       >
-        {placedOrder && (
+        <CheckoutSteps current={paymentStep} />
+
+        {paymentStep === 2 && !placedAccess && (
+          <div className="space-y-5">
+            <div className="rounded-2xl bg-primary-50 px-4 py-3 text-center">
+              <p className="text-xs text-primary-500">{t('checkout.total')}</p>
+              <p className="mt-1 text-2xl font-bold text-primary-800">
+                {formatPrice(subtotal(), currency)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">{t('checkout.paymentMethod')}</h3>
+              {paymentOptions.map(option => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
+                    selectedPaymentMethod === option.value
+                      ? 'border-primary-400 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="modal_payment_method"
+                    value={option.value}
+                    checked={selectedPaymentMethod === option.value}
+                    onChange={() => setSelectedPaymentMethod(option.value)}
+                    className="text-primary-700"
+                  />
+                  <span className="text-sm font-medium text-gray-800">{option.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              loading={placing}
+              onClick={confirmOrder}
+            >
+              {t('checkout.confirmOrder')}
+            </Button>
+          </div>
+        )}
+        {paymentStep === 3 && !placedOrder && !paymentLoadError && (
+          <div className="py-8 text-center">
+            {loadingPlacedOrder && <LoadingSpinner />}
+            <p className="mt-3 text-sm text-gray-500">{t('checkout.loadingPayment')}</p>
+            <p className="mt-1 font-mono text-sm font-semibold text-primary-700">
+              {placedAccess?.order_number}
+            </p>
+          </div>
+        )}
+        {paymentStep === 3 && !placedOrder && paymentLoadError && placedAccess && (
+          <div className="space-y-4 py-5 text-center">
+            <p className="text-sm font-semibold text-gray-800">{t('checkout.orderSaved')}</p>
+            <p className="text-xs text-gray-500">{paymentLoadError}</p>
+            <p className="font-mono text-sm font-bold text-primary-700">{placedAccess.order_number}</p>
+            <Button
+              type="button"
+              fullWidth
+              loading={loadingPlacedOrder}
+              onClick={() => loadPlacedOrder(placedAccess.order_number, placedPhone)}
+            >
+              {t('common.retry')}
+            </Button>
+          </div>
+        )}
+        {paymentStep === 3 && placedOrder && placedAccess && (
           <GuestPaymentPanel
             order={placedOrder}
             customerPhone={placedPhone}
             accessToken={guestAccessToken}
             onOrderChange={setPlacedOrder}
+            onPaymentSubmitted={completeCheckout}
           />
         )}
       </Modal>
+    </div>
+  )
+}
+
+function CheckoutSteps({ current }: { current: 2 | 3 }) {
+  const { t } = useTranslation()
+  const steps = [
+    { number: 1, label: t('checkout.stepDelivery') },
+    { number: 2, label: t('checkout.stepMethod') },
+    { number: 3, label: t('checkout.stepPay') },
+  ]
+
+  return (
+    <div className="mb-5 grid grid-cols-3 gap-2">
+      {steps.map(step => {
+        const active = step.number === current
+        const complete = step.number < current
+        return (
+          <div key={step.number} className="min-w-0 text-center">
+            <div className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+              active || complete ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-400'
+            }`}>
+              {step.number}
+            </div>
+            <p className={`mt-1 truncate text-[10px] font-semibold ${
+              active ? 'text-primary-700' : complete ? 'text-gray-600' : 'text-gray-400'
+            }`}>
+              {step.label}
+            </p>
+          </div>
+        )
+      })}
     </div>
   )
 }

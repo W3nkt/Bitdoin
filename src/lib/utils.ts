@@ -115,6 +115,26 @@ export function paymentStatusColor(status: PaymentStatus): string {
   return colors[status]
 }
 
+// ─── Phone ────────────────────────────────────────────────────────────────────
+
+/**
+ * Normalises a Lao phone number to E.164 format (+856XXXXXXXXXX).
+ *
+ * Handles all common input shapes:
+ *   29862982      → +8562029862982  (8-digit subscriber only — assumes prefix 20)
+ *   2029862982    → +8562029862982  (10-digit, no country code)
+ *   02029862982   → +8562029862982  (11-digit local format with leading 0)
+ *   8562029862982 → +8562029862982  (13-digit, already has country code)
+ */
+export function normalizeLaoPhone(phone: string): string {
+  const d = phone.replace(/\D/g, '')
+  if (d.startsWith('856') && d.length >= 11) return '+' + d   // already full
+  if (d.startsWith('0') && d.length >= 10)   return '+856' + d.slice(1)  // local 0XX…
+  if (d.length === 10)                        return '+856' + d  // no leading 0, with operator code
+  if (d.length === 8)                         return '+85620' + d // subscriber only, default prefix 20
+  return '+856' + d // best-effort fallback
+}
+
 // ─── Misc ─────────────────────────────────────────────────────────────────────
 
 export function generateOrderNumber(): string {

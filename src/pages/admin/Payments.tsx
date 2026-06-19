@@ -15,7 +15,7 @@ import { StorageImage } from '@/components/ui/StorageImage'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
-import { formatPrice, formatDateTime, paymentStatusLabel } from '@/lib/utils'
+import { formatPrice, formatDateTime, paymentStatusLabel, normalizeLaoPhone } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 export function AdminPayments() {
@@ -59,6 +59,28 @@ export function AdminPayments() {
     enabled: !!receiptPayment,
   })
 
+  function openWhatsAppApproved(phone: string, orderNumber: string, amount: number) {
+    const e164 = normalizeLaoPhone(phone)
+    const formatted = formatPrice(amount, currency)
+    const msg = [
+      `ສະບາຍດີທ່ານລູກຄ້າ! ການຊຳລະຄ່າສັ່ງປຶ້ມ ຄຳສັ່ງເລກທີ #${orderNumber} ເປັນຈຳນວນເງີນ ${formatted} ໄດ້ຮັບການຢືນຢັນແລ້ວ. ພວກເຮົາກຳລັງດຳເນີນການຈັດສົ່ງປຶ້ມຂອງທ່ານ. ຂອບໃຈທີ່ສັ່ງປຶ້ມຈາກ Bitdoin - ຫວັງຢ່າງຍິ່ງວ່າພວກເຮົາຈະໄດ້ບໍລິການໃຫ້ທ່ານອີກ 📚`,
+      ``,
+      `Hello valued customer! Your payment for book order #${orderNumber} of ${formatted} has been confirmed. We are now processing your book delivery. Thank you for ordering from Bitdoin – we look forward to serving you again!`,
+    ].join('\n')
+    window.open(`https://wa.me/${e164}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
+
+  function openWhatsAppRejected(phone: string, orderNumber: string, amount: number, reason: string) {
+    const e164 = normalizeLaoPhone(phone)
+    const formatted = formatPrice(amount, currency)
+    const msg = [
+      `ສະບາຍດີທ່ານລູກຄ້າ! ການຊຳລະຄ່າສັ່ງປຶ້ມ ຄຳສັ່ງເລກທີ #${orderNumber} ເປັນຈຳນວນເງີນ ${formatted} ຍັງບໍ່ໄດ້ຮັບການຢືນຢັນ. ເຫດຜົນ: ${reason} ກະລຸນາກວດສອບຄືນ ແລະ ສົ່ງຫຼັກຖານການຊຳລະໃໝ່. ຂອບໃຈທີ່ສັ່ງປຶ້ມຈາກ Bitdoin`,
+      ``,
+      `Hello valued customer! Your payment for book order #${orderNumber} of ${formatted} has not been confirmed. Reason: ${reason} Please review and resubmit your payment proof. Thank you for ordering from Bitdoin.`,
+    ].join('\n')
+    window.open(`https://wa.me/${e164}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+  }
+
   async function verifyPayment(payment: Payment) {
     setActioning(true)
     try {
@@ -85,6 +107,12 @@ export function AdminPayments() {
       await qc.invalidateQueries({ queryKey: ['admin', 'badge', 'payments'] })
       setDetailPayment(null)
       success('Payment verified')
+
+      const orderNumber = (payment.order as { order_number?: string } | undefined)?.order_number
+      const customerPhone = (payment.order as { customer_phone?: string } | undefined)?.customer_phone
+      if (customerPhone && orderNumber) {
+        openWhatsAppApproved(customerPhone, orderNumber, payment.amount)
+      }
     } catch {
       error(t('common.error'))
     } finally {
@@ -115,6 +143,12 @@ export function AdminPayments() {
       setDetailPayment(null)
       setRejectionReason('')
       success('Payment rejected')
+
+      const orderNumber = (payment.order as { order_number?: string } | undefined)?.order_number
+      const customerPhone = (payment.order as { customer_phone?: string } | undefined)?.customer_phone
+      if (customerPhone && orderNumber) {
+        openWhatsAppRejected(customerPhone, orderNumber, payment.amount, rejectionReason)
+      }
     } catch {
       error(t('common.error'))
     } finally {

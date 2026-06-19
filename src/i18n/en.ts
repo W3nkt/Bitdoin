@@ -94,6 +94,13 @@ const en = {
   // ── Checkout ──────────────────────────────────────────────────────────────────
   checkout: {
     orderComplete: 'Order placed successfully',
+    choosePayment: 'Choose payment method',
+    completePayment: 'Pay and submit proof',
+    stepDelivery: 'Delivery',
+    stepMethod: 'Payment',
+    stepPay: 'Pay & upload',
+    loadingPayment: 'Preparing payment details…',
+    orderSaved: 'Your order is saved. Retry loading the payment details.',
     title: 'Checkout',
     deliveryInfo: 'Delivery Information',
     fullName: 'Full Name',
@@ -122,6 +129,12 @@ const en = {
 
   // ── Payment ───────────────────────────────────────────────────────────────────
   payment: {
+    payNow: 'Pay this order',
+    payThenUpload: 'Scan the QR code or transfer the amount, then upload your payment proof below.',
+    submitProof: 'Upload payment proof',
+    submitProofNote: 'Your order is sent to admin review after the proof is uploaded.',
+    uploadAndSubmit: 'Upload Proof & Submit to Admin',
+    tapQr: 'Tap the QR code to open it full size',
     imageOnly: 'Please upload a JPG, PNG, or WebP image.',
     fileTooLarge: 'The payment image must be 10 MB or smaller.',
     accountUnavailable: 'Payment account details are not available yet. Please contact support.',

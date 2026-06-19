@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice, formatDate, orderStatusLabel, orderStatusColor, paymentStatusLabel, paymentStatusColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { TrackOrder } from '@/pages/customer/TrackOrder'
 
 export function Orders() {
   const { t } = useTranslation()
@@ -31,13 +32,7 @@ export function Orders() {
   })
 
   if (!profile) {
-    return (
-      <EmptyState
-        icon={<Package className="h-16 w-16" />}
-        title={t('auth.signIn')}
-        action={{ label: t('auth.signIn'), onClick: () => navigate('/auth') }}
-      />
-    )
+    return <TrackOrder />
   }
 
   if (isLoading) return <LoadingSpinner />

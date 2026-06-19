@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, Clock, Copy, CreditCard, Smartphone, Upload, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, Copy, CreditCard, ImageUp, Smartphone, Upload, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { trackOrder, uploadGuestReceipt } from '@/lib/guestOrders'
 import { useLanguage } from '@/context/LanguageContext'
@@ -18,6 +18,7 @@ interface GuestPaymentPanelProps {
   customerPhone: string
   accessToken?: string
   onOrderChange: (order: Order) => void
+  onPaymentSubmitted?: (order: Order) => void
 }
 
 export function GuestPaymentPanel({
@@ -25,6 +26,7 @@ export function GuestPaymentPanel({
   customerPhone,
   accessToken,
   onOrderChange,
+  onPaymentSubmitted,
 }: GuestPaymentPanelProps) {
   const { t } = useTranslation()
   const { currency, language } = useLanguage()
@@ -37,7 +39,7 @@ export function GuestPaymentPanel({
   const canUpload = payment && !isCOD && payment.verification_status !== 'VERIFIED' &&
     payment.verification_status !== 'REQUIRES_REVIEW'
 
-  const { data: accounts = [] } = useQuery({
+  const { data: accounts = [], isLoading: loadingAccounts, error: accountsError } = useQuery({
     queryKey: ['payment_accounts'],
     queryFn: async () => {
       const { data } = await supabase
@@ -47,6 +49,7 @@ export function GuestPaymentPanel({
         .order('sort_order')
       return (data ?? []) as PaymentAccount[]
     },
+    refetchOnMount: 'always',
   })
 
   async function copyOrderCode() {
@@ -71,7 +74,10 @@ export function GuestPaymentPanel({
     try {
       await uploadGuestReceipt({ order, customerPhone, accessToken, file })
       const refreshed = await trackOrder(order.order_number, customerPhone)
-      if (refreshed) onOrderChange(refreshed)
+      if (refreshed) {
+        onOrderChange(refreshed)
+        onPaymentSubmitted?.(refreshed)
+      }
       success(t('payment.receiptUploaded'))
     } catch (uploadError) {
       console.error('[guest receipt upload]', uploadError)
@@ -135,12 +141,28 @@ export function GuestPaymentPanel({
           detail={t('tracking.codNote')}
         />
       ) : payment.verification_status !== 'VERIFIED' && (
-        <PaymentInstructions
-          method={payment.method}
-          amount={order.total_amount}
-          currency={currency}
-          accounts={accounts}
-        />
+        <>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-800">{t('payment.payNow')}</h3>
+            <p className="mt-1 text-xs text-gray-500">{t('payment.payThenUpload')}</p>
+          </div>
+          {loadingAccounts ? (
+            <div className="rounded-2xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+              {t('common.loading')}
+            </div>
+          ) : accountsError ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+              {accountsError instanceof Error ? accountsError.message : t('common.error')}
+            </p>
+          ) : (
+            <PaymentInstructions
+              method={payment.method}
+              amount={order.total_amount}
+              currency={currency}
+              accounts={accounts}
+            />
+          )}
+        </>
       )}
 
       {payment.receipt_image_url && payment.verification_status !== 'VERIFIED' && (
@@ -152,7 +174,7 @@ export function GuestPaymentPanel({
       )}
 
       {canUpload && (
-        <>
+        <div className="rounded-2xl border-2 border-dashed border-primary-200 bg-primary-50/60 p-4">
           <input
             ref={inputRef}
             type="file"
@@ -160,6 +182,11 @@ export function GuestPaymentPanel({
             className="hidden"
             onChange={handleUpload}
           />
+          <div className="mb-3 text-center">
+            <ImageUp className="mx-auto h-8 w-8 text-primary-500" />
+            <p className="mt-2 text-sm font-semibold text-primary-800">{t('payment.submitProof')}</p>
+            <p className="mt-1 text-xs text-primary-600">{t('payment.submitProofNote')}</p>
+          </div>
           <Button
             type="button"
             fullWidth
@@ -167,12 +194,14 @@ export function GuestPaymentPanel({
             icon={<Upload className="h-4 w-4" />}
             onClick={() => inputRef.current?.click()}
           >
-            {payment.verification_status === 'REJECTED' ? t('payment.uploadNew') : t('payment.uploadReceipt')}
+            {payment.verification_status === 'REJECTED' ? t('payment.uploadNew') : t('payment.uploadAndSubmit')}
           </Button>
-        </>
+        </div>
       )}
 
-      <Receipt order={order} payment={payment} language={language} currency={currency} />
+      {(payment.verification_status === 'REQUIRES_REVIEW' || payment.verification_status === 'VERIFIED') && (
+        <Receipt order={order} payment={payment} language={language} currency={currency} />
+      )}
     </div>
   )
 }
@@ -202,11 +231,14 @@ function PaymentInstructions({
             <p className="text-sm font-semibold text-gray-800">{account.label}</p>
           </div>
           {account.qr_image_url && (
-            <img
-              src={account.qr_image_url}
-              alt={account.label}
-              className="mx-auto h-48 w-48 rounded-xl border border-gray-200 bg-white object-contain p-1"
-            />
+            <a href={account.qr_image_url} target="_blank" rel="noopener noreferrer" className="block">
+              <img
+                src={account.qr_image_url}
+                alt={account.label}
+                className="mx-auto h-64 w-64 max-w-full rounded-2xl border-2 border-gray-200 bg-white object-contain p-2 shadow-sm"
+              />
+              <p className="mt-2 text-center text-xs font-medium text-primary-600">{t('payment.tapQr')}</p>
+            </a>
           )}
           {account.bank_name && <InfoRow label={t('payment.bankName')} value={account.bank_name} />}
           {account.account_name && <InfoRow label={t('payment.accountName')} value={account.account_name} />}

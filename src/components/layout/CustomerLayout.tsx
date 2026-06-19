@@ -26,7 +26,9 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     { to: '/books',  icon: BookOpen,    label: t('nav.catalog'), end: false },
     { to: '/cart',   icon: ShoppingCart,label: t('nav.cart'),    end: false, badge: cartCount },
     { to: '/track',  icon: PackageSearch,label: t('nav.trackOrder'), end: false },
-    { to: '/orders', icon: Package,     label: t('nav.orders'),  end: false },
+    ...(profile
+      ? [{ to: '/orders', icon: Package, label: t('nav.orders'), end: false }]
+      : []),
     { to: profile ? '/profile' : '/auth', icon: User,
       label: profile ? t('nav.profile') : t('nav.signIn'),        end: false },
   ]

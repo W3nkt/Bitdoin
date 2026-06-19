@@ -3,6 +3,9 @@
 -- while only ADMIN can read them.
 
 drop policy if exists "audit_logs_admin" on public.audit_logs;
+drop policy if exists "audit_logs_staff_insert" on public.audit_logs;
+drop policy if exists "audit_logs_admin_select" on public.audit_logs;
+drop policy if exists "audit_logs_admin_delete" on public.audit_logs;
 
 -- Any staff role can insert their own audit events
 create policy "audit_logs_staff_insert" on public.audit_logs
