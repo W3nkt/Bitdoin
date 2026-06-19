@@ -129,6 +129,8 @@ export function Catalog() {
       book,
       bookstore: price.bookstore,
       unit_price: price.final_price,
+      bookstore_price: price.bookstore_price,
+      margin_percent: price.margin_percent,
     })
     success(book.title)
   }

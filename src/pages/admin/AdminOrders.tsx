@@ -2,13 +2,14 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Eye, ChevronDown, CreditCard, MessageCircle } from 'lucide-react'
+import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import type { Order, OrderItem, OrderStatus } from '@/types'
+import type { BookstorePayment, Order, OrderItem, OrderStatus } from '@/types'
+import { useAuth } from '@/context/AuthContext'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Input'
+import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Pagination } from '@/components/ui/Pagination'
 import { useToast } from '@/components/ui/Toast'
 import { StorageImage } from '@/components/ui/StorageImage'
@@ -18,10 +19,18 @@ import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 15
 
+interface StorePaymentGroup {
+  bookstoreId: string
+  bookstoreName: string
+  expectedAmount: number
+  payment?: BookstorePayment
+}
+
 export function AdminOrders() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { profile } = useAuth()
   const { success, error } = useToast()
 
   const [page, setPage] = useState(1)
@@ -32,14 +41,23 @@ export function AdminOrders() {
   const [updating, setUpdating] = useState(false)
   const [receiptItem, setReceiptItem] = useState<OrderItem | null>(null)
   const [sharingItemId, setSharingItemId] = useState<string | null>(null)
+  const [paymentStore, setPaymentStore] = useState<StorePaymentGroup | null>(null)
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentPaidAt, setPaymentPaidAt] = useState('')
+  const [paymentReference, setPaymentReference] = useState('')
+  const [paymentNotes, setPaymentNotes] = useState('')
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null)
+  const [savingStorePayment, setSavingStorePayment] = useState(false)
   const bookstoreReceiptRef = useRef<HTMLDivElement>(null)
+  const paymentProofInputRef = useRef<HTMLInputElement>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', search, statusFilter, page],
     queryFn: async () => {
       let q = supabase
         .from('orders')
-        .select('*, customer:users(name, phone), items:order_items(count)', { count: 'exact' })
+        .select('*, customer:users(name, phone), items:order_items(bookstore_id), bookstore_payments(bookstore_id)', { count: 'exact' })
       if (search) q = q.or(`order_number.ilike.%${search}%,customer_phone.ilike.%${search}%,customer_name.ilike.%${search}%`)
       if (statusFilter) q = q.eq('status', statusFilter)
       const from = (page - 1) * PAGE_SIZE
@@ -53,7 +71,7 @@ export function AdminOrders() {
     queryFn: async () => {
       const { data } = await supabase
         .from('orders')
-        .select('*, customer:users(name, phone), items:order_items(*, book:books(title, cover_image_url), bookstore:bookstores(name, whatsapp)), payments(*), deliveries(*)')
+        .select('*, customer:users(name, phone), items:order_items(*, book:books(title, cover_image_url), bookstore:bookstores(name, whatsapp, bank_qr_code_url)), payments(*), bookstore_payments(*, paid_by_user:users(name)), deliveries(*)')
         .eq('id', detailOrder!.id)
         .single()
       return data as Order
@@ -75,6 +93,116 @@ export function AdminOrders() {
     } finally {
       setUpdating(false)
     }
+  }
+
+  function openStorePayment(group: StorePaymentGroup) {
+    setPaymentStore(group)
+    setPaymentAmount(String(group.payment?.amount ?? group.expectedAmount))
+    setPaymentPaidAt(toDateTimeLocal(group.payment?.paid_at ?? new Date().toISOString()))
+    setPaymentReference(group.payment?.reference ?? '')
+    setPaymentNotes(group.payment?.notes ?? '')
+    setPaymentProofFile(null)
+    setPaymentProofPreview(group.payment?.proof_image_url ?? null)
+  }
+
+  function closeStorePayment() {
+    setPaymentStore(null)
+    setPaymentProofFile(null)
+    setPaymentProofPreview(null)
+    if (paymentProofInputRef.current) paymentProofInputRef.current.value = ''
+  }
+
+  function handlePaymentProofChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      error('Payment proof must be a PNG, JPG, WebP, or PDF file')
+      e.target.value = ''
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      error('Payment proof must be 10 MB or smaller')
+      e.target.value = ''
+      return
+    }
+    setPaymentProofFile(file)
+    setPaymentProofPreview(file.type === 'application/pdf' ? null : URL.createObjectURL(file))
+  }
+
+  async function uploadPaymentProof(orderId: string, bookstoreId: string, file: File) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+    const path = `${orderId}/${bookstoreId}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('bookstore-payment-proofs')
+      .upload(path, file, { contentType: file.type })
+    if (uploadError) throw uploadError
+    return supabase.storage.from('bookstore-payment-proofs').getPublicUrl(path).data.publicUrl
+  }
+
+  async function saveStorePayment() {
+    if (!orderDetail || !paymentStore || !profile) return
+    if (!paymentProofFile && !paymentStore.payment?.proof_image_url) {
+      error('Attach payment proof before marking the bookstore as paid')
+      return
+    }
+    const amount = Number(paymentAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      error('Enter a valid payment amount')
+      return
+    }
+    const paidAt = new Date(paymentPaidAt)
+    if (!paymentPaidAt || Number.isNaN(paidAt.getTime())) {
+      error('Enter a valid payment date')
+      return
+    }
+
+    setSavingStorePayment(true)
+    try {
+      const proofImageUrl = paymentProofFile
+        ? await uploadPaymentProof(orderDetail.id, paymentStore.bookstoreId, paymentProofFile)
+        : paymentStore.payment!.proof_image_url
+      const { error: saveError } = await supabase
+        .from('bookstore_payments')
+        .upsert({
+          order_id: orderDetail.id,
+          bookstore_id: paymentStore.bookstoreId,
+          amount,
+          currency: orderDetail.currency,
+          proof_image_url: proofImageUrl,
+          reference: paymentReference || null,
+          notes: paymentNotes || null,
+          paid_at: paidAt.toISOString(),
+          paid_by_user_id: paymentStore.payment?.paid_by_user_id ?? profile.id,
+        }, { onConflict: 'order_id,bookstore_id' })
+      if (saveError) throw saveError
+
+      await qc.invalidateQueries({ queryKey: ['admin', 'order-detail', orderDetail.id] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
+      closeStorePayment()
+      success(paymentStore.payment ? 'Bookstore payment updated' : 'Bookstore marked as paid')
+    } catch (saveError) {
+      console.error('[saveStorePayment]', saveError)
+      error(saveError instanceof Error ? saveError.message : t('common.error'))
+    } finally {
+      setSavingStorePayment(false)
+    }
+  }
+
+  async function viewPaymentProof(payment: BookstorePayment) {
+    const path = payment.proof_image_url.split('/bookstore-payment-proofs/')[1]
+    if (!path) {
+      window.open(payment.proof_image_url, '_blank', 'noopener,noreferrer')
+      return
+    }
+    const { data, error: signedUrlError } = await supabase.storage
+      .from('bookstore-payment-proofs')
+      .createSignedUrl(path, 3600)
+    if (signedUrlError || !data?.signedUrl) {
+      error(signedUrlError?.message ?? 'Could not open payment proof')
+      return
+    }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   async function handleBookstoreWhatsApp(item: OrderItem) {
@@ -161,6 +289,7 @@ export function AdminOrders() {
     { value: 'COMPLETED', label: 'Completed' },
     { value: 'CANCELLED', label: 'Cancelled' },
   ]
+  const storePaymentGroups = orderDetail ? groupStorePayments(orderDetail) : []
 
   return (
     <div className="space-y-5">
@@ -206,6 +335,7 @@ export function AdminOrders() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Customer</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Payment</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Store Paid</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -234,6 +364,9 @@ export function AdminOrders() {
                     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', paymentStatusColor(order.payment_status))}>
                       {paymentStatusLabel(order.payment_status)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 hidden lg:table-cell">
+                    <StorePaymentProgress order={order} />
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
                     {formatPrice(order.total_amount)}
@@ -313,6 +446,71 @@ export function AdminOrders() {
               </div>
             </div>
 
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Bookstore payments</p>
+                <p className="text-xs text-gray-400">
+                  {storePaymentGroups.filter(group => group.payment).length}/{storePaymentGroups.length} paid
+                </p>
+              </div>
+              <div className="space-y-2">
+                {storePaymentGroups.map(group => (
+                  <div
+                    key={group.bookstoreId}
+                    className={cn(
+                      'rounded-xl border p-3',
+                      group.payment ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {group.payment
+                            ? <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-600" />
+                            : <Clock className="h-4 w-4 flex-shrink-0 text-orange-500" />}
+                          <p className="truncate text-sm font-semibold text-gray-800">{group.bookstoreName}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Store total: <span className="font-semibold">{formatPrice(group.expectedAmount)}</span>
+                        </p>
+                        {group.payment && (
+                          <p className="mt-1 text-xs text-green-700">
+                            Paid {formatPrice(Number(group.payment.amount))} · {formatDateTime(group.payment.paid_at)}
+                            {group.payment.paid_by_user?.name ? ` · by ${group.payment.paid_by_user.name}` : ''}
+                          </p>
+                        )}
+                      </div>
+                      <span className={cn(
+                        'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                        group.payment ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700',
+                      )}>
+                        {group.payment ? 'Paid' : 'Unpaid'}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-black/5 pt-3">
+                      {group.payment && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          icon={<ReceiptText className="h-3.5 w-3.5" />}
+                          onClick={() => viewPaymentProof(group.payment!)}
+                        >
+                          View proof
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant={group.payment ? 'outline' : 'primary'}
+                        onClick={() => openStorePayment(group)}
+                      >
+                        {group.payment ? 'Edit payment' : 'Record payment'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* WhatsApp message to bookstores */}
             {orderDetail.items?.map(item => item.bookstore?.whatsapp && (
               <button
@@ -384,6 +582,136 @@ export function AdminOrders() {
           </div>
         ) : <LoadingSpinner />}
       </Modal>
+
+      <Modal
+        open={!!paymentStore}
+        onClose={closeStorePayment}
+        title={paymentStore?.payment ? 'Edit Bookstore Payment' : 'Record Bookstore Payment'}
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeStorePayment}>{t('common.cancel')}</Button>
+            <Button loading={savingStorePayment} onClick={saveStorePayment}>
+              {paymentStore?.payment ? 'Save changes' : 'Mark as paid'}
+            </Button>
+          </>
+        }
+      >
+        {paymentStore && (
+          <div className="space-y-4">
+            <div className="rounded-xl bg-primary-50 p-3">
+              <p className="text-xs text-gray-500">{paymentStore.bookstoreName}</p>
+              <p className="mt-1 text-lg font-bold text-primary-700">
+                Expected: {formatPrice(paymentStore.expectedAmount)}
+              </p>
+            </div>
+            <Input
+              label="Amount Paid"
+              type="number"
+              min="1"
+              required
+              value={paymentAmount}
+              onChange={e => setPaymentAmount(e.target.value)}
+            />
+            <Input
+              label="Paid At"
+              type="datetime-local"
+              required
+              value={paymentPaidAt}
+              onChange={e => setPaymentPaidAt(e.target.value)}
+            />
+            <Input
+              label="Transaction Reference"
+              placeholder="Optional bank transaction ID"
+              value={paymentReference}
+              onChange={e => setPaymentReference(e.target.value)}
+            />
+            <Textarea
+              label="Notes"
+              rows={2}
+              value={paymentNotes}
+              onChange={e => setPaymentNotes(e.target.value)}
+            />
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">
+                Payment Proof<span className="ml-0.5 text-red-500">*</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => paymentProofInputRef.current?.click()}
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-gray-200 p-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
+              >
+                {paymentProofPreview ? (
+                  <StorageImage
+                    src={paymentProofPreview}
+                    alt="Payment proof preview"
+                    className="h-24 w-24 flex-shrink-0 rounded-lg bg-white object-contain"
+                  />
+                ) : (
+                  <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                    <Upload className="h-6 w-6 text-gray-400" />
+                  </span>
+                )}
+                <span>
+                  <span className="block text-sm font-semibold text-gray-700">
+                    {paymentProofFile
+                      ? paymentProofFile.name
+                      : paymentStore.payment ? 'Replace payment proof' : 'Attach payment proof'}
+                  </span>
+                  <span className="mt-1 block text-xs text-gray-400">PNG, JPG, WebP, or PDF · maximum 10 MB</span>
+                </span>
+              </button>
+              <input
+                ref={paymentProofInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,application/pdf"
+                className="hidden"
+                onChange={handlePaymentProofChange}
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
+  )
+}
+
+function groupStorePayments(order: Order): StorePaymentGroup[] {
+  const groups = new Map<string, StorePaymentGroup>()
+  order.items?.forEach(item => {
+    const existing = groups.get(item.bookstore_id)
+    const amount = Number(item.bookstore_price) * item.quantity
+    if (existing) {
+      existing.expectedAmount += amount
+    } else {
+      groups.set(item.bookstore_id, {
+        bookstoreId: item.bookstore_id,
+        bookstoreName: item.bookstore?.name ?? 'Bookstore',
+        expectedAmount: amount,
+        payment: order.bookstore_payments?.find(payment => payment.bookstore_id === item.bookstore_id),
+      })
+    }
+  })
+  return [...groups.values()]
+}
+
+function toDateTimeLocal(value: string) {
+  const date = new Date(value)
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+function StorePaymentProgress({ order }: { order: Order }) {
+  const total = new Set(order.items?.map(item => item.bookstore_id)).size
+  const paid = new Set(order.bookstore_payments?.map(payment => payment.bookstore_id)).size
+  const complete = total > 0 && paid === total
+
+  return (
+    <span className={cn(
+      'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+      complete ? 'bg-green-100 text-green-700' : paid > 0 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700',
+    )}>
+      {paid}/{total} paid
+    </span>
   )
 }

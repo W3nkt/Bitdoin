@@ -12,9 +12,16 @@ interface ReceiptProps {
   payment: Payment
   language?: Language
   currency?: Currency
+  showAdminPricing?: boolean
 }
 
-export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: ReceiptProps) {
+export function Receipt({
+  order,
+  payment,
+  language = 'en',
+  currency = 'LAK',
+  showAdminPricing = false,
+}: ReceiptProps) {
   const { t } = useTranslation()
   const receiptRef = useRef<HTMLDivElement>(null)
   const [saving, setSaving] = useState(false)
@@ -22,6 +29,15 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
   const verifiedAt = payment.reviewed_at ?? payment.created_at
   const platformUrl = 'bitdoin.la'
   const deliveryFields = localizeDeliveryAddress(order.delivery_address, language)
+  const storePriceTotal = order.items?.reduce(
+    (sum, item) => sum + Number(item.bookstore_price) * item.quantity,
+    0,
+  ) ?? 0
+  const finalPriceTotal = order.items?.reduce(
+    (sum, item) => sum + Number(item.final_price) * item.quantity,
+    0,
+  ) ?? 0
+  const marginAmount = finalPriceTotal - storePriceTotal
 
   async function handleSaveImage() {
     if (!receiptRef.current) return
@@ -135,6 +151,11 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
                   <span className="text-gray-600 flex-1 line-clamp-2">
                     {item.book?.title}
                     <span className="text-gray-400"> ×{item.quantity}</span>
+                    {showAdminPricing && (
+                      <span className="mt-0.5 block text-[10px] text-gray-400">
+                        Store: {formatPrice(Number(item.bookstore_price), currency)} · Final: {formatPrice(Number(item.final_price), currency)}
+                      </span>
+                    )}
                   </span>
                   <span className="font-semibold text-gray-800 flex-shrink-0">
                     {formatPrice(item.final_price * item.quantity, currency)}
@@ -146,6 +167,15 @@ export function Receipt({ order, payment, language = 'en', currency = 'LAK' }: R
               <span className="text-gray-700">{t('checkout.total')}</span>
               <span className="text-primary-700">{formatPrice(order.total_amount, currency)}</span>
             </div>
+            {showAdminPricing && (
+              <div className="mt-3 space-y-1.5 rounded-xl bg-gray-50 p-3">
+                <ReceiptRow label="Store price total" value={formatPrice(storePriceTotal, currency)} />
+                <ReceiptRow label="Final price total" value={formatPrice(finalPriceTotal, currency)} />
+                <div className="border-t border-gray-200 pt-1.5">
+                  <ReceiptRow label="Order margin" value={formatPrice(marginAmount, currency)} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

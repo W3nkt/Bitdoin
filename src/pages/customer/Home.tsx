@@ -44,7 +44,7 @@ export function Home() {
     queryFn: async () => {
       const { data } = await supabase
         .from('books')
-        .select('*, category:categories(*), prices:book_prices(final_price, availability)')
+        .select('*, category:categories(*), prices:book_prices(*, bookstore:bookstores(name))')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .limit(12)
@@ -68,6 +68,8 @@ export function Home() {
       book,
       bookstore: price.bookstore,
       unit_price: price.final_price,
+      bookstore_price: price.bookstore_price,
+      margin_percent: price.margin_percent,
     })
     success(t('book.addToCart') + ': ' + book.title)
   }

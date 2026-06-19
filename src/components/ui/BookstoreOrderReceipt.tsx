@@ -138,9 +138,39 @@ export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderRe
               <p className="mt-3 text-lg font-bold text-primary-800">
                 ຈຳນວນ: {item.quantity}
               </p>
+              <div className="mt-4 rounded-xl bg-primary-50 px-4 py-3">
+                <ReceiptLine
+                  label="ລາຄາຮ້ານຕໍ່ຫົວ"
+                  value={`${Number(item.bookstore_price).toLocaleString('en-US')} LAK`}
+                />
+                <ReceiptLine
+                  label="ຍອດທີ່ຕ້ອງຈ່າຍໃຫ້ຮ້ານ"
+                  value={`${(Number(item.bookstore_price) * item.quantity).toLocaleString('en-US')} LAK`}
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {item.bookstore?.bank_qr_code_url && (
+          <div className="px-8 pb-8">
+            <div className="flex items-center gap-6 rounded-2xl border border-gray-200 p-5">
+              <img
+                src={item.bookstore.bank_qr_code_url}
+                alt="Store bank QR code"
+                className="h-44 w-44 flex-shrink-0 rounded-xl border border-gray-100 object-contain"
+                crossOrigin="anonymous"
+              />
+              <div>
+                <p className="text-sm font-bold text-gray-500">QR ທະນາຄານຂອງຮ້ານ</p>
+                <p className="mt-2 text-lg font-bold text-gray-900">{item.bookstore.name}</p>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">
+                  ສະແກນ QR ເພື່ອຈ່າຍຄ່າປຶ້ມໃຫ້ຮ້ານ
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="bg-primary-50 px-8 py-5 text-center">
           <p className="text-sm text-gray-600">

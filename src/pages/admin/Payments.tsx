@@ -389,6 +389,7 @@ export function AdminPayments() {
               payment={receiptOrder.payments?.[0] ?? receiptPayment}
               language={language}
               currency={currency}
+              showAdminPricing
             />
           ) : (
             <p className="text-sm text-gray-400 text-center py-4">{t('orders.notFound')}</p>

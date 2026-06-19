@@ -71,6 +71,8 @@ export function BookDetail() {
       book: book!,
       bookstore: selectedPrice.bookstore,
       unit_price: selectedPrice.final_price,
+      bookstore_price: selectedPrice.bookstore_price,
+      margin_percent: selectedPrice.margin_percent,
     })
     success(t('book.addToCart') + ': ' + book!.title)
   }

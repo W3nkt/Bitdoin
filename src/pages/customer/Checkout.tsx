@@ -106,7 +106,25 @@ export function Checkout() {
     setPlacing(true)
     try {
       const orderNumber = generateOrderNumber()
-      const total = subtotal()
+      const bookIds = [...new Set(items.map(item => item.book_id))]
+      const { data: currentPrices, error: pricesErr } = await supabase
+        .from('book_prices')
+        .select('book_id, bookstore_id, bookstore_price, margin_percent, final_price')
+        .in('book_id', bookIds)
+      if (pricesErr) throw pricesErr
+
+      const pricesByItem = new Map(
+        (currentPrices ?? []).map(price => [`${price.book_id}:${price.bookstore_id}`, price]),
+      )
+      const pricedItems = items.map(item => {
+        const price = pricesByItem.get(`${item.book_id}:${item.bookstore_id}`)
+        if (!price) throw new Error(`Price not found for cart item ${item.book_id}`)
+        return { item, price }
+      })
+      const total = pricedItems.reduce(
+        (sum, { item, price }) => sum + Number(price.final_price) * item.quantity,
+        0,
+      )
       const provinceLabel = selectedProvince
         ? language === 'lo' ? selectedProvince.name_lo : selectedProvince.name_en
         : form.province
@@ -141,20 +159,21 @@ export function Checkout() {
 
       if (orderErr || !order) throw orderErr
 
-      const orderItems = items.map(item => ({
+      const orderItems = pricedItems.map(({ item, price }) => ({
         order_id: order.id,
         book_id: item.book_id,
         bookstore_id: item.bookstore_id,
         quantity: item.quantity,
-        bookstore_price: item.unit_price ?? 0,
-        margin_percent: 0,
-        final_price: item.unit_price ?? 0,
+        bookstore_price: Number(price.bookstore_price),
+        margin_percent: Number(price.margin_percent),
+        final_price: Number(price.final_price),
         fulfillment_status: 'PROCESSING',
       }))
 
-      await supabase.from('order_items').insert(orderItems)
+      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
+      if (itemsErr) throw itemsErr
 
-      await supabase.from('payments').insert({
+      const { error: paymentErr } = await supabase.from('payments').insert({
         order_id: order.id,
         user_id: profile.id,
         method: form.payment_method as PaymentMethod,
@@ -162,6 +181,7 @@ export function Checkout() {
         currency,
         verification_status: 'PENDING',
       })
+      if (paymentErr) throw paymentErr
 
       clearCart()
       success(t('checkout.orderPlaced', { orderNumber }))

@@ -73,6 +73,7 @@ export interface Bookstore {
   phone?: string
   whatsapp?: string
   messenger_url?: string
+  bank_qr_code_url?: string
   address?: string
   notes?: string
   is_active: boolean
@@ -142,6 +143,8 @@ export interface CartItem {
   book?: Book
   bookstore?: Bookstore
   unit_price?: number
+  bookstore_price?: number
+  margin_percent?: number
 }
 
 export interface Order {
@@ -164,6 +167,7 @@ export interface Order {
   customer?: User
   items?: OrderItem[]
   payments?: Payment[]
+  bookstore_payments?: BookstorePayment[]
   deliveries?: Delivery[]
 }
 
@@ -220,6 +224,23 @@ export interface PaymentAccount {
   sort_order: number
   created_at: string
   updated_at: string
+}
+
+export interface BookstorePayment {
+  id: string
+  order_id: string
+  bookstore_id: string
+  amount: number
+  currency: Currency
+  proof_image_url: string
+  reference?: string
+  notes?: string
+  paid_at: string
+  paid_by_user_id: string
+  created_at: string
+  updated_at: string
+  bookstore?: Bookstore
+  paid_by_user?: User
 }
 
 export interface Delivery {
