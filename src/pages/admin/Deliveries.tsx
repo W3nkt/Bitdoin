@@ -4,12 +4,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Truck, Plus, Edit2, MapPin } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
+import { logAudit } from '@/lib/audit'
+import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { Delivery, DeliveryStatus } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
+import { useLanguage } from '@/context/LanguageContext'
 import { formatDate, deliveryStatusLabel } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -45,8 +48,10 @@ const statusStripes: Record<DeliveryStatus, string> = {
 
 export function AdminDeliveries() {
   const { t } = useTranslation()
+  const { language } = useLanguage()
   const qc = useQueryClient()
   const { success, error } = useToast()
+  const { markSeen } = useMarkSeen()
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editDelivery, setEditDelivery] = useState<Delivery | null>(null)
@@ -89,6 +94,7 @@ export function AdminDeliveries() {
 
   function openEdit(delivery: Delivery) {
     setEditDelivery(delivery)
+    markSeen(delivery.id)
     reset({
       order_id: delivery.order_id,
       courier: delivery.courier,
@@ -120,12 +126,26 @@ export function AdminDeliveries() {
         } else if (form.status === 'SHIPPED') {
           await supabase.from('orders').update({ status: 'SHIPPED' }).eq('id', form.order_id)
         }
+        await logAudit({
+          entity: 'delivery',
+          entityId: editDelivery.id,
+          action: 'DELIVERY_UPDATED',
+          oldValue: { status: editDelivery.status, courier: editDelivery.courier, tracking_number: editDelivery.tracking_number ?? null },
+          newValue: { status: form.status, courier: form.courier, tracking_number: form.tracking_number || null, order_id: form.order_id },
+        })
         success('Delivery updated')
       } else {
-        await supabase.from('deliveries').insert(payload)
+        const { data: created } = await supabase.from('deliveries').insert(payload).select('id').single()
+        await logAudit({
+          entity: 'delivery',
+          entityId: created?.id,
+          action: 'DELIVERY_CREATED',
+          newValue: { order_id: form.order_id, status: form.status, courier: form.courier, tracking_number: form.tracking_number || null },
+        })
         success('Delivery created')
       }
       await qc.invalidateQueries({ queryKey: ['admin', 'deliveries'] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'badge', 'deliveries'] })
       setModalOpen(false)
     } catch {
       error(t('common.error'))
@@ -173,7 +193,7 @@ export function AdminDeliveries() {
                 : 'border border-gray-200 text-gray-500 hover:border-primary-400 hover:text-primary-600'
             }`}
           >
-            {s ? deliveryStatusLabel(s as DeliveryStatus) : 'All'}
+            {s ? deliveryStatusLabel(s as DeliveryStatus, language) : 'All'}
           </button>
         ))}
       </div>
@@ -202,7 +222,7 @@ export function AdminDeliveries() {
                     </div>
                   </div>
                   <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold flex-shrink-0', statusColors[delivery.status])}>
-                    {deliveryStatusLabel(delivery.status)}
+                    {deliveryStatusLabel(delivery.status, language)}
                   </span>
                 </div>
 
@@ -223,13 +243,13 @@ export function AdminDeliveries() {
                   {delivery.shipped_at && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">Shipped:</span>
-                      <span className="text-gray-600">{formatDate(delivery.shipped_at)}</span>
+                      <span className="text-gray-600">{formatDate(delivery.shipped_at, language)}</span>
                     </div>
                   )}
                   {delivery.estimated_delivery_at && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">Est. Delivery:</span>
-                      <span className="text-gray-600">{formatDate(delivery.estimated_delivery_at)}</span>
+                      <span className="text-gray-600">{formatDate(delivery.estimated_delivery_at, language)}</span>
                     </div>
                   )}
                 </div>

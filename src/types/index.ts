@@ -150,7 +150,7 @@ export interface CartItem {
 export interface Order {
   id: string
   order_number: string
-  customer_id: string
+  customer_id?: string | null
   status: OrderStatus
   payment_status: PaymentStatus
   subtotal_amount: number
@@ -190,7 +190,7 @@ export interface OrderItem {
 export interface Payment {
   id: string
   order_id: string
-  user_id: string
+  user_id?: string | null
   method: PaymentMethod
   amount: number
   currency: Currency

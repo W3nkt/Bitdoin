@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { CheckCircle, Download, ExternalLink } from 'lucide-react'
+import { CheckCircle, Clock, Download, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { Order, Payment, Language, Currency } from '@/types'
 import { Button } from './Button'
@@ -27,6 +27,15 @@ export function Receipt({
   const [saving, setSaving] = useState(false)
 
   const verifiedAt = payment.reviewed_at ?? payment.created_at
+  const isVerified = payment.verification_status === 'VERIFIED'
+  const isCOD = payment.method === 'CASH_ON_DELIVERY'
+  const bannerClass = isVerified
+    ? 'bg-green-50 border-green-100'
+    : isCOD
+      ? 'bg-blue-50 border-blue-100'
+      : 'bg-orange-50 border-orange-100'
+  const statusClass = isVerified ? 'text-green-700' : isCOD ? 'text-blue-700' : 'text-orange-700'
+  const detailClass = isVerified ? 'text-green-600' : isCOD ? 'text-blue-600' : 'text-orange-600'
   const platformUrl = 'bitdoin.la'
   const deliveryFields = localizeDeliveryAddress(order.delivery_address, language)
   const storePriceTotal = order.items?.reduce(
@@ -97,12 +106,24 @@ export function Receipt({
           </div>
         </div>
 
-        {/* Verified banner */}
-        <div className="bg-green-50 border-b border-green-100 px-5 py-3 flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+        {/* Payment status banner */}
+        <div className={`${bannerClass} border-b px-5 py-3 flex items-center gap-3`}>
+          {isVerified ? (
+            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+          ) : (
+            <Clock className={`h-5 w-5 flex-shrink-0 ${isCOD ? 'text-blue-500' : 'text-orange-500'}`} />
+          )}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-green-700">{t('payment.verified')}</p>
-            <p className="text-[11px] text-green-600">{formatDateTime(verifiedAt, language)}</p>
+            <p className={`text-xs font-bold ${statusClass}`}>
+              {isVerified
+                ? t('payment.verified')
+                : isCOD
+                  ? t('checkout.paymentMethods.CASH_ON_DELIVERY')
+                  : t('orders.awaitingPayment')}
+            </p>
+            <p className={`text-[11px] ${detailClass}`}>
+              {formatDateTime(verifiedAt, language)}
+            </p>
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-[10px] text-gray-400">{t('payment.amount')}</p>

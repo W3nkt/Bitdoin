@@ -1,0 +1,259 @@
+import { useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
+import { CheckCircle, Clock, Copy, CreditCard, Smartphone, Upload, XCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { trackOrder, uploadGuestReceipt } from '@/lib/guestOrders'
+import { useLanguage } from '@/context/LanguageContext'
+import { useToast } from '@/components/ui/Toast'
+import { Button } from '@/components/ui/Button'
+import { Receipt } from '@/components/ui/Receipt'
+import { StorageImage } from '@/components/ui/StorageImage'
+import { formatPrice } from '@/lib/utils'
+import type { Order, PaymentAccount } from '@/types'
+import type { ReactNode } from 'react'
+
+interface GuestPaymentPanelProps {
+  order: Order
+  customerPhone: string
+  accessToken?: string
+  onOrderChange: (order: Order) => void
+}
+
+export function GuestPaymentPanel({
+  order,
+  customerPhone,
+  accessToken,
+  onOrderChange,
+}: GuestPaymentPanelProps) {
+  const { t } = useTranslation()
+  const { currency, language } = useLanguage()
+  const { success, error } = useToast()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+
+  const payment = order.payments?.[0]
+  const isCOD = payment?.method === 'CASH_ON_DELIVERY'
+  const canUpload = payment && !isCOD && payment.verification_status !== 'VERIFIED' &&
+    payment.verification_status !== 'REQUIRES_REVIEW'
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['payment_accounts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('payment_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+      return (data ?? []) as PaymentAccount[]
+    },
+  })
+
+  async function copyOrderCode() {
+    await navigator.clipboard.writeText(order.order_number)
+    success(t('common.copied'))
+  }
+
+  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !payment) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      error(t('payment.imageOnly'))
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      error(t('payment.fileTooLarge'))
+      return
+    }
+
+    setUploading(true)
+    try {
+      await uploadGuestReceipt({ order, customerPhone, accessToken, file })
+      const refreshed = await trackOrder(order.order_number, customerPhone)
+      if (refreshed) onOrderChange(refreshed)
+      success(t('payment.receiptUploaded'))
+    } catch (uploadError) {
+      console.error('[guest receipt upload]', uploadError)
+      error(uploadError instanceof Error ? uploadError.message : t('common.error'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (!payment) return null
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl bg-primary-50 px-4 py-3">
+        <p className="text-xs font-medium text-primary-500">{t('tracking.saveCode')}</p>
+        <div className="mt-1 flex items-center justify-between gap-3">
+          <p className="truncate font-mono text-lg font-bold text-primary-800">{order.order_number}</p>
+          <button
+            type="button"
+            onClick={copyOrderCode}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm transition-colors hover:bg-primary-100"
+            aria-label={t('tracking.copyCode')}
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {payment.verification_status === 'VERIFIED' && (
+        <StatusMessage
+          icon={<CheckCircle className="h-5 w-5" />}
+          className="bg-green-50 text-green-700"
+          title={t('payment.verified')}
+          detail={t('orders.receiptReady')}
+        />
+      )}
+
+      {payment.verification_status === 'REQUIRES_REVIEW' && (
+        <StatusMessage
+          icon={<Clock className="h-5 w-5" />}
+          className="bg-orange-50 text-orange-700"
+          title={t('orders.underReview')}
+          detail={t('payment.requiresReview')}
+        />
+      )}
+
+      {payment.verification_status === 'REJECTED' && (
+        <StatusMessage
+          icon={<XCircle className="h-5 w-5" />}
+          className="bg-red-50 text-red-700"
+          title={t('payment.rejected')}
+          detail={payment.rejection_reason || t('payment.uploadNew')}
+        />
+      )}
+
+      {isCOD ? (
+        <StatusMessage
+          icon={<CreditCard className="h-5 w-5" />}
+          className="bg-blue-50 text-blue-700"
+          title={t('checkout.paymentMethods.CASH_ON_DELIVERY')}
+          detail={t('tracking.codNote')}
+        />
+      ) : payment.verification_status !== 'VERIFIED' && (
+        <PaymentInstructions
+          method={payment.method}
+          amount={order.total_amount}
+          currency={currency}
+          accounts={accounts}
+        />
+      )}
+
+      {payment.receipt_image_url && payment.verification_status !== 'VERIFIED' && (
+        <StorageImage
+          src={payment.receipt_image_url}
+          alt={t('payment.receipt')}
+          className="max-h-56 w-full rounded-2xl border border-gray-100 bg-gray-50 object-contain"
+        />
+      )}
+
+      {canUpload && (
+        <>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleUpload}
+          />
+          <Button
+            type="button"
+            fullWidth
+            loading={uploading}
+            icon={<Upload className="h-4 w-4" />}
+            onClick={() => inputRef.current?.click()}
+          >
+            {payment.verification_status === 'REJECTED' ? t('payment.uploadNew') : t('payment.uploadReceipt')}
+          </Button>
+        </>
+      )}
+
+      <Receipt order={order} payment={payment} language={language} currency={currency} />
+    </div>
+  )
+}
+
+function PaymentInstructions({
+  method,
+  amount,
+  currency,
+  accounts,
+}: {
+  method: NonNullable<Order['payments']>[number]['method']
+  amount: number
+  currency: import('@/types').Currency
+  accounts: PaymentAccount[]
+}) {
+  const { t } = useTranslation()
+  const relevantAccounts = accounts.filter(account => account.method === method)
+
+  return (
+    <div className="space-y-3">
+      {relevantAccounts.map(account => (
+        <div key={account.id} className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <div className="flex items-center gap-2">
+            {method === 'QR_PAYMENT'
+              ? <Smartphone className="h-4 w-4 text-primary-600" />
+              : <CreditCard className="h-4 w-4 text-primary-600" />}
+            <p className="text-sm font-semibold text-gray-800">{account.label}</p>
+          </div>
+          {account.qr_image_url && (
+            <img
+              src={account.qr_image_url}
+              alt={account.label}
+              className="mx-auto h-48 w-48 rounded-xl border border-gray-200 bg-white object-contain p-1"
+            />
+          )}
+          {account.bank_name && <InfoRow label={t('payment.bankName')} value={account.bank_name} />}
+          {account.account_name && <InfoRow label={t('payment.accountName')} value={account.account_name} />}
+          {account.account_number && <InfoRow label={t('payment.accountNumber')} value={account.account_number} mono />}
+          {account.instructions && <p className="rounded-xl bg-primary-50 px-3 py-2 text-xs text-primary-700">{account.instructions}</p>}
+          <div className="rounded-xl bg-white px-4 py-3 text-center">
+            <p className="text-xs text-gray-400">{t('payment.amount')}</p>
+            <p className="text-xl font-bold text-primary-700">{formatPrice(amount, currency)}</p>
+          </div>
+        </div>
+      ))}
+      {relevantAccounts.length === 0 && (
+        <p className="rounded-xl bg-orange-50 px-3 py-2 text-xs text-orange-700">
+          {t('payment.accountUnavailable')}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function StatusMessage({
+  icon,
+  className,
+  title,
+  detail,
+}: {
+  icon: ReactNode
+  className: string
+  title: string
+  detail: string
+}) {
+  return (
+    <div className={`flex items-start gap-3 rounded-2xl p-4 ${className}`}>
+      <span className="mt-0.5 shrink-0">{icon}</span>
+      <div>
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="mt-0.5 text-xs opacity-80">{detail}</p>
+      </div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-4 text-xs">
+      <span className="shrink-0 text-gray-400">{label}</span>
+      <span className={`break-all text-right font-medium text-gray-700 ${mono ? 'font-mono' : ''}`}>{value}</span>
+    </div>
+  )
+}

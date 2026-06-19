@@ -9,11 +9,13 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { StatCard } from '@/components/ui/Card'
 import { formatPrice } from '@/lib/utils'
 import { DollarSign, TrendingUp, ShoppingBag, Users, TrendingDown } from 'lucide-react'
+import { useLanguage } from '@/context/LanguageContext'
 
 const COLORS = ['#1e3a5f', '#f97316', '#22c55e', '#8b5cf6', '#06b6d4']
 
 export function AdminAnalytics() {
   const { t } = useTranslation()
+  const { currency } = useLanguage()
 
   const { data: summary, isLoading } = useQuery({
     queryKey: ['admin', 'analytics'],
@@ -87,19 +89,19 @@ export function AdminAnalytics() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           label={t('admin.gmv')}
-          value={formatPrice(summary?.gmv ?? 0)}
+          value={formatPrice(summary?.gmv ?? 0, currency)}
           icon={<DollarSign className="h-5 w-5" />}
           color="blue"
         />
         <StatCard
           label={t('admin.revenue')}
-          value={formatPrice(summary?.revenue ?? 0)}
+          value={formatPrice(summary?.revenue ?? 0, currency)}
           icon={<TrendingUp className="h-5 w-5" />}
           color="green"
         />
         <StatCard
           label={t('admin.margin')}
-          value={formatPrice(summary?.grossMargin ?? 0)}
+          value={formatPrice(summary?.grossMargin ?? 0, currency)}
           icon={<TrendingDown className="h-5 w-5" />}
           color="purple"
         />
@@ -115,12 +117,12 @@ export function AdminAnalytics() {
         {/* Monthly revenue */}
         {summary?.monthlyData && summary.monthlyData.length > 0 && (
           <div className="bg-white rounded-2xl shadow-card p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Revenue (LAK)</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Revenue ({currency})</h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={summary.monthlyData}>
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => (v / 1000).toFixed(0) + 'K'} />
-                <Tooltip formatter={v => formatPrice(v as number)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatPrice(v, currency)} width={74} />
+                <Tooltip formatter={v => formatPrice(v as number, currency)} />
                 <Line
                   type="monotone"
                   dataKey="total"
@@ -137,12 +139,12 @@ export function AdminAnalytics() {
         {/* Margin by bookstore */}
         {summary?.storeMargins && summary.storeMargins.length > 0 && (
           <div className="bg-white rounded-2xl shadow-card p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Margin by Bookstore (LAK)</h3>
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Margin by Bookstore ({currency})</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={summary.storeMargins}>
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} tickFormatter={s => s.slice(0, 10)} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={v => formatPrice(v as number)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => formatPrice(v, currency)} width={74} />
+                <Tooltip formatter={v => formatPrice(v as number, currency)} />
                 <Bar dataKey="margin" fill="#f97316" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -181,7 +183,7 @@ export function AdminAnalytics() {
             <ShoppingBag className="h-6 w-6 text-primary-700" />
           </div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Average Order Value</p>
-          <p className="text-4xl font-bold text-primary-700">{formatPrice(summary?.avgOrderValue ?? 0)}</p>
+          <p className="text-4xl font-bold text-primary-700">{formatPrice(summary?.avgOrderValue ?? 0, currency)}</p>
           <p className="text-xs text-gray-400">per completed order</p>
         </div>
       </div>

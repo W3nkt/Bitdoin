@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
+import { logAudit } from '@/lib/audit'
 import type { BookPrice, MarginRule } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -50,7 +51,7 @@ export function AdminPricing() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const { success, error } = useToast()
-  const { language } = useLanguage()
+  const { language, currency } = useLanguage()
 
   const [tab, setTab] = useState<'prices' | 'rules'>('prices')
   const [priceModal, setPriceModal] = useState(false)
@@ -125,9 +126,26 @@ export function AdminPricing() {
     try {
       if (editPrice) {
         await supabase.from('book_prices').update(payload).eq('id', editPrice.id)
+        await logAudit({
+          entity: 'book_price',
+          entityId: editPrice.id,
+          action: 'BOOK_PRICE_UPDATED',
+          oldValue: { bookstore_price: editPrice.bookstore_price, margin_percent: editPrice.margin_percent, availability: editPrice.availability },
+          newValue: { bookstore_price: bPrice, margin_percent: margin, final_price: final, availability: form.availability },
+        })
         success('Price updated')
       } else {
-        await supabase.from('book_prices').upsert(payload, { onConflict: 'book_id,bookstore_id' })
+        const { data: upserted } = await supabase
+          .from('book_prices')
+          .upsert(payload, { onConflict: 'book_id,bookstore_id' })
+          .select('id')
+          .single()
+        await logAudit({
+          entity: 'book_price',
+          entityId: upserted?.id,
+          action: 'BOOK_PRICE_CREATED',
+          newValue: { book_id: form.book_id, bookstore_id: form.bookstore_id, bookstore_price: bPrice, margin_percent: margin, final_price: final, availability: form.availability },
+        })
         success('Price saved')
       }
       await qc.invalidateQueries({ queryKey: ['admin', 'prices'] })
@@ -142,7 +160,7 @@ export function AdminPricing() {
   async function onSubmitMargin(form: MarginForm) {
     setSaving(true)
     try {
-      await supabase.from('margin_rules').insert({
+      const { data: created } = await supabase.from('margin_rules').insert({
         name: form.name,
         category_id: form.category_id || null,
         bookstore_id: form.bookstore_id || null,
@@ -150,6 +168,12 @@ export function AdminPricing() {
         max_price: form.max_price ? parseFloat(form.max_price) : null,
         margin_percent: parseFloat(form.margin_percent),
         priority: parseInt(form.priority) || 100,
+      }).select('id').single()
+      await logAudit({
+        entity: 'margin_rule',
+        entityId: created?.id,
+        action: 'MARGIN_RULE_CREATED',
+        newValue: { name: form.name, margin_percent: parseFloat(form.margin_percent), priority: parseInt(form.priority) || 100 },
       })
       await qc.invalidateQueries({ queryKey: ['admin', 'margin-rules'] })
       setMarginModal(false)
@@ -179,6 +203,19 @@ export function AdminPricing() {
         .delete()
         .eq('id', deletePrice.id)
       if (deleteError) throw deleteError
+
+      await logAudit({
+        entity: 'book_price',
+        entityId: deletePrice.id,
+        action: 'BOOK_PRICE_DELETED',
+        oldValue: {
+          book_id: deletePrice.book_id,
+          bookstore_id: deletePrice.bookstore_id,
+          bookstore_price: deletePrice.bookstore_price,
+          margin_percent: deletePrice.margin_percent,
+          final_price: deletePrice.final_price,
+        },
+      })
 
       await qc.invalidateQueries({ queryKey: ['admin', 'prices'] })
       setDeletePrice(null)
@@ -315,13 +352,13 @@ export function AdminPricing() {
                     <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-500">
                       {(price.bookstore as { name?: string } | undefined)?.name ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-600">{formatPrice(price.bookstore_price)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-600">{formatPrice(price.bookstore_price, currency)}</td>
                     <td className="px-4 py-3 text-right">
                       <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-primary-50 text-primary-700">
                         {price.margin_percent}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs font-bold text-primary-700">{formatPrice(price.final_price)}</td>
+                    <td className="px-4 py-3 text-right text-xs font-bold text-primary-700">{formatPrice(price.final_price, currency)}</td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                         price.availability === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
@@ -392,8 +429,8 @@ export function AdminPricing() {
                     <p className="font-semibold text-gray-800 text-sm">{rule.name}</p>
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                    {rule.min_price && <span>Min: {formatPrice(rule.min_price)}</span>}
-                    {rule.max_price && <span>Max: {formatPrice(rule.max_price)}</span>}
+                    {rule.min_price && <span>Min: {formatPrice(rule.min_price, currency)}</span>}
+                    {rule.max_price && <span>Max: {formatPrice(rule.max_price, currency)}</span>}
                     {!rule.min_price && !rule.max_price && <span className="text-gray-400">Applies to all price ranges</span>}
                   </div>
                 </div>
@@ -438,11 +475,11 @@ export function AdminPricing() {
               <Calculator className="h-4 w-4 text-primary-500 flex-shrink-0" />
               <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className="text-gray-500">Store Price</span>
-                <span className="font-medium text-gray-700">{formatPrice(parseFloat(bookstorePrice))}</span>
+                <span className="font-medium text-gray-700">{formatPrice(parseFloat(bookstorePrice), currency)}</span>
                 <span className="text-gray-400">×</span>
                 <span className="text-gray-500">(1 + {marginPercent}%)</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
-                <span className="font-bold text-primary-700 text-base">{formatPrice(livePrice)}</span>
+                <span className="font-bold text-primary-700 text-base">{formatPrice(livePrice, currency)}</span>
               </div>
             </div>
           )}

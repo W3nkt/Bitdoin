@@ -5,17 +5,19 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Bus } from 'lucide-react'
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
+import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
-import { formatPrice, generateOrderNumber } from '@/lib/utils'
-import type { CheckoutForm, PaymentMethod } from '@/types'
+import { formatPrice } from '@/lib/utils'
+import { createCheckoutOrder, trackOrder } from '@/lib/guestOrders'
+import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const schema = z.object({
   full_name: z.string().min(2),
@@ -63,6 +65,9 @@ export function Checkout() {
   const { currency, language } = useLanguage()
   const { success, error } = useToast()
   const [placing, setPlacing] = useState(false)
+  const [placedOrder, setPlacedOrder] = useState<Order | null>(null)
+  const [guestAccessToken, setGuestAccessToken] = useState<string>()
+  const [placedPhone, setPlacedPhone] = useState('')
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
@@ -96,35 +101,14 @@ export function Checkout() {
     setValue('district', '')
   }, [selectedProvinceId, setValue])
 
-  if (items.length === 0) {
+  if (items.length === 0 && !placedOrder) {
     navigate('/cart')
     return null
   }
 
   async function onSubmit(form: CheckoutForm) {
-    if (!profile) { navigate('/auth'); return }
     setPlacing(true)
     try {
-      const orderNumber = generateOrderNumber()
-      const bookIds = [...new Set(items.map(item => item.book_id))]
-      const { data: currentPrices, error: pricesErr } = await supabase
-        .from('book_prices')
-        .select('book_id, bookstore_id, bookstore_price, margin_percent, final_price')
-        .in('book_id', bookIds)
-      if (pricesErr) throw pricesErr
-
-      const pricesByItem = new Map(
-        (currentPrices ?? []).map(price => [`${price.book_id}:${price.bookstore_id}`, price]),
-      )
-      const pricedItems = items.map(item => {
-        const price = pricesByItem.get(`${item.book_id}:${item.bookstore_id}`)
-        if (!price) throw new Error(`Price not found for cart item ${item.book_id}`)
-        return { item, price }
-      })
-      const total = pricedItems.reduce(
-        (sum, { item, price }) => sum + Number(price.final_price) * item.quantity,
-        0,
-      )
       const provinceLabel = selectedProvince
         ? language === 'lo' ? selectedProvince.name_lo : selectedProvince.name_en
         : form.province
@@ -139,58 +123,35 @@ export function Checkout() {
         `${t('checkout.address')}: ${form.delivery_address}`,
       ].join('\n')
 
-      const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          customer_id: profile.id,
-          status: 'PENDING_PAYMENT',
-          payment_status: 'PENDING',
-          subtotal_amount: total,
-          total_amount: total,
-          currency,
-          customer_name: form.full_name,
-          customer_phone: form.phone,
-          delivery_address: deliveryAddress,
-          notes: form.notes,
-        })
-        .select()
-        .single()
-
-      if (orderErr || !order) throw orderErr
-
-      const orderItems = pricedItems.map(({ item, price }) => ({
-        order_id: order.id,
-        book_id: item.book_id,
-        bookstore_id: item.bookstore_id,
-        quantity: item.quantity,
-        bookstore_price: Number(price.bookstore_price),
-        margin_percent: Number(price.margin_percent),
-        final_price: Number(price.final_price),
-        fulfillment_status: 'PROCESSING',
-      }))
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems)
-      if (itemsErr) throw itemsErr
-
-      const { error: paymentErr } = await supabase.from('payments').insert({
-        order_id: order.id,
-        user_id: profile.id,
-        method: form.payment_method as PaymentMethod,
-        amount: total,
+      const access = await createCheckoutOrder({
+        customerName: form.full_name,
+        customerPhone: form.phone,
+        deliveryAddress,
+        notes: form.notes,
         currency,
-        verification_status: 'PENDING',
+        paymentMethod: form.payment_method as PaymentMethod,
+        items,
       })
-      if (paymentErr) throw paymentErr
+      const order = await trackOrder(access.order_number, form.phone)
+      if (!order) throw new Error('The order was created but could not be loaded')
 
+      setPlacedPhone(form.phone)
+      setGuestAccessToken(access.access_token)
+      setPlacedOrder(order)
       clearCart()
-      success(t('checkout.orderPlaced', { orderNumber }))
-      navigate(`/orders/${order.id}`)
-    } catch {
-      error(t('common.error'))
+      success(t('checkout.orderPlaced', { orderNumber: access.order_number }))
+    } catch (checkoutError) {
+      console.error('[checkout]', checkoutError)
+      error(checkoutError instanceof Error ? checkoutError.message : t('common.error'))
     } finally {
       setPlacing(false)
     }
+  }
+
+  function closePayment() {
+    if (!placedOrder) return
+    sessionStorage.setItem(`pwen-track-phone:${placedOrder.order_number}`, placedPhone)
+    navigate(`/track?order=${encodeURIComponent(placedOrder.order_number)}`)
   }
 
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
@@ -336,6 +297,27 @@ export function Checkout() {
           {t('checkout.placeOrder')}
         </Button>
       </form>
+
+      <Modal
+        open={!!placedOrder}
+        onClose={closePayment}
+        title={t('checkout.orderComplete')}
+        size="xl"
+        footer={
+          <Button type="button" variant="ghost" onClick={closePayment}>
+            {t('tracking.viewTracking')}
+          </Button>
+        }
+      >
+        {placedOrder && (
+          <GuestPaymentPanel
+            order={placedOrder}
+            customerPhone={placedPhone}
+            accessToken={guestAccessToken}
+            onOrderChange={setPlacedOrder}
+          />
+        )}
+      </Modal>
     </div>
   )
 }

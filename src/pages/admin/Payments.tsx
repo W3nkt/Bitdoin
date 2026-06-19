@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, XCircle, Eye, ReceiptText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { logAudit } from '@/lib/audit'
+import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { Order, Payment } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
@@ -22,6 +24,7 @@ export function AdminPayments() {
   const { profile } = useAuth()
   const { success, error } = useToast()
   const { currency, language } = useLanguage()
+  const { markSeen } = useMarkSeen()
 
   const [tab, setTab] = useState<'pending' | 'all'>('pending')
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null)
@@ -70,7 +73,16 @@ export function AdminPayments() {
         status: 'PROCESSING',
       }).eq('id', payment.order_id)
 
+      await logAudit({
+        entity: 'payment',
+        entityId: payment.id,
+        action: 'PAYMENT_VERIFIED',
+        oldValue: { status: payment.verification_status },
+        newValue: { status: 'VERIFIED', order_id: payment.order_id, amount: payment.amount },
+      })
+
       await qc.invalidateQueries({ queryKey: ['admin', 'payments'] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'badge', 'payments'] })
       setDetailPayment(null)
       success('Payment verified')
     } catch {
@@ -90,7 +102,16 @@ export function AdminPayments() {
         reviewed_at: new Date().toISOString(),
       }).eq('id', payment.id)
 
+      await logAudit({
+        entity: 'payment',
+        entityId: payment.id,
+        action: 'PAYMENT_REJECTED',
+        oldValue: { status: payment.verification_status },
+        newValue: { status: 'REJECTED', rejection_reason: rejectionReason, order_id: payment.order_id },
+      })
+
       await qc.invalidateQueries({ queryKey: ['admin', 'payments'] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'badge', 'payments'] })
       setDetailPayment(null)
       setRejectionReason('')
       success('Payment rejected')
@@ -173,13 +194,13 @@ export function AdminPayments() {
                 <tr
                   key={payment.id}
                   className="hover:bg-gray-50/80 transition-colors cursor-pointer"
-                  onClick={() => setDetailPayment(payment)}
+                  onClick={() => { setDetailPayment(payment); markSeen(payment.id) }}
                 >
                   <td className="px-4 py-3">
                     <p className="text-xs font-mono font-semibold text-gray-900">
                       {(payment.order as { order_number?: string } | undefined)?.order_number ?? '—'}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(payment.created_at)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(payment.created_at, language)}</p>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs font-medium text-gray-700">
@@ -193,11 +214,11 @@ export function AdminPayments() {
                     {payment.method.replace('_', ' ')}
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
-                    {formatPrice(payment.amount)}
+                    {formatPrice(payment.amount, currency)}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', statusColors[payment.verification_status])}>
-                      {paymentStatusLabel(payment.verification_status as Parameters<typeof paymentStatusLabel>[0])}
+                      {paymentStatusLabel(payment.verification_status as Parameters<typeof paymentStatusLabel>[0], language)}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
@@ -233,7 +254,7 @@ export function AdminPayments() {
                         </button>
                       )}
                       <button
-                        onClick={() => setDetailPayment(payment)}
+                        onClick={() => { setDetailPayment(payment); markSeen(payment.id) }}
                         className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
                         title="Review payment"
                       >
@@ -264,7 +285,7 @@ export function AdminPayments() {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-primary-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">Amount</p>
-                <p className="font-bold text-xl text-primary-700">{formatPrice(detailPayment.amount)}</p>
+                <p className="font-bold text-xl text-primary-700">{formatPrice(detailPayment.amount, currency)}</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">Method</p>
@@ -285,7 +306,7 @@ export function AdminPayments() {
               {detailPayment.transferred_at && (
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">Transferred At</p>
-                  <p className="text-sm text-gray-700">{formatDateTime(detailPayment.transferred_at)}</p>
+                  <p className="text-sm text-gray-700">{formatDateTime(detailPayment.transferred_at, language)}</p>
                 </div>
               )}
               {detailPayment.ai_confidence_score !== undefined && (

@@ -5,6 +5,7 @@ const en = {
 
   // ── Navigation ────────────────────────────────────────────────────────────────
   nav: {
+    trackOrder: 'Track Order',
     home: 'Home',
     catalog: 'Books',
     cart: 'Cart',
@@ -92,6 +93,7 @@ const en = {
 
   // ── Checkout ──────────────────────────────────────────────────────────────────
   checkout: {
+    orderComplete: 'Order placed successfully',
     title: 'Checkout',
     deliveryInfo: 'Delivery Information',
     fullName: 'Full Name',
@@ -120,6 +122,9 @@ const en = {
 
   // ── Payment ───────────────────────────────────────────────────────────────────
   payment: {
+    imageOnly: 'Please upload a JPG, PNG, or WebP image.',
+    fileTooLarge: 'The payment image must be 10 MB or smaller.',
+    accountUnavailable: 'Payment account details are not available yet. Please contact support.',
     qrTitle: 'Scan to Pay',
     qrInstructions: 'Scan the QR code with your banking app, then upload your payment screenshot below.',
     qrCode: 'QR Code',
@@ -151,6 +156,20 @@ const en = {
   },
 
   // ── Orders ────────────────────────────────────────────────────────────────────
+  tracking: {
+    title: 'Track your order',
+    subtitle: 'Enter your order code and the phone number used at checkout.',
+    orderCode: 'Order Code',
+    trackButton: 'Track Order',
+    notFound: 'Order not found',
+    checkDetails: 'Check the order code and phone number, then try again.',
+    saveCode: 'Save this code to track your order',
+    copyCode: 'Copy order code',
+    codNote: 'Pay the order amount when your delivery arrives.',
+    delivery: 'Delivery details',
+    viewTracking: 'View order tracking',
+  },
+
   orders: {
     title: 'My Orders',
     empty: 'You have no orders yet.',

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, Package, User, Search, DollarSign } from 'lucide-react'
+import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -25,6 +25,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     { to: '/',       icon: Home,        label: t('nav.home'),    end: true  },
     { to: '/books',  icon: BookOpen,    label: t('nav.catalog'), end: false },
     { to: '/cart',   icon: ShoppingCart,label: t('nav.cart'),    end: false, badge: cartCount },
+    { to: '/track',  icon: PackageSearch,label: t('nav.trackOrder'), end: false },
     { to: '/orders', icon: Package,     label: t('nav.orders'),  end: false },
     { to: profile ? '/profile' : '/auth', icon: User,
       label: profile ? t('nav.profile') : t('nav.signIn'),        end: false },
@@ -135,7 +136,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               to={to}
               end={end}
               className={({ isActive }) => cn(
-                'flex-1 flex flex-col items-center justify-center gap-0.5 py-1 transition-colors',
+                'min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 py-1 transition-colors',
                 isActive ? 'text-primary-700' : 'text-gray-400 active:text-gray-600',
               )}
             >
@@ -147,7 +148,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-semibold leading-none">{label}</span>
+              <span className="max-w-full truncate px-0.5 text-[9px] font-semibold leading-none">{label}</span>
             </NavLink>
           ))}
         </div>

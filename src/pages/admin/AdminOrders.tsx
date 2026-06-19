@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { logAudit } from '@/lib/audit'
+import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { BookstorePayment, Order, OrderItem, OrderStatus } from '@/types'
 import { useAuth } from '@/context/AuthContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
@@ -29,14 +32,19 @@ interface StorePaymentGroup {
 export function AdminOrders() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const qc = useQueryClient()
   const { profile } = useAuth()
+  const { currency, language } = useLanguage()
   const { success, error } = useToast()
+  const { markSeen } = useMarkSeen()
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [detailOrder, setDetailOrder] = useState<Order | null>(null)
+  const [detailOrder, setDetailOrder] = useState<Order | null>(
+    () => (location.state as { selectedOrder?: Order } | null)?.selectedOrder ?? null
+  )
   const [newStatus, setNewStatus] = useState('')
   const [updating, setUpdating] = useState(false)
   const [receiptItem, setReceiptItem] = useState<OrderItem | null>(null)
@@ -82,10 +90,19 @@ export function AdminOrders() {
   async function updateStatus() {
     if (!detailOrder || !newStatus) return
     setUpdating(true)
+    const oldStatus = detailOrder.status
     try {
       await supabase.from('orders').update({ status: newStatus }).eq('id', detailOrder.id)
+      await logAudit({
+        entity: 'order',
+        entityId: detailOrder.id,
+        action: 'ORDER_STATUS_CHANGED',
+        oldValue: { status: oldStatus },
+        newValue: { status: newStatus, order_number: detailOrder.order_number },
+      })
       await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
       await qc.invalidateQueries({ queryKey: ['admin', 'order-detail', detailOrder.id] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'badge', 'orders'] })
       setDetailOrder(prev => prev ? { ...prev, status: newStatus as OrderStatus } : null)
       success('Status updated')
     } catch {
@@ -162,7 +179,7 @@ export function AdminOrders() {
       const proofImageUrl = paymentProofFile
         ? await uploadPaymentProof(orderDetail.id, paymentStore.bookstoreId, paymentProofFile)
         : paymentStore.payment!.proof_image_url
-      const { error: saveError } = await supabase
+      const { data: upserted, error: saveError } = await supabase
         .from('bookstore_payments')
         .upsert({
           order_id: orderDetail.id,
@@ -175,7 +192,23 @@ export function AdminOrders() {
           paid_at: paidAt.toISOString(),
           paid_by_user_id: paymentStore.payment?.paid_by_user_id ?? profile.id,
         }, { onConflict: 'order_id,bookstore_id' })
+        .select('id')
+        .single()
       if (saveError) throw saveError
+
+      await logAudit({
+        entity: 'bookstore_payment',
+        entityId: upserted?.id,
+        action: paymentStore.payment ? 'BOOKSTORE_PAYMENT_UPDATED' : 'BOOKSTORE_PAYMENT_RECORDED',
+        newValue: {
+          order_id: orderDetail.id,
+          bookstore_id: paymentStore.bookstoreId,
+          bookstore_name: paymentStore.bookstoreName,
+          amount,
+          paid_at: paidAt.toISOString(),
+          reference: paymentReference || null,
+        },
+      })
 
       await qc.invalidateQueries({ queryKey: ['admin', 'order-detail', orderDetail.id] })
       await qc.invalidateQueries({ queryKey: ['admin', 'orders'] })
@@ -345,11 +378,11 @@ export function AdminOrders() {
                 <tr
                   key={order.id}
                   className="hover:bg-gray-50/80 transition-colors cursor-pointer"
-                  onClick={() => { setDetailOrder(order); setNewStatus(order.status) }}
+                  onClick={() => { setDetailOrder(order); setNewStatus(order.status); markSeen(order.id) }}
                 >
                   <td className="px-4 py-3">
                     <p className="text-xs font-mono font-semibold text-gray-900">{order.order_number}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(order.created_at)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(order.created_at, language)}</p>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <p className="text-xs font-medium text-gray-700">{order.customer_name}</p>
@@ -357,23 +390,23 @@ export function AdminOrders() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', orderStatusColor(order.status))}>
-                      {orderStatusLabel(order.status)}
+                      {orderStatusLabel(order.status, language)}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
                     <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', paymentStatusColor(order.payment_status))}>
-                      {paymentStatusLabel(order.payment_status)}
+                      {paymentStatusLabel(order.payment_status, language)}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
                     <StorePaymentProgress order={order} />
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
-                    {formatPrice(order.total_amount)}
+                    {formatPrice(order.total_amount, currency)}
                   </td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <button
-                      onClick={() => { setDetailOrder(order); setNewStatus(order.status) }}
+                      onClick={() => { setDetailOrder(order); setNewStatus(order.status); markSeen(order.id) }}
                       className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
                       title="View order"
                     >
@@ -440,7 +473,7 @@ export function AdminOrders() {
                       <p className="text-sm font-medium text-gray-800">{item.book?.title}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{item.bookstore?.name} · qty {item.quantity}</p>
                     </div>
-                    <p className="text-sm font-bold text-gray-900">{formatPrice(item.final_price * item.quantity)}</p>
+                    <p className="text-sm font-bold text-gray-900">{formatPrice(item.final_price * item.quantity, currency)}</p>
                   </div>
                 ))}
               </div>
@@ -471,11 +504,11 @@ export function AdminOrders() {
                           <p className="truncate text-sm font-semibold text-gray-800">{group.bookstoreName}</p>
                         </div>
                         <p className="mt-1 text-xs text-gray-500">
-                          Store total: <span className="font-semibold">{formatPrice(group.expectedAmount)}</span>
+                          Store total: <span className="font-semibold">{formatPrice(group.expectedAmount, currency)}</span>
                         </p>
                         {group.payment && (
                           <p className="mt-1 text-xs text-green-700">
-                            Paid {formatPrice(Number(group.payment.amount))} · {formatDateTime(group.payment.paid_at)}
+                            Paid {formatPrice(Number(group.payment.amount), currency)} · {formatDateTime(group.payment.paid_at, language)}
                             {group.payment.paid_by_user?.name ? ` · by ${group.payment.paid_by_user.name}` : ''}
                           </p>
                         )}
@@ -555,7 +588,7 @@ export function AdminOrders() {
                         'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold',
                         paymentStatusColor(orderDetail.payments[0].verification_status as Parameters<typeof paymentStatusLabel>[0])
                       )}>
-                        {paymentStatusLabel(orderDetail.payments[0].verification_status as Parameters<typeof paymentStatusLabel>[0])}
+                        {paymentStatusLabel(orderDetail.payments[0].verification_status as Parameters<typeof paymentStatusLabel>[0], language)}
                       </span>
                     </div>
                   </div>
@@ -602,7 +635,7 @@ export function AdminOrders() {
             <div className="rounded-xl bg-primary-50 p-3">
               <p className="text-xs text-gray-500">{paymentStore.bookstoreName}</p>
               <p className="mt-1 text-lg font-bold text-primary-700">
-                Expected: {formatPrice(paymentStore.expectedAmount)}
+                Expected: {formatPrice(paymentStore.expectedAmount, currency)}
               </p>
             </div>
             <Input

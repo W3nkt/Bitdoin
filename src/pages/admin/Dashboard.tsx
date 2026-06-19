@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { DollarSign, TrendingUp, CreditCard, Truck, ShoppingBag } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowRight, DollarSign, TrendingUp, CreditCard, Truck, ShoppingBag } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { StatCard } from '@/components/ui/Card'
@@ -8,11 +9,14 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { formatPrice, formatDate, orderStatusLabel, orderStatusColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useLanguage } from '@/context/LanguageContext'
 import type { Order } from '@/types'
 
 export function AdminDashboard() {
   const { t } = useTranslation()
   const { profile } = useAuth()
+  const { currency, language } = useLanguage()
+  const navigate = useNavigate()
 
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['admin', 'stats'],
@@ -86,13 +90,13 @@ export function AdminDashboard() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard
           label={t('admin.gmv')}
-          value={formatPrice(stats?.gmv ?? 0)}
+          value={formatPrice(stats?.gmv ?? 0, currency)}
           icon={<DollarSign className="h-5 w-5" />}
           color="blue"
         />
         <StatCard
           label={t('admin.revenue')}
-          value={formatPrice(stats?.revenue ?? 0)}
+          value={formatPrice(stats?.revenue ?? 0, currency)}
           icon={<TrendingUp className="h-5 w-5" />}
           color="green"
         />
@@ -107,12 +111,14 @@ export function AdminDashboard() {
           value={stats?.pendingPayments ?? 0}
           icon={<CreditCard className="h-5 w-5" />}
           color="orange"
+          onClick={(stats?.pendingPayments ?? 0) > 0 ? () => navigate('/admin/payments') : undefined}
         />
         <StatCard
           label={t('admin.pendingDeliveries')}
           value={stats?.pendingDeliveries ?? 0}
           icon={<Truck className="h-5 w-5" />}
           color="red"
+          onClick={(stats?.pendingDeliveries ?? 0) > 0 ? () => navigate('/admin/deliveries') : undefined}
         />
       </div>
 
@@ -134,26 +140,45 @@ export function AdminDashboard() {
 
         {/* Recent orders */}
         <div className="bg-white rounded-2xl shadow-card p-5">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Recent Orders</h3>
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <h3 className="text-sm font-semibold text-gray-700">Recent Orders</h3>
+            {!!recentOrders?.length && (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/orders')}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 transition-colors hover:text-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-md"
+              >
+                View all
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {recentOrders?.map(order => {
               const initial = order.order_number?.charAt(order.order_number.length - 2) ?? '#'
               return (
-                <div key={order.id} className="flex items-center gap-3 py-1.5">
+                <button
+                  type="button"
+                  key={order.id}
+                  onClick={() => navigate('/admin/orders', { state: { selectedOrder: order } })}
+                  className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                  aria-label={`Open order ${order.order_number}`}
+                >
                   <div className="h-8 w-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-bold text-primary-700">{initial}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-xs truncate">{order.order_number}</p>
-                    <p className="text-gray-400 text-xs">{formatDate(order.created_at)}</p>
+                    <p className="text-gray-400 text-xs">{formatDate(order.created_at, language)}</p>
                   </div>
                   <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0', orderStatusColor(order.status))}>
-                    {orderStatusLabel(order.status)}
+                    {orderStatusLabel(order.status, language)}
                   </span>
                   <span className="text-xs font-semibold text-gray-800 flex-shrink-0 ml-1">
-                    {formatPrice(order.total_amount)}
+                    {formatPrice(order.total_amount, currency)}
                   </span>
-                </div>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500" />
+                </button>
               )
             })}
           </div>

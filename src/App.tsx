@@ -18,6 +18,7 @@ const Cart       = lazy(() => import('@/pages/customer/Cart').then(m => ({ defau
 const Checkout   = lazy(() => import('@/pages/customer/Checkout').then(m => ({ default: m.Checkout })))
 const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ default: m.Orders })))
 const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
+const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
 const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
 
@@ -31,6 +32,7 @@ const AdminPayments   = lazy(() => import('@/pages/admin/Payments').then(m => ({
 const AdminDeliveries = lazy(() => import('@/pages/admin/Deliveries').then(m => ({ default: m.AdminDeliveries })))
 const AdminAnalytics  = lazy(() => import('@/pages/admin/Analytics').then(m => ({ default: m.AdminAnalytics })))
 const AdminSettings   = lazy(() => import('@/pages/admin/Settings').then(m => ({ default: m.AdminSettings })))
+const AdminAuditLogs  = lazy(() => import('@/pages/admin/AuditLogs').then(m => ({ default: m.AdminAuditLogs })))
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -67,6 +69,7 @@ export function App() {
                     <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
                     <Route path="/orders" element={<CustomerLayout><Orders /></CustomerLayout>} />
                     <Route path="/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
+                    <Route path="/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
                     <Route path="/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
                     <Route path="/auth" element={<Auth />} />
 
@@ -97,6 +100,9 @@ export function App() {
                     } />
                     <Route path="/admin/settings" element={
                       <AdminGuard><AdminLayout><AdminSettings /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/audit-logs" element={
+                      <AdminGuard><AdminLayout><AdminAuditLogs /></AdminLayout></AdminGuard>
                     } />
 
                     <Route path="*" element={<Navigate to="/" replace />} />

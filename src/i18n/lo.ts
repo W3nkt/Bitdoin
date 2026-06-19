@@ -5,6 +5,7 @@ const lo: Translations = {
   tagline: 'ຕະຫຼາດໜັງສືໃນ ສປປ ລາວ',
 
   nav: {
+    trackOrder: 'ຕິດຕາມຄຳສັ່ງ',
     home: 'ໜ້າຫຼັກ',
     catalog: 'ໜັງສື',
     cart: 'ກະຕ່າ',
@@ -87,6 +88,7 @@ const lo: Translations = {
   },
 
   checkout: {
+    orderComplete: 'ສັ່ງຊື້ສຳເລັດ',
     title: 'ກວດສອບ & ສັ່ງຊື້',
     deliveryInfo: 'ຂໍ້ມູນການຈັດສົ່ງ',
     fullName: 'ຊື່ ແລະ ນາມສະກຸນ',
@@ -114,6 +116,9 @@ const lo: Translations = {
   },
 
   payment: {
+    imageOnly: 'ກະລຸນາອັບໂຫລດຮູບ JPG, PNG ຫຼື WebP.',
+    fileTooLarge: 'ຮູບຫຼັກຖານຕ້ອງບໍ່ເກີນ 10 MB.',
+    accountUnavailable: 'ຍັງບໍ່ມີຂໍ້ມູນບັນຊີຊຳລະ. ກະລຸນາຕິດຕໍ່ພະນັກງານ.',
     qrTitle: 'ສະແກນ QR ເພື່ອຊຳລະ',
     qrInstructions: 'ໃຊ້ແອັບທະນາຄານສະແກນ QR ແລ້ວອັບໂຫລດຮູບຖ່າຍໃບຮັບໃຕ້ນີ້',
     qrCode: 'ລະຫັດ QR',
@@ -142,6 +147,20 @@ const lo: Translations = {
     transferDate: 'ວັນທີໂອນ',
     downloadReceipt: 'ບັນທຶກໃບຮັບເງິນ',
     trackingNote: 'ໃຊ້ລະຫັດນີ້ຕິດຕາມການຈັດສົ່ງ',
+  },
+
+  tracking: {
+    title: 'ຕິດຕາມຄຳສັ່ງຊື້',
+    subtitle: 'ໃສ່ລະຫັດຄຳສັ່ງ ແລະ ເບີໂທທີ່ໃຊ້ສັ່ງຊື້.',
+    orderCode: 'ລະຫັດຄຳສັ່ງ',
+    trackButton: 'ຕິດຕາມຄຳສັ່ງ',
+    notFound: 'ບໍ່ພົບຄຳສັ່ງ',
+    checkDetails: 'ກວດລະຫັດ ແລະ ເບີໂທ ແລ້ວລອງໃໝ່.',
+    saveCode: 'ບັນທຶກລະຫັດນີ້ເພື່ອຕິດຕາມ',
+    copyCode: 'ສຳເນົາລະຫັດ',
+    codNote: 'ຊຳລະເງິນເມື່ອສິນຄ້າສົ່ງຮອດ.',
+    delivery: 'ຂໍ້ມູນຈັດສົ່ງ',
+    viewTracking: 'ເບິ່ງການຕິດຕາມ',
   },
 
   orders: {
