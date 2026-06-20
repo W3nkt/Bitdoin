@@ -13,6 +13,13 @@ import { useToast } from '@/components/ui/Toast'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
+function sanitizeHtml(html: string): string {
+  // Plain text (no HTML tags) — convert newlines to <br>
+  if (!/<[a-z]/i.test(html)) return html.replace(/\n/g, '<br>')
+  // Strip all tags except safe formatting and list tags
+  return html.replace(/<(?!\/?(?:b|strong|i|em|u|br|ul|ol|li)\b)[^>]*>/gi, '')
+}
+
 export function BookDetail() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
@@ -254,7 +261,10 @@ export function BookDetail() {
         {book.description && (
           <div className="rounded-2xl bg-white border border-gray-100 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-2">{t('book.description')}</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">{book.description}</p>
+            <div
+              className="text-sm text-gray-600 leading-relaxed [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(book.description) }}
+            />
           </div>
         )}
 

@@ -73,6 +73,13 @@
     filter: blur(24px) saturate(1.2);
     transform: scale(1.15);
   }
+
+  /* Rich text editor placeholder */
+  [contenteditable]:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+    pointer-events: none;
+  }
 }
 
 @keyframes progress-bar {

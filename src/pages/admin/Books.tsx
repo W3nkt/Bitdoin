@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit2, Trash2, BookOpen, Upload } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, BookOpen, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
 import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
-import { Input, Select, Textarea } from '@/components/ui/Input'
+import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Pagination } from '@/components/ui/Pagination'
@@ -43,8 +43,15 @@ export function AdminBooks() {
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [coverError, setCoverError] = useState<string | null>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const descRef = useRef<HTMLDivElement>(null)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<BookForm>()
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<BookForm>()
+
+  useEffect(() => {
+    if (modalOpen && descRef.current) {
+      descRef.current.innerHTML = editBook?.description ?? ''
+    }
+  }, [modalOpen, editBook])
 
   useEffect(() => {
     return () => {
@@ -369,7 +376,85 @@ export function AdminBooks() {
             <Input label="Pages" type="number" {...register('pages')} />
             <Input label="Publication Date" type="date" {...register('publication_date')} />
           </div>
-          <Textarea label="Description" rows={4} {...register('description')} />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">Description</label>
+            <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-gray-300 bg-gray-50 px-2 py-1.5">
+              {/* Bold */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Bold (Ctrl+B)"
+              ><Bold className="h-3.5 w-3.5" /></button>
+              {/* Italic */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Italic (Ctrl+I)"
+              ><Italic className="h-3.5 w-3.5" /></button>
+              {/* Underline */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Underline (Ctrl+U)"
+              ><Underline className="h-3.5 w-3.5" /></button>
+              <div className="mx-1 h-4 w-px bg-gray-300" />
+              {/* Bullet list */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Bullet List"
+              ><List className="h-3.5 w-3.5" /></button>
+              {/* Numbered list */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Numbered List"
+              ><ListOrdered className="h-3.5 w-3.5" /></button>
+              <div className="mx-1 h-4 w-px bg-gray-300" />
+              {/* New line */}
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  descRef.current?.focus()
+                  document.execCommand('insertHTML', false, '<br>')
+                }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Insert Line Break"
+              ><CornerDownLeft className="h-3.5 w-3.5" /></button>
+              {/* Clear formatting */}
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat') }}
+                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                title="Clear Formatting"
+              ><RemoveFormatting className="h-3.5 w-3.5" /></button>
+            </div>
+            <div
+              ref={descRef}
+              contentEditable
+              suppressContentEditableWarning
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  // Allow native Enter inside lists (creates new <li>)
+                  const node = window.getSelection()?.anchorNode
+                  const inList = (node as Element)?.closest?.('li') ?? (node?.parentElement)?.closest('li')
+                  if (!inList) {
+                    e.preventDefault()
+                    document.execCommand('insertHTML', false, '<br>')
+                  }
+                }
+              }}
+              onInput={() => setValue('description', descRef.current?.innerHTML ?? '')}
+              className="min-h-[220px] rounded-b-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal"
+              data-placeholder="Enter book description..."
+            />
+          </div>
         </form>
       </Modal>
 
