@@ -4,15 +4,13 @@ import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components
 export default function Contacts() {
   const { t } = useTranslation()
 
-  const rawWa = import.meta.env.VITE_ADMIN_WHATSAPP || ''
-  const waNumber = rawWa.replace(/\s+/g, '')
-  const waHref = waNumber ? `https://wa.me/${waNumber.replace(/\D/g,'')}` : ''
+  const waNumber = (import.meta.env.VITE_ADMIN_WHATSAPP || '+8562095324510').replace(/\s+/g, '')
+  const waHref = `https://wa.me/${waNumber.replace(/\D/g, '')}`
 
-  const rawMessenger = import.meta.env.VITE_ADMIN_MESSENGER || ''
-  const messengerHref = rawMessenger.startsWith('http') ? rawMessenger : (rawMessenger ? `https://${rawMessenger.replace(/^\/+/, '')}` : '')
+  const rawMessenger = import.meta.env.VITE_ADMIN_MESSENGER || 'm.me/620472337804971'
+  const messengerHref = rawMessenger.startsWith('http') ? rawMessenger : `https://${rawMessenger.replace(/^\/+/, '')}`
 
-  const phoneNumber = waNumber || ''
-  const phoneHref = phoneNumber ? `tel:${phoneNumber.replace(/\s+/g,'')}` : ''
+  const phoneHref = `tel:${waNumber}`
 
   const email = 'ckateng25@gmail.com'
   const emailHref = `mailto:${email}`
@@ -36,7 +34,7 @@ export default function Contacts() {
 
         <a href={phoneHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">
           <IPhoneIcon className="h-6 w-6 text-gray-700" />
-          <span className="text-sm">{phoneNumber || t('contacts.noPhone')}</span>
+          <span className="text-sm">{waNumber}</span>
         </a>
 
         <a href={emailHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">

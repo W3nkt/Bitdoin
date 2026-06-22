@@ -20,6 +20,8 @@ jobs:
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
+      VITE_ADMIN_WHATSAPP: ${{ vars.VITE_ADMIN_WHATSAPP || '+8562095324510' }}
+      VITE_ADMIN_MESSENGER: ${{ vars.VITE_ADMIN_MESSENGER || 'm.me/620472337804971' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
