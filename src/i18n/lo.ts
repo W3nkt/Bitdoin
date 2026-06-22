@@ -6,6 +6,7 @@ const lo: Translations = {
 
   nav: {
     trackOrder: 'ຕິດຕາມຄຳສັ່ງ',
+    contacts: 'ຕິດຕໍ່',
     home: 'ໜ້າຫຼັກ',
     catalog: 'ໜັງສື',
     cart: 'ກະຕ່າ',
@@ -16,6 +17,11 @@ const lo: Translations = {
     signIn: 'ເຂົ້າສູ່ລະບົບ',
     signOut: 'ອອກຈາກລະບົບ',
     admin: 'ຜູ້ດູແລ',
+  },
+
+  contacts: {
+    intro: 'ຕິດຕໍ່ແອັດມິນຜ່ານ WhatsApp, Messenger, ໂທ, ຫຼື ອີເມວ.',
+    noPhone: 'ຍັງບໍ່ມີເບີໂທ',
   },
 
   home: {

@@ -6,6 +6,7 @@ const en = {
   // ── Navigation ────────────────────────────────────────────────────────────────
   nav: {
     trackOrder: 'Track Order',
+    contacts: 'Contacts',
     home: 'Home',
     catalog: 'Books',
     cart: 'Cart',
@@ -16,6 +17,11 @@ const en = {
     signIn: 'Sign In',
     signOut: 'Sign Out',
     admin: 'Admin',
+  },
+
+  contacts: {
+    intro: 'Contact the admin via WhatsApp, Messenger, phone, or email.',
+    noPhone: 'No phone configured',
   },
 
   // ── Home ──────────────────────────────────────────────────────────────────────

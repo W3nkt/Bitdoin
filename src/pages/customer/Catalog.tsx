@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
-import { Search, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Book, Category, SearchFilters } from '@/types'
 import { BookCard } from '@/components/ui/BookCard'
@@ -20,6 +20,7 @@ export function Catalog() {
   const { addItem } = useCart()
   const { success } = useToast()
 
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>({
     query: searchParams.get('q') ?? '',
@@ -149,29 +150,43 @@ export function Catalog() {
         activeLanguage={filters.language}
         onSelectLanguage={language => applyFilters({ language })}
         className="lg:sticky lg:top-16"
+        mobileOpen={mobileFilterOpen}
+        onMobileClose={() => setMobileFilterOpen(false)}
       />
 
       <div className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
         <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-center">
           <div className="min-w-0 flex-1">
             <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-accent-600">{t('catalog.title')}</p>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={filters.query ?? ''}
-                onChange={e => applyFilters({ query: e.target.value })}
-                placeholder={t('home.searchPlaceholder')}
-                className="h-11 w-full border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
-              />
-              {filters.query && (
-                <button
-                  onClick={() => applyFilters({ query: '' })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
-                  aria-label={t('catalog.clearSearch')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMobileFilterOpen(true)}
+                className="lg:hidden flex h-11 items-center gap-1.5 rounded border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 flex-shrink-0"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="text-xs font-medium">{t('catalog.filter', 'Filter')}</span>
+                {(filters.category_id || filters.language) && (
+                  <span className="h-2 w-2 rounded-full bg-accent-500" />
+                )}
+              </button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={filters.query ?? ''}
+                  onChange={e => applyFilters({ query: e.target.value })}
+                  placeholder={t('home.searchPlaceholder')}
+                  className="h-11 w-full border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
+                />
+                {filters.query && (
+                  <button
+                    onClick={() => applyFilters({ query: '' })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                    aria-label={t('catalog.clearSearch')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

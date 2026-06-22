@@ -20,6 +20,7 @@ const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ def
 const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
 const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
+const Contacts   = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
 const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
 
 // Admin pages
@@ -64,6 +65,7 @@ export function App() {
 
                     <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
                     <Route path="/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
+                    <Route path="/contacts" element={<CustomerLayout><Contacts /></CustomerLayout>} />
                     <Route path="/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
                     <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
                     <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />

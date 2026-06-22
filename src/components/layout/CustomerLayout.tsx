@@ -1,7 +1,8 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign } from 'lucide-react'
+import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign, X } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -19,6 +20,24 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { language, setLanguage, currency, setCurrency } = useLanguage()
   const navigate = useNavigate()
 
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (searchOpen) setTimeout(() => searchInputRef.current?.focus(), 50)
+  }, [searchOpen])
+
+  function openSearch() { setSearchOpen(true) }
+  function closeSearch() { setSearchOpen(false); setSearchQuery('') }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault()
+    const q = searchQuery.trim()
+    if (q) navigate(`/books?q=${encodeURIComponent(q)}`)
+    closeSearch()
+  }
+
   const cartCount = totalItems()
 
   const navLinks = [
@@ -29,8 +48,9 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     ...(profile
       ? [{ to: '/orders', icon: Package, label: t('nav.orders'), end: false }]
       : []),
+    { to: '/contacts', icon: WhatsAppIcon, label: t('nav.contacts'), end: false },
     { to: profile ? '/profile' : '/auth', icon: User,
-      label: profile ? t('nav.profile') : t('nav.signIn'),        end: false },
+      label: profile ? t('nav.profile') : t('nav.signIn'), end: false },
   ]
 
   return (
@@ -51,7 +71,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Search bar — md+ only */}
           <button
-            onClick={() => navigate('/search')}
+            onClick={openSearch}
             className="hidden md:flex h-10 w-48 flex-none items-center gap-2.5 rounded-2xl border border-gray-200 bg-gray-100/80 px-3.5 text-sm text-gray-400 transition-all hover:border-primary-300 hover:bg-white lg:w-72 xl:w-80"
           >
             <Search className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
@@ -90,7 +110,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           <div className="flex flex-shrink-0 items-center gap-0.5">
             {/* Mobile search icon */}
             <button
-              onClick={() => navigate('/search')}
+              onClick={openSearch}
               className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
               aria-label={t('common.search')}
             >
@@ -128,6 +148,44 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 pb-4">
         {children}
       </main>
+
+      {/* ── Search overlay ── */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-20">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeSearch} />
+          {/* Modal */}
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <form onSubmit={submitSearch} className="flex items-center gap-3 p-4">
+              <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t('home.searchPlaceholder')}
+                className="min-w-0 flex-1 bg-transparent text-base text-gray-800 placeholder:text-gray-400 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Clear"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={!searchQuery.trim()}
+                className="flex-shrink-0 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 hover:bg-primary-800 transition-colors"
+              >
+                {t('common.search', 'Search')}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile bottom tab bar — hidden on md+ ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-200">
