@@ -32,7 +32,25 @@ export async function createCheckoutOrder(input: {
     })),
   })
   if (error) throw new Error(error.message)
-  return data as GuestOrderAccess
+
+  const result = data as GuestOrderAccess
+
+  // Fire-and-forget admin email — never blocks or fails the checkout
+  supabase.functions.invoke('notify-admin', {
+    body: {
+      order_number:    result.order_number,
+      customer_name:   input.customerName,
+      customer_phone:  input.customerPhone,
+      delivery_address: input.deliveryAddress,
+      notes:           input.notes,
+      total_amount:    input.items.reduce((sum, i) => sum + (i.unit_price ?? 0) * i.quantity, 0),
+      currency:        input.currency,
+      payment_method:  input.paymentMethod,
+      item_count:      input.items.reduce((sum, i) => sum + i.quantity, 0),
+    },
+  }).catch(() => { /* silently ignore — order already succeeded */ })
+
+  return result
 }
 
 export async function trackOrder(orderNumber: string, customerPhone: string) {
