@@ -66,6 +66,43 @@ export interface Category {
   created_at: string
 }
 
+// ─── Knowledge Hub ────────────────────────────────────────────────────────────
+
+export interface KnowledgeCategory {
+  id: string
+  name_en: string
+  name_lo: string
+  slug: string
+  icon: string
+  color: string
+  sort_order: number
+  created_at: string
+}
+
+export type KnowledgePostType = 'article' | 'quote' | 'tip' | 'blog' | 'biography'
+
+export interface KnowledgePost {
+  id: string
+  category_id: string | null
+  category?: KnowledgeCategory
+  type: KnowledgePostType
+  title_en: string
+  title_lo: string | null
+  content_en: string
+  content_lo: string | null
+  excerpt_en: string | null
+  excerpt_lo: string | null
+  author: string
+  source: string | null
+  image_url: string | null
+  tags: string[]
+  is_published: boolean
+  is_featured: boolean
+  views: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Bookstore {
   id: string
   name: string

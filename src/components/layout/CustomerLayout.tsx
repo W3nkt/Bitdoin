@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign, X } from 'lucide-react'
-import { WhatsAppIcon } from '@/components/ui/ContactIcons'
+import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign, X, Lightbulb } from 'lucide-react'
+import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -41,17 +41,25 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const cartCount = totalItems()
 
   const navLinks = [
-    { to: '/',       icon: Home,        label: t('nav.home'),    end: true  },
-    { to: '/books',  icon: BookOpen,    label: t('nav.catalog'), end: false },
-    { to: '/cart',   icon: ShoppingCart,label: t('nav.cart'),    end: false, badge: cartCount },
-    { to: '/track',  icon: PackageSearch,label: t('nav.trackOrder'), end: false },
+    { to: '/',           icon: Home,         label: t('nav.home'),      end: true  },
+    { to: '/books',      icon: BookOpen,     label: t('nav.catalog'),   end: false },
+    { to: '/knowledge',  icon: Lightbulb,    label: t('nav.knowledge'), end: false },
+    { to: '/cart',       icon: ShoppingCart, label: t('nav.cart'),      end: false, badge: cartCount },
+    { to: '/track',      icon: PackageSearch,label: t('nav.trackOrder'),end: false },
     ...(profile
       ? [{ to: '/orders', icon: Package, label: t('nav.orders'), end: false }]
       : []),
-    { to: '/contacts', icon: WhatsAppIcon, label: t('nav.contacts'), end: false },
     { to: profile ? '/profile' : '/auth', icon: User,
       label: profile ? t('nav.profile') : t('nav.signIn'), end: false },
   ]
+
+  const waNumber = (import.meta.env.VITE_ADMIN_WHATSAPP || '+8562095324510').replace(/\s+/g, '')
+  const waHref = `https://wa.me/${waNumber.replace(/\D/g, '')}`
+  const rawMessenger = import.meta.env.VITE_ADMIN_MESSENGER || 'm.me/620472337804971'
+  const messengerHref = rawMessenger.startsWith('http') ? rawMessenger : `https://${rawMessenger.replace(/^\/+/, '')}`
+  const phoneHref = `tel:${waNumber}`
+  const email = 'ckateng25@gmail.com'
+  const emailHref = `mailto:${email}`
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -148,6 +156,64 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 pb-4">
         {children}
       </main>
+
+      {/* ── Footer ── */}
+      <footer className="bg-primary-900 text-white">
+        <div className="max-w-6xl mx-auto px-4 pt-8 pb-24 md:pb-8">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+            {/* Brand */}
+            <div>
+              <img
+                src={publicAsset('icons/Bitdoin-Logo.png')}
+                alt={t('appName')}
+                className="h-10 w-28 object-contain object-left brightness-0 invert mb-2"
+              />
+              <p className="text-xs text-primary-400">© {new Date().getFullYear()} Bitdoin. All rights reserved.</p>
+            </div>
+
+            {/* Contact links */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary-300 mb-3">
+                {t('nav.contacts')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href={waHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
+                >
+                  <WhatsAppIcon className="h-4 w-4 text-green-400" />
+                  <span>WhatsApp</span>
+                </a>
+                <a
+                  href={messengerHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
+                >
+                  <MessengerIcon className="h-4 w-4 text-blue-400" />
+                  <span>Messenger</span>
+                </a>
+                <a
+                  href={phoneHref}
+                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
+                >
+                  <IPhoneIcon className="h-4 w-4 text-gray-300" />
+                  <span>{waNumber}</span>
+                </a>
+                <a
+                  href={emailHref}
+                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
+                >
+                  <GmailIcon className="h-4 w-4 text-red-400" />
+                  <span>{email}</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* ── Search overlay ── */}
       {searchOpen && (

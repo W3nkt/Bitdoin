@@ -20,7 +20,9 @@ const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ def
 const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
 const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
-const Contacts   = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
+const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
+const Knowledge       = lazy(() => import('@/pages/customer/Knowledge').then(m => ({ default: m.Knowledge })))
+const KnowledgeDetail = lazy(() => import('@/pages/customer/KnowledgeDetail').then(m => ({ default: m.KnowledgeDetail })))
 const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
 
 // Admin pages
@@ -34,6 +36,7 @@ const AdminDeliveries = lazy(() => import('@/pages/admin/Deliveries').then(m => 
 const AdminAnalytics  = lazy(() => import('@/pages/admin/Analytics').then(m => ({ default: m.AdminAnalytics })))
 const AdminSettings   = lazy(() => import('@/pages/admin/Settings').then(m => ({ default: m.AdminSettings })))
 const AdminAuditLogs  = lazy(() => import('@/pages/admin/AuditLogs').then(m => ({ default: m.AdminAuditLogs })))
+const AdminKnowledge  = lazy(() => import('@/pages/admin/Knowledge').then(m => ({ default: m.AdminKnowledge })))
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -66,6 +69,8 @@ export function App() {
                     <Route path="/" element={<CustomerLayout><Home /></CustomerLayout>} />
                     <Route path="/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
                     <Route path="/contacts" element={<CustomerLayout><Contacts /></CustomerLayout>} />
+                    <Route path="/knowledge" element={<CustomerLayout><Knowledge /></CustomerLayout>} />
+                    <Route path="/knowledge/:id" element={<CustomerLayout><KnowledgeDetail /></CustomerLayout>} />
                     <Route path="/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
                     <Route path="/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
                     <Route path="/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
@@ -105,6 +110,9 @@ export function App() {
                     } />
                     <Route path="/admin/audit-logs" element={
                       <AdminGuard><AdminLayout><AdminAuditLogs /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/knowledge" element={
+                      <AdminGuard><AdminLayout><AdminKnowledge /></AdminLayout></AdminGuard>
                     } />
 
                     <Route path="*" element={<Navigate to="/" replace />} />
