@@ -87,26 +87,28 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           </button>
 
           {/* Nav links — md+ only */}
-          <nav className="hidden md:flex min-w-0 flex-1 items-center gap-1 overflow-x-auto scrollbar-hide">
+          <nav className="hidden md:flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
             {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={end}
                 className={({ isActive }) => cn(
-                  'relative flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors',
+                  'relative flex flex-col flex-shrink-0 items-center justify-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold transition-colors',
                   isActive
                     ? 'bg-primary-700 text-white'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-primary-800',
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <div className="relative">
+                  <Icon className="h-4 w-4" />
+                  {(badge ?? 0) > 0 && (
+                    <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">
+                      {(badge ?? 0) > 9 ? '9+' : badge}
+                    </span>
+                  )}
+                </div>
                 <span>{label}</span>
-                {(badge ?? 0) > 0 && (
-                  <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">
-                    {(badge ?? 0) > 9 ? '9+' : badge}
-                  </span>
-                )}
               </NavLink>
             ))}
           </nav>
