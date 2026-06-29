@@ -2,26 +2,65 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { PersonProfile } from '@/data/biographyProfiles'
 
-// Module-level cache — avoids re-fetching the same title across card instances
-const photoCache = new Map<string, string | null>()
+// ── Batched Wikipedia photo fetcher ────────────────────────────────────────
+// All BioAvatar instances share one cache and one pending queue.
+// After a 30 ms debounce, all pending titles are fetched in a single
+// Wikipedia API call (up to 50 titles per request), avoiding rate-limit
+// issues that occur when 15+ individual fetch calls fire simultaneously.
 
-async function fetchWikiPhoto(wikiTitle: string): Promise<string | null> {
-  if (photoCache.has(wikiTitle)) return photoCache.get(wikiTitle) ?? null
+const photoCache = new Map<string, string | null>()
+const pendingCbs = new Map<string, Array<(url: string | null) => void>>()
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleFlush() {
+  if (debounceTimer !== null) return
+  debounceTimer = setTimeout(flushPending, 30)
+}
+
+async function flushPending() {
+  debounceTimer = null
+  const titles = [...pendingCbs.keys()]
+  if (titles.length === 0) return
+
+  const snapshot = new Map(pendingCbs)
+  pendingCbs.clear()
+
   try {
-    const r = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`
+    const qs = titles.map(t => encodeURIComponent(t)).join('|')
+    const res = await fetch(
+      `https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&pithumbsize=400&format=json&origin=*&titles=${qs}`
     )
-    if (!r.ok) { photoCache.set(wikiTitle, null); return null }
-    const d: { thumbnail?: { source?: string } } = await r.json()
-    const src = d.thumbnail?.source
-    // Scale Wikimedia thumbnail to 400px for crisp display
-    const url = src ? src.replace(/\/\d+px-/, '/400px-') : null
-    photoCache.set(wikiTitle, url)
-    return url
+    const data = res.ok ? await res.json() : null
+    const pages: Record<string, { title?: string; thumbnail?: { source?: string } }> =
+      data?.query?.pages ?? {}
+
+    const byTitle = new Map<string, string | null>()
+    for (const page of Object.values(pages)) {
+      const key = (page.title ?? '').replace(/ /g, '_')
+      byTitle.set(key, page.thumbnail?.source ?? null)
+    }
+
+    for (const t of titles) {
+      const url = byTitle.get(t) ?? null
+      photoCache.set(t, url)
+      snapshot.get(t)?.forEach(cb => cb(url))
+    }
   } catch {
-    photoCache.set(wikiTitle, null)
-    return null
+    for (const t of titles) {
+      photoCache.set(t, null)
+      snapshot.get(t)?.forEach(cb => cb(null))
+    }
   }
+}
+
+function requestPhoto(wikiTitle: string, callback: (url: string | null) => void) {
+  if (photoCache.has(wikiTitle)) {
+    callback(photoCache.get(wikiTitle) ?? null)
+    return
+  }
+  if (!pendingCbs.has(wikiTitle)) pendingCbs.set(wikiTitle, [])
+  pendingCbs.get(wikiTitle)!.push(callback)
+  scheduleFlush()
 }
 
 interface BioAvatarProps {
@@ -38,9 +77,7 @@ export function BioAvatar({ profile, personName, size = 'md', className, ring }:
 
   useEffect(() => {
     if (!profile?.wikiTitle) return
-    const cached = photoCache.get(profile.wikiTitle)
-    if (cached !== undefined) { setPhotoSrc(cached); return }
-    fetchWikiPhoto(profile.wikiTitle).then(url => setPhotoSrc(url))
+    requestPhoto(profile.wikiTitle, url => setPhotoSrc(url))
   }, [profile?.wikiTitle])
 
   const sizeClass =

@@ -42,13 +42,13 @@ const TYPE_COLOR: Record<KnowledgePostType, string> = {
   biography: 'bg-indigo-50 text-indigo-700 border-indigo-200',
 }
 
-const SIDEBAR_TYPES: { key: string; label: string; icon: React.ElementType }[] = [
-  { key: 'all',       label: 'All Types',    icon: Sparkles },
-  { key: 'biography', label: 'Biographies',  icon: User },
-  { key: 'article',   label: 'Articles',     icon: BookOpen },
-  { key: 'quote',     label: 'Quotes',       icon: Quote },
-  { key: 'tip',       label: 'Tips',         icon: Lightbulb },
-  { key: 'blog',      label: 'Blogs',        icon: Sparkles },
+const SIDEBAR_TYPES: { key: string; tKey: string; icon: React.ElementType }[] = [
+  { key: 'all',       tKey: 'knowledge.allTypes',    icon: Sparkles },
+  { key: 'biography', tKey: 'knowledge.biographies', icon: User },
+  { key: 'article',   tKey: 'knowledge.articles',    icon: BookOpen },
+  { key: 'quote',     tKey: 'knowledge.quotes',      icon: Quote },
+  { key: 'tip',       tKey: 'knowledge.tips',        icon: Lightbulb },
+  { key: 'blog',      tKey: 'knowledge.blogs',       icon: Sparkles },
 ]
 
 function estimateReadTime(text: string): number {
@@ -169,7 +169,7 @@ export function Knowledge() {
               className="lg:hidden flex h-10 flex-shrink-0 items-center gap-1.5 rounded border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 transition-colors"
             >
               <SlidersHorizontal className="h-4 w-4" />
-              <span className="text-xs font-medium">{t('catalog.filter', 'Filter')}</span>
+              <span className="text-xs font-medium">{t('knowledge.filterLabel')}</span>
               {isFiltering && <span className="h-2 w-2 rounded-full bg-accent-500" />}
             </button>
             <div className="relative flex-1">
@@ -194,13 +194,13 @@ export function Knowledge() {
           {/* Result count when filtering */}
           {isFiltering && (
             <p className="mb-4 text-xs text-gray-500">
-              {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+              {filtered.length} {filtered.length === 1 ? t('knowledge.result') : t('knowledge.results')}
               {' '}
               <button
                 onClick={() => { setSelectedCategory('all'); setSelectedType('all'); setSearch('') }}
                 className="ml-1 text-primary-600 hover:underline"
               >
-                Clear filters
+                {t('knowledge.clearFilters')}
               </button>
             </p>
           )}
@@ -234,7 +234,7 @@ export function Knowledge() {
             <>
               {isFiltering && (
                 <h2 className="mb-4 text-sm font-bold text-gray-700">
-                  {SIDEBAR_TYPES.find(t => t.key === selectedType)?.label ?? 'All'}
+                  {t(SIDEBAR_TYPES.find(s => s.key === selectedType)?.tKey ?? 'knowledge.allTypes')}
                   {selectedCategory !== 'all' && categories.find(c => c.id === selectedCategory)
                     ? ` · ${language === 'lo'
                         ? categories.find(c => c.id === selectedCategory)?.name_lo
@@ -281,10 +281,10 @@ function KnowledgeSidebar({
       {/* Type filter */}
       <div>
         <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-white/45">
-          Content Type
+          {t('knowledge.contentType')}
         </p>
         <div className="space-y-0.5">
-          {SIDEBAR_TYPES.map(({ key, label, icon: Icon }) => (
+          {SIDEBAR_TYPES.map(({ key, tKey, icon: Icon }) => (
             <button
               key={key}
               onClick={() => onSelectType(key)}
@@ -296,7 +296,7 @@ function KnowledgeSidebar({
               )}
             >
               <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-              {label}
+              {t(tKey)}
             </button>
           ))}
         </div>
@@ -362,7 +362,7 @@ function KnowledgeSidebar({
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-accent-400" />
-            <span className="text-sm font-semibold">Filter</span>
+            <span className="text-sm font-semibold">{t('knowledge.filterLabel')}</span>
           </div>
           <button
             onClick={onMobileClose}
