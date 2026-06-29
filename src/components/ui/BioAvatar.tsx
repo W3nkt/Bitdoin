@@ -1,6 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import type { PersonProfile } from '@/data/biographyProfiles'
+
+// Module-level cache — avoids re-fetching the same title across card instances
+const photoCache = new Map<string, string | null>()
+
+async function fetchWikiPhoto(wikiTitle: string): Promise<string | null> {
+  if (photoCache.has(wikiTitle)) return photoCache.get(wikiTitle) ?? null
+  try {
+    const r = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(wikiTitle)}`
+    )
+    if (!r.ok) { photoCache.set(wikiTitle, null); return null }
+    const d: { thumbnail?: { source?: string } } = await r.json()
+    const src = d.thumbnail?.source
+    // Scale Wikimedia thumbnail to 400px for crisp display
+    const url = src ? src.replace(/\/\d+px-/, '/400px-') : null
+    photoCache.set(wikiTitle, url)
+    return url
+  } catch {
+    photoCache.set(wikiTitle, null)
+    return null
+  }
+}
 
 interface BioAvatarProps {
   profile:    PersonProfile | undefined
@@ -11,7 +33,15 @@ interface BioAvatarProps {
 }
 
 export function BioAvatar({ profile, personName, size = 'md', className, ring }: BioAvatarProps) {
-  const [imgFailed, setImgFailed] = useState(false)
+  const [photoSrc, setPhotoSrc]     = useState<string | null>(null)
+  const [imgFailed, setImgFailed]   = useState(false)
+
+  useEffect(() => {
+    if (!profile?.wikiTitle) return
+    const cached = photoCache.get(profile.wikiTitle)
+    if (cached !== undefined) { setPhotoSrc(cached); return }
+    fetchWikiPhoto(profile.wikiTitle).then(url => setPhotoSrc(url))
+  }, [profile?.wikiTitle])
 
   const sizeClass =
     size === 'lg' ? 'h-24 w-24 text-3xl' :
@@ -26,10 +56,10 @@ export function BioAvatar({ profile, personName, size = 'md', className, ring }:
 
   const ringClass = ring ? 'ring-4 ring-white/20' : ''
 
-  if (profile?.photoUrl && !imgFailed) {
+  if (photoSrc && !imgFailed) {
     return (
       <img
-        src={profile.photoUrl}
+        src={photoSrc}
         alt={personName}
         className={cn(sizeClass, 'rounded-full object-cover object-top shadow-xl', ringClass, className)}
         onError={() => setImgFailed(true)}
