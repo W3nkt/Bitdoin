@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  LayoutDashboard, BookOpen, Store, Tag, ShoppingBag,
+  LayoutDashboard, BookOpen, Store, Tag, ShoppingBag, ClipboardList,
   CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ChevronLeft, DollarSign, ScrollText, Lightbulb
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -31,6 +31,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { to: '/admin',              icon: LayoutDashboard, label: t('admin.dashboard'),  end: true },
     { to: '/admin/books',        icon: BookOpen,        label: t('admin.books') },
+    { to: '/admin/book-intake',  icon: ClipboardList,   label: 'Book Intake' },
     { to: '/admin/bookstores',   icon: Store,           label: t('admin.bookstores') },
     { to: '/admin/pricing',      icon: Tag,             label: t('admin.pricing') },
     { to: '/admin/orders',       icon: ShoppingBag,     label: t('admin.orders') },

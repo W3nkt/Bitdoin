@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit2, Store, MessageCircle, Phone, QrCode, Upload, Crop as CropIcon } from 'lucide-react'
+import { Plus, Edit2, Store, MessageCircle, Phone, QrCode, Upload, Crop as CropIcon, Link2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { supabase } from '@/lib/supabase'
+import { generateBookstorePriceLink, bookstorePriceLinkUrl } from '@/lib/bookstorePricing'
 import type { Bookstore } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
@@ -39,6 +40,8 @@ export function AdminBookstores() {
   const [crop, setCrop] = useState<Crop>()
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>()
   const cropImgRef = useRef<HTMLImageElement>(null)
+  const [linkBusyId, setLinkBusyId] = useState<string | null>(null)
+  const [linkModal, setLinkModal] = useState<{ name: string; url: string } | null>(null)
 
   const { register, handleSubmit, reset } = useForm<BookstoreForm>()
 
@@ -214,6 +217,24 @@ export function AdminBookstores() {
     }
   }
 
+  async function copyPriceLink(store: Bookstore) {
+    setLinkBusyId(store.id)
+    try {
+      const token = await generateBookstorePriceLink(store.id)
+      const url = bookstorePriceLinkUrl(token)
+      try {
+        await navigator.clipboard.writeText(url)
+        success(`Price link copied for ${store.name}`)
+      } catch {
+        setLinkModal({ name: store.name, url })
+      }
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Could not generate link')
+    } finally {
+      setLinkBusyId(null)
+    }
+  }
+
   async function toggleActive(store: Bookstore) {
     await supabase.from('bookstores').update({ is_active: !store.is_active }).eq('id', store.id)
     await qc.invalidateQueries({ queryKey: ['admin', 'bookstores'] })
@@ -314,6 +335,15 @@ export function AdminBookstores() {
                 >
                   <Edit2 className="h-3.5 w-3.5" />
                   Edit
+                </button>
+                <button
+                  onClick={() => copyPriceLink(store)}
+                  disabled={linkBusyId === store.id}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-50"
+                  title="Copy a link this store can use to submit book prices"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  {linkBusyId === store.id ? 'Generating…' : 'Copy Price Link'}
                 </button>
                 <button
                   onClick={() => toggleActive(store)}
@@ -437,6 +467,27 @@ export function AdminBookstores() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={!!linkModal}
+        onClose={() => setLinkModal(null)}
+        title="Price Submission Link"
+        size="md"
+        footer={<Button onClick={() => setLinkModal(null)}>Done</Button>}
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">
+            Copy this link and share it with <strong className="text-gray-900">{linkModal?.name}</strong>.
+            They can use it anytime, without an account, to enter their book prices.
+          </p>
+          <input
+            readOnly
+            value={linkModal?.url ?? ''}
+            onFocus={e => e.currentTarget.select()}
+            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-xs font-mono text-gray-700"
+          />
+        </div>
       </Modal>
     </div>
   )

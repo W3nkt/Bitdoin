@@ -24,10 +24,12 @@ const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m =>
 const Knowledge       = lazy(() => import('@/pages/customer/Knowledge').then(m => ({ default: m.Knowledge })))
 const KnowledgeDetail = lazy(() => import('@/pages/customer/KnowledgeDetail').then(m => ({ default: m.KnowledgeDetail })))
 const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
+const BookstorePriceEntry = lazy(() => import('@/pages/public/BookstorePriceEntry').then(m => ({ default: m.BookstorePriceEntry })))
 
 // Admin pages
 const AdminDashboard  = lazy(() => import('@/pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
 const AdminBooks      = lazy(() => import('@/pages/admin/Books').then(m => ({ default: m.AdminBooks })))
+const AdminBookIntake = lazy(() => import('@/pages/admin/BookIntake').then(m => ({ default: m.AdminBookIntake })))
 const AdminBookstores = lazy(() => import('@/pages/admin/Bookstores').then(m => ({ default: m.AdminBookstores })))
 const AdminPricing    = lazy(() => import('@/pages/admin/Pricing').then(m => ({ default: m.AdminPricing })))
 const AdminOrders     = lazy(() => import('@/pages/admin/AdminOrders').then(m => ({ default: m.AdminOrders })))
@@ -79,6 +81,7 @@ export function App() {
                     <Route path="/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
                     <Route path="/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/bookstore-pricing/:token" element={<BookstorePriceEntry />} />
 
                     {/* Admin Routes */}
                     <Route path="/admin" element={
@@ -86,6 +89,9 @@ export function App() {
                     } />
                     <Route path="/admin/books" element={
                       <AdminGuard><AdminLayout><AdminBooks /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/admin/book-intake" element={
+                      <AdminGuard><AdminLayout><AdminBookIntake /></AdminLayout></AdminGuard>
                     } />
                     <Route path="/admin/bookstores" element={
                       <AdminGuard><AdminLayout><AdminBookstores /></AdminLayout></AdminGuard>
