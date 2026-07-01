@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -61,10 +61,21 @@ export function Knowledge() {
   const { t } = useTranslation()
   const { language } = useLanguage()
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [selectedType, setSelectedType]         = useState<string>('all')
-  const [search, setSearch]                     = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    () => sessionStorage.getItem('kh_cat') ?? 'all',
+  )
+  const [selectedType, setSelectedType] = useState<string>(
+    () => sessionStorage.getItem('kh_type') ?? 'all',
+  )
+  const [search, setSearch] = useState(
+    () => sessionStorage.getItem('kh_q') ?? '',
+  )
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
+
+  // Persist filters so "Back to Knowledge Hub" restores them
+  useEffect(() => { sessionStorage.setItem('kh_cat',  selectedCategory) }, [selectedCategory])
+  useEffect(() => { sessionStorage.setItem('kh_type', selectedType) },     [selectedType])
+  useEffect(() => { sessionStorage.setItem('kh_q',    search) },           [search])
 
   const { data: categories = [], isLoading: loadingCats } = useQuery({
     queryKey: ['knowledge-categories'],
