@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { BookCard } from '@/components/ui/BookCard'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ export function BookDetail() {
   const navigate = useNavigate()
   const { addItem } = useCart()
   const { currency, language } = useLanguage()
+  const { profile } = useAuth()
   const { success } = useToast()
 
   const [selectedPriceIdx, setSelectedPriceIdx] = useState(0)
@@ -60,7 +62,20 @@ export function BookDetail() {
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>
   if (!book) return <div className="py-16 text-center text-gray-400">{t('book.notFound')}</div>
 
-  const selectedPrice = book.prices?.[selectedPriceIdx]
+  const isAdmin = profile?.role === 'ADMIN'
+
+  // Customers always get the cheapest available price — store identity is admin-only.
+  const bestPriceIdx = book.prices?.length
+    ? book.prices.reduce((bestIdx, price, idx, arr) => {
+        const best = arr[bestIdx]
+        if (price.availability === 'AVAILABLE' && best.availability !== 'AVAILABLE') return idx
+        if (price.availability !== 'AVAILABLE' && best.availability === 'AVAILABLE') return bestIdx
+        return price.final_price < best.final_price ? idx : bestIdx
+      }, 0)
+    : 0
+
+  const effectivePriceIdx = isAdmin ? selectedPriceIdx : bestPriceIdx
+  const selectedPrice = book.prices?.[effectivePriceIdx]
   const isAvailable = selectedPrice?.availability === 'AVAILABLE'
   const languageValue = book.language === 'Lao'
     ? t('sidebar.lao')
@@ -197,8 +212,8 @@ export function BookDetail() {
               </div>
             </div>
 
-            {/* Divider */}
-            {book.prices.length > 1 && (
+            {/* Divider — store comparison is admin-only; customers just get the best price */}
+            {isAdmin && book.prices.length > 1 && (
               <div className="border-t border-gray-100 px-4 py-3">
                 <p className="mb-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Store className="h-3 w-3" />
@@ -268,18 +283,22 @@ export function BookDetail() {
           </div>
         )}
 
-        {/* Single-store price note (when only 1 store) */}
+        {/* Single-store price note (when only 1 store) — store name is admin-only */}
         {book.prices && book.prices.length === 1 && (
           <div className="rounded-2xl bg-white border border-gray-100 px-4 py-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Store className="h-4 w-4 text-primary-700 flex-shrink-0" />
-              <h2 className="text-sm font-bold text-gray-900">{t('book.compareStores')}</h2>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700 font-medium">{book.prices[0].bookstore?.name}</span>
-              <span className="font-bold text-primary-700">{formatPrice(book.prices[0].final_price, currency)}</span>
-            </div>
-            <p className="mt-2.5 text-center text-xs text-gray-400 bg-gray-50 rounded-xl py-2">
+            {isAdmin && (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <Store className="h-4 w-4 text-primary-700 flex-shrink-0" />
+                  <h2 className="text-sm font-bold text-gray-900">{t('book.compareStores')}</h2>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-700 font-medium">{book.prices[0].bookstore?.name}</span>
+                  <span className="font-bold text-primary-700">{formatPrice(book.prices[0].final_price, currency)}</span>
+                </div>
+              </>
+            )}
+            <p className={cn('text-center text-xs text-gray-400 bg-gray-50 rounded-xl py-2', isAdmin && 'mt-2.5')}>
               {t('cart.deliveryFeeNote')}
             </p>
           </div>
