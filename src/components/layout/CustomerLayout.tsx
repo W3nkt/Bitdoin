@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, Package, PackageSearch, User, Search, DollarSign, X, Lightbulb } from 'lucide-react'
+import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, DollarSign, X, Lightbulb } from 'lucide-react'
 import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
@@ -46,9 +46,6 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     { to: '/knowledge',  icon: Lightbulb,    label: t('nav.knowledge'), end: false },
     { to: '/cart',       icon: ShoppingCart, label: t('nav.cart'),      end: false, badge: cartCount },
     { to: '/track',      icon: PackageSearch,label: t('nav.trackOrder'),end: false },
-    ...(profile
-      ? [{ to: '/orders', icon: Package, label: t('nav.orders'), end: false }]
-      : []),
     { to: profile ? '/profile' : '/auth', icon: User,
       label: profile ? t('nav.profile') : t('nav.signIn'), end: false },
   ]

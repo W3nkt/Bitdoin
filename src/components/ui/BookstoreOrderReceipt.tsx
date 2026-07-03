@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { Scissors } from 'lucide-react'
 import type { Order, OrderItem } from '@/types'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
@@ -111,6 +112,12 @@ export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderRe
             {delivery.district && <ReceiptLine label="ເມືອງ" value={delivery.district} />}
             <ReceiptLine label="ທີ່ຢູ່ລະອຽດ" value={delivery.address} />
           </ReceiptSection>
+        </div>
+
+        {/* Cut line — logistics keeps everything above, store cuts away the price details below */}
+        <div className="relative px-8 py-4">
+          <div className="border-t-2 border-dashed border-gray-300" />
+          <Scissors className="absolute left-8 top-1/2 h-5 w-5 -translate-y-1/2 -rotate-90 bg-white pr-1 text-gray-400" />
         </div>
 
         <div className="px-8 pb-8">

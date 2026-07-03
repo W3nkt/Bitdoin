@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText } from 'lucide-react'
+import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText, BookOpen } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
@@ -468,12 +468,23 @@ export function AdminOrders() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Items</p>
               <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 {orderDetail.items?.map(item => (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{item.book?.title}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{item.bookstore?.name} · qty {item.quantity}</p>
+                  <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-50 last:border-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+                        {item.book?.cover_image_url ? (
+                          <img src={item.book.cover_image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                            <BookOpen className="h-4 w-4 text-primary-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{item.book?.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{item.bookstore?.name} · qty {item.quantity}</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-bold text-gray-900">{formatPrice(item.final_price * item.quantity, currency)}</p>
+                    <p className="text-sm font-bold text-gray-900 flex-shrink-0">{formatPrice(item.final_price * item.quantity, currency)}</p>
                   </div>
                 ))}
               </div>

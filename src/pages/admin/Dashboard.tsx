@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, DollarSign, TrendingUp, CreditCard, Truck, ShoppingBag } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { StatCard } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -10,7 +10,30 @@ import { formatPrice, formatDate, orderStatusLabel, orderStatusColor } from '@/l
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-import type { Order } from '@/types'
+import type { Order, OrderStatus, Language } from '@/types'
+
+// Fixed hue per status — identity never shifts with which statuses happen to appear.
+// Rare terminal statuses fold into OTHER so the chart never exceeds 8 categorical slots.
+const STATUS_CHART_ORDER: (OrderStatus | 'OTHER')[] = [
+  'PROCESSING', 'SHIPPED', 'PENDING_PAYMENT', 'COMPLETED',
+  'PURCHASING_FROM_BOOKSTORE', 'CANCELLED', 'DELIVERED', 'PAYMENT_REVIEW', 'OTHER',
+]
+const STATUS_CHART_COLORS: Record<string, string> = {
+  PROCESSING: '#2a78d6',
+  SHIPPED: '#1baf7a',
+  PENDING_PAYMENT: '#eda100',
+  COMPLETED: '#008300',
+  PURCHASING_FROM_BOOKSTORE: '#4a3aa7',
+  CANCELLED: '#e34948',
+  DELIVERED: '#e87ba4',
+  PAYMENT_REVIEW: '#eb6834',
+  OTHER: '#898781',
+}
+
+function statusChartLabel(status: string, lang: Language): string {
+  if (status === 'OTHER') return lang === 'lo' ? 'ອື່ນໆ' : 'Other'
+  return orderStatusLabel(status as OrderStatus, lang)
+}
 
 export function AdminDashboard() {
   const { t } = useTranslation()
@@ -22,21 +45,35 @@ export function AdminDashboard() {
     queryKey: ['admin', 'stats'],
     queryFn: async () => {
       const [ordersRes, paymentsRes] = await Promise.all([
-        supabase.from('orders').select('total_amount, status, payment_status, created_at'),
-        supabase.from('payments').select('amount, verification_status'),
+        supabase.from('orders').select('id, total_amount, status, payment_status, created_at'),
+        supabase.from('payments').select('amount, verification_status, order_id'),
       ])
       const orders = ordersRes.data ?? []
       const payments = paymentsRes.data ?? []
 
-      const gmv = orders.reduce((s, o) => s + Number(o.total_amount), 0)
-      const verifiedPayments = payments.filter(p => p.verification_status === 'VERIFIED')
+      const cancelledOrderIds = new Set(orders.filter(o => o.status === 'CANCELLED').map(o => o.id))
+      const activeOrders = orders.filter(o => !cancelledOrderIds.has(o.id))
+
+      const gmv = activeOrders.reduce((s, o) => s + Number(o.total_amount), 0)
+      const verifiedPayments = payments.filter(
+        p => p.verification_status === 'VERIFIED' && !cancelledOrderIds.has(p.order_id)
+      )
       const revenue = verifiedPayments.reduce((s, p) => s + Number(p.amount), 0)
       const pendingPayments = payments.filter(p => p.verification_status === 'PENDING').length
       const pendingDeliveries = orders.filter(
         o => o.status === 'PROCESSING' || o.status === 'PURCHASING_FROM_BOOKSTORE'
       ).length
 
-      return { gmv, revenue, pendingPayments, pendingDeliveries, totalOrders: orders.length }
+      const statusCounts: Record<string, number> = {}
+      orders.forEach(o => {
+        const key = STATUS_CHART_COLORS[o.status] ? o.status : 'OTHER'
+        statusCounts[key] = (statusCounts[key] ?? 0) + 1
+      })
+      const statusBreakdown = STATUS_CHART_ORDER
+        .filter(s => statusCounts[s])
+        .map(s => ({ status: s, count: statusCounts[s] }))
+
+      return { gmv, revenue, pendingPayments, pendingDeliveries, totalOrders: orders.length, statusBreakdown }
     },
   })
 
@@ -57,7 +94,8 @@ export function AdminDashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from('order_items')
-        .select('book:books(title), book_id')
+        .select('book:books(title), book_id, order:orders!inner(status)')
+        .neq('order.status', 'CANCELLED')
         .limit(100)
       if (!data) return []
       const counts: Record<string, { title: string; count: number }> = {}
@@ -138,6 +176,44 @@ export function AdminDashboard() {
           </div>
         )}
 
+        {/* Order status breakdown */}
+        {stats?.statusBreakdown && stats.statusBreakdown.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-card p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Order Status</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={stats.statusBreakdown}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius={48}
+                  outerRadius={78}
+                  paddingAngle={2}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                >
+                  {stats.statusBreakdown.map(entry => (
+                    <Cell key={entry.status} fill={STATUS_CHART_COLORS[entry.status]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number, _name, item) => [value, statusChartLabel(item.payload.status, language)]} />
+                <Legend
+                  layout="vertical"
+                  align="right"
+                  verticalAlign="middle"
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value: string) => (
+                    <span className="text-xs text-gray-600">{statusChartLabel(value, language)}</span>
+                  )}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div>
         {/* Recent orders */}
         <div className="bg-white rounded-2xl shadow-card p-5">
           <div className="mb-3 flex items-center justify-between gap-4">

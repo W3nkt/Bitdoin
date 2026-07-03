@@ -155,7 +155,7 @@ export function Catalog() {
       />
 
       <div className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-center">
+        <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end">
           <div className="min-w-0 flex-1">
             <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-accent-600">{t('catalog.title')}</p>
             <div className="flex gap-2">
@@ -202,7 +202,7 @@ export function Catalog() {
             <select
               value={sort}
               onChange={e => setSort(e.target.value)}
-              className="h-10 border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
+              className="h-11 border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
             >
               <option value="newest">{t('catalog.sortOptions.newest')}</option>
               <option value="title">{t('catalog.sortTitle')}</option>

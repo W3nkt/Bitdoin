@@ -6,6 +6,7 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowUpDown,
+  BookOpen,
   Calculator,
   Edit2,
   Plus,
@@ -69,6 +70,7 @@ export function AdminPricing() {
 
   const bookstorePrice = watchPrice('bookstore_price')
   const marginPercent = watchPrice('margin_percent')
+  const watchedBookId = watchPrice('book_id')
   const livePrice = bookstorePrice && marginPercent
     ? calcFinalPrice(parseFloat(bookstorePrice), parseFloat(marginPercent))
     : null
@@ -78,7 +80,7 @@ export function AdminPricing() {
     queryFn: async () => {
       const { data } = await supabase
         .from('book_prices')
-        .select('*, book:books(title), bookstore:bookstores(name)')
+        .select('*, book:books(title, cover_image_url), bookstore:bookstores(name)')
         .order('updated_at', { ascending: false })
       return (data ?? []) as BookPrice[]
     },
@@ -87,8 +89,8 @@ export function AdminPricing() {
   const { data: books } = useQuery({
     queryKey: ['admin', 'books-list'],
     queryFn: async () => {
-      const { data } = await supabase.from('books').select('id, title').eq('is_active', true).order('title')
-      return (data ?? []) as { id: string; title: string }[]
+      const { data } = await supabase.from('books').select('id, title, cover_image_url').eq('is_active', true).order('title')
+      return (data ?? []) as { id: string; title: string; cover_image_url?: string }[]
     },
   })
 
@@ -236,6 +238,13 @@ export function AdminPricing() {
 
   const bookOptions = books?.map(b => ({ value: b.id, label: b.title })) ?? []
   const storeOptions = bookstores?.map(b => ({ value: b.id, label: b.name })) ?? []
+  const bookCoverMap = useMemo(() => {
+    const map = new Map<string, string | undefined>()
+    books?.forEach(b => map.set(b.id, b.cover_image_url))
+    if (editPrice?.book_id) map.set(editPrice.book_id, (editPrice.book as { cover_image_url?: string } | undefined)?.cover_image_url)
+    return map
+  }, [books, editPrice])
+  const selectedBookCover = bookCoverMap.get(watchedBookId)
   const visiblePrices = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase()
     const filtered = (prices ?? []).filter(price => {
@@ -345,9 +354,24 @@ export function AdminPricing() {
                 {visiblePrices.map(price => (
                   <tr key={price.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900 truncate max-w-xs text-xs">
-                        {(price.book as { title?: string } | undefined)?.title ?? '—'}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+                          {(price.book as { cover_image_url?: string } | undefined)?.cover_image_url ? (
+                            <img
+                              src={(price.book as { cover_image_url?: string }).cover_image_url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                              <BookOpen className="h-4 w-4 text-primary-300" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="font-medium text-gray-900 truncate max-w-xs text-xs">
+                          {(price.book as { title?: string } | undefined)?.title ?? '—'}
+                        </p>
+                      </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-500">
                       {(price.bookstore as { name?: string } | undefined)?.name ?? '—'}
@@ -463,7 +487,20 @@ export function AdminPricing() {
         }
       >
         <form className="space-y-4">
-          <Select label="Book" required options={bookOptions} placeholder="Select book" {...rPrice('book_id', { required: true })} />
+          <div className="flex items-start gap-3">
+            <div className="w-14 h-[74px] rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+              {selectedBookCover ? (
+                <img src={selectedBookCover} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                  <BookOpen className="h-5 w-5 text-primary-300" />
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <Select label="Book" required options={bookOptions} placeholder="Select book" {...rPrice('book_id', { required: true })} />
+            </div>
+          </div>
           <Select label="Bookstore" required options={storeOptions} placeholder="Select store" {...rPrice('bookstore_id', { required: true })} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Bookstore Price (LAK)" type="number" required {...rPrice('bookstore_price', { required: true })} />
