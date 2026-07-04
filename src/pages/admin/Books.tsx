@@ -212,6 +212,15 @@ export function AdminBooks() {
     { value: 'Chinese', label: 'Chinese' },
     { value: 'French', label: 'French' },
   ]
+  // If the book being edited has a language/category outside the lists above (e.g. edited
+  // directly in the database), add it so the select shows the real value instead of silently
+  // blanking it out — which would otherwise overwrite it with the placeholder on next save.
+  const editLangOptions = editBook?.language && !langOptions.some(o => o.value === editBook.language)
+    ? [{ value: editBook.language, label: `${editBook.language} (unrecognized)` }, ...langOptions]
+    : langOptions
+  const editCatOptions = editBook?.category_id && !catOptions.some(o => o.value === editBook.category_id)
+    ? [{ value: editBook.category_id, label: 'Unrecognized category' }, ...catOptions]
+    : catOptions
 
   return (
     <div className="space-y-5">
@@ -361,14 +370,14 @@ export function AdminBooks() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="ISBN" {...register('isbn')} />
-            <Select label="Language" options={langOptions} placeholder="Select language" {...register('language')} />
+            <Select label="Language" options={editLangOptions} placeholder="Select language" {...register('language')} />
           </div>
           <Input label="Title" required error={errors.title?.message} {...register('title', { required: true })} />
           <Input label="Author" {...register('author')} />
           <Input label="Publisher" {...register('publisher')} />
           <Select
             label="Category"
-            options={catOptions}
+            options={editCatOptions}
             placeholder="Select category"
             {...register('category_id')}
           />

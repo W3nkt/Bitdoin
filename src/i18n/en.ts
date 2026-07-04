@@ -288,6 +288,8 @@ const en = {
     readMore: 'Read More',
     by: 'by',
     backToHub: 'Back to Knowledge Hub',
+    previousPost: 'Previous',
+    nextPost: 'Next',
     relatedPosts: 'More to Explore',
     noPostsFound: 'No content found in this category.',
     searchPlaceholder: 'Search articles and quotes…',

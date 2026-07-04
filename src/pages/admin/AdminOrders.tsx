@@ -59,6 +59,7 @@ export function AdminOrders() {
   const [savingStorePayment, setSavingStorePayment] = useState(false)
   const bookstoreReceiptRef = useRef<HTMLDivElement>(null)
   const paymentProofInputRef = useRef<HTMLInputElement>(null)
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', search, statusFilter, page],
@@ -225,7 +226,7 @@ export function AdminOrders() {
   async function viewPaymentProof(payment: BookstorePayment) {
     const path = payment.proof_image_url.split('/bookstore-payment-proofs/')[1]
     if (!path) {
-      window.open(payment.proof_image_url, '_blank', 'noopener,noreferrer')
+      setLightboxImage({ url: payment.proof_image_url, alt: 'Payment proof' })
       return
     }
     const { data, error: signedUrlError } = await supabase.storage
@@ -235,7 +236,7 @@ export function AdminOrders() {
       error(signedUrlError?.message ?? 'Could not open payment proof')
       return
     }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    setLightboxImage({ url: data.signedUrl, alt: 'Payment proof' })
   }
 
   async function handleBookstoreWhatsApp(item: OrderItem) {
@@ -613,13 +614,20 @@ export function AdminOrders() {
                   )}
                 </div>
                 {orderDetail.payments[0].receipt_image_url && (
-                  <div className="mt-2 rounded-xl overflow-hidden border border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setLightboxImage({
+                      url: orderDetail.payments![0].receipt_image_url!,
+                      alt: 'Payment receipt',
+                    })}
+                    className="mt-2 block w-full cursor-zoom-in overflow-hidden rounded-xl border border-gray-100"
+                  >
                     <StorageImage
                       src={orderDetail.payments[0].receipt_image_url}
                       alt="Payment receipt"
                       className="w-full max-h-40 object-contain bg-gray-50"
                     />
-                  </div>
+                  </button>
                 )}
               </div>
             )}
@@ -714,6 +722,21 @@ export function AdminOrders() {
               />
             </div>
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!lightboxImage}
+        onClose={() => setLightboxImage(null)}
+        title={lightboxImage?.alt}
+        size="xl"
+      >
+        {lightboxImage && (
+          <StorageImage
+            src={lightboxImage.url}
+            alt={lightboxImage.alt}
+            className="mx-auto max-h-[70vh] w-full object-contain"
+          />
         )}
       </Modal>
     </div>

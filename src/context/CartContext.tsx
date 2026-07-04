@@ -2,6 +2,7 @@ import { createContext, useContext, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem } from '@/types'
+import { trackEvent } from '@/lib/tracking'
 
 interface CartState {
   items: CartItem[]
@@ -19,6 +20,11 @@ const useCartStore = create<CartState>()(
       items: [],
 
       addItem: (newItem) => set((state) => {
+        trackEvent('add_to_cart', {
+          path: '/cart',
+          label: newItem.book?.title,
+          metadata: { book_id: newItem.book_id, bookstore_id: newItem.bookstore_id, quantity: newItem.quantity },
+        })
         const existing = state.items.find(
           i => i.book_id === newItem.book_id && i.bookstore_id === newItem.bookstore_id
         )

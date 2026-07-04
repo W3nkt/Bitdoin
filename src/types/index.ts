@@ -381,3 +381,23 @@ export interface SearchFilters {
   author?: string
   publisher?: string
 }
+
+export type VisitorEventType =
+  | 'page_view'
+  | 'page_duration'
+  | 'book_view'
+  | 'add_to_cart'
+  | 'checkout_started'
+  | 'checkout_completed'
+  | 'click'
+
+export interface VisitorEvent {
+  id: string
+  visitor_id: string
+  session_id: string
+  event_type: VisitorEventType
+  path?: string
+  label?: string
+  metadata?: Record<string, unknown>
+  created_at: string
+}

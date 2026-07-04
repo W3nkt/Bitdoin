@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
-  ArrowLeft, Clock, Eye, Tag, Quote, BookOpen, Lightbulb, Sparkles,
+  ArrowLeft, ChevronLeft, ChevronRight, Clock, Eye, Tag, Quote, BookOpen, Lightbulb, Sparkles,
   User, MapPin, Calendar, TrendingUp, Building2, Globe, Star,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -93,6 +93,95 @@ function RenderedContent({ text, dark }: { text: string; dark?: boolean }) {
   )
 }
 
+// ── Prev/Next Navigation ──────────────────────────────────────────────────────
+
+// Mirrors the same ordering + filters as the Knowledge Hub list (Knowledge.tsx),
+// including the active category/type/search filters persisted in sessionStorage,
+// so Next/Previous step through whatever list the user was actually browsing.
+function useAdjacentPosts(currentId: string) {
+  const { data: posts = [] } = useQuery({
+    queryKey: ['knowledge-posts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('knowledge_posts')
+        .select('*, category:knowledge_categories(*)')
+        .eq('is_published', true)
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data ?? []) as KnowledgePost[]
+    },
+  })
+
+  return useMemo(() => {
+    const selectedCategory = sessionStorage.getItem('kh_cat') ?? 'all'
+    const selectedType     = sessionStorage.getItem('kh_type') ?? 'all'
+    const search           = sessionStorage.getItem('kh_q') ?? ''
+
+    let list = posts
+    if (selectedCategory !== 'all') list = list.filter(p => p.category_id === selectedCategory)
+    if (selectedType !== 'all')     list = list.filter(p => p.type === selectedType)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(p =>
+        p.title_en.toLowerCase().includes(q) ||
+        (p.title_lo ?? '').toLowerCase().includes(q) ||
+        p.content_en.toLowerCase().includes(q) ||
+        p.author.toLowerCase().includes(q),
+      )
+    }
+
+    const index = list.findIndex(p => p.id === currentId)
+    return {
+      previous: index > 0 ? list[index - 1] : null,
+      next: index >= 0 && index < list.length - 1 ? list[index + 1] : null,
+    }
+  }, [posts, currentId])
+}
+
+function NavArrowButton({ post, direction }: { post: KnowledgePost | null; direction: 'prev' | 'next' }) {
+  const { t } = useTranslation()
+  const { language } = useLanguage()
+  const Icon  = direction === 'prev' ? ChevronLeft : ChevronRight
+  const label = t(direction === 'prev' ? 'knowledge.previousPost' : 'knowledge.nextPost')
+
+  if (!post) {
+    return <span className="h-8 w-8 flex-shrink-0" aria-hidden="true" />
+  }
+
+  const title = language === 'lo' && post.title_lo ? post.title_lo : post.title_en
+
+  return (
+    <Link
+      to={`/knowledge/${post.id}`}
+      aria-label={`${label}: ${title}`}
+      title={title}
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm hover:border-primary-300 hover:text-primary-600 transition-colors"
+    >
+      <Icon className="h-4 w-4" />
+    </Link>
+  )
+}
+
+function DetailNavHeader({ post }: { post: KnowledgePost }) {
+  const { t } = useTranslation()
+  const { previous, next } = useAdjacentPosts(post.id)
+
+  return (
+    <div className="mb-5 flex items-center justify-between gap-2">
+      <NavArrowButton post={previous} direction="prev" />
+      <Link
+        to="/knowledge"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-700 transition-colors"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {t('knowledge.backToHub')}
+      </Link>
+      <NavArrowButton post={next} direction="next" />
+    </div>
+  )
+}
+
 // ── Biography Detail Layout ───────────────────────────────────────────────────
 
 function BiographyDetail({ post }: { post: KnowledgePost }) {
@@ -116,14 +205,7 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
   return (
     <div className="mx-auto max-w-2xl pb-16">
 
-      {/* Back */}
-      <Link
-        to="/knowledge"
-        className="mb-5 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-700 transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        {t('knowledge.backToHub')}
-      </Link>
+      <DetailNavHeader post={post} />
 
       {/* ── Hero Card ─────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-2xl shadow-xl" style={gradientStyle}>
@@ -419,13 +501,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
 
   return (
     <div className="mx-auto max-w-2xl pb-12">
-      <Link
-        to="/knowledge"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-700 transition-colors"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        {t('knowledge.backToHub')}
-      </Link>
+      <DetailNavHeader post={post} />
 
       <article className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
         <div className={cn(

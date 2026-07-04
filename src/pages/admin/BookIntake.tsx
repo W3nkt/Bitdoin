@@ -2,12 +2,12 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import {
-  BookOpen, CheckCircle2, Plus, Rocket, Upload,
+  BookOpen, CheckCircle2, Edit2, Plus, Rocket, Trash2, Upload,
   Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
-import type { Category } from '@/types'
+import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
@@ -19,11 +19,7 @@ import { formatPrice } from '@/lib/utils'
 const MAX_COVER_SIZE = 5 * 1024 * 1024
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-interface PendingBookRow {
-  id: string
-  title: string
-  author?: string
-  cover_image_url?: string
+interface PendingBookRow extends Omit<Book, 'prices'> {
   prices: { id: string; bookstore_price: number; bookstore: { name: string } | null }[]
 }
 
@@ -45,7 +41,10 @@ export function AdminBookIntake() {
   const { currency } = useLanguage()
 
   const [modalOpen, setModalOpen] = useState(false)
+  const [editBook, setEditBook] = useState<PendingBookRow | null>(null)
+  const [deleteModal, setDeleteModal] = useState<PendingBookRow | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [coverFile, setCoverFile] = useState<File | null>(null)
   const [coverPreview, setCoverPreview] = useState<string | null>(null)
@@ -56,8 +55,8 @@ export function AdminBookIntake() {
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<BookForm>()
 
   useEffect(() => {
-    if (modalOpen && descRef.current) descRef.current.innerHTML = ''
-  }, [modalOpen])
+    if (modalOpen && descRef.current) descRef.current.innerHTML = editBook?.description ?? ''
+  }, [modalOpen, editBook])
 
   useEffect(() => {
     return () => {
@@ -78,7 +77,7 @@ export function AdminBookIntake() {
     queryFn: async () => {
       const { data } = await supabase
         .from('books')
-        .select('id, title, author, cover_image_url, prices:book_prices(id, bookstore_price, bookstore:bookstores(name))')
+        .select('*, prices:book_prices(id, bookstore_price, bookstore:bookstores(name))')
         .eq('is_active', false)
         .order('created_at', { ascending: false })
       return (data ?? []) as unknown as PendingBookRow[]
@@ -88,6 +87,7 @@ export function AdminBookIntake() {
   const readyToPublish = (pendingBooks ?? []).filter(b => b.prices.length > 0)
 
   function openAdd() {
+    setEditBook(null)
     reset({})
     setCoverFile(null)
     setCoverPreview(null)
@@ -95,6 +95,35 @@ export function AdminBookIntake() {
     if (coverInputRef.current) coverInputRef.current.value = ''
     if (descRef.current) descRef.current.innerHTML = ''
     setModalOpen(true)
+  }
+
+  function openEdit(book: PendingBookRow) {
+    setEditBook(book)
+    reset({
+      isbn: book.isbn ?? '',
+      title: book.title,
+      author: book.author ?? '',
+      publisher: book.publisher ?? '',
+      language: book.language,
+      category_id: book.category_id ?? '',
+      description: book.description ?? '',
+      pages: book.pages ? String(book.pages) : '',
+      publication_date: book.publication_date?.split('T')[0] ?? '',
+    })
+    setCoverFile(null)
+    setCoverPreview(book.cover_image_url ?? null)
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
+    setModalOpen(true)
+  }
+
+  function closeModal() {
+    setModalOpen(false)
+    setEditBook(null)
+    setCoverFile(null)
+    setCoverPreview(null)
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
   }
 
   function handleCoverChange(event: ChangeEvent<HTMLInputElement>) {
@@ -139,18 +168,24 @@ export function AdminBookIntake() {
         description: form.description || null,
         pages: form.pages ? parseInt(form.pages) : null,
         publication_date: form.publication_date || null,
-        is_active: false,
       }
+      if (!editBook) payload.is_active = false
       if (coverFile) {
         uploadedCoverUrl = await uploadCover(coverFile)
         payload.cover_image_url = uploadedCoverUrl
       }
 
-      const { error: err } = await supabase.from('books').insert(payload)
-      if (err) throw err
-      success('Book added to the intake list')
+      if (editBook) {
+        const { error: err } = await supabase.from('books').update(payload).eq('id', editBook.id)
+        if (err) throw err
+        success('Book updated')
+      } else {
+        const { error: err } = await supabase.from('books').insert(payload)
+        if (err) throw err
+        success('Book added to the intake list')
+      }
       await qc.invalidateQueries({ queryKey: ['admin', 'book-intake'] })
-      setModalOpen(false)
+      closeModal()
     } catch (err) {
       if (uploadedCoverUrl) {
         const uploadedPath = uploadedCoverUrl.split('/books/')[1]
@@ -159,6 +194,27 @@ export function AdminBookIntake() {
       error(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(book: PendingBookRow) {
+    setDeleting(true)
+    try {
+      const { error: err } = await supabase.from('books').delete().eq('id', book.id)
+      if (err) throw err
+      await logAudit({
+        entity: 'book',
+        entityId: book.id,
+        action: 'BOOK_INTAKE_DELETED',
+        oldValue: { title: book.title },
+      })
+      await qc.invalidateQueries({ queryKey: ['admin', 'book-intake'] })
+      setDeleteModal(null)
+      success('Book removed from intake list')
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -191,6 +247,15 @@ export function AdminBookIntake() {
     { value: 'Chinese', label: 'Chinese' },
     { value: 'French', label: 'French' },
   ]
+  // If the book being edited has a language/category outside the lists above (e.g. edited
+  // directly in the database), add it so the select shows the real value instead of silently
+  // blanking it out — which would otherwise overwrite it with the placeholder on next save.
+  const editLangOptions = editBook?.language && !langOptions.some(o => o.value === editBook.language)
+    ? [{ value: editBook.language, label: `${editBook.language} (unrecognized)` }, ...langOptions]
+    : langOptions
+  const editCatOptions = editBook?.category_id && !catOptions.some(o => o.value === editBook.category_id)
+    ? [{ value: editBook.category_id, label: 'Unrecognized category' }, ...catOptions]
+    : catOptions
 
   return (
     <div className="space-y-5">
@@ -239,8 +304,28 @@ export function AdminBookIntake() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{book.title}</p>
-                  {book.author && <p className="truncate text-xs text-gray-400">{book.author}</p>}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{book.title}</p>
+                      {book.author && <p className="truncate text-xs text-gray-400">{book.author}</p>}
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-0.5">
+                      <button
+                        onClick={() => openEdit(book)}
+                        className="p-1.5 rounded-lg hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        title="Edit"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteModal(book)}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
                   <div className="mt-2 space-y-0.5">
                     {book.prices.length === 0 ? (
                       <p className="text-xs text-gray-400">No submissions yet</p>
@@ -262,12 +347,12 @@ export function AdminBookIntake() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Add Book to Intake List"
+        onClose={closeModal}
+        title={editBook ? 'Edit Book' : 'Add Book to Intake List'}
         size="lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
             <Button loading={saving} onClick={handleSubmit(onSubmit)}>Save</Button>
           </>
         }
@@ -306,14 +391,14 @@ export function AdminBookIntake() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input label="ISBN" {...register('isbn')} />
-            <Select label="Language" options={langOptions} placeholder="Select language" {...register('language')} />
+            <Select label="Language" options={editLangOptions} placeholder="Select language" {...register('language')} />
           </div>
           <Input label="Title" required error={errors.title?.message} {...register('title', { required: true })} />
           <Input label="Author" {...register('author')} />
           <Input label="Publisher" {...register('publisher')} />
           <Select
             label="Category"
-            options={catOptions}
+            options={editCatOptions}
             placeholder="Select category"
             {...register('category_id')}
           />
@@ -393,6 +478,27 @@ export function AdminBookIntake() {
             />
           </div>
         </form>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal
+        open={!!deleteModal}
+        onClose={() => setDeleteModal(null)}
+        title="Delete Book"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteModal(null)}>Cancel</Button>
+            <Button variant="danger" loading={deleting} onClick={() => deleteModal && handleDelete(deleteModal)}>
+              Delete
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          Remove <strong>{deleteModal?.title}</strong> from the intake list? Any bookstore price submissions for
+          it will also be removed. This can't be undone.
+        </p>
       </Modal>
     </div>
   )

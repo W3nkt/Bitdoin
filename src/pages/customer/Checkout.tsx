@@ -18,6 +18,7 @@ import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
 import { createCheckoutOrder, trackOrder, type GuestOrderAccess } from '@/lib/guestOrders'
+import { trackEvent } from '@/lib/tracking'
 import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const schema = z.object({
@@ -114,6 +115,12 @@ export function Checkout() {
     if (shouldReturnToCart) navigate('/cart', { replace: true })
   }, [navigate, shouldReturnToCart])
 
+  useEffect(() => {
+    if (items.length > 0) trackEvent('checkout_started', { path: '/checkout', metadata: { item_count: items.length } })
+  // Fire once for this visit to the checkout page only.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function onSubmit(form: CheckoutForm) {
     setCheckoutDraft(form)
     setSelectedPaymentMethod(form.payment_method)
@@ -153,6 +160,11 @@ export function Checkout() {
       setPlacedPhone(form.phone)
       setGuestAccessToken(access.access_token)
       setPlacedAccess(access)
+      trackEvent('checkout_completed', {
+        path: '/checkout',
+        label: access.order_number,
+        metadata: { order_number: access.order_number, payment_method: selectedPaymentMethod },
+      })
       success(t('checkout.orderPlaced', { orderNumber: access.order_number }))
       await loadPlacedOrder(access.order_number, form.phone)
     } catch (checkoutError) {

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import DOMPurify from 'dompurify'
 import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
@@ -11,14 +12,24 @@ import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
+import { trackEvent } from '@/lib/tracking'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
+// Keeps the structure/formatting (headings, paragraphs, colors, lists) that admins
+// paste in from Word/Google Docs, while stripping anything that could execute script.
 function sanitizeHtml(html: string): string {
   // Plain text (no HTML tags) — convert newlines to <br>
   if (!/<[a-z]/i.test(html)) return html.replace(/\n/g, '<br>')
-  // Strip all tags except safe formatting and list tags
-  return html.replace(/<(?!\/?(?:b|strong|i|em|u|br|ul|ol|li)\b)[^>]*>/gi, '')
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'p', 'div', 'br', 'span',
+      'b', 'strong', 'i', 'em', 'u',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li', 'blockquote',
+    ],
+    ALLOWED_ATTR: ['style'],
+  })
 }
 
 export function BookDetail() {
@@ -58,6 +69,11 @@ export function BookDetail() {
     },
     enabled: !!book?.category_id,
   })
+
+  useEffect(() => {
+    if (book) trackEvent('book_view', { path: `/books/${book.id}`, label: book.title, metadata: { book_id: book.id } })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [book?.id])
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>
   if (!book) return <div className="py-16 text-center text-gray-400">{t('book.notFound')}</div>
@@ -277,7 +293,19 @@ export function BookDetail() {
           <div className="rounded-2xl bg-white border border-gray-100 px-4 py-4">
             <h2 className="text-sm font-bold text-gray-900 mb-2">{t('book.description')}</h2>
             <div
-              className="text-sm text-gray-600 leading-relaxed [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5"
+              className={cn(
+                'text-sm text-gray-600 leading-relaxed',
+                '[&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline',
+                '[&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5',
+                '[&_p]:mb-2 [&_div]:mb-1',
+                '[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-200 [&_blockquote]:pl-3 [&_blockquote]:italic',
+                '[&_h1]:mb-1.5 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-gray-900',
+                '[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900',
+                '[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-gray-900',
+                '[&_h4]:mb-1 [&_h4]:mt-2 [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-gray-900',
+                '[&_h5]:mb-1 [&_h5]:mt-2 [&_h5]:text-sm [&_h5]:font-bold [&_h5]:text-gray-900',
+                '[&_h6]:mb-1 [&_h6]:mt-2 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:text-gray-900',
+              )}
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(book.description) }}
             />
           </div>

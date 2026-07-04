@@ -6,6 +6,7 @@ import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useVisitorTracking } from '@/hooks/useVisitorTracking'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
 
@@ -19,6 +20,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { profile } = useAuth()
   const { language, setLanguage, currency, setCurrency } = useLanguage()
   const navigate = useNavigate()
+  useVisitorTracking()
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

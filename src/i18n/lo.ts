@@ -279,6 +279,8 @@ const lo: Translations = {
     readMore: 'ອ່ານຕໍ່',
     by: 'ໂດຍ',
     backToHub: 'ກັບຫາຄັງຄວາມຮູ້',
+    previousPost: 'ກ່ອນໜ້າ',
+    nextPost: 'ຕໍ່ໄປ',
     relatedPosts: 'ອ່ານເພີ່ມເຕີມ',
     noPostsFound: 'ບໍ່ພົບເນື້ອຫາໃນຫົວຂໍ້ນີ້.',
     searchPlaceholder: 'ຄົ້ນຫາບົດຄວາມ ແລະ ຄຳຄົມ…',
