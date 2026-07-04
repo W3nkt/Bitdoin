@@ -166,7 +166,8 @@ export function AdminBookstores() {
       .from('bookstore-qr')
       .upload(path, file, { upsert: true, contentType: file.type })
     if (uploadError) throw uploadError
-    return supabase.storage.from('bookstore-qr').getPublicUrl(path).data.publicUrl
+    const publicUrl = supabase.storage.from('bookstore-qr').getPublicUrl(path).data.publicUrl
+    return `${publicUrl}?v=${Date.now()}`
   }
 
   async function onSubmit(form: BookstoreForm) {
