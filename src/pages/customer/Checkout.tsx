@@ -26,7 +26,7 @@ const schema = z.object({
   logistics_provider: z.string().min(1),
   province: z.string().min(1),
   district: z.string().min(1),
-  delivery_address: z.string().min(10),
+  delivery_address: z.string().min(4),
   notes: z.string().optional(),
   payment_method: z.enum(['QR_PAYMENT', 'BANK_TRANSFER', 'CASH_ON_DELIVERY']),
   language: z.enum(['lo', 'en']),
