@@ -225,7 +225,7 @@ export function AdminBooks() {
   return (
     <div className="space-y-5">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.books')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Manage the book catalog</p>
@@ -252,7 +252,7 @@ export function AdminBooks() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>

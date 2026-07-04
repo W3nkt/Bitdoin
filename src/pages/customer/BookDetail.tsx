@@ -278,8 +278,8 @@ export function BookDetail() {
           </div>
         )}
 
-        {/* Meta chips — horizontal scroll */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-0.5">
+        {/* Meta chips */}
+        <div className="grid grid-cols-4 gap-2">
           {book.language && <MetaChip label={t('book.language')} value={languageValue} />}
           {book.pages && <MetaChip label={t('book.pages')} value={String(book.pages)} />}
           {book.isbn && <MetaChip label="ISBN" value={book.isbn} />}
@@ -352,9 +352,9 @@ export function BookDetail() {
 
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex-shrink-0 rounded-2xl bg-white border border-gray-100 px-3.5 py-2.5 text-center min-w-[72px]">
+    <div className="min-w-0 rounded-2xl bg-white border border-gray-100 px-2 py-2.5 text-center">
       <p className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">{label}</p>
-      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate max-w-[90px]">{value}</p>
+      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate" title={value}>{value}</p>
     </div>
   )
 }

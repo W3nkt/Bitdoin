@@ -163,7 +163,7 @@ export function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top books chart */}
         {topBooks && topBooks.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('admin.topBooks')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={topBooks}>
@@ -178,7 +178,7 @@ export function AdminDashboard() {
 
         {/* Order status breakdown */}
         {stats?.statusBreakdown && stats.statusBreakdown.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Order Status</h3>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -215,7 +215,7 @@ export function AdminDashboard() {
 
       <div>
         {/* Recent orders */}
-        <div className="bg-white rounded-2xl shadow-card p-5">
+        <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
           <div className="mb-3 flex items-center justify-between gap-4">
             <h3 className="text-sm font-semibold text-gray-700">Recent Orders</h3>
             {!!recentOrders?.length && (

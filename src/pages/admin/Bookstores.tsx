@@ -249,7 +249,7 @@ export function AdminBookstores() {
   return (
     <div className="space-y-5">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.bookstores')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Partner bookstore network</p>
@@ -262,7 +262,7 @@ export function AdminBookstores() {
       {isLoading ? <LoadingSpinner /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookstores?.map(store => (
-            <div key={store.id} className="bg-white rounded-2xl shadow-card p-5 flex flex-col gap-3">
+            <div key={store.id} className="bg-white rounded-2xl shadow-card p-5 flex min-w-0 flex-col gap-3">
               {/* Card header: store icon + name + active badge */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">

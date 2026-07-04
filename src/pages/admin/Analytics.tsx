@@ -116,7 +116,7 @@ export function AdminAnalytics() {
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Monthly revenue */}
         {summary?.monthlyData && summary.monthlyData.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Revenue ({currency})</h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={summary.monthlyData}>
@@ -138,7 +138,7 @@ export function AdminAnalytics() {
 
         {/* Margin by bookstore */}
         {summary?.storeMargins && summary.storeMargins.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Margin by Bookstore ({currency})</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={summary.storeMargins}>
@@ -153,7 +153,7 @@ export function AdminAnalytics() {
 
         {/* Top books pie */}
         {summary?.topBooks && summary.topBooks.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-5">
+          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
             <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Books by Volume</h3>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -178,7 +178,7 @@ export function AdminAnalytics() {
         )}
 
         {/* AOV card — centered display with icon */}
-        <div className="bg-white rounded-2xl shadow-card p-5 flex flex-col items-center justify-center gap-2">
+        <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden flex flex-col items-center justify-center gap-2">
           <div className="h-12 w-12 rounded-2xl bg-primary-50 flex items-center justify-center mb-1">
             <ShoppingBag className="h-6 w-6 text-primary-700" />
           </div>

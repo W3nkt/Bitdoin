@@ -171,7 +171,7 @@ export function AdminDeliveries() {
   return (
     <div className="space-y-5">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.deliveries')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Track and manage shipments</p>

@@ -69,16 +69,16 @@ export function StatCard({
       onClick={onClick}
       hover={!!onClick}
       ariaLabel={onClick ? `${label}: ${value}` : undefined}
-      className="min-w-0 overflow-hidden"
+      className="min-w-0 overflow-hidden p-3.5 sm:p-5"
     >
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <p className="min-w-0 text-sm leading-5 text-gray-500">{label}</p>
-        <div className={cn('shrink-0 rounded-xl p-2.5', colors[color])}>{icon}</div>
+      <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
+        <p className="min-w-0 text-xs leading-4 text-gray-500 sm:text-sm sm:leading-5">{label}</p>
+        <div className={cn('shrink-0 rounded-lg p-1.5 sm:rounded-xl sm:p-2.5 [&_svg]:h-3.5 [&_svg]:w-3.5 sm:[&_svg]:h-5 sm:[&_svg]:w-5', colors[color])}>{icon}</div>
       </div>
-      <p className="mt-3 truncate text-xl font-bold tracking-tight text-gray-900" title={String(value)}>
+      <p className="mt-2 truncate text-base font-bold tracking-tight text-gray-900 sm:mt-3 sm:text-xl" title={String(value)}>
         {value}
       </p>
-      {sub && <p className="mt-0.5 text-xs text-gray-400">{sub}</p>}
+      {sub && <p className="mt-0.5 text-[11px] text-gray-400 sm:text-xs">{sub}</p>}
     </Card>
   )
 }

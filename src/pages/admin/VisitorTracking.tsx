@@ -183,7 +183,7 @@ export function AdminVisitorTracking() {
           <div className="grid gap-5 lg:grid-cols-2">
             {/* Daily visitors */}
             {stats.dailyVisitors.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Daily Visitors (last 30 days)</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={stats.dailyVisitors}>
@@ -205,7 +205,7 @@ export function AdminVisitorTracking() {
 
             {/* Monthly visitors */}
             {stats.monthlyVisitors.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Monthly Visitors (last 12 months)</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={stats.monthlyVisitors}>
@@ -220,7 +220,7 @@ export function AdminVisitorTracking() {
 
             {/* Cart → checkout funnel */}
             {stats.funnel.some(f => f.count > 0) && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Cart → Checkout Funnel</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={stats.funnel} layout="vertical" margin={{ left: 16 }}>
@@ -235,7 +235,7 @@ export function AdminVisitorTracking() {
 
             {/* Event breakdown */}
             {stats.eventBreakdown.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Activity Breakdown</h3>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -261,12 +261,12 @@ export function AdminVisitorTracking() {
 
             {/* Top pages */}
             {stats.topPages.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Top Pages</h3>
                 <ul className="space-y-2">
                   {stats.topPages.map(p => (
                     <li key={p.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-gray-600">{p.name}</span>
+                      <span className="min-w-0 truncate text-gray-600">{p.name}</span>
                       <span className="flex-shrink-0 font-semibold text-gray-900">{p.count}</span>
                     </li>
                   ))}
@@ -276,12 +276,12 @@ export function AdminVisitorTracking() {
 
             {/* Top books */}
             {stats.topBooks.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Most Viewed Books</h3>
                 <ul className="space-y-2">
                   {stats.topBooks.map(b => (
                     <li key={b.name} className="flex items-center justify-between gap-3 text-sm">
-                      <span className="truncate text-gray-600">{b.name}</span>
+                      <span className="min-w-0 truncate text-gray-600">{b.name}</span>
                       <span className="flex-shrink-0 font-semibold text-gray-900">{b.count}</span>
                     </li>
                   ))}
@@ -291,7 +291,7 @@ export function AdminVisitorTracking() {
 
             {/* Top clicks */}
             {stats.topClicks.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-card p-5 lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden lg:col-span-2">
                 <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <MousePointerClick className="h-4 w-4 text-gray-400" />
                   Most Clicked
@@ -299,7 +299,7 @@ export function AdminVisitorTracking() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {stats.topClicks.map(c => (
                     <div key={c.name} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
-                      <span className="truncate text-gray-600">{c.name}</span>
+                      <span className="min-w-0 truncate text-gray-600">{c.name}</span>
                       <span className="flex-shrink-0 font-semibold text-gray-900">{c.count}</span>
                     </div>
                   ))}

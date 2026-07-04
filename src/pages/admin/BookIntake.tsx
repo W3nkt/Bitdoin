@@ -293,7 +293,7 @@ export function AdminBookIntake() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pendingBooks!.map(book => (
-              <div key={book.id} className="flex gap-3 rounded-2xl bg-white p-3 shadow-card">
+              <div key={book.id} className="flex min-w-0 gap-3 rounded-2xl bg-white p-3 shadow-card">
                 <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
                   {book.cover_image_url ? (
                     <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />

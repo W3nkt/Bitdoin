@@ -148,7 +148,7 @@ export function AdminAuditLogs() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
@@ -261,7 +261,7 @@ export function AdminAuditLogs() {
             </div>
 
             {(selected.old_value || selected.new_value) && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Before</p>
                   {selected.old_value ? (

@@ -284,7 +284,7 @@ export function AdminPricing() {
   return (
     <div className="space-y-5">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.pricing')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Book prices and margin rules</p>
@@ -338,6 +338,7 @@ export function AdminPricing() {
                 {visiblePrices.length} of {prices?.length ?? 0} rows
               </p>
             </div>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50/80 border-b border-gray-100">
                 <tr>
@@ -434,6 +435,7 @@ export function AdminPricing() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )
       )}

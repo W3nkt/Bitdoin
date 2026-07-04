@@ -361,7 +361,7 @@ export function AdminOrders() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>
@@ -452,7 +452,7 @@ export function AdminOrders() {
             </div>
 
             {/* Customer + address */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Customer</p>
                 <p className="text-sm font-semibold text-gray-800">{orderDetail.customer_name}</p>

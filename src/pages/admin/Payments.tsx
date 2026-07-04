@@ -210,7 +210,7 @@ export function AdminPayments() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 border-b border-gray-100">
               <tr>

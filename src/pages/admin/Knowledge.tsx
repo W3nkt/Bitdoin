@@ -194,14 +194,14 @@ export function AdminKnowledge() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('knowledge.adminTitle')}</h1>
           <p className="mt-0.5 text-sm text-gray-500">{posts.length} total posts</p>
         </div>
         <button
           onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800 transition-colors"
         >
           <Plus className="h-4 w-4" />
           {t('knowledge.addPost')}
@@ -249,7 +249,7 @@ export function AdminKnowledge() {
       {isLoading ? (
         <p className="py-8 text-center text-sm text-gray-400">Loading…</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left">

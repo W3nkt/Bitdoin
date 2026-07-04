@@ -562,7 +562,7 @@ export function AdminSettings() {
 
         <form onSubmit={hsCat(addCategory)} className="pt-3 border-t border-gray-100">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Category</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input label="English Name" required {...rCat('name_en', { required: true })} />
             <Input label="Lao Name" required {...rCat('name_lo', { required: true })} />
             <Input label="Slug (auto)" placeholder="auto-generated" {...rCat('slug')} />
