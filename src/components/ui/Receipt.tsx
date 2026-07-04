@@ -36,7 +36,7 @@ export function Receipt({
       : 'bg-orange-50 border-orange-100'
   const statusClass = isVerified ? 'text-green-700' : isCOD ? 'text-blue-700' : 'text-orange-700'
   const detailClass = isVerified ? 'text-green-600' : isCOD ? 'text-blue-600' : 'text-orange-600'
-  const trackingUrl = `https://w3nkt.github.io/Bitdoin/#/track?order=${encodeURIComponent(order.order_number)}`
+  const trackingUrl = `${window.location.origin}/#/track?order=${encodeURIComponent(order.order_number)}`
   const deliveryFields = localizeDeliveryAddress(order.delivery_address, language)
   const storePriceTotal = order.items?.reduce(
     (sum, item) => sum + Number(item.bookstore_price) * item.quantity,
