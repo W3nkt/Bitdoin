@@ -12,11 +12,14 @@ type Method = 'email' | 'phone'
 type EmailStep = 'signin' | 'signup'
 type PhoneStep = 'phone' | 'otp'
 
+// Toggle back to true when phone OTP is ready to re-enable.
+const PHONE_OTP_ENABLED = false
+
 export function Auth() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle } = useAuth()
+  const { signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook } = useAuth()
   const { error: showError, success } = useToast()
 
   const from = (location.state as { from?: string })?.from ?? '/'
@@ -109,26 +112,28 @@ export function Auth() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
 
           {/* Method tabs */}
-          <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-            <button
-              onClick={() => setMethod('email')}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-                method === 'email' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Mail className="h-3.5 w-3.5" />
-              {t('auth.emailMethod')}
-            </button>
-            <button
-              onClick={() => setMethod('phone')}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-                method === 'phone' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Phone className="h-3.5 w-3.5" />
-              {t('auth.phoneOtpMethod')}
-            </button>
-          </div>
+          {PHONE_OTP_ENABLED && (
+            <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+              <button
+                onClick={() => setMethod('email')}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  method === 'email' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Mail className="h-3.5 w-3.5" />
+                {t('auth.emailMethod')}
+              </button>
+              <button
+                onClick={() => setMethod('phone')}
+                className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+                  method === 'phone' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Phone className="h-3.5 w-3.5" />
+                {t('auth.phoneOtpMethod')}
+              </button>
+            </div>
+          )}
 
           {/* ── Email mode ── */}
           {method === 'email' && (
@@ -243,19 +248,38 @@ export function Auth() {
                 </div>
               </div>
 
-              <Button type="button" variant="outline" fullWidth onClick={signInWithGoogle}>
-                <img
-                  src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                  alt="Google"
-                  className="h-4 w-4"
-                />
-                {t('auth.continueWithGoogle')}
-              </Button>
+              <div className="flex justify-center gap-4">
+                <button
+                  type="button"
+                  onClick={signInWithGoogle}
+                  aria-label={t('auth.continueWithGoogle')}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
+                >
+                  <img
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                    alt="Google"
+                    className="h-5 w-5"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={signInWithFacebook}
+                  aria-label={t('auth.continueWithFacebook')}
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
+                >
+                  <img
+                    src={publicAsset('icons/Facebook-Logosu.png')}
+                    alt="Facebook"
+                    className="h-12 w-12 object-contain"
+                  />
+                </button>
+              </div>
             </>
           )}
 
           {/* ── Phone OTP mode ── */}
-          {method === 'phone' && (
+          {PHONE_OTP_ENABLED && method === 'phone' && (
             phoneStep === 'phone' ? (
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <h2 className="text-sm font-semibold text-gray-700">{t('auth.signInWithPhone')}</h2>

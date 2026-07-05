@@ -13,6 +13,7 @@ interface AuthContextValue {
   signInWithOtp: (phone: string) => Promise<{ error: string | null }>
   verifyOtp: (phone: string, token: string) => Promise<{ error: string | null }>
   signInWithGoogle: () => Promise<void>
+  signInWithFacebook: () => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -84,6 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  async function signInWithFacebook() {
+    await supabase.auth.signInWithOAuth({
+      provider: 'facebook',
+      options: { redirectTo: window.location.origin },
+    })
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
     setProfile(null)
@@ -92,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       session, supabaseUser, profile, loading,
-      signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signOut, refreshProfile,
+      signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook, signOut, refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>
