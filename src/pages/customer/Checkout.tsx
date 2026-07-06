@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Bus } from 'lucide-react'
 import { z } from 'zod'
 import { useCart } from '@/context/CartContext'
@@ -14,18 +13,19 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { GuestPaymentPanel, PaymentInstructions } from '@/components/order/GuestPaymentPanel'
+import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
 import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
 import { trackEvent } from '@/lib/tracking'
-import type { CheckoutForm, Order, PaymentAccount, PaymentMethod } from '@/types'
+import type { CheckoutForm, Order, PaymentMethod } from '@/types'
+
+const PHONE_PREFIX = '020'
 
 const schema = z.object({
   full_name: z.string().min(2),
-  phone: z.string().min(8),
+  phone: z.string().regex(/^\d{8}$/),
   logistics_provider: z.string().min(1),
   province: z.string().min(1),
   district: z.string().min(1),
@@ -84,7 +84,7 @@ export function Checkout() {
     resolver: zodResolver(schema),
     defaultValues: {
       full_name: profile?.name ?? '',
-      phone: profile?.phone ?? '',
+      phone: (profile?.phone ?? '').replace(/\D/g, '').slice(-8),
       language,
       payment_method: 'QR_PAYMENT',
       logistics_provider: '',
@@ -95,18 +95,6 @@ export function Checkout() {
 
   const selectedProvinceId = watch('province')
   const selectedLogistics = watch('logistics_provider')
-
-  const { data: paymentAccounts = [], isLoading: loadingPaymentAccounts } = useQuery({
-    queryKey: ['payment_accounts'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('payment_accounts')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order')
-      return (data ?? []) as PaymentAccount[]
-    },
-  })
 
   const provinceOptions = useMemo(() => LAOS_ADMIN_DIVISIONS.map(province => ({
     value: province.id,
@@ -166,16 +154,17 @@ export function Checkout() {
         `${t('checkout.address')}: ${form.delivery_address}`,
       ].join('\n')
 
+      const customerPhone = `${PHONE_PREFIX}${form.phone}`
       const access = await createCheckoutOrder({
         customerName: form.full_name,
-        customerPhone: form.phone,
+        customerPhone,
         deliveryAddress,
         notes: form.notes,
         currency,
         paymentMethod: selectedPaymentMethod,
         items,
       })
-      setPlacedPhone(form.phone)
+      setPlacedPhone(customerPhone)
       setGuestAccessToken(access.access_token)
       setPlacedAccess(access)
       trackEvent('checkout_completed', {
@@ -184,7 +173,7 @@ export function Checkout() {
         metadata: { order_number: access.order_number, payment_method: selectedPaymentMethod },
       })
       success(t('checkout.orderPlaced', { orderNumber: access.order_number }))
-      await loadPlacedOrder(access.order_number, form.phone)
+      await loadPlacedOrder(access.order_number, customerPhone)
     } catch (checkoutError) {
       console.error('[checkout]', checkoutError)
       error(checkoutError instanceof Error ? checkoutError.message : t('common.error'))
@@ -277,9 +266,18 @@ export function Checkout() {
           <Input
             label={t('checkout.phone')}
             type="tel"
+            inputMode="numeric"
             required
-            error={errors.phone?.message}
-            {...register('phone')}
+            maxLength={8}
+            placeholder="XXXXXXXX"
+            leftIcon={<span className="text-sm font-medium text-gray-500">{PHONE_PREFIX}-</span>}
+            className="pl-14"
+            error={errors.phone ? t('checkout.phoneInvalid') : undefined}
+            {...register('phone', {
+              onChange: (event: ChangeEvent<HTMLInputElement>) => {
+                event.target.value = event.target.value.replace(/\D/g, '').slice(0, 8)
+              },
+            })}
           />
 
           <div className="space-y-2">
@@ -384,7 +382,7 @@ export function Checkout() {
         open={paymentModalOpen}
         onClose={closePayment}
         title={paymentStep === 2 ? t('checkout.choosePayment') : t('checkout.completePayment')}
-        size="xl"
+        size="lg"
         footer={paymentStep === 3 && placedAccess ? (
           <Button type="button" variant="ghost" onClick={closePayment}>
             {t('tracking.viewTracking')}
@@ -425,19 +423,6 @@ export function Checkout() {
                 </label>
               ))}
             </div>
-
-            {loadingPaymentAccounts ? (
-              <div className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                {t('common.loading')}
-              </div>
-            ) : (
-              <PaymentInstructions
-                method={selectedPaymentMethod}
-                amount={subtotal()}
-                currency={currency}
-                accounts={paymentAccounts}
-              />
-            )}
 
             <Button
               type="button"

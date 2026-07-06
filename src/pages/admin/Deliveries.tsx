@@ -258,7 +258,7 @@ export function AdminDeliveries() {
                 {delivery.order && (delivery.order as { delivery_address?: string } | undefined)?.delivery_address && (
                   <div className="mt-2 flex items-start gap-1.5 text-xs text-gray-400">
                     <MapPin className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                    <span>{(delivery.order as { delivery_address?: string } | undefined)?.delivery_address}</span>
+                    <span className="whitespace-pre-line">{(delivery.order as { delivery_address?: string } | undefined)?.delivery_address}</span>
                   </div>
                 )}
 

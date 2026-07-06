@@ -6,7 +6,7 @@ import { publicAsset } from '@/lib/assets'
 
 interface BookstoreOrderReceiptProps {
   order: Order
-  item: OrderItem
+  items: OrderItem[]
 }
 
 const logisticsNames: Record<string, string> = {
@@ -74,8 +74,15 @@ function parseDeliveryAddress(rawAddress: string) {
 }
 
 export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderReceiptProps>(
-  ({ order, item }, ref) => {
+  ({ order, items }, ref) => {
     const delivery = parseDeliveryAddress(order.delivery_address)
+    const firstItem = items[0]
+    const bookstoreTotal = items.reduce(
+      (sum, item) => sum + Number(item.bookstore_price) * item.quantity,
+      0,
+    )
+
+    if (!firstItem) return null
 
     return (
       <div
@@ -101,8 +108,13 @@ export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderRe
         </div>
 
         <div className="grid grid-cols-2 gap-5 px-8 py-6">
-          <ReceiptSection title="ຂໍ້ມູນຜູ້ຮັບ">
-            <p className="text-lg font-bold">{order.customer_name}</p>
+          <ReceiptSection title="ຈາກ">
+            <p className="text-lg font-bold">Bitdoin</p>
+            <p className="mt-1 text-base text-gray-600">020-29862982</p>
+            <p className="mt-1 text-base text-gray-600">https://bitdoin.store</p>
+
+            <p className="mt-8 text-lg font-extrabold text-gray-700">ຜູ້ຮັບ</p>
+            <p className="mt-3 text-lg font-bold">{order.customer_name}</p>
             <p className="mt-1 text-base text-gray-600">{order.customer_phone}</p>
           </ReceiptSection>
 
@@ -122,55 +134,58 @@ export const BookstoreOrderReceipt = forwardRef<HTMLDivElement, BookstoreOrderRe
 
         <div className="px-8 pb-8">
           <p className="mb-3 text-sm font-bold text-gray-500">ລາຍການປຶ້ມ</p>
-          <div className="flex items-center gap-5 rounded-2xl border border-gray-200 p-5">
-            <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-              {item.book?.cover_image_url ? (
-                <img
-                  src={item.book.cover_image_url}
-                  alt=""
-                  className="h-full w-full object-cover"
-                  crossOrigin="anonymous"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-xs text-gray-400">
-                  ບໍ່ມີຮູບ
+          <div className="space-y-4">
+            {items.map(item => (
+              <div key={item.id} className="flex items-center gap-5 rounded-2xl border border-gray-200 p-5">
+                <div className="h-32 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  {item.book?.cover_image_url ? (
+                    <img
+                      src={item.book.cover_image_url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                      ບໍ່ມີຮູບ
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xl font-bold">{item.book?.title}</p>
-              <p className="mt-2 text-base text-gray-500">
-                ຮ້ານ: {item.bookstore?.name}
-              </p>
-              <p className="mt-3 text-lg font-bold text-primary-800">
-                ຈຳນວນ: {item.quantity}
-              </p>
-              <div className="mt-4 rounded-xl bg-primary-50 px-4 py-3">
-                <ReceiptLine
-                  label="ລາຄາຮ້ານຕໍ່ຫົວ"
-                  value={`${Number(item.bookstore_price).toLocaleString('en-US')} LAK`}
-                />
-                <ReceiptLine
-                  label="ຍອດທີ່ຕ້ອງຈ່າຍໃຫ້ຮ້ານ"
-                  value={`${(Number(item.bookstore_price) * item.quantity).toLocaleString('en-US')} LAK`}
-                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xl font-bold">{item.book?.title}</p>
+                  <p className="mt-2 text-base text-gray-500">
+                    ຮ້ານ: {item.bookstore?.name}
+                  </p>
+                  <p className="mt-3 text-lg font-bold text-primary-800">
+                    ຈຳນວນ: {item.quantity}
+                    <span className="ml-3 text-base font-semibold text-gray-500">
+                      [ ລາຄາ: {Number(item.bookstore_price).toLocaleString('en-US')} LAK/ຫົວ ]
+                    </span>
+                  </p>
+                </div>
               </div>
+            ))}
+            <div className="rounded-2xl bg-primary-50 px-5 py-4 text-right">
+              <p className="text-sm font-bold text-gray-500">ຍອດລວມທີ່ຕ້ອງຈ່າຍໃຫ້ຮ້ານ</p>
+              <p className="mt-1 text-2xl font-extrabold text-primary-800">
+                {bookstoreTotal.toLocaleString('en-US')} LAK
+              </p>
             </div>
           </div>
         </div>
 
-        {item.bookstore?.bank_qr_code_url && (
+        {firstItem.bookstore?.bank_qr_code_url && (
           <div className="px-8 pb-8">
             <div className="flex items-center gap-6 rounded-2xl border border-gray-200 p-5">
               <img
-                src={item.bookstore.bank_qr_code_url}
+                src={firstItem.bookstore.bank_qr_code_url}
                 alt="Store bank QR code"
                 className="h-44 w-44 flex-shrink-0 rounded-xl border border-gray-100 object-contain"
                 crossOrigin="anonymous"
               />
               <div>
                 <p className="text-sm font-bold text-gray-500">QR ທະນາຄານຂອງຮ້ານ</p>
-                <p className="mt-2 text-lg font-bold text-gray-900">{item.bookstore.name}</p>
+                <p className="mt-2 text-lg font-bold text-gray-900">{firstItem.bookstore.name}</p>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">
                   ສະແກນ QR ເພື່ອຈ່າຍຄ່າປຶ້ມໃຫ້ຮ້ານ
                 </p>
@@ -193,7 +208,7 @@ BookstoreOrderReceipt.displayName = 'BookstoreOrderReceipt'
 function ReceiptSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl bg-gray-50 p-5">
-      <p className="mb-3 text-sm font-bold text-gray-500">{title}</p>
+      <p className="mb-3 text-lg font-extrabold text-gray-600">{title}</p>
       {children}
     </div>
   )

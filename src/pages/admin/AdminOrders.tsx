@@ -25,7 +25,9 @@ const PAGE_SIZE = 15
 interface StorePaymentGroup {
   bookstoreId: string
   bookstoreName: string
+  bookstoreWhatsapp?: string
   expectedAmount: number
+  items: OrderItem[]
   payment?: BookstorePayment
 }
 
@@ -47,7 +49,7 @@ export function AdminOrders() {
   )
   const [newStatus, setNewStatus] = useState('')
   const [updating, setUpdating] = useState(false)
-  const [receiptItem, setReceiptItem] = useState<OrderItem | null>(null)
+  const [receiptItems, setReceiptItems] = useState<OrderItem[] | null>(null)
   const [sharingItemId, setSharingItemId] = useState<string | null>(null)
   const [paymentStore, setPaymentStore] = useState<StorePaymentGroup | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
@@ -239,19 +241,22 @@ export function AdminOrders() {
     setLightboxImage({ url: data.signedUrl, alt: 'Payment proof' })
   }
 
-  async function handleBookstoreWhatsApp(item: OrderItem) {
-    if (!orderDetail || !item.bookstore?.whatsapp) return
+  async function handleBookstoreWhatsApp(group: StorePaymentGroup) {
+    if (!orderDetail || !group.bookstoreWhatsapp) return
 
-    const phone = item.bookstore.whatsapp.replace(/\D/g, '')
-    const message = `ສັ່ງປຶມ: ${item.book?.title ?? ''} | ຈຳນວນ: ${item.quantity} ຫົວ | ຂໍ້ມູນການຈັດສົ່ງລະອຽດຢູ່ໃນໃບບິນ`
+    const phone = group.bookstoreWhatsapp.replace(/\D/g, '')
+    const itemSummary = group.items
+      .map(item => `${item.book?.title ?? ''} x ${item.quantity}`)
+      .join(', ')
+    const message = `ສັ່ງປຶມ: ${itemSummary} | ລວມ: ${group.items.length} ລາຍການ | ຂໍ້ມູນການຈັດສົ່ງລະອຽດຢູ່ໃນໃບບິນ`
     const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
     const fallbackWindow = typeof navigator.share !== 'function'
       ? window.open('', '_blank')
       : null
     if (fallbackWindow) fallbackWindow.opener = null
 
-    setReceiptItem(item)
-    setSharingItemId(item.id)
+    setReceiptItems(group.items)
+    setSharingItemId(group.bookstoreId)
 
     try {
       await new Promise<void>(resolve => {
@@ -309,6 +314,7 @@ export function AdminOrders() {
       }
     } finally {
       setSharingItemId(null)
+      setReceiptItems(null)
     }
   }
 
@@ -460,7 +466,7 @@ export function AdminOrders() {
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Delivery Address</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{orderDetail.delivery_address}</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{orderDetail.delivery_address}</p>
               </div>
             </div>
 
@@ -557,25 +563,25 @@ export function AdminOrders() {
             </div>
 
             {/* WhatsApp message to bookstores */}
-            {orderDetail.items?.map(item => item.bookstore?.whatsapp && (
+            {storePaymentGroups.map(group => group.bookstoreWhatsapp && (
               <button
                 type="button"
-                key={item.id}
-                onClick={() => handleBookstoreWhatsApp(item)}
+                key={group.bookstoreId}
+                onClick={() => handleBookstoreWhatsApp(group)}
                 disabled={sharingItemId !== null}
                 className="flex items-center gap-2 py-1 text-left text-xs font-medium text-green-600 transition-colors hover:text-green-700 disabled:cursor-wait disabled:opacity-50"
               >
                 <MessageCircle className="h-4 w-4" />
-                {sharingItemId === item.id ? 'ກຳລັງສ້າງໃບສັ່ງ...' : `WhatsApp ${item.bookstore.name}`}
+                {sharingItemId === group.bookstoreId ? 'ກຳລັງສ້າງໃບສັ່ງ...' : `WhatsApp ${group.bookstoreName}`}
               </button>
             ))}
 
-            {receiptItem && (
+            {receiptItems && (
               <div className="pointer-events-none fixed left-[-10000px] top-0">
                 <BookstoreOrderReceipt
                   ref={bookstoreReceiptRef}
                   order={orderDetail}
-                  item={receiptItem}
+                  items={receiptItems}
                 />
               </div>
             )}
@@ -750,11 +756,15 @@ function groupStorePayments(order: Order): StorePaymentGroup[] {
     const amount = Number(item.bookstore_price) * item.quantity
     if (existing) {
       existing.expectedAmount += amount
+      existing.items.push(item)
+      existing.bookstoreWhatsapp ||= item.bookstore?.whatsapp
     } else {
       groups.set(item.bookstore_id, {
         bookstoreId: item.bookstore_id,
         bookstoreName: item.bookstore?.name ?? 'Bookstore',
+        bookstoreWhatsapp: item.bookstore?.whatsapp,
         expectedAmount: amount,
+        items: [item],
         payment: order.bookstore_payments?.find(payment => payment.bookstore_id === item.bookstore_id),
       })
     }

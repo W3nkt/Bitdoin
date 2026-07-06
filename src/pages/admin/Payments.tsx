@@ -37,7 +37,7 @@ export function AdminPayments() {
     queryFn: async () => {
       let q = supabase
         .from('payments')
-        .select('*, order:orders(order_number, total_amount, customer_name, customer_phone)')
+        .select('*, order:orders(order_number, total_amount, customer_name, customer_phone, items:order_items(id, quantity, book:books(title)))')
         .order('created_at', { ascending: false })
       if (tab === 'pending') q = q.in('verification_status', ['PENDING', 'REQUIRES_REVIEW'])
       const { data } = await q
@@ -307,7 +307,7 @@ export function AdminPayments() {
       <Modal
         open={!!detailPayment}
         onClose={() => { setDetailPayment(null); setRejectionReason('') }}
-        title="Payment Review"
+        title={detailPayment?.order?.order_number ? `Payment Review — #${detailPayment.order.order_number}` : 'Payment Review'}
         size="lg"
         footer={
           <Button variant="ghost" onClick={() => setDetailPayment(null)}>Close</Button>
@@ -315,6 +315,26 @@ export function AdminPayments() {
       >
         {detailPayment && (
           <div className="space-y-5">
+            {/* Order & customer summary */}
+            {detailPayment.order && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{detailPayment.order.customer_name}</p>
+                  <p className="text-xs text-gray-500">{detailPayment.order.customer_phone}</p>
+                </div>
+                {!!detailPayment.order.items?.length && (
+                  <div className="space-y-1 border-t border-gray-200 pt-2">
+                    {detailPayment.order.items.map(item => (
+                      <p key={item.id} className="text-xs text-gray-700">
+                        {item.book?.title}
+                        <span className="text-gray-400"> ×{item.quantity}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Key details grid */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-primary-50 rounded-xl p-3">

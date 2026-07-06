@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { CheckCircle, Clock, Copy, CreditCard, ImageUp, Smartphone, Upload, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, Copy, CreditCard, Download, ImageUp, Smartphone, Upload, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { trackOrder, uploadGuestReceipt } from '@/lib/guestOrders'
 import { useLanguage } from '@/context/LanguageContext'
@@ -218,12 +218,35 @@ export function PaymentInstructions({
   accounts: PaymentAccount[]
 }) {
   const { t } = useTranslation()
+  const { success } = useToast()
   const relevantAccounts = accounts.filter(account => account.method === method)
+
+  async function copyValue(value: string) {
+    await navigator.clipboard.writeText(value)
+    success(t('common.copied'))
+  }
+
+  async function downloadImage(url: string, filename: string) {
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = blobUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(blobUrl)
+    } catch {
+      window.open(url, '_blank')
+    }
+  }
 
   return (
     <div className="space-y-3">
       {relevantAccounts.map(account => (
-        <div key={account.id} className="space-y-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+        <div key={account.id} className="space-y-3 rounded-2xl border-2 border-primary-100 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-2">
             {method === 'QR_PAYMENT'
               ? <Smartphone className="h-4 w-4 text-primary-600" />
@@ -231,22 +254,52 @@ export function PaymentInstructions({
             <p className="text-sm font-semibold text-gray-800">{account.label}</p>
           </div>
           {account.qr_image_url && (
-            <a href={account.qr_image_url} target="_blank" rel="noopener noreferrer" className="block">
-              <img
-                src={account.qr_image_url}
-                alt={account.label}
-                className="mx-auto h-64 w-64 max-w-full rounded-2xl border-2 border-gray-200 bg-white object-contain p-2 shadow-sm"
-              />
-              <p className="mt-2 text-center text-xs font-medium text-primary-600">{t('payment.tapQr')}</p>
-            </a>
+            <div className="space-y-2">
+              <a href={account.qr_image_url} target="_blank" rel="noopener noreferrer" className="block">
+                <img
+                  src={account.qr_image_url}
+                  alt={account.label}
+                  className="mx-auto h-64 w-64 max-w-full rounded-2xl border-2 border-gray-200 bg-white object-contain p-2 shadow-sm"
+                />
+              </a>
+              <button
+                type="button"
+                onClick={() => downloadImage(account.qr_image_url!, `${account.label}-qr.png`)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-100"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t('payment.downloadQr')}
+              </button>
+            </div>
           )}
           {account.bank_name && <InfoRow label={t('payment.bankName')} value={account.bank_name} />}
           {account.account_name && <InfoRow label={t('payment.accountName')} value={account.account_name} />}
-          {account.account_number && <InfoRow label={t('payment.accountNumber')} value={account.account_number} mono />}
+          {account.account_number && method !== 'QR_PAYMENT' && (
+            <div className="rounded-xl border-2 border-primary-300 bg-primary-50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-primary-600">
+                    {t('payment.transferTo')}
+                  </p>
+                  <p className="mt-0.5 break-all font-mono text-lg font-bold text-primary-900">
+                    {account.account_number}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyValue(account.account_number!)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-primary-700 shadow-sm transition-colors hover:bg-primary-100"
+                  aria-label={t('common.copy')}
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
           {account.instructions && <p className="rounded-xl bg-primary-50 px-3 py-2 text-xs text-primary-700">{account.instructions}</p>}
-          <div className="rounded-xl bg-white px-4 py-3 text-center">
-            <p className="text-xs text-gray-400">{t('payment.amount')}</p>
-            <p className="text-xl font-bold text-primary-700">{formatPrice(amount, currency)}</p>
+          <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-emerald-700">{t('payment.amount')}</p>
+            <p className="text-2xl font-bold text-emerald-800">{formatPrice(amount, currency)}</p>
           </div>
         </div>
       ))}

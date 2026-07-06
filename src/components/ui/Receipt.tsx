@@ -59,28 +59,9 @@ export function Receipt({
         backgroundColor: '#ffffff',
         logging: false,
       })
-      const canvas = document.createElement('canvas')
-      canvas.width = 956
-      canvas.height = 1500
-      const context = canvas.getContext('2d')
-      if (!context) throw new Error('Could not create receipt image')
-
-      context.fillStyle = '#ffffff'
-      context.fillRect(0, 0, canvas.width, canvas.height)
-
-      const scale = Math.min(
-        canvas.width / receiptCanvas.width,
-        canvas.height / receiptCanvas.height,
-      )
-      const width = Math.round(receiptCanvas.width * scale)
-      const height = Math.round(receiptCanvas.height * scale)
-      const x = Math.round((canvas.width - width) / 2)
-      const y = Math.round((canvas.height - height) / 2)
-      context.drawImage(receiptCanvas, x, y, width, height)
-
       const link = document.createElement('a')
       link.download = `receipt-${order.order_number}.png`
-      link.href = canvas.toDataURL('image/png')
+      link.href = receiptCanvas.toDataURL('image/png')
       link.click()
     } finally {
       setSaving(false)
@@ -88,7 +69,7 @@ export function Receipt({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto max-w-sm space-y-3">
       {/* Downloadable receipt card */}
       <div ref={receiptRef} className="bg-white rounded-2xl border-2 border-primary-100 overflow-hidden">
 
