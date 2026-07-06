@@ -206,6 +206,22 @@ export function AdminPricing() {
         .eq('id', deletePrice.id)
       if (deleteError) throw deleteError
 
+      const { data: remainingPrices, error: remainingError } = await supabase
+        .from('book_prices')
+        .select('id')
+        .eq('book_id', deletePrice.book_id)
+        .limit(1)
+      if (remainingError) throw remainingError
+
+      const movedToIntake = (remainingPrices?.length ?? 0) === 0
+      if (movedToIntake) {
+        const { error: bookError } = await supabase
+          .from('books')
+          .update({ is_active: false })
+          .eq('id', deletePrice.book_id)
+        if (bookError) throw bookError
+      }
+
       await logAudit({
         entity: 'book_price',
         entityId: deletePrice.id,
@@ -217,11 +233,14 @@ export function AdminPricing() {
           margin_percent: deletePrice.margin_percent,
           final_price: deletePrice.final_price,
         },
+        newValue: movedToIntake ? { book_id: deletePrice.book_id, moved_to_book_intake: true } : undefined,
       })
 
       await qc.invalidateQueries({ queryKey: ['admin', 'prices'] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'books-list'] })
+      await qc.invalidateQueries({ queryKey: ['admin', 'book-intake'] })
       setDeletePrice(null)
-      success('Price row deleted')
+      success(movedToIntake ? 'Price row deleted. Book moved to intake list.' : 'Price row deleted')
     } catch {
       error(t('common.error'))
     } finally {
@@ -573,7 +592,7 @@ export function AdminPricing() {
             {(deletePrice?.book as { title?: string } | undefined)?.title ?? 'this book'}
           </strong> at <strong className="text-gray-900">
             {(deletePrice?.bookstore as { name?: string } | undefined)?.name ?? 'this store'}
-          </strong>? This cannot be undone.
+          </strong>? If this is the last price for the book, it will move back to the Book Intake list.
         </p>
       </Modal>
     </div>
