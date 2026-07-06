@@ -44,7 +44,7 @@ Return ONLY valid JSON in this exact format:
 }`
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -60,7 +60,7 @@ Return ONLY valid JSON in this exact format:
             },
           ],
         }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 500 },
+        generationConfig: { temperature: 0.1, maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 } },
       }),
     }
   )
