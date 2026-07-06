@@ -20,11 +20,10 @@ export function AdminAnalytics() {
   const { data: summary, isLoading } = useQuery({
     queryKey: ['admin', 'analytics'],
     queryFn: async () => {
-      const [ordersRes, paymentsRes, itemsRes, usersRes] = await Promise.all([
-        supabase.from('orders').select('total_amount, subtotal_amount, status, created_at, currency'),
+      const [ordersRes, paymentsRes, itemsRes] = await Promise.all([
+        supabase.from('orders').select('total_amount, subtotal_amount, status, created_at, currency, customer_phone'),
         supabase.from('payments').select('amount, verification_status'),
         supabase.from('order_items').select('book_id, quantity, final_price, margin_percent, bookstore_id, bookstore:bookstores(name)'),
-        supabase.from('users').select('id, role').eq('role', 'CUSTOMER'),
       ])
 
       const orders = ordersRes.data ?? []
@@ -38,7 +37,11 @@ export function AdminAnalytics() {
         return s + Number(i.final_price) * Number(i.quantity) * mp / (1 + mp)
       }, 0)
       const avgOrderValue = orders.length ? gmv / orders.length : 0
-      const totalCustomers = usersRes.data?.length ?? 0
+      const totalCustomers = new Set(
+        orders
+          .map(o => o.customer_phone?.replace(/[^0-9]/g, ''))
+          .filter((phone): phone is string => !!phone)
+      ).size
 
       // Revenue by month (last 6 months)
       const byMonth: Record<string, number> = {}

@@ -206,7 +206,7 @@ export function GuestPaymentPanel({
   )
 }
 
-function PaymentInstructions({
+export function PaymentInstructions({
   method,
   amount,
   currency,

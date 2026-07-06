@@ -127,6 +127,7 @@ const lo: Translations = {
     orderPlaced: 'ສັ່ງຊື້ສຳເລັດ! #{{orderNumber}}',
     total: 'ລວມທັງໝົດ',
     confirmOrder: 'ຢືນຢັນ',
+    changePaymentMethod: 'ປ່ຽນວິທີຊຳລະ',
   },
 
   payment: {

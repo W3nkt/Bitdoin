@@ -53,6 +53,21 @@ export async function createCheckoutOrder(input: {
   return result
 }
 
+export async function updateGuestPaymentMethod(input: {
+  orderNumber: string
+  customerPhone: string
+  accessToken: string
+  paymentMethod: PaymentMethod
+}) {
+  const { error } = await supabase.rpc('update_guest_payment_method', {
+    p_order_number: input.orderNumber,
+    p_customer_phone: input.customerPhone,
+    p_access_token: input.accessToken,
+    p_payment_method: input.paymentMethod,
+  })
+  if (error) throw new Error(error.message)
+}
+
 export async function trackOrder(orderNumber: string, customerPhone: string) {
   const { data, error } = await supabase.rpc('track_order', {
     p_order_number: orderNumber.trim(),

@@ -132,6 +132,7 @@ const en = {
     orderPlaced: 'Order placed! #{{orderNumber}}',
     total: 'Total',
     confirmOrder: 'Confirm Order',
+    changePaymentMethod: 'Change payment method',
   },
 
   // ── Payment ───────────────────────────────────────────────────────────────────

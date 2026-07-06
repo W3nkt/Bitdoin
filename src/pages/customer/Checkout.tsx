@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Bus } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft, Bus } from 'lucide-react'
 import { z } from 'zod'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
@@ -13,13 +14,14 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
+import { GuestPaymentPanel, PaymentInstructions } from '@/components/order/GuestPaymentPanel'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
-import { createCheckoutOrder, trackOrder, type GuestOrderAccess } from '@/lib/guestOrders'
+import { supabase } from '@/lib/supabase'
+import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
 import { trackEvent } from '@/lib/tracking'
-import type { CheckoutForm, Order, PaymentMethod } from '@/types'
+import type { CheckoutForm, Order, PaymentAccount, PaymentMethod } from '@/types'
 
 const schema = z.object({
   full_name: z.string().min(2),
@@ -94,6 +96,18 @@ export function Checkout() {
   const selectedProvinceId = watch('province')
   const selectedLogistics = watch('logistics_provider')
 
+  const { data: paymentAccounts = [], isLoading: loadingPaymentAccounts } = useQuery({
+    queryKey: ['payment_accounts'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('payment_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+      return (data ?? []) as PaymentAccount[]
+    },
+  })
+
   const provinceOptions = useMemo(() => LAOS_ADMIN_DIVISIONS.map(province => ({
     value: province.id,
     label: language === 'lo' ? province.name_lo : province.name_en,
@@ -129,6 +143,10 @@ export function Checkout() {
   }
 
   async function confirmOrder() {
+    if (placedAccess) {
+      await changePaymentMethod()
+      return
+    }
     if (!checkoutDraft) return
     setPaymentStep(3)
     setPlacing(true)
@@ -176,6 +194,31 @@ export function Checkout() {
     }
   }
 
+  async function changePaymentMethod() {
+    if (!placedAccess) return
+    setPaymentStep(3)
+    setPlacing(true)
+    try {
+      await updateGuestPaymentMethod({
+        orderNumber: placedAccess.order_number,
+        customerPhone: placedPhone,
+        accessToken: placedAccess.access_token,
+        paymentMethod: selectedPaymentMethod,
+      })
+      await loadPlacedOrder(placedAccess.order_number, placedPhone)
+    } catch (changeError) {
+      console.error('[change payment method]', changeError)
+      error(changeError instanceof Error ? changeError.message : t('common.error'))
+      setPaymentStep(2)
+    } finally {
+      setPlacing(false)
+    }
+  }
+
+  function backToPaymentMethod() {
+    setPaymentStep(2)
+  }
+
   async function loadPlacedOrder(orderNumber: string, phone: string) {
     setLoadingPlacedOrder(true)
     setPaymentLoadError('')
@@ -212,7 +255,7 @@ export function Checkout() {
   const paymentOptions: { value: PaymentMethod; label: string }[] = [
     { value: 'QR_PAYMENT',       label: t('checkout.paymentMethods.QR_PAYMENT') },
     { value: 'BANK_TRANSFER',    label: t('checkout.paymentMethods.BANK_TRANSFER') },
-    { value: 'CASH_ON_DELIVERY', label: t('checkout.paymentMethods.CASH_ON_DELIVERY') },
+    // CASH_ON_DELIVERY temporarily disabled until fulfillment process is worked out
   ]
 
   if (shouldReturnToCart) return null
@@ -342,7 +385,7 @@ export function Checkout() {
         onClose={closePayment}
         title={paymentStep === 2 ? t('checkout.choosePayment') : t('checkout.completePayment')}
         size="xl"
-        footer={placedAccess ? (
+        footer={paymentStep === 3 && placedAccess ? (
           <Button type="button" variant="ghost" onClick={closePayment}>
             {t('tracking.viewTracking')}
           </Button>
@@ -350,7 +393,7 @@ export function Checkout() {
       >
         <CheckoutSteps current={paymentStep} />
 
-        {paymentStep === 2 && !placedAccess && (
+        {paymentStep === 2 && (
           <div className="space-y-5">
             <div className="rounded-2xl bg-primary-50 px-4 py-3 text-center">
               <p className="text-xs text-primary-500">{t('checkout.total')}</p>
@@ -382,6 +425,19 @@ export function Checkout() {
                 </label>
               ))}
             </div>
+
+            {loadingPaymentAccounts ? (
+              <div className="rounded-2xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                {t('common.loading')}
+              </div>
+            ) : (
+              <PaymentInstructions
+                method={selectedPaymentMethod}
+                amount={subtotal()}
+                currency={currency}
+                accounts={paymentAccounts}
+              />
+            )}
 
             <Button
               type="button"
@@ -419,13 +475,25 @@ export function Checkout() {
           </div>
         )}
         {paymentStep === 3 && placedOrder && placedAccess && (
-          <GuestPaymentPanel
-            order={placedOrder}
-            customerPhone={placedPhone}
-            accessToken={guestAccessToken}
-            onOrderChange={setPlacedOrder}
-            onPaymentSubmitted={completeCheckout}
-          />
+          <div className="space-y-4">
+            {placedOrder.payments?.[0]?.verification_status === 'PENDING' && (
+              <button
+                type="button"
+                onClick={backToPaymentMethod}
+                className="flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                {t('checkout.changePaymentMethod')}
+              </button>
+            )}
+            <GuestPaymentPanel
+              order={placedOrder}
+              customerPhone={placedPhone}
+              accessToken={guestAccessToken}
+              onOrderChange={setPlacedOrder}
+              onPaymentSubmitted={completeCheckout}
+            />
+          </div>
         )}
       </Modal>
     </div>
