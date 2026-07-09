@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, Edit2, Trash2, BookOpen, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, BookOpen, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting, Star } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -108,6 +109,24 @@ export function AdminBooks() {
     setCoverError(null)
     if (coverInputRef.current) coverInputRef.current.value = ''
     setModalOpen(true)
+  }
+
+  async function toggleFeatured(book: Book) {
+    const { error: updateError } = await supabase
+      .from('books')
+      .update({ is_featured: !book.is_featured })
+      .eq('id', book.id)
+
+    if (updateError) {
+      error('Could not update the featured book.')
+      return
+    }
+
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['admin', 'books'] }),
+      qc.invalidateQueries({ queryKey: ['books', 'featured'] }),
+    ])
+    success(book.is_featured ? 'Removed from featured favorites.' : 'Added to featured favorites.')
   }
 
   function closeBookModal() {
@@ -293,8 +312,22 @@ export function AdminBooks() {
                   <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">{book.language}</td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">{book.isbn ?? '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
+                     <div className="flex items-center justify-end gap-1.5">
+                       <button
+                         type="button"
+                         onClick={() => toggleFeatured(book)}
+                         className={cn(
+                           'rounded-xl p-2 transition-colors',
+                           book.is_featured
+                             ? 'bg-amber-50 text-amber-500 hover:bg-amber-100'
+                             : 'text-gray-400 hover:bg-amber-50 hover:text-amber-500',
+                         )}
+                         title={book.is_featured ? 'Remove featured star' : 'Add featured star'}
+                         aria-label={book.is_featured ? `Remove featured star from ${book.title}` : `Feature ${book.title}`}
+                       >
+                         <Star className="h-3.5 w-3.5" fill={book.is_featured ? 'currentColor' : 'none'} />
+                       </button>
+                       <button
                         onClick={() => openEdit(book)}
                         className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
                         title="Edit"

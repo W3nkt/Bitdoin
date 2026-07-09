@@ -38,6 +38,8 @@ export interface User {
   name: string
   phone?: string
   email?: string
+  avatar_url?: string
+  cover_image_url?: string
   role: UserRole
   language: Language
   currency: Currency
@@ -131,6 +133,7 @@ export interface Book {
   publication_date?: string
   cover_image_url?: string
   is_active: boolean
+  is_featured: boolean
   created_at: string
   updated_at: string
   // Joined

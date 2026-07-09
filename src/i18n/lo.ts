@@ -253,6 +253,28 @@ const lo: Translations = {
     preferences: 'ການຕັ້ງຄ່າ',
     currency: 'ສະກຸນເງິນ',
     managePlatform: 'ຈັດການແພລດຟອມ',
+    subscriptionDetails: 'Premium Services',
+    subscriptionSubtitle: 'Plans, benefits, and member access',
+    subscriptionDashboard: 'Subscription Dashboard',
+    subscriptionDashboardSubtitle: 'Manage Bitdoin Premium',
+    bookstoreDashboard: 'BookStore Dashboard',
+    bookstoreDashboardSubtitle: 'Manage bookstore operations',
+    premiumDashboard: 'Premium Dashboard',
+    premiumDashboardSubtitle: 'Manage Bitdoin Premium',
+    changePhoto: 'Change profile picture',
+    changeCover: 'Change cover',
+    imageOnly: 'Please upload a JPG, PNG, or WebP image.',
+    imageTooLarge: 'The image must be 5 MB or smaller.',
+    uploadFailed: 'Unable to update your profile image.',
+    uploadSuccess: 'Profile image updated.',
+    cropPhoto: 'Crop profile picture',
+    cropPhotoHint: 'Drag the circle to frame your profile picture before saving.',
+    savePhoto: 'Save photo',
+  },
+
+  subscription: {
+    title: 'Subscription Details',
+    comingSoon: 'Your subscription details page will be available here later.',
   },
 
   quotes: {

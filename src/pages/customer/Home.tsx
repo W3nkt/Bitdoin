@@ -30,12 +30,24 @@ export function Home() {
   const { data: featuredBooks, isLoading: loadingFeatured } = useQuery({
     queryKey: ['books', 'featured'],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data: ranking, error: rankingError } = await supabase
+        .rpc('get_featured_book_ranking', { p_limit: 12 })
+      if (rankingError) throw rankingError
+
+      const rankedIds = ((ranking ?? []) as Array<{ book_id: string }>).map(row => row.book_id)
+      if (rankedIds.length === 0) return []
+
+      const { data, error: booksError } = await supabase
         .from('books')
         .select('*, category:categories(*), prices:book_prices(*, bookstore:bookstores(name))')
-        .eq('is_active', true)
-        .limit(12)
-      return (data ?? []) as Book[]
+        .in('id', rankedIds)
+      if (booksError) throw booksError
+
+      const booksById = new Map((data ?? []).map(book => [book.id, book as Book]))
+      return rankedIds.flatMap(id => {
+        const book = booksById.get(id)
+        return book ? [book] : []
+      })
     },
   })
 

@@ -20,6 +20,8 @@ const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ def
 const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
 const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
+const Subscription = lazy(() => import('@/pages/premium/Subscription').then(m => ({ default: m.Subscription })))
+const PremiumAdminDashboard = lazy(() => import('@/pages/premium/AdminDashboard').then(m => ({ default: m.PremiumAdminDashboard })))
 const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
 const Knowledge       = lazy(() => import('@/pages/customer/Knowledge').then(m => ({ default: m.Knowledge })))
 const KnowledgeDetail = lazy(() => import('@/pages/customer/KnowledgeDetail').then(m => ({ default: m.KnowledgeDetail })))
@@ -81,6 +83,7 @@ export function App() {
                     <Route path="/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
                     <Route path="/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
                     <Route path="/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
+                    <Route path="/subscription" element={<Subscription />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/bookstore-pricing/:token" element={<BookstorePriceEntry />} />
 
@@ -123,6 +126,9 @@ export function App() {
                     } />
                     <Route path="/admin/knowledge" element={
                       <AdminGuard><AdminLayout><AdminKnowledge /></AdminLayout></AdminGuard>
+                    } />
+                    <Route path="/premium-admin" element={
+                      <AdminGuard><PremiumAdminDashboard /></AdminGuard>
                     } />
 
                     <Route path="*" element={<Navigate to="/" replace />} />
