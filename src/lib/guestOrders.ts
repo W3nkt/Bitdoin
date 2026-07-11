@@ -38,6 +38,8 @@ export async function createCheckoutOrder(input: {
   // Fire-and-forget admin email — never blocks or fails the checkout
   supabase.functions.invoke('notify-admin', {
     body: {
+      order_id:         result.order_id,
+      access_token:     result.access_token,
       order_number:    result.order_number,
       customer_name:   input.customerName,
       customer_phone:  input.customerPhone,
@@ -103,15 +105,14 @@ export async function uploadGuestReceipt(input: {
     .upload(path, input.file, { contentType: input.file.type, upsert: false })
   if (uploadError) throw new Error(uploadError.message)
 
-  const receiptUrl = supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl
   const { error: submitError } = await supabase.rpc('submit_guest_receipt', {
     p_order_number: input.order.order_number,
     p_customer_phone: input.customerPhone,
     p_access_token: access.access_token,
     p_receipt_path: path,
-    p_receipt_url: receiptUrl,
+    p_receipt_url: null,
   })
   if (submitError) throw new Error(submitError.message)
 
-  return { receiptUrl, accessToken: access.access_token }
+  return { receiptUrl: path, accessToken: access.access_token }
 }

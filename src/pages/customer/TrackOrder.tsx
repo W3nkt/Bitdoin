@@ -48,7 +48,6 @@ export function TrackOrder() {
   useEffect(() => {
     if (orderNumber && phone) void handleTrack()
     // Initial query-string lookup only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

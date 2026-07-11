@@ -20,59 +20,18 @@ export function AdminAnalytics() {
   const { data: summary, isLoading } = useQuery({
     queryKey: ['admin', 'analytics'],
     queryFn: async () => {
-      const [ordersRes, paymentsRes, itemsRes] = await Promise.all([
-        supabase.from('orders').select('total_amount, subtotal_amount, status, created_at, currency, customer_phone'),
-        supabase.from('payments').select('amount, verification_status'),
-        supabase.from('order_items').select('book_id, quantity, final_price, margin_percent, bookstore_id, bookstore:bookstores(name)'),
-      ])
-
-      const orders = ordersRes.data ?? []
-      const payments = paymentsRes.data ?? []
-      const items = itemsRes.data ?? []
-
-      const gmv = orders.reduce((s, o) => s + Number(o.total_amount), 0)
-      const revenue = payments.filter(p => p.verification_status === 'VERIFIED').reduce((s, p) => s + Number(p.amount), 0)
-      const grossMargin = items.reduce((s, i) => {
-        const mp = Number(i.margin_percent) / 100
-        return s + Number(i.final_price) * Number(i.quantity) * mp / (1 + mp)
-      }, 0)
-      const avgOrderValue = orders.length ? gmv / orders.length : 0
-      const totalCustomers = new Set(
-        orders
-          .map(o => o.customer_phone?.replace(/[^0-9]/g, ''))
-          .filter((phone): phone is string => !!phone)
-      ).size
-
-      // Revenue by month (last 6 months)
-      const byMonth: Record<string, number> = {}
-      orders.forEach(o => {
-        const month = new Date(o.created_at).toLocaleString('default', { month: 'short' })
-        byMonth[month] = (byMonth[month] ?? 0) + Number(o.total_amount)
-      })
-      const monthlyData = Object.entries(byMonth).map(([month, total]) => ({ month, total }))
-
-      // Margin by bookstore
-      const byStore: Record<string, { name: string; margin: number; count: number }> = {}
-      items.forEach(i => {
-        const sId = i.bookstore_id as string
-        const sName = (i.bookstore as { name?: string } | undefined)?.name ?? sId
-        if (!byStore[sId]) byStore[sId] = { name: sName, margin: 0, count: 0 }
-        const mp = Number(i.margin_percent) / 100
-        byStore[sId].margin += Number(i.final_price) * Number(i.quantity) * mp / (1 + mp)
-        byStore[sId].count += Number(i.quantity)
-      })
-      const storeMargins = Object.values(byStore).sort((a, b) => b.margin - a.margin)
-
-      // Top books
-      const byBook: Record<string, { title: string; qty: number }> = {}
-      items.forEach(i => {
-        const bId = i.book_id as string
-        if (!byBook[bId]) byBook[bId] = { title: bId, qty: 0 }
-        byBook[bId].qty += Number(i.quantity)
-      })
-      const topBooks = Object.values(byBook).sort((a, b) => b.qty - a.qty).slice(0, 5)
-
-      return { gmv, revenue, grossMargin, avgOrderValue, totalCustomers, monthlyData, storeMargins, topBooks }
+      const { data, error } = await supabase.rpc('get_admin_analytics_summary')
+      if (error) throw error
+      return data as {
+        gmv: number
+        revenue: number
+        grossMargin: number
+        avgOrderValue: number
+        totalCustomers: number
+        monthlyData: { month: string; total: number }[]
+        storeMargins: { name: string; margin: number; count: number }[]
+        topBooks: { title: string; qty: number }[]
+      }
     },
   })
 

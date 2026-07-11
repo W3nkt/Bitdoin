@@ -19,6 +19,9 @@ import {
   cn,
 } from '@/lib/utils'
 
+const RECEIPT_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const RECEIPT_MAX_BYTES = 10 * 1024 * 1024
+
 export function OrderDetail() {
   const { id } = useParams<{ id: string }>()
   const { t } = useTranslation()
@@ -71,26 +74,32 @@ export function OrderDetail() {
     if (!file || !payment) return
     // Reset input so the same file can be re-selected if needed
     e.target.value = ''
+    if (!RECEIPT_MIME_TYPES.includes(file.type)) {
+      error('Upload a JPG, PNG, or WebP image.')
+      return
+    }
+    if (file.size > RECEIPT_MAX_BYTES) {
+      error('Payment receipt must be 10 MB or smaller.')
+      return
+    }
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() ?? 'jpg'
-      const path = `receipts/${order!.id}/${Date.now()}.${ext}`
+      const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+      const path = `receipts/${order!.id}/${crypto.randomUUID()}.${ext}`
       const { error: uploadErr } = await supabase.storage
         .from('receipts')
-        .upload(path, file, { upsert: true })
+        .upload(path, file, { contentType: file.type, upsert: false })
       if (uploadErr) throw uploadErr
-
-      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(path)
 
       const { error: updateErr } = await supabase
         .from('payments')
-        .update({ receipt_image_url: publicUrl, verification_status: 'REQUIRES_REVIEW' })
+        .update({ receipt_image_url: path, verification_status: 'REQUIRES_REVIEW' })
         .eq('id', payment.id)
       if (updateErr) throw updateErr
 
       // Trigger AI verification in the background (non-blocking)
       supabase.functions.invoke('verify-receipt', {
-        body: { payment_id: payment.id, receipt_url: publicUrl, expected_amount: order!.total_amount },
+        body: { payment_id: payment.id },
       }).catch(() => {})
 
       await qc.invalidateQueries({ queryKey: ['order', id] })
@@ -210,6 +219,7 @@ export function OrderDetail() {
                 <div className="rounded-xl overflow-hidden border border-gray-100">
                   <StorageImage
                     src={payment.receipt_image_url}
+                    bucket="receipts"
                     alt="Payment receipt"
                     className="w-full max-h-56 object-contain bg-gray-50"
                   />

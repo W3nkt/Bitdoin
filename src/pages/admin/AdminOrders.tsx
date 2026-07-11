@@ -61,7 +61,7 @@ export function AdminOrders() {
   const [savingStorePayment, setSavingStorePayment] = useState(false)
   const bookstoreReceiptRef = useRef<HTMLDivElement>(null)
   const paymentProofInputRef = useRef<HTMLInputElement>(null)
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null)
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string; bucket?: string } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', search, statusFilter, page],
@@ -157,7 +157,7 @@ export function AdminOrders() {
       .from('bookstore-payment-proofs')
       .upload(path, file, { contentType: file.type })
     if (uploadError) throw uploadError
-    return supabase.storage.from('bookstore-payment-proofs').getPublicUrl(path).data.publicUrl
+    return path
   }
 
   async function saveStorePayment() {
@@ -226,8 +226,10 @@ export function AdminOrders() {
   }
 
   async function viewPaymentProof(payment: BookstorePayment) {
-    const path = payment.proof_image_url.split('/bookstore-payment-proofs/')[1]
-    if (!path) {
+    const path = payment.proof_image_url.includes('/bookstore-payment-proofs/')
+      ? payment.proof_image_url.split('/bookstore-payment-proofs/')[1]
+      : payment.proof_image_url
+    if (!path || path.startsWith('http')) {
       setLightboxImage({ url: payment.proof_image_url, alt: 'Payment proof' })
       return
     }
@@ -625,14 +627,16 @@ export function AdminOrders() {
                     onClick={() => setLightboxImage({
                       url: orderDetail.payments![0].receipt_image_url!,
                       alt: 'Payment receipt',
+                      bucket: 'receipts',
                     })}
                     className="mt-2 block w-full cursor-zoom-in overflow-hidden rounded-xl border border-gray-100"
                   >
-                    <StorageImage
-                      src={orderDetail.payments[0].receipt_image_url}
-                      alt="Payment receipt"
-                      className="w-full max-h-40 object-contain bg-gray-50"
-                    />
+                  <StorageImage
+                    src={orderDetail.payments[0].receipt_image_url}
+                    bucket="receipts"
+                    alt="Payment receipt"
+                    className="w-full max-h-40 object-contain bg-gray-50"
+                  />
                   </button>
                 )}
               </div>
@@ -702,6 +706,7 @@ export function AdminOrders() {
                 {paymentProofPreview ? (
                   <StorageImage
                     src={paymentProofPreview}
+                    bucket="bookstore-payment-proofs"
                     alt="Payment proof preview"
                     className="h-24 w-24 flex-shrink-0 rounded-lg bg-white object-contain"
                   />
@@ -740,6 +745,7 @@ export function AdminOrders() {
         {lightboxImage && (
           <StorageImage
             src={lightboxImage.url}
+            bucket={lightboxImage.bucket}
             alt={lightboxImage.alt}
             className="mx-auto max-h-[70vh] w-full object-contain"
           />

@@ -168,6 +168,7 @@ export function GuestPaymentPanel({
       {payment.receipt_image_url && payment.verification_status !== 'VERIFIED' && (
         <StorageImage
           src={payment.receipt_image_url}
+          bucket="receipts"
           alt={t('payment.receipt')}
           className="max-h-56 w-full rounded-2xl border border-gray-100 bg-gray-50 object-contain"
         />

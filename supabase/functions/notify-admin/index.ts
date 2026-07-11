@@ -1,15 +1,19 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const ADMIN_EMAIL    = Deno.env.get('ADMIN_EMAIL') ?? ''
-const FROM_EMAIL     = Deno.env.get('FROM_EMAIL') ?? 'Pwen Books <onboarding@resend.dev>'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-}
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? ''
+const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Pwen Books <onboarding@resend.dev>'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
 
 interface OrderPayload {
+  order_id: string
+  access_token: string
   order_number: string
   customer_name: string
   customer_phone: string
@@ -21,12 +25,49 @@ interface OrderPayload {
   item_count: number
 }
 
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = ALLOWED_ORIGINS.length === 0
+    ? '*'
+    : ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  }
+}
+
+function jsonResponse(req: Request, body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
+  })
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
 function formatCurrency(amount: number, currency: string): string {
-  if (currency === 'LAK') return `${amount.toLocaleString()} ₭`
+  if (currency === 'LAK') return `${amount.toLocaleString()} LAK`
   return `$${amount.toFixed(2)}`
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value)
+  const hash = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
 function buildHtml(o: OrderPayload): string {
+  const notes = o.notes?.trim()
   return `
 <!DOCTYPE html>
 <html>
@@ -46,48 +87,23 @@ function buildHtml(o: OrderPayload): string {
     .value { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
     .total-row { background: #f8fafc; margin: 16px -24px -24px; padding: 16px 24px; }
     .total-row .value { font-size: 18px; color: #ea580c; font-weight: 700; }
-    .btn { display: block; margin: 20px auto 0; background: #1e293b; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
-      <h1>📦 New Order Received</h1>
-      <p>Pwen Books — Admin Notification</p>
+      <h1>New Order Received</h1>
+      <p>Pwen Books Admin Notification</p>
     </div>
     <div class="body">
-      <div class="order-num">${o.order_number}</div>
-
-      <div class="row">
-        <span class="label">Customer</span>
-        <span class="value">${o.customer_name}</span>
-      </div>
-      <div class="row">
-        <span class="label">Phone</span>
-        <span class="value">${o.customer_phone}</span>
-      </div>
-      <div class="row">
-        <span class="label">Delivery address</span>
-        <span class="value">${o.delivery_address}</span>
-      </div>
-      <div class="row">
-        <span class="label">Payment</span>
-        <span class="value">${o.payment_method}</span>
-      </div>
-      <div class="row">
-        <span class="label">Items</span>
-        <span class="value">${o.item_count} book${o.item_count !== 1 ? 's' : ''}</span>
-      </div>
-      ${o.notes ? `
-      <div class="row">
-        <span class="label">Note</span>
-        <span class="value">${o.notes}</span>
-      </div>` : ''}
-
-      <div class="row total-row">
-        <span class="label" style="font-weight:600;color:#0f172a">Total</span>
-        <span class="value">${formatCurrency(o.total_amount, o.currency)}</span>
-      </div>
+      <div class="order-num">${escapeHtml(o.order_number)}</div>
+      <div class="row"><span class="label">Customer</span><span class="value">${escapeHtml(o.customer_name)}</span></div>
+      <div class="row"><span class="label">Phone</span><span class="value">${escapeHtml(o.customer_phone)}</span></div>
+      <div class="row"><span class="label">Delivery address</span><span class="value">${escapeHtml(o.delivery_address)}</span></div>
+      <div class="row"><span class="label">Payment</span><span class="value">${escapeHtml(o.payment_method)}</span></div>
+      <div class="row"><span class="label">Items</span><span class="value">${escapeHtml(o.item_count)} book${o.item_count !== 1 ? 's' : ''}</span></div>
+      ${notes ? `<div class="row"><span class="label">Note</span><span class="value">${escapeHtml(notes)}</span></div>` : ''}
+      <div class="row total-row"><span class="label" style="font-weight:600;color:#0f172a">Total</span><span class="value">${escapeHtml(formatCurrency(o.total_amount, o.currency))}</span></div>
     </div>
   </div>
 </body>
@@ -95,15 +111,37 @@ function buildHtml(o: OrderPayload): string {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(req) })
+  if (req.method !== 'POST') return jsonResponse(req, { success: false, error: 'Method not allowed' }, 405)
 
   try {
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured')
-    if (!ADMIN_EMAIL)    throw new Error('ADMIN_EMAIL not configured')
+    if (!ADMIN_EMAIL) throw new Error('ADMIN_EMAIL not configured')
 
     const order: OrderPayload = await req.json()
+    if (!order.order_id || !order.access_token || !order.order_number) {
+      return jsonResponse(req, { success: false, error: 'Missing order verification fields' }, 400)
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { persistSession: false },
+    })
+    const { data: storedOrder, error: orderError } = await supabase
+      .from('orders')
+      .select('id, order_number, customer_phone, total_amount, currency, guest_access_token_hash, created_at')
+      .eq('id', order.order_id)
+      .maybeSingle()
+
+    if (orderError || !storedOrder) return jsonResponse(req, { success: false, error: 'Order not found' }, 404)
+    if (storedOrder.order_number !== order.order_number) {
+      return jsonResponse(req, { success: false, error: 'Order verification failed' }, 403)
+    }
+    if (storedOrder.guest_access_token_hash !== await sha256Hex(order.access_token)) {
+      return jsonResponse(req, { success: false, error: 'Order verification failed' }, 403)
+    }
+
+    order.total_amount = Number(storedOrder.total_amount)
+    order.currency = storedOrder.currency
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -114,7 +152,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: ADMIN_EMAIL,
-        subject: `New order ${order.order_number} from ${order.customer_name}`,
+        subject: `New order ${order.order_number} from ${order.customer_name}`.slice(0, 200),
         html: buildHtml(order),
       }),
     })
@@ -125,14 +163,9 @@ serve(async (req) => {
     }
 
     const result = await res.json()
-    return new Response(JSON.stringify({ success: true, id: result.id }), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
+    return jsonResponse(req, { success: true, id: result.id })
   } catch (err) {
     console.error('[notify-admin]', err)
-    return new Response(JSON.stringify({ success: false, error: String(err) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
+    return jsonResponse(req, { success: false, error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })

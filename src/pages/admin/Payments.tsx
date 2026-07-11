@@ -391,6 +391,7 @@ export function AdminPayments() {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Receipt</p>
                 <StorageImage
                   src={detailPayment.receipt_image_url}
+                  bucket="receipts"
                   alt="Receipt"
                   className="w-full max-h-72 object-contain rounded-2xl border border-gray-100 shadow-sm"
                 />

@@ -17,7 +17,9 @@ function loadSeenIds(): Set<string> {
 function saveSeenIds(ids: Set<string>) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify([...ids]))
-  } catch {}
+  } catch {
+    // Ignore storage failures; badges still work for the current session.
+  }
 }
 
 export function useAdminNotifications() {

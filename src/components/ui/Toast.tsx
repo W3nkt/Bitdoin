@@ -62,6 +62,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={t.id}
+              role={t.type === 'error' || t.type === 'warning' ? 'alert' : 'status'}
+              aria-live={t.type === 'error' || t.type === 'warning' ? 'assertive' : 'polite'}
               className={cn(
                 'pointer-events-auto flex items-center gap-3 w-full max-w-sm rounded-xl border px-4 py-3 shadow-lg animate-slide-up',
                 colors[t.type],
@@ -69,7 +71,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             >
               <Icon className={cn('h-5 w-5 flex-shrink-0', iconColors[t.type])} />
               <span className="flex-1 text-sm font-medium">{t.message}</span>
-              <button onClick={() => remove(t.id)} className="flex-shrink-0">
+              <button onClick={() => remove(t.id)} className="flex-shrink-0" aria-label="Dismiss notification">
                 <X className="h-4 w-4 opacity-60 hover:opacity-100" />
               </button>
             </div>

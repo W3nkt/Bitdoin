@@ -1,27 +1,51 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface StorageImageProps {
   src: string
   alt: string
   className?: string
+  bucket?: string
 }
 
 function extractStoragePath(url: string): { bucket: string; path: string } | null {
   const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?]+)\/(.+?)(?:\?|$)/)
   if (!match) return null
-  return { bucket: match[1], path: match[2] }
+  return { bucket: decodeURIComponent(match[1]), path: decodeURIComponent(match[2]) }
 }
 
-export function StorageImage({ src, alt, className }: StorageImageProps) {
+function isRemoteUrl(value: string) {
+  return /^https?:\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:')
+}
+
+export function StorageImage({ src, alt, className, bucket }: StorageImageProps) {
   const [imgSrc, setImgSrc] = useState(src)
   const [broken, setBroken] = useState(false)
   const attempted = useRef(false)
 
+  useEffect(() => {
+    attempted.current = false
+    setBroken(false)
+
+    if (!bucket || isRemoteUrl(src)) {
+      setImgSrc(src)
+      return
+    }
+
+    supabase.storage
+      .from(bucket)
+      .createSignedUrl(src, 3600)
+      .then(({ data, error }) => {
+        if (error || !data?.signedUrl) setBroken(true)
+        else setImgSrc(data.signedUrl)
+      })
+      .catch(() => setBroken(true))
+  }, [bucket, src])
+
   async function handleError() {
     if (attempted.current) { setBroken(true); return }
     attempted.current = true
-    const info = extractStoragePath(src)
+    const info = extractStoragePath(src) ?? (bucket && !isRemoteUrl(src) ? { bucket, path: src } : null)
     if (!info) { setBroken(true); return }
     try {
       const { data } = await supabase.storage

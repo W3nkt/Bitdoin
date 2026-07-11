@@ -119,8 +119,7 @@ export function Checkout() {
 
   useEffect(() => {
     if (items.length > 0) trackEvent('checkout_started', { path: '/checkout', metadata: { item_count: items.length } })
-  // Fire once for this visit to the checkout page only.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Fire once for this visit to the checkout page only.
   }, [])
 
   async function onSubmit(form: CheckoutForm) {

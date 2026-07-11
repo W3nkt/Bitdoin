@@ -44,36 +44,26 @@ export function AdminDashboard() {
   const { data: stats, isLoading: loadingStats } = useQuery({
     queryKey: ['admin', 'stats'],
     queryFn: async () => {
-      const [ordersRes, paymentsRes] = await Promise.all([
-        supabase.from('orders').select('id, total_amount, status, payment_status, created_at'),
-        supabase.from('payments').select('amount, verification_status, order_id'),
-      ])
-      const orders = ordersRes.data ?? []
-      const payments = paymentsRes.data ?? []
-
-      const cancelledOrderIds = new Set(orders.filter(o => o.status === 'CANCELLED').map(o => o.id))
-      const activeOrders = orders.filter(o => !cancelledOrderIds.has(o.id))
-
-      const gmv = activeOrders.reduce((s, o) => s + Number(o.total_amount), 0)
-      const verifiedPayments = payments.filter(
-        p => p.verification_status === 'VERIFIED' && !cancelledOrderIds.has(p.order_id)
-      )
-      const revenue = verifiedPayments.reduce((s, p) => s + Number(p.amount), 0)
-      const pendingPayments = payments.filter(p => p.verification_status === 'PENDING').length
-      const pendingDeliveries = orders.filter(
-        o => o.status === 'PROCESSING' || o.status === 'PURCHASING_FROM_BOOKSTORE'
-      ).length
-
+      const { data, error } = await supabase.rpc('get_admin_dashboard_stats')
+      if (error) throw error
+      const summary = data as {
+        gmv: number
+        revenue: number
+        pendingPayments: number
+        pendingDeliveries: number
+        totalOrders: number
+        statusBreakdown: { status: OrderStatus; count: number }[]
+      }
       const statusCounts: Record<string, number> = {}
-      orders.forEach(o => {
-        const key = STATUS_CHART_COLORS[o.status] ? o.status : 'OTHER'
-        statusCounts[key] = (statusCounts[key] ?? 0) + 1
+      ;(summary.statusBreakdown ?? []).forEach(item => {
+        const key = STATUS_CHART_COLORS[item.status] ? item.status : 'OTHER'
+        statusCounts[key] = (statusCounts[key] ?? 0) + Number(item.count)
       })
       const statusBreakdown = STATUS_CHART_ORDER
         .filter(s => statusCounts[s])
         .map(s => ({ status: s, count: statusCounts[s] }))
 
-      return { gmv, revenue, pendingPayments, pendingDeliveries, totalOrders: orders.length, statusBreakdown }
+      return { ...summary, statusBreakdown }
     },
   })
 

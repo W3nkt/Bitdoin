@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react'
+import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -11,7 +11,10 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, hint, leftIcon, rightIcon, className, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+    const generatedId = useId()
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-') ?? generatedId
+    const errorId = error ? `${inputId}-error` : undefined
+    const hintId = hint && !error ? `${inputId}-hint` : undefined
     return (
       <div className="flex flex-col gap-1">
         {label && (
@@ -29,6 +32,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            aria-invalid={!!error}
+            aria-describedby={errorId ?? hintId}
             className={cn(
               'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm',
               'placeholder:text-gray-400',
@@ -47,8 +52,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
         </div>
-        {error && <p className="text-xs text-red-600">{error}</p>}
-        {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
+        {error && <p id={errorId} className="text-xs text-red-600">{error}</p>}
+        {hint && !error && <p id={hintId} className="text-xs text-gray-500">{hint}</p>}
       </div>
     )
   }
@@ -62,7 +67,9 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ label, error, className, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+    const generatedId = useId()
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-') ?? generatedId
+    const errorId = error ? `${inputId}-error` : undefined
     return (
       <div className="flex flex-col gap-1">
         {label && (
@@ -74,6 +81,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           id={inputId}
+          aria-invalid={!!error}
+          aria-describedby={errorId}
           className={cn(
             'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm resize-none',
             'placeholder:text-gray-400',
@@ -83,7 +92,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           )}
           {...props}
         />
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p id={errorId} className="text-xs text-red-600">{error}</p>}
       </div>
     )
   }
@@ -99,7 +108,9 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ label, error, options, placeholder, className, id, ...props }, ref) => {
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-')
+    const generatedId = useId()
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-') ?? generatedId
+    const errorId = error ? `${inputId}-error` : undefined
     return (
       <div className="flex flex-col gap-1">
         {label && (
@@ -111,6 +122,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={inputId}
+          aria-invalid={!!error}
+          aria-describedby={errorId}
           className={cn(
             'w-full rounded-lg border border-gray-300 bg-white px-3 py-3 text-sm',
             'focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200',
@@ -122,7 +135,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {placeholder && <option value="">{placeholder}</option>}
           {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p id={errorId} className="text-xs text-red-600">{error}</p>}
       </div>
     )
   }

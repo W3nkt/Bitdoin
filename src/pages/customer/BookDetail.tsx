@@ -28,7 +28,7 @@ function sanitizeHtml(html: string): string {
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
       'ul', 'ol', 'li', 'blockquote',
     ],
-    ALLOWED_ATTR: ['style'],
+    ALLOWED_ATTR: [],
   })
 }
 
@@ -72,7 +72,6 @@ export function BookDetail() {
 
   useEffect(() => {
     if (book) trackEvent('book_view', { path: `/books/${book.id}`, label: book.title, metadata: { book_id: book.id } })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book?.id])
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>

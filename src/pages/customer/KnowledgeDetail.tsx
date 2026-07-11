@@ -628,7 +628,6 @@ export function KnowledgeDetail() {
 
   useEffect(() => {
     if (post?.id) viewMutation.mutate(post.id)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post?.id])
 
   if (isLoading) {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
+import DOMPurify from 'dompurify'
 import {
   BookOpen, CheckCircle2, Edit2, Plus, Rocket, Trash2, Upload,
   Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting,
@@ -18,6 +19,19 @@ import { formatPrice } from '@/lib/utils'
 
 const MAX_COVER_SIZE = 5 * 1024 * 1024
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_DESCRIPTION_TAGS = [
+  'p', 'div', 'br', 'span',
+  'b', 'strong', 'i', 'em', 'u',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'ul', 'ol', 'li', 'blockquote',
+]
+
+function sanitizeDescription(html: string) {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ALLOWED_DESCRIPTION_TAGS,
+    ALLOWED_ATTR: [],
+  }).trim()
+}
 
 interface PendingBookRow extends Omit<Book, 'prices'> {
   prices: { id: string; bookstore_price: number; bookstore: { name: string } | null }[]
@@ -165,7 +179,7 @@ export function AdminBookIntake() {
         publisher: form.publisher || null,
         language: form.language || 'Lao',
         category_id: form.category_id || null,
-        description: form.description || null,
+        description: form.description ? sanitizeDescription(form.description) : null,
         pages: form.pages ? parseInt(form.pages) : null,
         publication_date: form.publication_date || null,
       }
@@ -314,6 +328,7 @@ export function AdminBookIntake() {
                         onClick={() => openEdit(book)}
                         className="p-1.5 rounded-lg hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
                         title="Edit"
+                        aria-label={`Edit ${book.title}`}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
@@ -321,6 +336,7 @@ export function AdminBookIntake() {
                         onClick={() => setDeleteModal(book)}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                         title="Delete"
+                        aria-label={`Delete ${book.title}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -414,18 +430,21 @@ export function AdminBookIntake() {
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Bold (Ctrl+B)"
+                aria-label="Bold"
               ><Bold className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Italic (Ctrl+I)"
+                aria-label="Italic"
               ><Italic className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Underline (Ctrl+U)"
+                aria-label="Underline"
               ><Underline className="h-3.5 w-3.5" /></button>
               <div className="mx-1 h-4 w-px bg-gray-300" />
               <button
@@ -433,12 +452,14 @@ export function AdminBookIntake() {
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Bullet List"
+                aria-label="Bullet list"
               ><List className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Numbered List"
+                aria-label="Numbered list"
               ><ListOrdered className="h-3.5 w-3.5" /></button>
               <div className="mx-1 h-4 w-px bg-gray-300" />
               <button
@@ -450,12 +471,14 @@ export function AdminBookIntake() {
                 }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Insert Line Break"
+                aria-label="Insert line break"
               ><CornerDownLeft className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat') }}
                 className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
                 title="Clear Formatting"
+                aria-label="Clear formatting"
               ><RemoveFormatting className="h-3.5 w-3.5" /></button>
             </div>
             <div

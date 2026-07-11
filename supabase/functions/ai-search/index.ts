@@ -4,11 +4,38 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const GEMINI_API_KEY       = Deno.env.get('GEMINI_API_KEY') ?? ''
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY    = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
 
 interface SearchRequest {
   query: string
   language?: string
   limit?: number
+}
+
+function cleanSearchValue(value: string): string {
+  return value
+    .normalize('NFKC')
+    .replace(/[,%()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+}
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') ?? ''
+  const allowedOrigin = ALLOWED_ORIGINS.length === 0
+    ? '*'
+    : ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  }
 }
 
 async function extractSearchIntent(query: string): Promise<{
@@ -55,12 +82,19 @@ Return ONLY valid JSON:
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' } })
+    return new Response(null, { headers: corsHeaders(req) })
   }
 
   try {
     const body: SearchRequest = await req.json()
-    const { query, language, limit = 20 } = body
+    const query = cleanSearchValue(body.query ?? '')
+    const language = body.language?.slice(0, 20)
+    const limit = Math.min(Math.max(Number(body.limit ?? 20) || 20, 1), 50)
+    if (!query) {
+      return new Response(JSON.stringify({ books: [], intent: null, query: '', total: 0 }), {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
+      })
+    }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -91,13 +125,13 @@ serve(async (req) => {
     }), {
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        ...corsHeaders(req),
       },
     })
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err), books: [] }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
     })
   }
 })

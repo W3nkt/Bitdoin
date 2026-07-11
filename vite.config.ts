@@ -30,9 +30,16 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/v1\/object\/public\/.*/i,
             handler: 'NetworkFirst',
-            options: { cacheName: 'supabase-cache', networkTimeoutSeconds: 10 }
+            options: {
+              cacheName: 'supabase-public-assets',
+              networkTimeoutSeconds: 10,
+              expiration: {
+                maxEntries: 120,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+            },
           }
         ]
       }
@@ -40,5 +47,20 @@ export default defineConfig({
   ],
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'react-vendor'
+          if (id.includes('recharts') || id.includes('d3-')) return 'charts'
+          if (id.includes('html2canvas')) return 'html2canvas'
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('dompurify')) return 'dompurify'
+          return undefined
+        },
+      },
+    },
   }
 })

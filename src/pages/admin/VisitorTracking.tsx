@@ -35,13 +35,8 @@ export function AdminVisitorTracking() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'visitor-tracking'],
     queryFn: async () => {
-      const since = new Date()
-      since.setDate(since.getDate() - 400) // ~13 months, bounds payload size
       const { data, error } = await supabase
-        .from('visitor_events')
-        .select('event_type, path, label, visitor_id, metadata, created_at')
-        .gte('created_at', since.toISOString())
-        .order('created_at', { ascending: true })
+        .rpc('get_admin_visitor_tracking_events', { p_days: 400 })
       if (error) throw error
       return (data ?? []) as RawEvent[]
     },
