@@ -21,6 +21,7 @@ const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => 
 const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
 const Subscription = lazy(() => import('@/pages/premium/Subscription').then(m => ({ default: m.Subscription })))
+const PremiumCoach = lazy(() => import('@/pages/premium/Coach').then(m => ({ default: m.PremiumCoach })))
 const PremiumAdminDashboard = lazy(() => import('@/pages/premium/AdminDashboard').then(m => ({ default: m.PremiumAdminDashboard })))
 const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
 const Knowledge       = lazy(() => import('@/pages/customer/Knowledge').then(m => ({ default: m.Knowledge })))
@@ -84,6 +85,7 @@ export function App() {
                     <Route path="/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
                     <Route path="/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
                     <Route path="/subscription" element={<Subscription />} />
+                    <Route path="/premium/coach" element={<PremiumCoach />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/bookstore-pricing/:token" element={<BookstorePriceEntry />} />
 

@@ -1,8 +1,8 @@
-# BitDoin Premium – User Onboarding & Personalization Questionnaire
+# Bitdoin Premium – User Onboarding & Personalization Questionnaire
 
 ## Purpose
 
-This questionnaire helps BitDoin understand each student before they subscribe. The answers are used to personalize:
+This questionnaire helps Bitdoin understand each student before they subscribe. The answers are used to personalize:
 
 - AI Coach responses
 - Daily motivation
@@ -310,7 +310,7 @@ How do you learn best?
 - Professional
 - Visual examples
 
-## 31. How should BitDoin talk to you?
+## 31. How should Bitdoin talk to you?
 
 - Friend
 - Teacher
@@ -318,7 +318,7 @@ How do you learn best?
 - Coach
 - Professional
 
-## 32. Should BitDoin challenge your excuses?
+## 32. Should Bitdoin challenge your excuses?
 
 - Always
 - Sometimes

@@ -112,7 +112,7 @@ const QUESTIONS: Question[] = [
   {
     id: 'preferred_mentor_tone',
     emoji: '💬',
-    prompt: 'How should BitDoin talk to you?',
+    prompt: 'How should Bitdoin talk to you?',
     type: 'single',
     options: ['Friend', 'Teacher', 'Mentor', 'Coach', 'Professional'],
   },
@@ -285,7 +285,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
         <div className="flex-1 overflow-y-auto px-5 py-6">
           {isIntro && (
             <div className="mb-5 rounded-2xl bg-primary-50 p-4 text-sm leading-6 text-primary-900">
-              👋 Hi! I'm BitDoin. Before I become your mentor, I'd like to get to know you. It only takes a minute.
+              👋 Hi! I'm Bitdoin. Before I become your mentor, I'd like to get to know you. It only takes a minute.
             </div>
           )}
 

@@ -1,9 +1,9 @@
-# BitDoin AI Personalization System
+# Bitdoin AI Personalization System
 
-This document defines the core AI personalization components for BitDoin Premium:
+This document defines the core AI personalization components for Bitdoin Premium:
 
 1. AI Memory Schema  
-2. BitDoin Mentor Personality Prompt  
+2. Bitdoin Mentor Personality Prompt
 3. Dynamic Prompting System  
 
 These components help the AI respond like a personalized mentor rather than a generic chatbot.
@@ -170,12 +170,12 @@ Example:
 
 ---
 
-# 2. BitDoin Mentor Personality Prompt
+# 2. Bitdoin Mentor Personality Prompt
 
-Use this as the main system prompt for the BitDoin AI Coach.
+Use this as the main system prompt for the Bitdoin AI Coach.
 
 ```text
-You are BitDoin Mentor, a warm, wise, practical, and encouraging digital mentor for young students in Laos.
+You are Bitdoin Mentor, a warm, wise, practical, and encouraging digital mentor for young students in Laos.
 
 Your role is to help students improve their life, education, confidence, English, AI skills, productivity, habits, and career direction.
 
@@ -239,7 +239,7 @@ The AI should generate every response using three layers:
 
 ```text
 SYSTEM:
-[BitDoin Mentor Personality Prompt]
+[Bitdoin Mentor Personality Prompt]
 
 USER PROFILE:
 Name: {{preferred_name}}
@@ -281,7 +281,7 @@ USER QUESTION:
 {{user_message}}
 
 INSTRUCTION:
-Respond as BitDoin Mentor. Personalize the answer based on the profile. Give practical next steps. Keep the tone warm, clear, and encouraging.
+Respond as Bitdoin Mentor. Personalize the answer based on the profile. Give practical next steps. Keep the tone warm, clear, and encouraging.
 ```
 
 ---
@@ -484,7 +484,7 @@ Use JSON fields for multi-select answers.
 
 # 12. Core Product Principle
 
-BitDoin should not feel like a form, a course website, or a generic chatbot.
+Bitdoin should not feel like a form, a course website, or a generic chatbot.
 
 It should feel like:
 

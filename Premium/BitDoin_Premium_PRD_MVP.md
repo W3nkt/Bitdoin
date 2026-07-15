@@ -1,10 +1,10 @@
-# BitDoin Premium – Product Requirements Document (PRD)
+# Bitdoin Premium – Product Requirements Document (PRD)
 
 ## Project Overview
 
-BitDoin Premium is a subscription-based online platform designed to help young students (approximately **15–25 years old**) improve their lives through **daily guidance, AI-powered learning, motivation, and personal development**.
+Bitdoin Premium is a subscription-based online platform designed to help young students (approximately **15–25 years old**) improve their lives through **daily guidance, AI-powered learning, motivation, and personal development**.
 
-The goal is **not** to become another online course platform. Instead, BitDoin acts as a **daily digital mentor**, helping students become smarter, more disciplined, more confident, and better prepared for school, university, and life.
+The goal is **not** to become another online course platform. Instead, Bitdoin acts as a **daily digital mentor**, helping students become smarter, more disciplined, more confident, and better prepared for school, university, and life.
 
 The platform should feel like having a personal mentor available every day.
 
@@ -14,7 +14,7 @@ The platform should feel like having a personal mentor available every day.
 
 Become the most trusted personal growth platform for young people in Laos.
 
-BitDoin helps students improve in four major areas:
+Bitdoin helps students improve in four major areas:
 
 - Personal Growth
 - Education
@@ -162,7 +162,7 @@ Students can ask about:
 - English
 - AI Tools
 
-The AI should gradually become a **BitDoin Mentor**, answering according to BitDoin's philosophy using Retrieval-Augmented Generation (RAG) from BitDoin's own knowledge base.
+The AI should gradually become a **Bitdoin Mentor**, answering according to Bitdoin's philosophy using Retrieval-Augmented Generation (RAG) from Bitdoin's own knowledge base.
 
 ---
 
@@ -533,7 +533,7 @@ Track:
 
 # Guiding Principle
 
-> BitDoin is **not** an online learning platform.
+> Bitdoin is **not** an online learning platform.
 
 It is a **daily personal growth platform** that combines mentorship, AI, motivation, education, and habit-building into one subscription.
 

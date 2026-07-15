@@ -613,6 +613,7 @@ export function Subscription() {
               language={language}
               completingChallenge={completingChallenge}
               onCompleteChallenge={completeChallenge}
+              onOpenCoach={() => navigate('/premium/coach')}
               events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
               communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
               performanceHighlights={performanceHighlights && performanceHighlights.length > 0 ? performanceHighlights : FALLBACK_PERFORMANCE_HIGHLIGHTS}
@@ -692,6 +693,7 @@ export function Subscription() {
                   variant="outline"
                   icon={<Brain className="h-4 w-4" />}
                   disabled={!isPremiumActive}
+                  onClick={() => navigate('/premium/coach')}
                 >
                   Open AI Coach
                 </Button>
@@ -1006,6 +1008,7 @@ function MemberDashboard({
   language,
   completingChallenge,
   onCompleteChallenge,
+  onOpenCoach,
   events,
   communities,
   performanceHighlights,
@@ -1015,6 +1018,7 @@ function MemberDashboard({
   language: Language
   completingChallenge: boolean
   onCompleteChallenge: () => void
+  onOpenCoach: () => void
   events: MemberEvent[]
   communities: MemberCommunity[]
   performanceHighlights: PerformanceHighlight[]
@@ -1070,7 +1074,7 @@ function MemberDashboard({
             >
               Complete challenge
             </Button>
-            <Button type="button" variant="outline" icon={<Brain className="h-4 w-4" />}>
+            <Button type="button" variant="outline" icon={<Brain className="h-4 w-4" />} onClick={onOpenCoach}>
               Open AI Coach
             </Button>
           </div>
