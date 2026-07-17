@@ -10,6 +10,7 @@ import remarkGfm from 'remark-gfm'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { cn } from '@/lib/utils'
 
 interface Message { id: string; role: 'user' | 'assistant'; content: string; created_at: string }
 interface Conversation { id: string; title: string; created_at: string; updated_at: string }
@@ -18,6 +19,38 @@ const STARTERS = ['Help me plan my study session', 'I feel unmotivated today', '
 const markdownSchema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
+}
+
+const directYouTubeUrl = /https?:\/\/(?:www\.)?(?:youtu\.be\/[A-Za-z0-9_-]+|youtube\.com\/watch\?[^\s`)\]]+)/gi
+
+function youtubeSearchUrl(query: string) {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+}
+
+function makeYouTubeRecommendationsSearchable(markdown: string) {
+  return markdown.split('\n').map(line => {
+    if (!directYouTubeUrl.test(line)) {
+      directYouTubeUrl.lastIndex = 0
+      return line
+    }
+    directYouTubeUrl.lastIndex = 0
+
+    const emphasizedTitle = line.match(/\*\*["“]?([^*"”]{3,140})["”]?\*\*/)?.[1]
+    const quotedTitle = line.match(/["“]([^"”]{3,140})["”]/)?.[1]
+    const query = (emphasizedTitle ?? quotedTitle ?? 'recommended video').trim()
+    const searchUrl = youtubeSearchUrl(query)
+
+    return line
+      .replace(
+        /\[([^\]]+)\]\(https?:\/\/(?:www\.)?(?:youtu\.be\/[A-Za-z0-9_-]+|youtube\.com\/watch\?[^\s`)]+)\)/gi,
+        (_match, label: string) => `[${label}](${youtubeSearchUrl(label)})`,
+      )
+      .replace(
+        /`https?:\/\/(?:www\.)?(?:youtu\.be\/[A-Za-z0-9_-]+|youtube\.com\/watch\?[^\s`]+)`/gi,
+        `[Search on YouTube](${searchUrl})`,
+      )
+      .replace(directYouTubeUrl, `[Search on YouTube](${searchUrl})`)
+  }).join('\n')
 }
 
 function MentorMarkdown({ children }: { children: string }) {
@@ -39,14 +72,31 @@ function MentorMarkdown({ children }: { children: string }) {
         blockquote: props => <blockquote className="my-2 border-l-4 border-amber-400 bg-amber-50 px-4 py-2 italic text-gray-700" {...props} />,
         hr: props => <hr className="my-3 border-black/10" {...props} />,
         a: props => <a className="font-bold text-primary-600 underline decoration-primary-300 underline-offset-2 hover:text-primary-800" target="_blank" rel="noreferrer" {...props} />,
-        code: props => <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] text-primary-800" {...props} />,
+        code: ({ children, className }) => {
+          const value = String(children).replace(/\n$/, '')
+          const isUrl = !className && /^https?:\/\/[^\s]+$/i.test(value)
+          return isUrl ? (
+            <a
+              href={value}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all rounded bg-primary-50 px-1.5 py-0.5 font-mono text-[0.9em] font-bold text-primary-700 underline decoration-primary-300 underline-offset-2 transition hover:bg-primary-100 hover:text-primary-900"
+            >
+              {value}
+            </a>
+          ) : (
+            <code className={cn('rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] text-primary-800', className)}>
+              {children}
+            </code>
+          )
+        },
         pre: props => <pre className="my-4 overflow-x-auto rounded-2xl bg-primary-950 p-4 text-xs leading-6 text-primary-50 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit" {...props} />,
         table: props => <div className="my-4 overflow-x-auto"><table className="w-full border-collapse text-left text-xs" {...props} /></div>,
         th: props => <th className="border-b-2 border-gray-300 px-3 py-2 font-black" {...props} />,
         td: props => <td className="border-b border-gray-200 px-3 py-2 align-top" {...props} />,
       }}
     >
-      {children}
+      {makeYouTubeRecommendationsSearchable(children)}
     </ReactMarkdown>
   )
 }

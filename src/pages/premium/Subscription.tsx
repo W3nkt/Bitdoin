@@ -97,6 +97,7 @@ interface DailyMotivation {
   reflection: string
   challenge: string
   mission: string
+  source?: 'personalized' | 'global'
 }
 
 type DailyChallengeKind = 'reflection' | 'challenge' | 'mission'
@@ -123,12 +124,26 @@ interface MemberCommunity {
   sort_order: number
 }
 
-interface PerformanceHighlight {
-  id: string
+interface PremiumMemberStats {
+  streak: number
+  xp: number
+  rank: number
+  completed_days: number
+  completed_items: number
+}
+
+interface PremiumLeaderboardEntry {
   display_name: string
-  metric: string
-  period_label?: string | null
-  rank_order: number
+  avatar_url?: string | null
+  xp: number
+  streak: number
+  rank: number
+  is_current_user: boolean
+}
+
+interface PremiumMemberDashboardData {
+  member: PremiumMemberStats
+  leaderboard: PremiumLeaderboardEntry[]
 }
 
 const FALLBACK_PLANS: PremiumPlan[] = [
@@ -172,6 +187,10 @@ function getFileExtension(file: File) {
   if (file.type === 'image/png') return 'png'
   if (file.type === 'image/webp') return 'webp'
   return 'jpg'
+}
+
+function formatStreak(days: number) {
+  return `${days} ${days === 1 ? 'day' : 'days'}`
 }
 
 function statusLabel(status?: PremiumStatus) {
@@ -226,12 +245,6 @@ const FALLBACK_MEMBER_COMMUNITIES: MemberCommunity[] = [
   { id: 'community-accountability', title: 'Study Accountability', detail: 'Share daily progress and keep your streak alive.', sort_order: 1 },
   { id: 'community-prompts', title: 'AI Prompt Practice', detail: 'Compare prompts for homework, coding, writing, and research.', sort_order: 2 },
   { id: 'community-english', title: 'English Corner', detail: 'Daily vocabulary, speaking prompts, and confidence practice.', sort_order: 3 },
-]
-
-const FALLBACK_PERFORMANCE_HIGHLIGHTS: PerformanceHighlight[] = [
-  { id: 'performer-noy', display_name: 'Noy', metric: '12-day streak', period_label: 'This week', rank_order: 1 },
-  { id: 'performer-anousone', display_name: 'Anousone', metric: '960 XP', period_label: 'This week', rank_order: 2 },
-  { id: 'performer-mina', display_name: 'Mina', metric: '8 challenges', period_label: 'This week', rank_order: 3 },
 ]
 
 export function Subscription() {
@@ -313,8 +326,16 @@ export function Subscription() {
   })
 
   const { data: motivation } = useQuery({
-    queryKey: ['premium', 'daily-motivation'],
+    queryKey: ['premium', 'daily-motivation', profile?.id, subscription?.status],
     queryFn: async () => {
+      if (profile && subscription?.status === 'ACTIVE') {
+        const { data: generated, error: generationError } = await supabase.functions.invoke('premium-daily-mentor')
+        if (!generationError && generated?.guidance) {
+          return generated.guidance as DailyMotivation
+        }
+        console.error('Could not load personalized daily guidance', generationError ?? generated?.error)
+      }
+
       const { data, error: motivationError } = await supabase
         .from('premium_daily_motivations')
         .select('*')
@@ -323,8 +344,9 @@ export function Subscription() {
         .limit(1)
         .maybeSingle()
       if (motivationError) throw motivationError
-      return data as DailyMotivation | null
+      return data ? { ...(data as DailyMotivation), source: 'global' as const } : null
     },
+    staleTime: 1000 * 60 * 30,
     retry: 1,
   })
 
@@ -332,12 +354,14 @@ export function Subscription() {
     queryKey: ['premium', 'daily-completion', profile?.id, motivation?.id],
     enabled: Boolean(profile && motivation?.id),
     queryFn: async () => {
-      const { data, error: completionError } = await supabase
+      let completionQuery = supabase
         .from('premium_challenge_completions')
         .select('responses, completed_at')
         .eq('user_id', profile!.id)
-        .eq('motivation_id', motivation!.id)
-        .maybeSingle()
+      completionQuery = motivation!.source === 'personalized'
+        ? completionQuery.eq('guidance_id', motivation!.id)
+        : completionQuery.eq('motivation_id', motivation!.id)
+      const { data, error: completionError } = await completionQuery.maybeSingle()
       if (completionError) throw completionError
       return data as DailyChallengeCompletion | null
     },
@@ -378,19 +402,16 @@ export function Subscription() {
     retry: 1,
   })
 
-  const { data: performanceHighlights } = useQuery({
-    queryKey: ['premium', 'performance-highlights', profile?.id],
+  const { data: memberProgress } = useQuery({
+    queryKey: ['premium', 'member-progress', profile?.id],
     enabled: premiumMemberContentEnabled,
     queryFn: async () => {
-      const { data, error: highlightsError } = await supabase
-        .from('premium_performance_highlights')
-        .select('id,display_name,metric,period_label,rank_order')
-        .eq('is_active', true)
-        .order('rank_order')
-        .limit(6)
-      if (highlightsError) throw highlightsError
-      return data as PerformanceHighlight[]
+      const { data, error: progressError } = await supabase
+        .rpc('get_premium_member_dashboard', { p_limit: 5 })
+      if (progressError) throw progressError
+      return data as PremiumMemberDashboardData | null
     },
+    staleTime: 1000 * 60,
     retry: 1,
   })
 
@@ -613,16 +634,25 @@ export function Subscription() {
       }
       const allCompleted = (['reflection', 'challenge', 'mission'] as DailyChallengeKind[])
         .every(item => Boolean(responses[item]?.trim()))
+      const sourceId = todaysMotivation.source === 'personalized'
+        ? { guidance_id: todaysMotivation.id, motivation_id: null }
+        : { motivation_id: todaysMotivation.id, guidance_id: null }
+      const conflictColumns = todaysMotivation.source === 'personalized'
+        ? 'user_id,guidance_id'
+        : 'user_id,motivation_id'
       const { error: completionError } = await supabase
         .from('premium_challenge_completions')
         .upsert({
           user_id: profile.id,
-          motivation_id: todaysMotivation.id,
+          ...sourceId,
           responses,
           completed_at: allCompleted ? new Date().toISOString() : null,
-        }, { onConflict: 'user_id,motivation_id' })
+        }, { onConflict: conflictColumns })
       if (completionError) throw completionError
-      await qc.invalidateQueries({ queryKey: ['premium', 'daily-completion', profile.id, todaysMotivation.id] })
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['premium', 'daily-completion', profile.id, todaysMotivation.id] }),
+        qc.invalidateQueries({ queryKey: ['premium', 'member-progress', profile.id] }),
+      ])
       success(allCompleted ? 'All three daily challenges completed!' : 'Reply saved. Keep going!')
     } catch (saveError) {
       console.error(saveError)
@@ -663,8 +693,8 @@ export function Subscription() {
             planName={planName}
             status={statusLabel(subscription?.status)}
             statusClassName={statusClass(subscription?.status)}
-            streak={isPremiumActive ? '7 days' : '0 days'}
-            xp={isPremiumActive ? '420' : '0'}
+            streak={formatStreak(memberProgress?.member.streak ?? 0)}
+            xp={(memberProgress?.member.xp ?? 0).toLocaleString()}
             expiration={subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'No expiry'}
             personalization={onboarding?.responses ?? {}}
             onPersonalizationSaved={() => qc.invalidateQueries({ queryKey: ['premium', 'onboarding-profile-v2', profile?.id] })}
@@ -688,7 +718,8 @@ export function Subscription() {
               onOpenCoach={() => navigate('/premium/coach')}
               events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
               communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
-              performanceHighlights={performanceHighlights && performanceHighlights.length > 0 ? performanceHighlights : FALLBACK_PERFORMANCE_HIGHLIGHTS}
+              memberStats={memberProgress?.member}
+              leaderboard={memberProgress?.leaderboard ?? []}
             />
            ) : (
              <>
@@ -1217,7 +1248,8 @@ function MemberDashboard({
   onOpenCoach,
   events,
   communities,
-  performanceHighlights,
+  memberStats,
+  leaderboard,
 }: {
   profileName: string
   motivation: DailyMotivation
@@ -1228,7 +1260,8 @@ function MemberDashboard({
   onOpenCoach: () => void
   events: MemberEvent[]
   communities: MemberCommunity[]
-  performanceHighlights: PerformanceHighlight[]
+  memberStats?: PremiumMemberStats
+  leaderboard: PremiumLeaderboardEntry[]
 }) {
   const [activeDailyItem, setActiveDailyItem] = useState<DailyChallengeKind | null>(null)
   const [dailyDrafts, setDailyDrafts] = useState<Partial<Record<DailyChallengeKind, string>>>({})
@@ -1268,9 +1301,9 @@ function MemberDashboard({
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 md:w-80">
-            <ProfileMenuStat label="Streak" value="7 days" icon={<Flame className="h-4 w-4" />} />
-            <ProfileMenuStat label="XP" value="420" icon={<Zap className="h-4 w-4" />} />
-            <ProfileMenuStat label="Rank" value="#12" icon={<Trophy className="h-4 w-4" />} />
+            <ProfileMenuStat label="Streak" value={formatStreak(memberStats?.streak ?? 0)} icon={<Flame className="h-4 w-4" />} />
+            <ProfileMenuStat label="XP" value={(memberStats?.xp ?? 0).toLocaleString()} icon={<Zap className="h-4 w-4" />} />
+            <ProfileMenuStat label="Rank" value={memberStats?.rank ? `#${memberStats.rank}` : '—'} icon={<Trophy className="h-4 w-4" />} />
           </div>
         </div>
       </section>
@@ -1283,6 +1316,13 @@ function MemberDashboard({
               <h2 className="mt-1 text-xl font-black text-gray-950">Daily mentor</h2>
             </div>
             <div className="text-right">
+              {motivation.source === 'personalized' && (
+                <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">
+                  <Sparkles className="h-3 w-3" />
+                  Made for you
+                </span>
+              )}
+              <br className={motivation.source === 'personalized' ? '' : 'hidden'} />
               <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
                 {formatDate(motivation.publish_date, language)}
               </span>
@@ -1390,17 +1430,47 @@ function MemberDashboard({
             <Trophy className="h-5 w-5 text-amber-500" />
           </div>
           <div className="mt-5 space-y-3">
-            {performanceHighlights.map((performer, index) => (
-              <div key={performer.id} className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-sm font-black text-amber-700">
-                  #{index + 1}
+            {leaderboard.length > 0 ? leaderboard.map(performer => (
+              <div
+                key={`${performer.rank}-${performer.display_name}`}
+                className={cn(
+                  'flex items-center gap-3 rounded-2xl border p-3',
+                  performer.is_current_user ? 'border-primary-200 bg-primary-50/60' : 'border-gray-100',
+                )}
+              >
+                <div className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black',
+                  performer.rank <= 3 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600',
+                )}>
+                  #{performer.rank}
                 </div>
+                {performer.avatar_url ? (
+                  <img
+                    src={performer.avatar_url}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-sm font-black text-primary-700">
+                    {performer.display_name.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-gray-900">{performer.display_name}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">{performer.metric}</p>
+                  <p className="truncate text-sm font-bold text-gray-900">
+                    {performer.display_name}
+                    {performer.is_current_user && <span className="ml-1.5 text-[10px] font-black uppercase text-primary-600">You</span>}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {performer.xp.toLocaleString()} XP · {formatStreak(performer.streak)}
+                  </p>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center">
+                <Trophy className="mx-auto h-6 w-6 text-slate-300" />
+                <p className="mt-2 text-sm font-bold text-slate-500">Complete today’s activities to join the leaderboard.</p>
+              </div>
+            )}
           </div>
         </section>
       </div>

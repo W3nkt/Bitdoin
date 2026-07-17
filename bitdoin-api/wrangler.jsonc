@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bitdoin-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-17",
+  
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
+  "routes": [
+    {
+      "pattern": "api.bitdoin.store",
+      "custom_domain": true
+    }
+  ]
+
+}
