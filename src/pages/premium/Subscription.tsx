@@ -12,7 +12,6 @@ import {
   FileText,
   Flame,
   GraduationCap,
-  Languages,
   Lightbulb,
   Lock,
   MessageCircle,
@@ -1121,28 +1120,43 @@ function SubscriptionProfileMenu({
               <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{contact}</p>
             </div>
             <div
-              className="flex flex-shrink-0 items-center rounded-xl bg-amber-50 p-1 ring-1 ring-amber-200"
+              className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-amber-50 px-2.5 py-2 ring-1 ring-amber-200"
               role="group"
               aria-label="Language"
               data-no-premium-translate
             >
-              <Languages className="mx-1 h-4 w-4 text-amber-700" aria-hidden="true" />
-              {(['lo', 'en'] as const).map(option => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setLanguage(option)}
-                  aria-pressed={language === option}
+              <span
+                className={cn('text-xl leading-none transition', language === 'en' ? 'opacity-100' : 'opacity-40 grayscale')}
+                aria-hidden="true"
+              >
+                🇺🇸
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={language === 'lo'}
+                aria-label={`Switch to ${language === 'lo' ? 'English' : 'Lao'}`}
+                onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
+                className={cn(
+                  'relative h-7 w-12 rounded-full border p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2',
+                  language === 'lo'
+                    ? 'border-amber-500 bg-amber-400'
+                    : 'border-primary-800 bg-primary-950',
+                )}
+              >
+                <span
                   className={cn(
-                    'min-h-8 rounded-lg px-2 text-[11px] font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500',
-                    language === option
-                      ? 'bg-primary-950 text-white shadow-sm'
-                      : 'text-amber-900 hover:bg-amber-100',
+                    'block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
+                    language === 'lo' && 'translate-x-5',
                   )}
-                >
-                  {option === 'lo' ? 'ລາວ' : 'EN'}
-                </button>
-              ))}
+                />
+              </button>
+              <span
+                className={cn('text-xl leading-none transition', language === 'lo' ? 'opacity-100' : 'opacity-40 grayscale')}
+                aria-hidden="true"
+              >
+                🇱🇦
+              </span>
             </div>
           </div>
 
