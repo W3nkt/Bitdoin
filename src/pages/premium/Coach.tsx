@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Brain, Crown, History, MessageSquare, Plus, Send, Sparkles, X } from 'lucide-react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
@@ -16,6 +16,9 @@ interface Message { id: string; role: 'user' | 'assistant'; content: string; cre
 interface Conversation { id: string; title: string; created_at: string; updated_at: string }
 
 const STARTERS = ['Help me plan my study session', 'I feel unmotivated today', 'Practice English with me']
+const ROLEPLAY_PROMPTS: Record<string, string> = {
+  'job-interview': 'Start a realistic entry-level job interview role-play with me. Ask one question at a time, wait for my answer, and give brief supportive feedback before the next question.',
+}
 const markdownSchema = {
   ...defaultSchema,
   tagNames: [...(defaultSchema.tagNames ?? []), 'u'],
@@ -122,6 +125,8 @@ function formatTimestamp(value: string) {
 export function PremiumCoach() {
   const { profile, loading: authLoading } = useAuth()
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  const roleplayMission = searchParams.get('mission')
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -130,6 +135,8 @@ export function PremiumCoach() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const historyInitialized = useRef(false)
+  const roleplayInitialized = useRef(false)
+  const roleplayCompleted = useRef(false)
 
   const access = useQuery({
     queryKey: ['premium-coach-access', profile?.id], enabled: Boolean(profile?.id),
@@ -163,6 +170,15 @@ export function PremiumCoach() {
   }, [conversations.data])
   useEffect(() => { if (messages.data) setLocalMessages(messages.data) }, [messages.data])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [localMessages, sending])
+  useEffect(() => {
+    if (roleplayInitialized.current || !roleplayMission) return
+    const prompt = ROLEPLAY_PROMPTS[roleplayMission]
+    if (!prompt) return
+    roleplayInitialized.current = true
+    setConversationId(null)
+    setLocalMessages([])
+    setDraft(prompt)
+  }, [roleplayMission])
 
   async function send(event?: FormEvent, starter?: string) {
     event?.preventDefault()
@@ -179,6 +195,23 @@ export function PremiumCoach() {
       setConversationId(data.conversationId)
       setLocalMessages(previous => [...previous, { id: `reply-${Date.now()}`, role: 'assistant', content: data.answer, created_at: new Date().toISOString() }])
       await queryClient.invalidateQueries({ queryKey: ['premium-coach-conversations', profile?.id] })
+      if (roleplayMission && ROLEPLAY_PROMPTS[roleplayMission] && !roleplayCompleted.current) {
+        const { error: activityError } = await supabase.rpc('complete_premium_learning_activity', {
+          p_activity_type: 'ai_roleplay',
+          p_score: 1,
+          p_total: 1,
+          p_metadata: { mission: roleplayMission },
+        })
+        if (!activityError) {
+          roleplayCompleted.current = true
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['premium', 'learning-activity-attempts', profile?.id] }),
+            queryClient.invalidateQueries({ queryKey: ['premium', 'member-progress', profile?.id] }),
+          ])
+        } else {
+          console.error('Could not save role-play activity', activityError)
+        }
+      }
     }
     setSending(false)
   }
@@ -206,15 +239,29 @@ export function PremiumCoach() {
   return (
     <main className="flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
       <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 bg-white/90 px-4 backdrop-blur md:px-8">
-        <div className="flex h-full items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setHistoryOpen(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 lg:hidden" aria-label="Open chat history"><History className="h-4 w-4" /></button>
-            <Link to="/subscription" className="flex items-center gap-2 text-sm font-bold text-gray-600 transition hover:text-gray-950"><ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Premium</span></Link>
-          </div>
-          <div className="flex items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600">Ready to coach</p></div></div>
+        <div className="relative flex h-full items-center justify-between">
+          <Link
+            to="/subscription"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            aria-label="Back to Premium"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600">Ready to coach</p></div></div>
           <Crown className="h-5 w-5 text-amber-500" />
         </div>
       </header>
+
+      {!historyOpen && (
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          className="fixed left-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white text-gray-600 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
+          aria-label="Open chat history"
+        >
+          <History className="h-5 w-5" />
+        </button>
+      )}
 
       {historyOpen && <button type="button" className="fixed inset-0 top-16 z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
       <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-72 flex-col border-r border-black/5 bg-white transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
@@ -248,8 +295,10 @@ export function PremiumCoach() {
           {localMessages.length === 0 && (
             <div className="animate-slide-up py-10 text-center md:py-20">
               <Sparkles className="mx-auto h-7 w-7 text-amber-500" />
-              <h1 className="mt-5 text-3xl font-black tracking-tight">What should we work on today?</h1>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">I’ll use your goals and coaching preferences to give you practical, personal guidance.</p>
+              <h1 className="mt-5 text-3xl font-black tracking-tight">{roleplayMission ? 'Ready for your role-play mission?' : 'What should we work on today?'}</h1>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+                {roleplayMission ? 'Send the prepared prompt below to begin. Complete your first exchange to earn 20 XP.' : 'I’ll use your goals and coaching preferences to give you practical, personal guidance.'}
+              </p>
               <div className="mx-auto mt-8 grid max-w-lg gap-2 sm:grid-cols-3">{STARTERS.map(starter => <button key={starter} onClick={() => void send(undefined, starter)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm">{starter}</button>)}</div>
             </div>
           )}

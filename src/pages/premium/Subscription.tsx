@@ -31,9 +31,11 @@ import {
 } from 'lucide-react'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
+import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -709,6 +711,7 @@ export function Subscription() {
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-24">
           {isPremiumActive ? (
             <MemberDashboard
+              profileId={profile!.id}
               profileName={profile?.name ?? 'Premium member'}
               motivation={todaysMotivation}
               language={language}
@@ -716,6 +719,7 @@ export function Subscription() {
               savingDailyItem={savingDailyItem}
               onSubmitDailyReply={saveDailyReply}
               onOpenCoach={() => navigate('/premium/coach')}
+              onStartRoleplay={() => navigate('/premium/coach?mission=job-interview')}
               events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
               communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
               memberStats={memberProgress?.member}
@@ -1239,6 +1243,7 @@ function PersonalizationSelect({ label, value, options, onChange }: { label: str
 }
 
 function MemberDashboard({
+  profileId,
   profileName,
   motivation,
   language,
@@ -1246,11 +1251,13 @@ function MemberDashboard({
   savingDailyItem,
   onSubmitDailyReply,
   onOpenCoach,
+  onStartRoleplay,
   events,
   communities,
   memberStats,
   leaderboard,
 }: {
+  profileId: string
   profileName: string
   motivation: DailyMotivation
   language: Language
@@ -1258,6 +1265,7 @@ function MemberDashboard({
   savingDailyItem: DailyChallengeKind | null
   onSubmitDailyReply: (kind: DailyChallengeKind, reply: string) => Promise<void>
   onOpenCoach: () => void
+  onStartRoleplay: () => void
   events: MemberEvent[]
   communities: MemberCommunity[]
   memberStats?: PremiumMemberStats
@@ -1307,6 +1315,8 @@ function MemberDashboard({
           </div>
         </div>
       </section>
+
+      <PlayLearnArcade profileId={profileId} onStartRoleplay={onStartRoleplay} />
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="rounded-3xl bg-white p-5 shadow-card">
@@ -1373,35 +1383,39 @@ function MemberDashboard({
             })}
           </div>
 
-          {selectedItem && (
-            <div className="mt-4 animate-slide-up rounded-2xl border border-primary-200 bg-primary-50/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-black text-primary-900">Reply to {selectedItem.label.toLowerCase()}</p>
-                <button type="button" onClick={() => setActiveDailyItem(null)} className="text-xs font-bold text-slate-400 transition hover:text-slate-700">Close</button>
+          <Modal
+            open={Boolean(selectedItem)}
+            onClose={() => setActiveDailyItem(null)}
+            title={selectedItem ? `Reply to ${selectedItem.label.toLowerCase()}` : undefined}
+            size="lg"
+          >
+            {selectedItem && (
+              <div>
+                <p className="mb-3 text-sm font-semibold leading-6 text-slate-600">{selectedItem.text}</p>
+                <textarea
+                  autoFocus
+                  rows={5}
+                  maxLength={1200}
+                  value={dailyDrafts[selectedItem.kind] ?? ''}
+                  onChange={event => setDailyDrafts(current => ({ ...current, [selectedItem.kind]: event.target.value }))}
+                  placeholder={selectedItem.prompt}
+                  className="min-h-36 w-full resize-none rounded-xl border border-primary-200 bg-white px-4 py-3 text-base font-semibold leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                />
+                <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="text-xs font-semibold text-slate-400">{(dailyDrafts[selectedItem.kind] ?? '').length}/1200</span>
+                  <button
+                    type="button"
+                    disabled={!dailyDrafts[selectedItem.kind]?.trim() || savingDailyItem === selectedItem.kind}
+                    onClick={() => void submitDailyReply()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-900 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {savingDailyItem === selectedItem.kind ? 'Saving…' : completionResponses[selectedItem.kind] ? 'Update reply' : 'Complete item'}
+                  </button>
+                </div>
               </div>
-              <textarea
-                autoFocus
-                rows={3}
-                maxLength={1200}
-                value={dailyDrafts[selectedItem.kind] ?? ''}
-                onChange={event => setDailyDrafts(current => ({ ...current, [selectedItem.kind]: event.target.value }))}
-                placeholder={selectedItem.prompt}
-                className="mt-3 w-full resize-none rounded-xl border border-primary-200 bg-white px-3 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-              />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="text-[10px] font-semibold text-slate-400">{(dailyDrafts[selectedItem.kind] ?? '').length}/1200</span>
-                <button
-                  type="button"
-                  disabled={!dailyDrafts[selectedItem.kind]?.trim() || savingDailyItem === selectedItem.kind}
-                  onClick={() => void submitDailyReply()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary-900 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {savingDailyItem === selectedItem.kind ? 'Saving…' : completionResponses[selectedItem.kind] ? 'Update reply' : 'Complete item'}
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </Modal>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
             <p className="hidden text-xs font-semibold text-slate-500 sm:block">
