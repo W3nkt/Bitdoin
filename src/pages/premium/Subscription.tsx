@@ -1125,11 +1125,8 @@ function SubscriptionProfileMenu({
               aria-label="Language"
               data-no-premium-translate
             >
-              <span
-                className={cn('text-xl leading-none transition', language === 'en' ? 'opacity-100' : 'opacity-40 grayscale')}
-                aria-hidden="true"
-              >
-                🇺🇸
+              <span className={cn('transition', language === 'en' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
+                <LanguageFlagIcon language="en" />
               </span>
               <button
                 type="button"
@@ -1151,11 +1148,8 @@ function SubscriptionProfileMenu({
                   )}
                 />
               </button>
-              <span
-                className={cn('text-xl leading-none transition', language === 'lo' ? 'opacity-100' : 'opacity-40 grayscale')}
-                aria-hidden="true"
-              >
-                🇱🇦
+              <span className={cn('transition', language === 'lo' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
+                <LanguageFlagIcon language="lo" />
               </span>
             </div>
           </div>
@@ -1597,6 +1591,29 @@ function ProfileMenuStat({ label, value, icon }: { label: string; value: string;
       <p className="truncate text-sm font-black text-white">{value}</p>
       <p className="mt-0.5 truncate text-[10px] font-semibold text-primary-200">{label}</p>
     </div>
+  )
+}
+
+function LanguageFlagIcon({ language }: { language: 'en' | 'lo' }) {
+  if (language === 'lo') {
+    return (
+      <svg viewBox="0 0 30 20" className="h-5 w-7 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-black/10" focusable="false">
+        <rect width="30" height="20" fill="#ce1126" />
+        <rect y="5" width="30" height="10" fill="#002868" />
+        <circle cx="15" cy="10" r="3.6" fill="#fff" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 30 20" className="h-5 w-7 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-black/10" focusable="false">
+      <rect width="30" height="20" fill="#fff" />
+      {[0, 4, 8, 12, 16].map(y => <rect key={y} y={y} width="30" height="2" fill="#b22234" />)}
+      <rect width="14" height="10" fill="#3c3b6e" />
+      {[2, 5, 8, 11].flatMap(x => [2, 5, 8].map(y => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="0.55" fill="#fff" />
+      )))}
+    </svg>
   )
 }
 
