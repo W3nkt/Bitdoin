@@ -36,7 +36,7 @@ interface Question {
   explanation: string
 }
 
-const BRAIN_QUESTIONS: Question[] = [
+const BRAIN_QUESTION_BANK: Question[] = [
   {
     prompt: 'What is 15% of 200?',
     options: ['15', '20', '30', '40'],
@@ -67,15 +67,85 @@ const BRAIN_QUESTIONS: Question[] = [
     answer: 'Choose one small task',
     explanation: 'A specific, manageable next action makes progress easier to start and measure.',
   },
+  {
+    prompt: 'What is 3/4 written as a percentage?',
+    options: ['25%', '50%', '75%', '80%'],
+    answer: '75%',
+    explanation: 'Three divided by four is 0.75, which equals 75%.',
+  },
+  {
+    prompt: 'Choose the word that best completes: “I have ___ my homework.”',
+    options: ['finish', 'finished', 'finishing', 'finishes'],
+    answer: 'finished',
+    explanation: 'The present perfect uses “have” plus the past participle: “have finished.”',
+  },
+  {
+    prompt: 'Which source is usually most reliable for official Lao curriculum information?',
+    options: ['An anonymous post', 'A random comment', 'The Ministry of Education', 'An advertisement'],
+    answer: 'The Ministry of Education',
+    explanation: 'Official ministry resources are the primary source for national curriculum information.',
+  },
+  {
+    prompt: 'If you save 10,000 LAK each day for 30 days, how much will you save?',
+    options: ['30,000 LAK', '100,000 LAK', '300,000 LAK', '3,000,000 LAK'],
+    answer: '300,000 LAK',
+    explanation: '10,000 multiplied by 30 equals 300,000 LAK.',
+  },
+  {
+    prompt: 'Which habit is most helpful before an exam?',
+    options: ['One all-night session', 'Short spaced reviews', 'Skipping sleep', 'Only rereading notes'],
+    answer: 'Short spaced reviews',
+    explanation: 'Spacing study across several sessions supports stronger long-term memory.',
+  },
+  {
+    prompt: 'Which sentence asks for help politely?',
+    options: ['Help me now.', 'You must help.', 'Could you please help me?', 'Why no help?'],
+    answer: 'Could you please help me?',
+    explanation: '“Could you please…” is a clear and polite request form.',
+  },
+  {
+    prompt: 'A bus leaves at 08:35 and travels for 1 hour 45 minutes. When does it arrive?',
+    options: ['09:20', '10:10', '10:20', '11:20'],
+    answer: '10:20',
+    explanation: '08:35 plus one hour is 09:35, then plus 45 minutes is 10:20.',
+  },
+  {
+    prompt: 'What should you do first when an online claim seems surprising?',
+    options: ['Share it quickly', 'Check the original source', 'Believe the headline', 'Ignore all evidence'],
+    answer: 'Check the original source',
+    explanation: 'Checking the original and another reliable source helps verify the claim.',
+  },
+  {
+    prompt: 'Which is a renewable source of energy?',
+    options: ['Coal', 'Diesel', 'Solar power', 'Natural gas'],
+    answer: 'Solar power',
+    explanation: 'Sunlight is naturally replenished, so solar power is renewable.',
+  },
+  {
+    prompt: 'What is the best way to make a study goal measurable?',
+    options: ['Study more', 'Try harder', 'Read 10 pages tonight', 'Become smarter'],
+    answer: 'Read 10 pages tonight',
+    explanation: 'A measurable goal states a specific action and amount.',
+  },
 ]
 
-const WORD_PAIRS = [
+const WORD_PAIR_BANK = [
   { id: 'learn', left: 'Learn', right: 'ຮຽນ' },
   { id: 'teacher', left: 'Teacher', right: 'ຄູ' },
   { id: 'book', left: 'Book', right: 'ປຶ້ມ' },
   { id: 'future', left: 'Future', right: 'ອະນາຄົດ' },
   { id: 'goal', left: 'Goal', right: 'ເປົ້າໝາຍ' },
   { id: 'knowledge', left: 'Knowledge', right: 'ຄວາມຮູ້' },
+  { id: 'student', left: 'Student', right: 'ນັກຮຽນ' },
+  { id: 'school', left: 'School', right: 'ໂຮງຮຽນ' },
+  { id: 'question', left: 'Question', right: 'ຄຳຖາມ' },
+  { id: 'answer', left: 'Answer', right: 'ຄຳຕອບ' },
+  { id: 'practice', left: 'Practice', right: 'ຝຶກຝົນ' },
+  { id: 'success', left: 'Success', right: 'ຄວາມສຳເລັດ' },
+  { id: 'time', left: 'Time', right: 'ເວລາ' },
+  { id: 'work', left: 'Work', right: 'ວຽກ' },
+  { id: 'skill', left: 'Skill', right: 'ທັກສະ' },
+  { id: 'confidence', left: 'Confidence', right: 'ຄວາມໝັ້ນໃຈ' },
 ]
 const WEEK_DAYS = [
   { short: 'Mon', label: 'M' },
@@ -86,6 +156,44 @@ const WEEK_DAYS = [
   { short: 'Sat', label: 'S' },
   { short: 'Sun', label: 'S' },
 ]
+const ROLEPLAY_MISSIONS = [
+  { slug: 'job-interview', description: 'Practice a job interview with your personal mentor.' },
+  { slug: 'english-cafe', description: 'Order food and ask questions in English at a café.' },
+  { slug: 'class-presentation', description: 'Practice introducing a short class presentation.' },
+  { slug: 'ask-teacher-help', description: 'Ask a teacher for help clearly and politely.' },
+  { slug: 'scholarship-interview', description: 'Practice answering a scholarship interview question.' },
+  { slug: 'customer-service', description: 'Help a customer solve a simple problem in English.' },
+  { slug: 'travel-directions', description: 'Ask for and give simple travel directions in English.' },
+]
+
+function hashSeed(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
+}
+
+function seededRandom(seed: number) {
+  let value = seed
+  return () => {
+    value += 0x6D2B79F5
+    let result = value
+    result = Math.imul(result ^ (result >>> 15), result | 1)
+    result ^= result + Math.imul(result ^ (result >>> 7), result | 61)
+    return ((result ^ (result >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function shuffle<T>(items: T[], random: () => number = Math.random) {
+  const result = [...items]
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1))
+    ;[result[index], result[swapIndex]] = [result[swapIndex], result[index]]
+  }
+  return result
+}
 
 function todayInLaos() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -101,11 +209,12 @@ export function PlayLearnArcade({
   onStartRoleplay,
 }: {
   profileId: string
-  onStartRoleplay: () => void
+  onStartRoleplay: (mission: string) => void
 }) {
   const queryClient = useQueryClient()
   const { success, error } = useToast()
   const [activeActivity, setActiveActivity] = useState<ActivityKind | null>(null)
+  const [brainQuestions, setBrainQuestions] = useState<typeof BRAIN_QUESTION_BANK>([])
   const [questionIndex, setQuestionIndex] = useState(0)
   const [brainAnswers, setBrainAnswers] = useState<string[]>([])
   const [selectedAnswer, setSelectedAnswer] = useState('')
@@ -113,6 +222,7 @@ export function PlayLearnArcade({
   const [wordSelection, setWordSelection] = useState<{ id: string; side: 'left' | 'right' } | null>(null)
   const [matchedWords, setMatchedWords] = useState<string[]>([])
   const [wrongWord, setWrongWord] = useState<string | null>(null)
+  const [wordShuffleNonce, setWordShuffleNonce] = useState(0)
   const [saving, setSaving] = useState(false)
 
   const attempts = useQuery({
@@ -131,6 +241,18 @@ export function PlayLearnArcade({
   })
 
   const today = todayInLaos()
+  const dailyBrainQuestions = useMemo(
+    () => shuffle(BRAIN_QUESTION_BANK, seededRandom(hashSeed(`brain:${today}`))).slice(0, 5),
+    [today],
+  )
+  const dailyWordPairs = useMemo(
+    () => shuffle(WORD_PAIR_BANK, seededRandom(hashSeed(`words:${today}`))).slice(0, 6),
+    [today],
+  )
+  const dailyRoleplayMission = useMemo(
+    () => ROLEPLAY_MISSIONS[hashSeed(`roleplay:${today}`) % ROLEPLAY_MISSIONS.length],
+    [today],
+  )
   const todayAttempts = (attempts.data ?? []).filter(attempt => todayInLaosFromIso(attempt.completed_at) === today)
   const completedToday = new Set(todayAttempts.map(attempt => attempt.activity_type))
   const activeWeekdays = new Set((attempts.data ?? [])
@@ -144,14 +266,18 @@ export function PlayLearnArcade({
   const activeDays = new Set((attempts.data ?? []).map(attempt => todayInLaosFromIso(attempt.completed_at))).size
 
   const shuffledWords = useMemo(() => {
-    const cards = WORD_PAIRS.flatMap(pair => [
+    const cards = dailyWordPairs.flatMap(pair => [
       { id: pair.id, side: 'left' as const, label: pair.left },
       { id: pair.id, side: 'right' as const, label: pair.right },
     ])
-    return cards.sort(() => Math.random() - 0.5)
-  }, [activeActivity])
+    return shuffle(cards)
+  }, [dailyWordPairs, wordShuffleNonce])
 
   function resetBrainSprint() {
+    setBrainQuestions(shuffle(dailyBrainQuestions).map(question => ({
+      ...question,
+      options: shuffle(question.options),
+    })))
     setQuestionIndex(0)
     setBrainAnswers([])
     setSelectedAnswer('')
@@ -162,6 +288,7 @@ export function PlayLearnArcade({
     setActiveActivity(kind)
     if (kind === 'brain_sprint') resetBrainSprint()
     if (kind === 'word_match') {
+      setWordShuffleNonce(nonce => nonce + 1)
       setWordSelection(null)
       setMatchedWords([])
       setWrongWord(null)
@@ -199,10 +326,10 @@ export function PlayLearnArcade({
       return
     }
     const nextAnswers = [...brainAnswers, selectedAnswer]
-    if (questionIndex === BRAIN_QUESTIONS.length - 1) {
+    if (questionIndex === brainQuestions.length - 1) {
       setBrainAnswers(nextAnswers)
-      const score = nextAnswers.filter((answer, index) => answer === BRAIN_QUESTIONS[index].answer).length
-      await completeActivity('brain_sprint', score, BRAIN_QUESTIONS.length)
+      const score = nextAnswers.filter((answer, index) => answer === brainQuestions[index].answer).length
+      await completeActivity('brain_sprint', score, brainQuestions.length)
       return
     }
     setBrainAnswers(nextAnswers)
@@ -222,8 +349,8 @@ export function PlayLearnArcade({
       setMatchedWords(nextMatches)
       setWordSelection(null)
       setWrongWord(null)
-      if (nextMatches.length === WORD_PAIRS.length) {
-        await completeActivity('word_match', WORD_PAIRS.length, WORD_PAIRS.length)
+      if (nextMatches.length === dailyWordPairs.length) {
+        await completeActivity('word_match', dailyWordPairs.length, dailyWordPairs.length)
       }
       return
     }
@@ -232,9 +359,9 @@ export function PlayLearnArcade({
     window.setTimeout(() => setWrongWord(null), 450)
   }
 
-  const brainFinished = brainAnswers.length === BRAIN_QUESTIONS.length
-  const brainScore = brainAnswers.filter((answer, index) => answer === BRAIN_QUESTIONS[index].answer).length
-  const currentQuestion = BRAIN_QUESTIONS[questionIndex]
+  const brainFinished = brainQuestions.length > 0 && brainAnswers.length === brainQuestions.length
+  const brainScore = brainAnswers.filter((answer, index) => answer === brainQuestions[index]?.answer).length
+  const currentQuestion = brainQuestions[questionIndex]
 
   return (
     <section className="overflow-hidden rounded-3xl bg-white shadow-card">
@@ -326,13 +453,13 @@ export function PlayLearnArcade({
           />
           <ActivityTile
             title="AI Role-play Mission"
-            description="Practice a job interview with your personal mentor."
+            description={dailyRoleplayMission.description}
             duration="3–5 min"
             stat={completedToday.has('ai_roleplay') ? 'Completed today' : '+20 XP'}
             completed={completedToday.has('ai_roleplay')}
             accent="violet"
             icon={<MessagesSquare className="h-6 w-6" />}
-            onClick={onStartRoleplay}
+            onClick={() => onStartRoleplay(dailyRoleplayMission.slug)}
           />
         </div>
       </div>
@@ -345,18 +472,18 @@ export function PlayLearnArcade({
       >
         {brainFinished ? (
           <ActivityResult
-            score={`${brainScore}/${BRAIN_QUESTIONS.length}`}
+            score={`${brainScore}/${brainQuestions.length}`}
             title={brainScore >= 4 ? 'Strong thinking!' : 'Good practice!'}
             detail="Your result is saved. Replay to improve your score—XP is awarded once each day."
             onReplay={resetBrainSprint}
             onClose={() => setActiveActivity(null)}
           />
-        ) : (
+        ) : currentQuestion ? (
           <div>
             <div className="mb-5 flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-emerald-700">Question {questionIndex + 1} of {BRAIN_QUESTIONS.length}</span>
+              <span className="text-xs font-black text-emerald-700">Question {questionIndex + 1} of {brainQuestions.length}</span>
               <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((questionIndex + 1) / BRAIN_QUESTIONS.length) * 100}%` }} />
+                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((questionIndex + 1) / brainQuestions.length) * 100}%` }} />
               </div>
             </div>
             <p className="text-lg font-black leading-7 text-primary-950">{currentQuestion.prompt}</p>
@@ -394,11 +521,11 @@ export function PlayLearnArcade({
               onClick={() => void advanceBrainSprint()}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-950 px-5 py-3.5 text-sm font-black text-white transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {showExplanation ? (questionIndex === BRAIN_QUESTIONS.length - 1 ? 'See result' : 'Next question') : 'Check answer'}
+              {showExplanation ? (questionIndex === brainQuestions.length - 1 ? 'See result' : 'Next question') : 'Check answer'}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-        )}
+        ) : null}
       </Modal>
 
       <Modal
@@ -407,14 +534,15 @@ export function PlayLearnArcade({
         title="Word Match"
         size="lg"
       >
-        {matchedWords.length === WORD_PAIRS.length ? (
+        {matchedWords.length === dailyWordPairs.length ? (
           <ActivityResult
-            score={`${WORD_PAIRS.length}/${WORD_PAIRS.length}`}
+            score={`${dailyWordPairs.length}/${dailyWordPairs.length}`}
             title="Perfect match!"
             detail="You matched every Lao–English pair. Replay anytime to strengthen recall."
             onReplay={() => {
               setMatchedWords([])
               setWordSelection(null)
+              setWordShuffleNonce(nonce => nonce + 1)
             }}
             onClose={() => setActiveActivity(null)}
           />
@@ -422,7 +550,7 @@ export function PlayLearnArcade({
           <div>
             <div className="mb-4 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-slate-600">Match each English word with its Lao meaning.</p>
-              <span className="whitespace-nowrap text-xs font-black text-emerald-700">{matchedWords.length}/{WORD_PAIRS.length}</span>
+              <span className="whitespace-nowrap text-xs font-black text-emerald-700">{matchedWords.length}/{dailyWordPairs.length}</span>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {shuffledWords.map(card => {

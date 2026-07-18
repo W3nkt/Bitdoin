@@ -18,6 +18,12 @@ interface Conversation { id: string; title: string; created_at: string; updated_
 const STARTERS = ['Help me plan my study session', 'I feel unmotivated today', 'Practice English with me']
 const ROLEPLAY_PROMPTS: Record<string, string> = {
   'job-interview': 'Start a realistic entry-level job interview role-play with me. Ask one question at a time, wait for my answer, and give brief supportive feedback before the next question.',
+  'english-cafe': 'Start a friendly English café role-play with me. Be the server, ask one question at a time, wait for my reply, and gently correct important mistakes.',
+  'class-presentation': 'Help me practise a short class presentation in English. Ask me to present one small section at a time, then give concise, encouraging feedback.',
+  'ask-teacher-help': 'Role-play as my teacher while I practise asking for help with a lesson. Respond naturally, ask one question at a time, and help me make my request clear and polite.',
+  'scholarship-interview': 'Start a supportive scholarship interview role-play with me. Ask one realistic question at a time and give brief feedback that improves my next answer.',
+  'customer-service': 'Role-play a simple customer-service situation with me in English. Ask one question at a time, wait for my answer, and gently improve my useful phrases.',
+  'travel-directions': 'Role-play as a local person while I ask for and follow travel directions in English. Keep each turn short and correct any confusing wording.',
 }
 const markdownSchema = {
   ...defaultSchema,

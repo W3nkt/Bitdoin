@@ -719,7 +719,7 @@ export function Subscription() {
               savingDailyItem={savingDailyItem}
               onSubmitDailyReply={saveDailyReply}
               onOpenCoach={() => navigate('/premium/coach')}
-              onStartRoleplay={() => navigate('/premium/coach?mission=job-interview')}
+              onStartRoleplay={mission => navigate(`/premium/coach?mission=${encodeURIComponent(mission)}`)}
               events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
               communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
               memberStats={memberProgress?.member}
@@ -1265,7 +1265,7 @@ function MemberDashboard({
   savingDailyItem: DailyChallengeKind | null
   onSubmitDailyReply: (kind: DailyChallengeKind, reply: string) => Promise<void>
   onOpenCoach: () => void
-  onStartRoleplay: () => void
+  onStartRoleplay: (mission: string) => void
   events: MemberEvent[]
   communities: MemberCommunity[]
   memberStats?: PremiumMemberStats
