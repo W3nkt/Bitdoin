@@ -12,6 +12,7 @@ import {
   FileText,
   Flame,
   GraduationCap,
+  Languages,
   Lightbulb,
   Lock,
   MessageCircle,
@@ -40,6 +41,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
+import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
 import type { Language, User as AppUser } from '@/types'
@@ -254,6 +256,7 @@ export function Subscription() {
   const qc = useQueryClient()
   const { profile } = useAuth()
   const { currency, language } = useLanguage()
+  usePremiumTranslation()
   const { success, error } = useToast()
   const proofInputRef = useRef<HTMLInputElement>(null)
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null)
@@ -667,7 +670,7 @@ export function Subscription() {
   const pageLoading = plansLoading || (!!profile && subscriptionLoading)
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-[104px] text-slate-950">
+    <div className="premium-i18n min-h-screen bg-slate-50 pt-[104px] text-slate-950">
       <section className="fixed inset-x-0 top-0 z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,95,240,0.35),transparent_35%),linear-gradient(135deg,#0f1f35_0%,#162d4a_58%,#1e3a5f_100%)]" />
         <div className="relative mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-4">
@@ -1014,6 +1017,7 @@ function SubscriptionProfileMenu({
   onProfileClick: () => void
 }) {
   const { success, error } = useToast()
+  const { language, setLanguage } = useLanguage()
   const menuRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -1112,9 +1116,33 @@ function SubscriptionProfileMenu({
                 <span>{initial}</span>
               )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-base font-black tracking-tight text-slate-950">{displayName}</p>
               <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{contact}</p>
+            </div>
+            <div
+              className="flex flex-shrink-0 items-center rounded-xl bg-amber-50 p-1 ring-1 ring-amber-200"
+              role="group"
+              aria-label="Language"
+              data-no-premium-translate
+            >
+              <Languages className="mx-1 h-4 w-4 text-amber-700" aria-hidden="true" />
+              {(['lo', 'en'] as const).map(option => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setLanguage(option)}
+                  aria-pressed={language === option}
+                  className={cn(
+                    'min-h-8 rounded-lg px-2 text-[11px] font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500',
+                    language === option
+                      ? 'bg-primary-950 text-white shadow-sm'
+                      : 'text-amber-900 hover:bg-amber-100',
+                  )}
+                >
+                  {option === 'lo' ? 'ລາວ' : 'EN'}
+                </button>
+              ))}
             </div>
           </div>
 

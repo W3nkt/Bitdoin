@@ -107,10 +107,10 @@ async function requestCompletion(messages: ChatMessage[], maxOutputTokens: numbe
   throw new Error(`The mentor could not produce a response (${lastFinishReason}). Please try again.`)
 }
 
-async function generateCompleteAnswer(messages: ChatMessage[]) {
+async function generateCompleteAnswer(messages: ChatMessage[], preferLao = false) {
   let answer = ''
   let continuationMessages = messages
-  const lao = containsLao(messages.at(-1)?.content ?? '')
+  const lao = preferLao || containsLao(messages.at(-1)?.content ?? '')
   const maxOutputTokens = lao ? LAO_MAX_OUTPUT_TOKENS : DEFAULT_MAX_OUTPUT_TOKENS
 
   for (let part = 1; part <= MAX_COMPLETION_PARTS; part += 1) {
@@ -167,6 +167,7 @@ serve(async req => {
 
     const body = await req.json()
     const message = typeof body.message === 'string' ? body.message.trim().slice(0, 4000) : ''
+    const preferredLanguage = body.language === 'lo' ? 'lo' : 'en'
     if (!message) return json(req, { error: 'Write a message first.' }, 400)
 
     let conversationId = typeof body.conversationId === 'string' ? body.conversationId : null
@@ -187,16 +188,19 @@ serve(async req => {
     const [laoEducationContext] = await Promise.all([
       retrieveLaoEducationContext(message),
     ])
-    const lao = containsLao(message)
+    const lao = preferredLanguage === 'lo' || containsLao(message)
+    const languageInstruction = preferredLanguage === 'lo'
+      ? 'Reply in natural Lao by default, including when the user starts an activity from an English prompt. Use English only when the learner explicitly asks to practise English.'
+      : 'Reply in English by default unless the learner explicitly asks for Lao.'
     const messages = [
       {
         role: 'system',
-        content: `${SYSTEM_PROMPT}\n\n${profileContext(onboarding?.responses as Record<string, unknown> | null)}${laoEducationContext ? `\n\n${laoEducationContext}` : ''}`,
+        content: `${SYSTEM_PROMPT}\n\nLANGUAGE PREFERENCE\n${languageInstruction}\n\n${profileContext(onboarding?.responses as Record<string, unknown> | null)}${laoEducationContext ? `\n\n${laoEducationContext}` : ''}`,
       },
       ...compactHistory((history ?? []).reverse(), lao),
       { role: 'user', content: message },
     ]
-    const answer = await generateCompleteAnswer(messages)
+    const answer = await generateCompleteAnswer(messages, lao)
     if (answer.length > MAX_MESSAGE_LENGTH) {
       throw new Error('The mentor response was too long to save. Please ask for a shorter answer or split the request into parts.')
     }

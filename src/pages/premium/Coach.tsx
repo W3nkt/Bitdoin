@@ -9,7 +9,9 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useAuth } from '@/context/AuthContext'
+import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
+import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
 
 interface Message { id: string; role: 'user' | 'assistant'; content: string; created_at: string }
@@ -129,7 +131,9 @@ function formatTimestamp(value: string) {
 }
 
 export function PremiumCoach() {
+  usePremiumTranslation()
   const { profile, loading: authLoading } = useAuth()
+  const { language } = useLanguage()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const roleplayMission = searchParams.get('mission')
@@ -193,7 +197,9 @@ export function PremiumCoach() {
     setDraft(''); setError(''); setSending(true)
     const optimistic: Message = { id: `local-${Date.now()}`, role: 'user', content, created_at: new Date().toISOString() }
     setLocalMessages(previous => [...previous, optimistic])
-    const { data, error: invokeError } = await supabase.functions.invoke('premium-coach', { body: { conversationId, message: content } })
+    const { data, error: invokeError } = await supabase.functions.invoke('premium-coach', {
+      body: { conversationId, message: content, language },
+    })
     if (invokeError || data?.error) {
       setLocalMessages(previous => previous.filter(item => item.id !== optimistic.id))
       setError(data?.error ?? await getFunctionErrorMessage(invokeError))
@@ -243,7 +249,7 @@ export function PremiumCoach() {
   if (!access.data) return <Navigate to="/subscription" replace />
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
+    <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
       <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 bg-white/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between">
           <Link

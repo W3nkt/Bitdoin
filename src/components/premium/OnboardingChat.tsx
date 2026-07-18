@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
+import { usePremiumTranslation } from '@/i18n/premium'
 
 type QuestionType = 'text' | 'longtext' | 'single' | 'scale'
 
@@ -133,6 +134,7 @@ interface OnboardingChatProps {
 }
 
 export function OnboardingChat({ open, userId, onClose, onComplete }: OnboardingChatProps) {
+  usePremiumTranslation()
   const { error } = useToast()
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
@@ -258,7 +260,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center">
+    <div className="premium-i18n fixed inset-0 z-50 flex items-end justify-center md:items-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-3xl">
         {/* Progress bar */}

@@ -30,6 +30,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
+import { usePremiumTranslation } from '@/i18n/premium'
 import { cn, formatDate, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
@@ -198,6 +199,7 @@ function paymentStatusClass(status: PaymentStatus) {
 }
 
 export function PremiumAdminDashboard() {
+  usePremiumTranslation()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { language, currency } = useLanguage()
@@ -645,7 +647,7 @@ export function PremiumAdminDashboard() {
   const selectedResponses = selectedOnboarding?.responses ?? {}
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950">
+    <div className="premium-i18n min-h-screen bg-slate-50 text-slate-950">
       <header className="border-b border-primary-800 bg-primary-900 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
           <PwenLogoLockup

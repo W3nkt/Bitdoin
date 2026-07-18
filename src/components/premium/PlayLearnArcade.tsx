@@ -18,6 +18,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { usePremiumTranslation } from '@/i18n/premium'
 
 type ActivityKind = 'brain_sprint' | 'word_match'
 
@@ -211,6 +212,7 @@ export function PlayLearnArcade({
   profileId: string
   onStartRoleplay: (mission: string) => void
 }) {
+  usePremiumTranslation()
   const queryClient = useQueryClient()
   const { success, error } = useToast()
   const [activeActivity, setActiveActivity] = useState<ActivityKind | null>(null)
@@ -364,7 +366,7 @@ export function PlayLearnArcade({
   const currentQuestion = brainQuestions[questionIndex]
 
   return (
-    <section className="overflow-hidden rounded-3xl bg-white shadow-card">
+    <section className="premium-i18n overflow-hidden rounded-3xl bg-white shadow-card">
       <div className="px-5 pb-4 pt-5 sm:px-6">
         <div className="flex items-end justify-between gap-4">
           <div>
