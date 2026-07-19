@@ -18,7 +18,7 @@ import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
 import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
-import { trackEvent } from '@/lib/tracking'
+import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const PHONE_PREFIX = '020'
@@ -118,7 +118,17 @@ export function Checkout() {
   }, [navigate, shouldReturnToCart])
 
   useEffect(() => {
-    if (items.length > 0) trackEvent('checkout_started', { path: '/checkout', metadata: { item_count: items.length } })
+    if (items.length > 0) trackGoogleEvent('begin_checkout', {
+      currency,
+      value: items.reduce((sum, item) => sum + (item.unit_price ?? 0) * item.quantity, 0),
+      items: items.map(item => ({
+        item_id: item.book_id,
+        item_name: item.book?.title ?? item.book_id,
+        item_variant: item.bookstore_id,
+        price: item.unit_price ?? 0,
+        quantity: item.quantity,
+      })),
+    })
     // Fire once for this visit to the checkout page only.
   }, [])
 
@@ -166,10 +176,18 @@ export function Checkout() {
       setPlacedPhone(customerPhone)
       setGuestAccessToken(access.access_token)
       setPlacedAccess(access)
-      trackEvent('checkout_completed', {
-        path: '/checkout',
-        label: access.order_number,
-        metadata: { order_number: access.order_number, payment_method: selectedPaymentMethod },
+      trackGoogleEvent('purchase', {
+        transaction_id: access.order_number,
+        currency,
+        value: items.reduce((sum, item) => sum + (item.unit_price ?? 0) * item.quantity, 0),
+        payment_type: selectedPaymentMethod,
+        items: items.map(item => ({
+          item_id: item.book_id,
+          item_name: item.book?.title ?? item.book_id,
+          item_variant: item.bookstore_id,
+          price: item.unit_price ?? 0,
+          quantity: item.quantity,
+        })),
       })
       success(t('checkout.orderPlaced', { orderNumber: access.order_number }))
       await loadPlacedOrder(access.order_number, customerPhone)

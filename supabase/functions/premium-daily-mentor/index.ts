@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
+import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -7,6 +9,11 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '
 const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean)
 const MODEL = 'deepseek-v4-flash'
+const DAILY_MENTOR_MINUTE_LIMIT = positiveIntEnv('AI_DAILY_MENTOR_MINUTE_LIMIT', 2)
+const DAILY_MENTOR_DAILY_LIMIT = positiveIntEnv('AI_DAILY_MENTOR_DAILY_LIMIT', 1)
+const DAILY_MENTOR_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_DAILY_MENTOR_GLOBAL_DAILY_LIMIT', 10000)
+const AI_PROVIDER_TIMEOUT_MS = positiveIntEnv('AI_PROVIDER_TIMEOUT_MS', 30000)
+const GENERATION_LEASE_SECONDS = positiveIntEnv('AI_DAILY_MENTOR_LEASE_SECONDS', 90)
 
 type Guidance = {
   quote: string
@@ -96,7 +103,7 @@ RECENT CONTENT TO AVOID REPEATING
 ${recent.length ? recent.join('\n') : '(none)'}`
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetchWithTimeout('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
       body: JSON.stringify({
@@ -111,7 +118,7 @@ ${recent.length ? recent.join('\n') : '(none)'}`
         max_tokens: 1200,
         stream: false,
       }),
-    })
+    }, AI_PROVIDER_TIMEOUT_MS)
     const result = await response.json()
     if (!response.ok) throw new Error(result?.error?.message ?? 'The AI provider did not respond.')
     const guidance = parseGuidance(result?.choices?.[0]?.message?.content)
@@ -153,41 +160,65 @@ serve(async req => {
       .maybeSingle()
     if (cached) return json(req, { guidance: { ...cached, source: 'personalized' }, cached: true })
 
-    const [{ data: onboarding }, { data: member }, { data: recentRows }] = await Promise.all([
-      admin.from('premium_onboarding_responses').select('responses').eq('user_id', user.id).maybeSingle(),
-      admin.from('users').select('language').eq('id', user.id).maybeSingle(),
-      admin.from('premium_personalized_daily_guidance')
-        .select('quote,challenge,mission')
-        .eq('user_id', user.id)
-        .order('publish_date', { ascending: false })
-        .limit(3),
-    ])
-
-    const recent = (recentRows ?? []).map(row => `${row.quote} | ${row.challenge} | ${row.mission}`)
-    const guidance = await generateGuidance(
-      profileContext(onboarding?.responses as Record<string, unknown> | null),
-      member?.language ?? 'en',
-      recent,
-    )
-
-    const { data: created, error: insertError } = await admin
-      .from('premium_personalized_daily_guidance')
-      .insert({ user_id: user.id, publish_date: today, ...guidance, model: MODEL })
-      .select('id,publish_date,quote,reflection,challenge,mission')
-      .single()
-
-    if (insertError?.code === '23505') {
-      const { data: raced, error: racedError } = await admin
-        .from('premium_personalized_daily_guidance')
-        .select('id,publish_date,quote,reflection,challenge,mission')
-        .eq('user_id', user.id)
-        .eq('publish_date', today)
-        .single()
-      if (racedError) throw racedError
-      return json(req, { guidance: { ...raced, source: 'personalized' }, cached: true })
+    const { data: leaseToken, error: leaseError } = await admin.rpc('claim_daily_mentor_generation', {
+      p_user_id: user.id,
+      p_publish_date: today,
+      p_lease_seconds: Math.min(Math.max(GENERATION_LEASE_SECONDS, 10), 300),
+    })
+    if (leaseError) throw leaseError
+    if (!leaseToken) {
+      return new Response(JSON.stringify({
+        error: 'Today’s guidance is already being prepared. Please try again in a moment.',
+        code: 'AI_GENERATION_IN_PROGRESS',
+        retryAfterSeconds: 5,
+      }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '5', ...corsHeaders(req) },
+      })
     }
-    if (insertError) throw insertError
-    return json(req, { guidance: { ...created, source: 'personalized' }, cached: false })
+
+    try {
+      const quota = await consumeAiQuota(admin, {
+        feature: 'premium-daily-mentor',
+        subjectHash: await userSubject(user.id),
+        minuteLimit: DAILY_MENTOR_MINUTE_LIMIT,
+        dailyLimit: DAILY_MENTOR_DAILY_LIMIT,
+        globalDailyLimit: DAILY_MENTOR_GLOBAL_DAILY_LIMIT,
+      })
+      if (!quota.allowed) return quotaResponse(req, quota, corsHeaders)
+
+      const [{ data: onboarding }, { data: member }, { data: recentRows }] = await Promise.all([
+        admin.from('premium_onboarding_responses').select('responses').eq('user_id', user.id).maybeSingle(),
+        admin.from('users').select('language').eq('id', user.id).maybeSingle(),
+        admin.from('premium_personalized_daily_guidance')
+          .select('quote,challenge,mission')
+          .eq('user_id', user.id)
+          .order('publish_date', { ascending: false })
+          .limit(3),
+      ])
+
+      const recent = (recentRows ?? []).map(row => `${row.quote} | ${row.challenge} | ${row.mission}`)
+      const guidance = await generateGuidance(
+        profileContext(onboarding?.responses as Record<string, unknown> | null),
+        member?.language ?? 'en',
+        recent,
+      )
+
+      const { data: created, error: insertError } = await admin
+        .from('premium_personalized_daily_guidance')
+        .insert({ user_id: user.id, publish_date: today, ...guidance, model: MODEL })
+        .select('id,publish_date,quote,reflection,challenge,mission')
+        .single()
+      if (insertError) throw insertError
+      return json(req, { guidance: { ...created, source: 'personalized' }, cached: false })
+    } finally {
+      const { error: releaseError } = await admin.rpc('release_daily_mentor_generation', {
+        p_user_id: user.id,
+        p_publish_date: today,
+        p_lease_token: leaseToken,
+      })
+      if (releaseError) console.error('Failed to release Daily Mentor generation lease', releaseError)
+    }
   } catch (error) {
     console.error(error)
     return json(req, { error: error instanceof Error ? error.message : 'Daily mentor is temporarily unavailable.' }, 500)

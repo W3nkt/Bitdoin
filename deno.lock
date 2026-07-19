@@ -1,0 +1,67 @@
+{
+  "version": "5",
+  "redirects": {
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.110.7"
+  },
+  "remote": {
+    "https://deno.land/std@0.177.0/async/abortable.ts": "73acfb3ed7261ce0d930dbe89e43db8d34e017b063cf0eaa7d215477bf53442e",
+    "https://deno.land/std@0.177.0/async/deadline.ts": "c5facb0b404eede83e38bd2717ea8ab34faa2ffb20ef87fd261fcba32ba307aa",
+    "https://deno.land/std@0.177.0/async/debounce.ts": "adab11d04ca38d699444ac8a9d9856b4155e8dda2afd07ce78276c01ea5a4332",
+    "https://deno.land/std@0.177.0/async/deferred.ts": "42790112f36a75a57db4a96d33974a936deb7b04d25c6084a9fa8a49f135def8",
+    "https://deno.land/std@0.177.0/async/delay.ts": "73aa04cec034c84fc748c7be49bb15cac3dd43a57174bfdb7a4aec22c248f0dd",
+    "https://deno.land/std@0.177.0/async/mod.ts": "f04344fa21738e5ad6bea37a6bfffd57c617c2d372bb9f9dcfd118a1b622e576",
+    "https://deno.land/std@0.177.0/async/mux_async_iterator.ts": "70c7f2ee4e9466161350473ad61cac0b9f115cff4c552eaa7ef9d50c4cbb4cc9",
+    "https://deno.land/std@0.177.0/async/pool.ts": "fd082bd4aaf26445909889435a5c74334c017847842ec035739b4ae637ae8260",
+    "https://deno.land/std@0.177.0/async/retry.ts": "5efa3ba450ac0c07a40a82e2df296287b5013755d232049efd7ea2244f15b20f",
+    "https://deno.land/std@0.177.0/async/tee.ts": "47e42d35f622650b02234d43803d0383a89eb4387e1b83b5a40106d18ae36757",
+    "https://deno.land/std@0.177.0/http/server.ts": "cbb17b594651215ba95c01a395700684e569c165a567e4e04bba327f41197433",
+    "https://esm.sh/@supabase/supabase-js@2.110.7": "271bd1acce2a284be1c9539bc960a705314a71a322a88705f0ffce88f9e7b97c"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@fortawesome/fontawesome-svg-core@^6.5.0",
+        "npm:@fortawesome/free-brands-svg-icons@^6.5.0",
+        "npm:@fortawesome/free-solid-svg-icons@^6.5.0",
+        "npm:@fortawesome/react-fontawesome@0.2",
+        "npm:@hookform/resolvers@^3.3.4",
+        "npm:@supabase/supabase-js@^2.43.4",
+        "npm:@tanstack/react-query@^5.40.0",
+        "npm:@types/dompurify@^3.0.5",
+        "npm:@types/react-dom@^18.3.0",
+        "npm:@types/react@^18.3.3",
+        "npm:@typescript-eslint/eslint-plugin@^7.13.0",
+        "npm:@typescript-eslint/parser@^7.13.0",
+        "npm:@vitejs/plugin-react@^4.3.1",
+        "npm:autoprefixer@^10.4.19",
+        "npm:clsx@^2.1.1",
+        "npm:dompurify@^3.4.11",
+        "npm:eslint-plugin-react-hooks@^4.6.2",
+        "npm:eslint-plugin-react-refresh@~0.4.7",
+        "npm:eslint@^8.57.0",
+        "npm:html2canvas@^1.4.1",
+        "npm:i18next@^23.11.5",
+        "npm:lucide-react@0.395",
+        "npm:postcss@^8.4.38",
+        "npm:react-dom@^18.3.1",
+        "npm:react-hook-form@^7.51.5",
+        "npm:react-i18next@^14.1.2",
+        "npm:react-image-crop@^11.0.10",
+        "npm:react-markdown@^10.1.0",
+        "npm:react-router-dom@^6.23.1",
+        "npm:react@^18.3.1",
+        "npm:recharts@^2.12.7",
+        "npm:rehype-raw@7",
+        "npm:rehype-sanitize@6",
+        "npm:remark-gfm@^4.0.1",
+        "npm:tailwind-merge@^2.3.0",
+        "npm:tailwindcss@^3.4.4",
+        "npm:typescript@^5.2.2",
+        "npm:vite-plugin-pwa@0.20",
+        "npm:vite@^5.3.1",
+        "npm:zod@^3.23.8",
+        "npm:zustand@^4.5.2"
+      ]
+    }
+  }
+}

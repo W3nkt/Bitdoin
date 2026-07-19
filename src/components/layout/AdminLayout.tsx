@@ -3,7 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, BookOpen, Store, Tag, ShoppingBag, ClipboardList,
-  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb, Activity
+  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -38,7 +38,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { to: '/admin/payments',     icon: CreditCard,      label: t('admin.payments') },
     { to: '/admin/deliveries',   icon: Truck,           label: t('admin.deliveries') },
     { to: '/admin/analytics',    icon: BarChart3,       label: t('admin.analytics') },
-    { to: '/admin/visitor-tracking', icon: Activity,    label: 'Visitor Tracking' },
     { to: '/admin/knowledge',     icon: Lightbulb,       label: 'Knowledge Hub' },
     { to: '/admin/settings',     icon: Settings,        label: t('admin.settings') },
     { to: '/admin/audit-logs',   icon: ScrollText,      label: 'Audit Logs', adminOnly: true },

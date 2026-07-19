@@ -79,26 +79,23 @@ export function Catalog() {
   const { data, isLoading } = useQuery({
     queryKey: ['books', 'catalog', filters, sort, page],
     queryFn: async () => {
-      let query = supabase
-        .from('books')
-        .select('*, category:categories(*), prices:book_prices(*, bookstore:bookstores(name))', { count: 'exact' })
-        .eq('is_active', true)
-
-      if (filters.query) {
-        query = query.or(`title.ilike.%${filters.query}%,author.ilike.%${filters.query}%,isbn.eq.${filters.query}`)
-      }
-      if (filters.category_id) query = query.eq('category_id', filters.category_id)
-      if (filters.language) query = query.eq('language', filters.language)
-      if (filters.isbn) query = query.eq('isbn', filters.isbn)
-
-      if (sort === 'title') query = query.order('title', { ascending: true })
-      else query = query.order('created_at', { ascending: false })
-
       const from = (page - 1) * PAGE_SIZE
-      query = query.range(from, from + PAGE_SIZE - 1)
+      const { data, error } = await supabase.rpc('search_books', {
+        p_query: filters.query?.trim() || null,
+        p_category_id: filters.category_id || null,
+        p_language: filters.language || null,
+        p_isbn: filters.isbn?.trim() || null,
+        p_sort: sort,
+        p_offset: from,
+        p_limit: PAGE_SIZE,
+      })
+      if (error) throw error
 
-      const { data, count } = await query
-      return { data: (data ?? []) as Book[], count: count ?? 0 }
+      const result = data as { books?: Book[]; count?: number } | null
+      return {
+        data: result?.books ?? [],
+        count: Number(result?.count ?? 0),
+      }
     },
   })
 

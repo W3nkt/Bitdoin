@@ -1,10 +1,12 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const AI_PROVIDER_TIMEOUT_MS = Number(Deno.env.get('AI_RECEIPT_PROVIDER_TIMEOUT_MS')) || 30000
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map(origin => origin.trim())
@@ -22,6 +24,14 @@ interface GeminiExtraction {
   bank: string | null
   confidence: number
   raw: string
+}
+
+type ReceiptStorageClient = {
+  storage: {
+    from: (bucket: string) => {
+      download: (path: string) => PromiseLike<{ data: Blob | null; error: unknown }>
+    }
+  }
 }
 
 function corsHeaders(req: Request) {
@@ -60,7 +70,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 async function fetchReceiptAsBase64(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReceiptStorageClient,
   receiptRef: string,
 ): Promise<{ base64: string; mimeType: string }> {
   const { bucket, path } = normalizeStorageRef(receiptRef)
@@ -75,7 +85,7 @@ async function fetchReceiptAsBase64(
 }
 
 async function extractReceiptWithGemini(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReceiptStorageClient,
   receiptRef: string,
   expectedAmount: number,
 ): Promise<GeminiExtraction> {
@@ -97,7 +107,7 @@ Return ONLY valid JSON:
   "raw": "<brief notes>"
 }`
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
@@ -112,6 +122,7 @@ Return ONLY valid JSON:
         generationConfig: { temperature: 0.1, maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 } },
       }),
     },
+    AI_PROVIDER_TIMEOUT_MS,
   )
 
   if (!response.ok) {

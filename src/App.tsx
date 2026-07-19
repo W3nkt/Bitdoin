@@ -39,7 +39,6 @@ const AdminOrders     = lazy(() => import('@/pages/admin/AdminOrders').then(m =>
 const AdminPayments   = lazy(() => import('@/pages/admin/Payments').then(m => ({ default: m.AdminPayments })))
 const AdminDeliveries = lazy(() => import('@/pages/admin/Deliveries').then(m => ({ default: m.AdminDeliveries })))
 const AdminAnalytics  = lazy(() => import('@/pages/admin/Analytics').then(m => ({ default: m.AdminAnalytics })))
-const AdminVisitorTracking = lazy(() => import('@/pages/admin/VisitorTracking').then(m => ({ default: m.AdminVisitorTracking })))
 const AdminSettings   = lazy(() => import('@/pages/admin/Settings').then(m => ({ default: m.AdminSettings })))
 const AdminAuditLogs  = lazy(() => import('@/pages/admin/AuditLogs').then(m => ({ default: m.AdminAuditLogs })))
 const AdminKnowledge  = lazy(() => import('@/pages/admin/Knowledge').then(m => ({ default: m.AdminKnowledge })))
@@ -116,9 +115,6 @@ export function App() {
                     } />
                     <Route path="/admin/analytics" element={
                       <AdminGuard><AdminLayout><AdminAnalytics /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/visitor-tracking" element={
-                      <AdminGuard><AdminLayout><AdminVisitorTracking /></AdminLayout></AdminGuard>
                     } />
                     <Route path="/admin/settings" element={
                       <AdminGuard><AdminLayout><AdminSettings /></AdminLayout></AdminGuard>

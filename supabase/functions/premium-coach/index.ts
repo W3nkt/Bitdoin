@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { retrieveLaoEducationContext } from './lao-education-sources.ts'
+import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
+import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -14,6 +16,10 @@ const LAO_MAX_OUTPUT_TOKENS = 6000
 const MAX_MESSAGE_LENGTH = 20000
 const COMPLETION_MARKER = '<END>'
 const MAX_COMPLETION_PARTS = 3
+const COACH_MINUTE_LIMIT = positiveIntEnv('AI_COACH_MINUTE_LIMIT', 5)
+const COACH_DAILY_LIMIT = positiveIntEnv('AI_COACH_DAILY_LIMIT', 30)
+const COACH_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_COACH_GLOBAL_DAILY_LIMIT', 10000)
+const AI_PROVIDER_TIMEOUT_MS = positiveIntEnv('AI_PROVIDER_TIMEOUT_MS', 45000)
 
 const SYSTEM_PROMPT = `You are Bitdoin Mentor, a warm, practical coach for students in Laos. Match the student's language and preferred style. Give direct, useful next steps without shame. Do not enable cheating. Treat medical, legal, and financial topics cautiously. For danger or crisis, encourage immediate help from a trusted adult or local emergency support. Keep profile data private.
 
@@ -70,7 +76,7 @@ async function requestCompletion(messages: ChatMessage[], maxOutputTokens: numbe
   let lastFinishReason = 'unknown'
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetchWithTimeout('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
       body: JSON.stringify({
@@ -81,7 +87,7 @@ async function requestCompletion(messages: ChatMessage[], maxOutputTokens: numbe
         stream: false,
         thinking: { type: 'disabled' },
       }),
-    })
+    }, AI_PROVIDER_TIMEOUT_MS)
     const result = await response.json()
     if (!response.ok) throw new Error(result?.error?.message ?? 'The AI provider did not respond.')
 
@@ -169,6 +175,15 @@ serve(async req => {
     const message = typeof body.message === 'string' ? body.message.trim().slice(0, 4000) : ''
     const preferredLanguage = body.language === 'lo' ? 'lo' : 'en'
     if (!message) return json(req, { error: 'Write a message first.' }, 400)
+
+    const quota = await consumeAiQuota(admin, {
+      feature: 'premium-coach',
+      subjectHash: await userSubject(user.id),
+      minuteLimit: COACH_MINUTE_LIMIT,
+      dailyLimit: COACH_DAILY_LIMIT,
+      globalDailyLimit: COACH_GLOBAL_DAILY_LIMIT,
+    })
+    if (!quota.allowed) return quotaResponse(req, quota, corsHeaders)
 
     let conversationId = typeof body.conversationId === 'string' ? body.conversationId : null
     if (conversationId) {

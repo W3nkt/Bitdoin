@@ -12,7 +12,7 @@ import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
-import { trackEvent } from '@/lib/tracking'
+import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -71,7 +71,16 @@ export function BookDetail() {
   })
 
   useEffect(() => {
-    if (book) trackEvent('book_view', { path: `/books/${book.id}`, label: book.title, metadata: { book_id: book.id } })
+    if (book) trackGoogleEvent('view_item', {
+      currency: 'LAK',
+      value: book.prices?.[0]?.final_price ?? 0,
+      items: [{
+        item_id: book.id,
+        item_name: book.title,
+        item_category: book.category?.name_en,
+        price: book.prices?.[0]?.final_price ?? 0,
+      }],
+    })
   }, [book?.id])
 
   if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>
