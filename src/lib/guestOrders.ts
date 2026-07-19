@@ -9,6 +9,26 @@ export interface GuestOrderAccess {
   payment_id: string
 }
 
+async function notifyAdminOfOrder(body: Record<string, unknown>) {
+  // Keep this request attached to checkout. A detached request can be cancelled
+  // when the customer closes the payment screen or navigates away.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const { data, error } = await supabase.functions.invoke('notify-admin', { body })
+      if (error) throw error
+      if (!data?.success) throw new Error(data?.error ?? 'Admin notification failed')
+      return
+    } catch (notificationError) {
+      if (attempt === 2) {
+        // The order is already stored. Do not cause a retry and a duplicate order
+        // solely because the notification provider is temporarily unavailable.
+        console.error('[notify-admin] Order saved, but admin email failed', notificationError)
+        return
+      }
+    }
+  }
+}
+
 export async function createCheckoutOrder(input: {
   customerName: string
   customerPhone: string
@@ -35,22 +55,20 @@ export async function createCheckoutOrder(input: {
 
   const result = data as GuestOrderAccess
 
-  // Fire-and-forget admin email — never blocks or fails the checkout
-  supabase.functions.invoke('notify-admin', {
-    body: {
-      order_id:         result.order_id,
-      access_token:     result.access_token,
-      order_number:    result.order_number,
-      customer_name:   input.customerName,
-      customer_phone:  input.customerPhone,
-      delivery_address: input.deliveryAddress,
-      notes:           input.notes,
-      total_amount:    input.items.reduce((sum, i) => sum + (i.unit_price ?? 0) * i.quantity, 0),
-      currency:        input.currency,
-      payment_method:  input.paymentMethod,
-      item_count:      input.items.reduce((sum, i) => sum + i.quantity, 0),
-    },
-  }).catch(() => { /* silently ignore — order already succeeded */ })
+  // Wait for the bounded notification attempt before returning from checkout.
+  await notifyAdminOfOrder({
+    order_id:         result.order_id,
+    access_token:     result.access_token,
+    order_number:     result.order_number,
+    customer_name:    input.customerName,
+    customer_phone:   input.customerPhone,
+    delivery_address: input.deliveryAddress,
+    notes:            input.notes,
+    total_amount:     input.items.reduce((sum, i) => sum + (i.unit_price ?? 0) * i.quantity, 0),
+    currency:         input.currency,
+    payment_method:   input.paymentMethod,
+    item_count:       input.items.reduce((sum, i) => sum + i.quantity, 0),
+  })
 
   return result
 }

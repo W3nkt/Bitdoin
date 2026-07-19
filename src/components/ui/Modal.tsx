@@ -22,6 +22,8 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'
@@ -39,7 +41,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
     focusable?.focus()
 
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
       if (e.key !== 'Tab' || !dialogRef.current) return
 
       const focusables = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
@@ -62,7 +64,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
       window.removeEventListener('keydown', handler)
       previousFocusRef.current?.focus?.()
     }
-  }, [onClose, open])
+  }, [open])
 
   if (!open) return null
 
