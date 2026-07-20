@@ -132,5 +132,14 @@ export async function uploadGuestReceipt(input: {
   })
   if (submitError) throw new Error(submitError.message)
 
+  // Best-effort: the receipt is already saved regardless of whether the admin gets emailed.
+  supabase.functions.invoke('notify-admin-payment', {
+    body: {
+      order_id: access.order_id,
+      order_number: input.order.order_number,
+      access_token: access.access_token,
+    },
+  }).catch(notifyError => console.error('[notify-admin-payment] Receipt saved, but admin email failed', notifyError))
+
   return { receiptUrl: path, accessToken: access.access_token }
 }

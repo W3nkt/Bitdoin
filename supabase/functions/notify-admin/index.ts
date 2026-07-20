@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
 const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? ''
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Pwen Books <onboarding@resend.dev>'
+const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Bitdoin <onboarding@resend.dev>'
+const ADMIN_APP_URL = (Deno.env.get('ADMIN_APP_URL') ?? '').replace(/\/$/, '')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
@@ -66,7 +67,46 @@ async function sha256Hex(value: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function buildHtml(o: OrderPayload): string {
+function toBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
+}
+
+// Best-effort: the payment receipt is usually uploaded after this order-placed
+// email fires, so most orders won't have one attached yet.
+async function fetchReceiptAttachment(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+  orderNumber: string,
+): Promise<{ filename: string; content: string; content_id: string } | null> {
+  try {
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('receipt_image_url')
+      .eq('order_id', orderId)
+      .not('receipt_image_url', 'is', null)
+      .maybeSingle()
+    if (!payment?.receipt_image_url) return null
+
+    const { data: file, error: downloadError } = await supabase.storage
+      .from('receipts')
+      .download(payment.receipt_image_url)
+    if (downloadError || !file) return null
+
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    const extension = payment.receipt_image_url.split('.').pop()?.toLowerCase() || 'jpg'
+    return { filename: `receipt-${orderNumber}.${extension}`, content: toBase64(bytes), content_id: 'receipt' }
+  } catch (err) {
+    console.error('[notify-admin] receipt attachment failed', err)
+    return null
+  }
+}
+
+function buildHtml(o: OrderPayload, reviewUrl: string | null, hasReceiptImage: boolean): string {
   const notes = o.notes?.trim()
   return `
 <!DOCTYPE html>
@@ -87,24 +127,31 @@ function buildHtml(o: OrderPayload): string {
     .value { color: #0f172a; font-weight: 500; text-align: right; max-width: 60%; word-break: break-word; }
     .total-row { background: #f8fafc; margin: 16px -24px -24px; padding: 16px 24px; }
     .total-row .value { font-size: 18px; color: #ea580c; font-weight: 700; }
+    .cta { display: block; text-align: center; margin: 24px -24px -24px; padding: 16px 24px; background: #0f172a; color: #fff !important; text-decoration: none; font-weight: 600; font-size: 14px; }
+    .cta:hover { background: #1e293b; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="header">
       <h1>New Order Received</h1>
-      <p>Pwen Books Admin Notification</p>
+      <p>Bitdoin Admin Notification</p>
     </div>
     <div class="body">
       <div class="order-num">${escapeHtml(o.order_number)}</div>
-      <div class="row"><span class="label">Customer</span><span class="value">${escapeHtml(o.customer_name)}</span></div>
-      <div class="row"><span class="label">Phone</span><span class="value">${escapeHtml(o.customer_phone)}</span></div>
-      <div class="row"><span class="label">Delivery address</span><span class="value">${escapeHtml(o.delivery_address)}</span></div>
-      <div class="row"><span class="label">Payment</span><span class="value">${escapeHtml(o.payment_method)}</span></div>
-      <div class="row"><span class="label">Items</span><span class="value">${escapeHtml(o.item_count)} book${o.item_count !== 1 ? 's' : ''}</span></div>
-      ${notes ? `<div class="row"><span class="label">Note</span><span class="value">${escapeHtml(notes)}</span></div>` : ''}
-      <div class="row total-row"><span class="label" style="font-weight:600;color:#0f172a">Total</span><span class="value">${escapeHtml(formatCurrency(o.total_amount, o.currency))}</span></div>
+      <div class="row"><span class="label">Customer: </span> <span class="value"> ${escapeHtml(o.customer_name)}</span></div>
+      <div class="row"><span class="label">Phone: </span><span class="value"> ${escapeHtml(o.customer_phone)}</span></div>
+      <div class="row"><span class="label">Delivery address: </span><span class="value">${escapeHtml(o.delivery_address)}</span></div>
+      <div class="row"><span class="label">Payment: </span><span class="value"> ${escapeHtml(o.payment_method)}</span></div>
+      <div class="row"><span class="label">Items: </span><span class="value"> ${escapeHtml(o.item_count)} book ${o.item_count !== 1 ? 's' : ''}</span></div>
+      ${notes ? `<div class="row"><span class="label">Note: </span><span class="value"> ${escapeHtml(notes)}</span></div>` : ''}
+      <div class="row total-row"><span class="label" style="font-weight:700;color:#0f172a">Total: </span><span class="value"> ${escapeHtml(formatCurrency(o.total_amount, o.currency))}</span></div>
     </div>
+    ${hasReceiptImage ? `
+    <div style="padding: 0 24px 20px;">
+      <img src="cid:receipt" alt="Payment receipt" style="display:block; width:100%; max-height:400px; object-fit:contain; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc;" />
+    </div>` : ''}
+    ${reviewUrl ? `<a class="cta" href="${escapeHtml(reviewUrl)}">Review &amp; Approve Order →</a>` : ''}
   </div>
 </body>
 </html>`
@@ -143,6 +190,10 @@ serve(async (req) => {
     order.total_amount = Number(storedOrder.total_amount)
     order.currency = storedOrder.currency
 
+    // The admin app uses HashRouter, so the route lives after the `#`.
+    const reviewUrl = ADMIN_APP_URL ? `${ADMIN_APP_URL}/#/admin/orders?order=${order.order_id}` : null
+    const attachment = await fetchReceiptAttachment(supabase, order.order_id, order.order_number)
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -153,7 +204,8 @@ serve(async (req) => {
         from: FROM_EMAIL,
         to: ADMIN_EMAIL,
         subject: `New order ${order.order_number} from ${order.customer_name}`.slice(0, 200),
-        html: buildHtml(order),
+        html: buildHtml(order, reviewUrl, !!attachment),
+        ...(attachment ? { attachments: [attachment] } : {}),
       }),
     })
 

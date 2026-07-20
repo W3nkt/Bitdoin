@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, XCircle, Eye, ReceiptText } from 'lucide-react'
@@ -25,12 +26,32 @@ export function AdminPayments() {
   const { success, error } = useToast()
   const { currency, language } = useLanguage()
   const { markSeen } = useMarkSeen()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [tab, setTab] = useState<'pending' | 'all'>('pending')
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null)
   const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [actioning, setActioning] = useState(false)
+
+  // Deep link from the admin notification email, e.g. /admin/payments?payment=<id>
+  useEffect(() => {
+    const paymentId = searchParams.get('payment')
+    if (!paymentId) return
+    setSearchParams(prev => { prev.delete('payment'); return prev }, { replace: true })
+
+    supabase
+      .from('payments')
+      .select('*, order:orders(order_number, total_amount, customer_name, customer_phone, items:order_items(id, quantity, book:books(title)))')
+      .eq('id', paymentId)
+      .maybeSingle()
+      .then(({ data: payment }) => {
+        if (!payment) { error('Payment not found'); return }
+        setDetailPayment(payment as Payment)
+        markSeen(paymentId)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: payments, isLoading } = useQuery({
     queryKey: ['admin', 'payments', tab],

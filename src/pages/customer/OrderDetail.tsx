@@ -102,6 +102,11 @@ export function OrderDetail() {
         body: { payment_id: payment.id },
       }).catch(() => {})
 
+      // Best-effort admin email; the receipt is already saved either way
+      supabase.functions.invoke('notify-admin-payment', {
+        body: { order_id: order!.id },
+      }).catch(notifyError => console.error('[notify-admin-payment] Receipt saved, but admin email failed', notifyError))
+
       await qc.invalidateQueries({ queryKey: ['order', id] })
       success(t('payment.receiptUploaded'))
     } catch (err) {

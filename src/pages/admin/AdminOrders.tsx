@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText, BookOpen } from 'lucide-react'
@@ -35,6 +35,7 @@ export function AdminOrders() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const qc = useQueryClient()
   const { profile } = useAuth()
   const { currency, language } = useLanguage()
@@ -62,6 +63,26 @@ export function AdminOrders() {
   const bookstoreReceiptRef = useRef<HTMLDivElement>(null)
   const paymentProofInputRef = useRef<HTMLInputElement>(null)
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string; bucket?: string } | null>(null)
+
+  // Deep link from the admin notification email, e.g. /admin/orders?order=<id>
+  useEffect(() => {
+    const orderId = searchParams.get('order')
+    if (!orderId) return
+    setSearchParams(prev => { prev.delete('order'); return prev }, { replace: true })
+
+    supabase
+      .from('orders')
+      .select('*, customer:users(name, phone), items:order_items(bookstore_id), bookstore_payments(bookstore_id)')
+      .eq('id', orderId)
+      .maybeSingle()
+      .then(({ data: order }) => {
+        if (!order) { error('Order not found'); return }
+        setDetailOrder(order as Order)
+        setNewStatus((order as Order).status)
+        markSeen(orderId)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'orders', search, statusFilter, page],
