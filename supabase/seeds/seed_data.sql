@@ -1,5 +1,5 @@
 -- ============================================================
--- Pwen Books — Demo Seed Data
+-- Bitdoin — Demo Seed Data
 -- Run this in the Supabase SQL Editor AFTER the migration.
 -- ============================================================
 

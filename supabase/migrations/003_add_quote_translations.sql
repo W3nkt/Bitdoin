@@ -1,5 +1,5 @@
 -- ============================================================
--- Pwen Books — Migration 003: Bilingual quote translations
+-- Bitdoin — Migration 003: Bilingual quote translations
 -- Adds text_lo column so every quote can display in Lao.
 -- Run AFTER 002_quotes_table.sql.
 -- After running this, re-run quotes_seed.sql (it starts with

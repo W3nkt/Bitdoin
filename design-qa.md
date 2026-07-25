@@ -4,8 +4,8 @@
 
 **Implementation screenshot**
 
-- `C:\xampp\htdocs\PwenBooks\qa-artifacts\play-learn-mobile-final.png`
-- Side-by-side evidence: `C:\xampp\htdocs\PwenBooks\qa-artifacts\option-2-comparison.png`
+- `C:\xampp\htdocs\Bitdoin\qa-artifacts\play-learn-mobile-final.png`
+- Side-by-side evidence: `C:\xampp\htdocs\Bitdoin\qa-artifacts\option-2-comparison.png`
 
 **Viewport**
 

@@ -1,5 +1,5 @@
 -- ============================================================
--- Pwen Books — Migration 002: Quotes table
+-- Bitdoin — Migration 002: Quotes table
 -- Run in Supabase SQL Editor after 001_initial_schema.sql
 -- ============================================================
 

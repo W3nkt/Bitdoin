@@ -1,5 +1,5 @@
 -- ============================================================
--- Pwen Books — Admin Account Setup
+-- Bitdoin — Admin Account Setup
 -- Run this ONCE in the Supabase SQL Editor.
 -- ============================================================
 --

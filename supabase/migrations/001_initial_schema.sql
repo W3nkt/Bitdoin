@@ -1,5 +1,5 @@
 -- ============================================================
--- Pwen Books — Initial Database Schema
+-- Bitdoin — Initial Database Schema
 -- Supabase PostgreSQL Migration v1.0
 -- ============================================================
 
