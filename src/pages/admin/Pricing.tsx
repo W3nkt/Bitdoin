@@ -105,7 +105,9 @@ export function AdminPricing() {
   const { data: rules } = useQuery({
     queryKey: ['admin', 'margin-rules'],
     queryFn: async () => {
-      const { data } = await supabase.from('margin_rules').select('*').order('priority')
+      const { data } = await supabase.from('margin_rules')
+        .select('id,name,category_id,bookstore_id,min_price,max_price,margin_percent,priority,is_active,created_at,updated_at')
+        .order('priority')
       return (data ?? []) as MarginRule[]
     },
   })

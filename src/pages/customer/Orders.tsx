@@ -42,7 +42,7 @@ export function Orders() {
       <EmptyState
         icon={<Package className="h-16 w-16" />}
         title={t('orders.empty')}
-        action={{ label: t('cart.continueShopping'), onClick: () => navigate('/books') }}
+        action={{ label: t('cart.continueShopping'), onClick: () => navigate('/bookstore/books') }}
       />
     )
   }
@@ -54,7 +54,7 @@ export function Orders() {
       {orders.map(order => (
         <button
           key={order.id}
-          onClick={() => navigate(`/orders/${order.id}`)}
+          onClick={() => navigate(`/bookstore/orders/${order.id}`)}
           className="group w-full overflow-hidden rounded-2xl border border-gray-100 bg-white text-left transition-all hover:border-primary-200 hover:shadow-sm"
         >
           <div className="flex min-h-36 items-stretch">

@@ -1,8 +1,9 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, DollarSign, X, Lightbulb } from 'lucide-react'
+import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap } from 'lucide-react'
 import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -18,7 +19,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { t } = useTranslation()
   const { totalItems } = useCart()
   const { profile } = useAuth()
-  const { language, setLanguage, currency, setCurrency } = useLanguage()
+  const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
   useGoogleAnalytics()
 
@@ -36,19 +37,19 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   function submitSearch(e: React.FormEvent) {
     e.preventDefault()
     const q = searchQuery.trim()
-    if (q) navigate(`/books?q=${encodeURIComponent(q)}`)
+    if (q) navigate(`/bookstore/books?q=${encodeURIComponent(q)}`)
     closeSearch()
   }
 
   const cartCount = totalItems()
 
   const navLinks = [
-    { to: '/',           icon: Home,         label: t('nav.home'),      end: true  },
-    { to: '/books',      icon: BookOpen,     label: t('nav.catalog'),   end: false },
-    { to: '/knowledge',  icon: Lightbulb,    label: t('nav.knowledge'), end: false },
-    { to: '/cart',       icon: ShoppingCart, label: t('nav.cart'),      end: false, badge: cartCount },
-    { to: '/track',      icon: PackageSearch,label: t('nav.trackOrder'),end: false },
-    { to: profile ? '/profile' : '/auth', icon: User,
+    { to: '/bookstore',           icon: Home,         label: t('nav.home'),      end: true  },
+    { to: '/bookstore/books',      icon: BookOpen,     label: t('nav.catalog'),   end: false },
+    { to: '/bookstore/knowledge',  icon: Lightbulb,    label: t('nav.knowledge'), end: false },
+    { to: '/bookstore/cart',       icon: ShoppingCart, label: t('nav.cart'),      end: false, badge: cartCount },
+    { to: '/bookstore/track',      icon: PackageSearch,label: t('nav.trackOrder'),end: false },
+    { to: profile ? '/bookstore/profile' : '/auth', icon: User,
       label: profile ? t('nav.profile') : t('nav.signIn'), end: false },
   ]
 
@@ -68,12 +69,13 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
         <div className="max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center gap-3">
 
           {/* Logo */}
-          <Link to="/" className="flex flex-shrink-0 items-center" aria-label={t('appName')}>
+          <Link to="/bookstore" className="flex flex-shrink-0 items-center gap-2" aria-label="Bitdoin Bookstore">
             <img
               src={publicAsset('icons/Bitdoin-Logo.png')}
               alt={t('appName')}
               className="h-10 w-28 object-contain object-left md:h-12 md:w-32"
             />
+            <span className="hidden border-l border-gray-200 pl-2 text-[10px] font-black uppercase tracking-wider text-orange-600 xl:block">Bookstore</span>
           </Link>
 
           {/* Search bar — md+ only */}
@@ -86,29 +88,29 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           </button>
 
           {/* Nav links — md+ only */}
-          <nav className="hidden md:flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
+          <nav className="hidden md:flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-hide px-2">
             {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) => cn(
-                  'relative flex flex-col flex-shrink-0 items-center justify-center gap-0.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold transition-colors',
-                  isActive
-                    ? 'bg-primary-700 text-white'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-primary-800',
-                )}
-              >
-                <div className="relative">
+              <Tooltip key={to} label={label}>
+                <NavLink
+                  to={to}
+                  state={!profile && to === '/auth' ? { from: '/bookstore/profile' } : undefined}
+                  end={end}
+                  aria-label={label}
+                  className={({ isActive }) => cn(
+                    'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
+                    isActive
+                      ? 'bg-primary-700 text-white'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-primary-800',
+                  )}
+                >
                   <Icon className="h-4 w-4" />
                   {(badge ?? 0) > 0 && (
-                    <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">
                       {(badge ?? 0) > 9 ? '9+' : badge}
                     </span>
                   )}
-                </div>
-                <span>{label}</span>
-              </NavLink>
+                </NavLink>
+              </Tooltip>
             ))}
           </nav>
 
@@ -117,6 +119,14 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Controls */}
           <div className="flex flex-shrink-0 items-center gap-0.5">
+            <Tooltip label="Switch to Bitdoin Academy" className="hidden lg:inline-flex">
+              <Link
+                to="/academy"
+                className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-amber-300 transition hover:bg-slate-800"
+              >
+                <GraduationCap className="h-4 w-4" /> Academy
+              </Link>
+            </Tooltip>
             {/* Mobile search icon */}
             <button
               onClick={openSearch}
@@ -127,28 +137,15 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             </button>
 
             {/* Language toggle */}
-            <button
-              onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-lg hover:bg-gray-100 transition-colors"
-              title="Switch language"
-              aria-label="Switch language"
-            >
-              <LanguageFlag target={language === 'lo' ? 'en' : 'lo'} />
-            </button>
-
-            {/* Currency toggle — md+ */}
-            <button
-              onClick={() => setCurrency(currency === 'LAK' ? 'USD' : 'LAK')}
-              className="hidden md:flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
-              title="Switch currency"
-            >
-              {currency === 'LAK' ? (
-                <span className="text-sm leading-none" aria-hidden="true">₭</span>
-              ) : (
-                <DollarSign className="h-3.5 w-3.5" />
-              )}
-              <span>{currency}</span>
-            </button>
+            <Tooltip label="Switch language">
+              <button
+                onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-lg hover:bg-gray-100 transition-colors"
+                aria-label="Switch language"
+              >
+                <LanguageFlag target={language === 'lo' ? 'en' : 'lo'} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </header>
@@ -261,6 +258,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             <NavLink
               key={to}
               to={to}
+              state={!profile && to === '/auth' ? { from: '/bookstore/profile' } : undefined}
               end={end}
               className={({ isActive }) => cn(
                 'min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 py-1 transition-colors',

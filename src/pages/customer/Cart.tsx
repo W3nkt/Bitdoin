@@ -18,7 +18,7 @@ export function Cart() {
       <EmptyState
         icon={<ShoppingCart className="h-16 w-16" />}
         title={t('cart.empty')}
-        action={{ label: t('cart.continueShopping'), onClick: () => navigate('/books') }}
+        action={{ label: t('cart.continueShopping'), onClick: () => navigate('/bookstore/books') }}
       />
     )
   }
@@ -102,7 +102,7 @@ export function Cart() {
             <span>{t('cart.deliveryFee')}</span>
             <span>{t('cart.deliveryFeeNote')}</span>
           </div>
-          <Button fullWidth size="lg" onClick={() => navigate('/checkout')}>
+          <Button fullWidth size="lg" onClick={() => navigate('/bookstore/checkout')}>
             {t('cart.checkout')}
           </Button>
         </div>

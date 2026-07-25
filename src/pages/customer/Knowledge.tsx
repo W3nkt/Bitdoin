@@ -82,7 +82,7 @@ export function Knowledge() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('knowledge_categories')
-        .select('*')
+        .select('id,name_en,name_lo,slug,icon,color,sort_order,created_at')
         .order('sort_order')
       if (error) throw error
       return (data ?? []) as KnowledgeCategory[]
@@ -414,7 +414,7 @@ function BiographyCard({ post, featured: isFeatured }: { post: KnowledgePost; fe
 
   return (
     <Link
-      to={`/knowledge/${post.id}`}
+      to={`/bookstore/knowledge/${post.id}`}
       className={cn(
         'group flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-lg',
         isFeatured ? 'border-indigo-200' : 'border-gray-100 hover:border-indigo-200',
@@ -510,7 +510,7 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
   if (post.type === 'quote') {
     return (
       <Link
-        to={`/knowledge/${post.id}`}
+        to={`/bookstore/knowledge/${post.id}`}
         className={cn(
           'group relative flex flex-col justify-between rounded-2xl border p-6 transition-all hover:-translate-y-0.5 hover:shadow-md',
           isFeatured
@@ -537,7 +537,7 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
 
   return (
     <Link
-      to={`/knowledge/${post.id}`}
+      to={`/bookstore/knowledge/${post.id}`}
       className={cn(
         'group flex flex-col rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md',
         isFeatured ? 'border-primary-200' : 'border-gray-100 hover:border-primary-200',

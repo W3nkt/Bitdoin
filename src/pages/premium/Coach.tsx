@@ -246,14 +246,14 @@ export function PremiumCoach() {
 
   if (authLoading || access.isLoading || conversations.isLoading) return <LoadingSpinner className="min-h-screen" />
   if (!profile) return <Navigate to="/auth" replace />
-  if (!access.data) return <Navigate to="/subscription" replace />
+  if (!access.data) return <Navigate to="/academy/subscription" replace />
 
   return (
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
       <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 bg-white/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between">
           <Link
-            to="/subscription"
+            to="/academy/home"
             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Back to Premium"
           >

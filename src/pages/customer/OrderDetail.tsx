@@ -50,7 +50,7 @@ export function OrderDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from('payment_accounts')
-        .select('*')
+        .select('id,method,label,bank_name,account_name,account_number,qr_image_url,instructions,is_active,sort_order,created_at,updated_at')
         .eq('is_active', true)
         .order('sort_order')
       return (data ?? []) as PaymentAccount[]
@@ -120,7 +120,7 @@ export function OrderDetail() {
 
   return (
     <div className="space-y-4 pb-8 max-w-lg mx-auto">
-      <button onClick={() => navigate('/orders')} className="flex items-center gap-2 text-sm text-gray-500">
+      <button onClick={() => navigate('/bookstore/orders')} className="flex items-center gap-2 text-sm text-gray-500">
         <ChevronLeft className="h-4 w-4" /> {t('orders.title')}
       </button>
 

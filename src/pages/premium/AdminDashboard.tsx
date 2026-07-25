@@ -1,21 +1,24 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight,
   CalendarCheck,
   CheckCircle2,
+  ChevronDown,
   Crown,
   Edit3,
   Eye,
   FileText,
   Flame,
   GraduationCap,
+  Languages,
+  LogOut,
   Mail,
   MessageSquareText,
   Phone,
   ReceiptText,
   Save,
+  Settings,
   ShieldCheck,
   Sparkles,
   Users,
@@ -29,7 +32,9 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn, formatDate, formatPrice } from '@/lib/utils'
 
@@ -202,8 +207,11 @@ export function PremiumAdminDashboard() {
   usePremiumTranslation()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { language, currency } = useLanguage()
+  const { language, setLanguage, currency } = useLanguage()
+  const { profile, signOut } = useAuth()
   const { success, error } = useToast()
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
   const [reviewingSubscriptionId, setReviewingSubscriptionId] = useState<string | null>(null)
   const [rejectingRequest, setRejectingRequest] = useState<RejectingRequest | null>(null)
   const [selectedSubscription, setSelectedSubscription] = useState<PremiumSubscription | null>(null)
@@ -216,12 +224,39 @@ export function PremiumAdminDashboard() {
   const [savingMotivation, setSavingMotivation] = useState(false)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
 
+  useEffect(() => {
+    if (!profileMenuOpen) return
+
+    function closeProfileMenu(event: MouseEvent) {
+      if (!profileMenuRef.current?.contains(event.target as Node)) {
+        setProfileMenuOpen(false)
+      }
+    }
+
+    function closeProfileMenuOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setProfileMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeProfileMenu)
+    document.addEventListener('keydown', closeProfileMenuOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeProfileMenu)
+      document.removeEventListener('keydown', closeProfileMenuOnEscape)
+    }
+  }, [profileMenuOpen])
+
+  async function handleSignOut() {
+    setProfileMenuOpen(false)
+    await signOut()
+    navigate('/')
+  }
+
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['premium-admin', 'plans'],
     queryFn: async () => {
       const { data, error: plansError } = await supabase
         .from('premium_plans')
-        .select('*')
+        .select('id,slug,name,description,price_lak,interval,features,is_active,sort_order')
         .order('sort_order')
       if (plansError) throw plansError
       return data as PremiumPlan[]
@@ -237,11 +272,15 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: subscriptionsError } = await supabase
         .from('premium_subscriptions')
-        .select('*, user:users!premium_subscriptions_user_id_fkey(id,name,email,phone,avatar_url,cover_image_url,language,created_at), plan:premium_plans(*)')
+        .select('id,user_id,plan_id,status,starts_at,ends_at,created_at,auto_renew,user:users!premium_subscriptions_user_id_fkey(id,name,email,phone,avatar_url,cover_image_url,language,created_at),plan:premium_plans(id,slug,name,description,price_lak,interval,features,is_active,sort_order)')
         .order('created_at', { ascending: false })
         .limit(50)
       if (subscriptionsError) throw subscriptionsError
-      return data as PremiumSubscription[]
+      return (data ?? []).map(row => ({
+        ...row,
+        user: firstRelation(row.user),
+        plan: firstRelation(row.plan),
+      })) as PremiumSubscription[]
     },
   })
 
@@ -254,11 +293,16 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: paymentsError } = await supabase
         .from('premium_payments')
-        .select('*, user:users!premium_payments_user_id_fkey(name,email,phone), plan:premium_plans(name,slug), subscription:premium_subscriptions(status,starts_at,ends_at)')
+        .select('id,subscription_id,user_id,plan_id,amount_lak,status,receipt_image_url,rejection_reason,created_at,user:users!premium_payments_user_id_fkey(name,email,phone),plan:premium_plans(name,slug),subscription:premium_subscriptions(status,starts_at,ends_at)')
         .order('created_at', { ascending: false })
         .limit(50)
       if (paymentsError) throw paymentsError
-      return data as PremiumPayment[]
+      return (data ?? []).map(row => ({
+        ...row,
+        user: firstRelation(row.user),
+        plan: firstRelation(row.plan),
+        subscription: firstRelation(row.subscription),
+      })) as PremiumPayment[]
     },
   })
 
@@ -282,7 +326,7 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: motivationsError } = await supabase
         .from('premium_daily_motivations')
-        .select('*')
+        .select('id,publish_date,quote,reflection,challenge,mission,is_active')
         .order('publish_date', { ascending: false })
         .limit(14)
       if (motivationsError) throw motivationsError
@@ -295,7 +339,7 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: eventsError } = await supabase
         .from('premium_member_events')
-        .select('*')
+        .select('id,title,detail,time_label,action_url,sort_order,is_active')
         .order('sort_order')
       if (eventsError) throw eventsError
       return data as PremiumMemberEvent[]
@@ -307,7 +351,7 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: communitiesError } = await supabase
         .from('premium_communities')
-        .select('*')
+        .select('id,title,detail,action_url,sort_order,is_active')
         .order('sort_order')
       if (communitiesError) throw communitiesError
       return data as PremiumCommunity[]
@@ -319,7 +363,7 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: highlightsError } = await supabase
         .from('premium_performance_highlights')
-        .select('*')
+        .select('id,display_name,metric,period_label,rank_order,is_active')
         .order('rank_order')
       if (highlightsError) throw highlightsError
       return data as PremiumPerformanceHighlight[]
@@ -655,17 +699,75 @@ export function PremiumAdminDashboard() {
             subTextClassName="text-primary-200"
             markClassName="rounded-xl bg-white/10 p-1"
           />
-          <div className="flex items-center gap-2">
-            <Button
+          <div ref={profileMenuRef} className="relative">
+            <button
               type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => navigate('/profile')}
-              className="bg-white/10 text-white hover:bg-white/15"
+              onClick={() => setProfileMenuOpen(open => !open)}
+              aria-haspopup="menu"
+              aria-expanded={profileMenuOpen}
+              aria-label="Open admin profile menu"
+              className="flex items-center gap-2 rounded-full bg-white/10 p-1.5 pr-3 text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             >
-              Profile
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-400 font-black text-primary-950 ring-2 ring-white/20">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  profile?.name?.charAt(0).toUpperCase() ?? 'A'
+                )}
+              </span>
+              <span className="hidden max-w-32 truncate text-sm font-bold sm:block">{profile?.name ?? 'Admin'}</span>
+              <ChevronDown className={cn('h-4 w-4 transition-transform', profileMenuOpen && 'rotate-180')} />
+            </button>
+
+            {profileMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-slate-900 shadow-2xl"
+              >
+                <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 font-black text-amber-800">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      profile?.name?.charAt(0).toUpperCase() ?? 'A'
+                    )}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-black">{profile?.name ?? 'Admin'}</span>
+                    <span className="block truncate text-xs text-slate-500">{profile?.email ?? profile?.role}</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => navigate('/admin/settings')}
+                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
+                >
+                  <Settings className="h-4 w-4 text-slate-500" />
+                  Profile settings
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
+                >
+                  <Languages className="h-4 w-4 text-slate-500" />
+                  <span className="flex-1">Language</span>
+                  <span className="text-xs font-black text-primary-700">{language === 'lo' ? 'ລາວ' : 'English'}</span>
+                </button>
+                <div className="my-1 border-t border-slate-100" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleSignOut}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -674,21 +776,32 @@ export function PremiumAdminDashboard() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-primary-100">
                 <Crown className="h-3.5 w-3.5 text-amber-300" />
-                Premium Admin
+                Academy Admin
               </div>
-              <h1 className="mt-4 text-3xl font-black tracking-normal md:text-5xl">Subscription Dashboard</h1>
+              <h1 className="mt-4 text-3xl font-black tracking-normal md:text-5xl">Academy Dashboard</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-100">
                 Manage Bitdoin Premium plans, subscriptions, payment review, and daily mentor content separately from bookstore operations.
               </p>
             </div>
-            <Button
-              type="button"
-              icon={<MessageSquareText className="h-4 w-4" />}
-              onClick={() => openMotivationEditor(todayMotivation)}
-              className="bg-white text-primary-900 hover:bg-primary-50"
-            >
-              Edit Daily Mentor
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                icon={<GraduationCap className="h-4 w-4" />}
+                onClick={() => navigate('/academy-admin/learning')}
+                className="bg-white/10 text-white hover:bg-white/15"
+              >
+                Learning Content
+              </Button>
+              <Button
+                type="button"
+                icon={<MessageSquareText className="h-4 w-4" />}
+                onClick={() => openMotivationEditor(todayMotivation)}
+                className="bg-white text-primary-900 hover:bg-primary-50"
+              >
+                Edit Daily Mentor
+              </Button>
+            </div>
           </div>
         </div>
       </header>

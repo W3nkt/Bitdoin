@@ -26,7 +26,7 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
       compact ? 'rounded-xl p-2' : 'rounded-2xl p-3',
       className,
     )}>
-      <Link to={`/books/${book.id}`} className="flex flex-1 flex-col">
+      <Link to={`/bookstore/books/${book.id}`} className="flex flex-1 flex-col">
         <div
           className={cn(
             'relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 transition-all duration-300',

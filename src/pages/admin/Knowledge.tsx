@@ -70,7 +70,9 @@ export function AdminKnowledge() {
   const { data: categories = [] } = useQuery({
     queryKey: ['knowledge-categories'],
     queryFn: async () => {
-      const { data } = await supabase.from('knowledge_categories').select('*').order('sort_order')
+      const { data } = await supabase.from('knowledge_categories')
+        .select('id,name_en,name_lo,slug,icon,color,sort_order,created_at')
+        .order('sort_order')
       return (data ?? []) as KnowledgeCategory[]
     },
   })

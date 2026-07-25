@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type SyntheticEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Camera,
@@ -66,7 +66,7 @@ export function Profile() {
 
   async function handleSignOut() {
     await signOut()
-    navigate('/')
+    navigate('/bookstore')
   }
 
   function isValidProfileImage(file: File) {
@@ -196,6 +196,10 @@ export function Profile() {
     )
   }
 
+  if (profile.role !== 'CUSTOMER') {
+    return <Navigate to="/admin" replace />
+  }
+
   const isAdmin = profile.role !== 'CUSTOMER'
 
   return (
@@ -301,7 +305,7 @@ export function Profile() {
 
             <button
               type="button"
-              onClick={() => navigate('/premium-admin')}
+              onClick={() => navigate('/academy-admin')}
               className="group flex w-full items-center gap-4 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-left shadow-lg shadow-orange-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.99]"
             >
               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/20">
@@ -316,24 +320,7 @@ export function Profile() {
           </div>
         )}
 
-        {!isAdmin && (
-          <button
-            type="button"
-            onClick={() => navigate('/subscription')}
-            className="group flex w-full items-center gap-4 rounded-3xl bg-gradient-to-r from-amber-500 to-orange-500 p-5 text-left shadow-lg shadow-orange-500/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.99]"
-          >
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-white/20">
-              <Crown className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold text-white">{t('profile.subscriptionDetails')}</p>
-              <p className="text-xs text-white/75">{t('profile.subscriptionSubtitle')}</p>
-            </div>
-            <ChevronRight className="h-5 w-5 flex-shrink-0 text-white transition-transform group-hover:translate-x-1" />
-          </button>
-        )}
-
-        <Card hover onClick={() => navigate('/orders')} className="flex items-center gap-3">
+        <Card hover onClick={() => navigate('/bookstore/orders')} className="flex items-center gap-3">
           <div className="rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 p-2.5 shadow-sm">
             <Package className="h-5 w-5 text-white" />
           </div>

@@ -1,19 +1,25 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import type { User } from '@/types'
+import { rememberOAuthReturnPath } from '@/lib/authRedirect'
+import type { User, UserRole } from '@/types'
+
+interface AuthResult {
+  error: string | null
+  role: UserRole | null
+}
 
 interface AuthContextValue {
   session: Session | null
   supabaseUser: SupabaseUser | null
   profile: User | null
   loading: boolean
-  signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
+  signInWithEmail: (email: string, password: string) => Promise<AuthResult>
   signUpWithEmail: (email: string, password: string, name: string) => Promise<{ error: string | null }>
   signInWithOtp: (phone: string) => Promise<{ error: string | null }>
-  verifyOtp: (phone: string, token: string) => Promise<{ error: string | null }>
-  signInWithGoogle: () => Promise<void>
-  signInWithFacebook: () => Promise<void>
+  verifyOtp: (phone: string, token: string) => Promise<AuthResult>
+  signInWithGoogle: (returnPath?: string) => Promise<void>
+  signInWithFacebook: (returnPath?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -27,8 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId: string) {
-    const { data } = await supabase.from('users').select('*').eq('id', userId).single()
-    setProfile(data as User | null)
+    const { data } = await supabase
+      .from('users')
+      .select('id,name,phone,email,avatar_url,cover_image_url,role,language,currency,created_at,updated_at')
+      .eq('id', userId)
+      .single()
+    const nextProfile = data as User | null
+    setProfile(nextProfile)
+    return nextProfile
   }
 
   async function refreshProfile() {
@@ -55,8 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signInWithEmail(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error?.message ?? null }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.user) return { error: error?.message ?? null, role: null }
+    const signedInProfile = await fetchProfile(data.user.id)
+    return { error: null, role: signedInProfile?.role ?? null }
   }
 
   async function signUpWithEmail(email: string, password: string, name: string) {
@@ -74,18 +88,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function verifyOtp(phone: string, token: string) {
-    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
-    return { error: error?.message ?? null }
+    const { data, error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
+    if (error || !data.user) return { error: error?.message ?? null, role: null }
+    const signedInProfile = await fetchProfile(data.user.id)
+    return { error: null, role: signedInProfile?.role ?? null }
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(returnPath = '/') {
+    rememberOAuthReturnPath(returnPath)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },
     })
   }
 
-  async function signInWithFacebook() {
+  async function signInWithFacebook(returnPath = '/') {
+    rememberOAuthReturnPath(returnPath)
     await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: { redirectTo: window.location.origin },

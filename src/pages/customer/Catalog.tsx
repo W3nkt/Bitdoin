@@ -42,7 +42,7 @@ export function Catalog() {
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const { data } = await supabase.from('categories').select('*').order('name_en')
+      const { data } = await supabase.from('categories').select('id,name_lo,name_en,slug,created_at').order('name_en')
       return (data ?? []) as Category[]
     },
   })

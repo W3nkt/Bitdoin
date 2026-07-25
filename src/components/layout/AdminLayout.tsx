@@ -45,7 +45,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   async function handleSignOut() {
     await signOut()
-    navigate('/')
+    navigate('/bookstore')
   }
 
   const Sidebar = () => (
@@ -144,7 +144,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
            </button>
         </div>
          <Link
-           to="/profile"
+           to="/bookstore/profile"
            className="flex items-center justify-center gap-2 rounded-lg bg-sky-400/15 px-3 py-2 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-400/25 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
          >
            Back to Profile

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Mail, Phone, Eye, EyeOff } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { publicAsset } from '@/lib/assets'
+import { resolvePostLoginDestination, sanitizeAuthReturnPath } from '@/lib/authRedirect'
 
 type Method = 'email' | 'phone'
 type EmailStep = 'signin' | 'signup'
@@ -19,10 +20,10 @@ export function Auth() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook } = useAuth()
+  const { profile, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook } = useAuth()
   const { error: showError, success } = useToast()
 
-  const from = (location.state as { from?: string })?.from ?? '/'
+  const from = sanitizeAuthReturnPath((location.state as { from?: string })?.from)
 
   const [method, setMethod] = useState<Method>('email')
   const [emailStep, setEmailStep] = useState<EmailStep>('signin')
@@ -39,13 +40,19 @@ export function Auth() {
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
 
+  useEffect(() => {
+    if (!authLoading && profile) {
+      navigate(resolvePostLoginDestination(from, profile.role), { replace: true })
+    }
+  }, [authLoading, profile, from, navigate])
+
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await signInWithEmail(email, password)
+    const { error, role } = await signInWithEmail(email, password)
     setLoading(false)
     if (error) { showError(error); return }
-    navigate(from, { replace: true })
+    navigate(resolvePostLoginDestination(from, role), { replace: true })
   }
 
   async function handleEmailSignUp(e: React.FormEvent) {
@@ -71,10 +78,10 @@ export function Auth() {
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await verifyOtp(phone, otp)
+    const { error, role } = await verifyOtp(phone, otp)
     setLoading(false)
     if (error) { showError(error); return }
-    navigate(from, { replace: true })
+    navigate(resolvePostLoginDestination(from, role), { replace: true })
   }
 
   function handleBack() {
@@ -251,7 +258,7 @@ export function Auth() {
               <div className="flex justify-center gap-4">
                 <button
                   type="button"
-                  onClick={signInWithGoogle}
+                  onClick={() => signInWithGoogle(from)}
                   aria-label={t('auth.continueWithGoogle')}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
                 >
@@ -264,7 +271,7 @@ export function Auth() {
 
                 <button
                   type="button"
-                  onClick={signInWithFacebook}
+                  onClick={() => signInWithFacebook(from)}
                   aria-label={t('auth.continueWithFacebook')}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
                 >

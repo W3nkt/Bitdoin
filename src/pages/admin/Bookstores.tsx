@@ -50,7 +50,7 @@ export function AdminBookstores() {
     queryFn: async () => {
       const { data } = await supabase
         .from('bookstores')
-        .select('*')
+        .select('id,name,contact_name,phone,whatsapp,messenger_url,bank_qr_code_url,address,notes,is_active,created_at,updated_at')
         .order('name')
       return (data ?? []) as Bookstore[]
     },

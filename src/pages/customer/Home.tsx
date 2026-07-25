@@ -22,7 +22,7 @@ export function Home() {
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const { data } = await supabase.from('categories').select('*').order('name_en')
+      const { data } = await supabase.from('categories').select('id,name_lo,name_en,slug,created_at').order('name_en')
       return (data ?? []) as Category[]
     },
   })
@@ -66,7 +66,7 @@ export function Home() {
 
   function handleSearch(e: FormEvent) {
     e.preventDefault()
-    if (searchQuery.trim()) navigate(`/books?q=${encodeURIComponent(searchQuery.trim())}`)
+    if (searchQuery.trim()) navigate(`/bookstore/books?q=${encodeURIComponent(searchQuery.trim())}`)
   }
 
   function handleAddToCart(book: Book) {
@@ -90,8 +90,8 @@ export function Home() {
     <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
       <BrowseSidebar
         categories={categories}
-        onSelectCategory={categoryId => navigate(categoryId ? `/books?category=${categoryId}` : '/books')}
-        onSelectQuickLink={() => navigate('/books')}
+        onSelectCategory={categoryId => navigate(categoryId ? `/bookstore/books?category=${categoryId}` : '/bookstore/books')}
+        onSelectQuickLink={() => navigate('/bookstore/books')}
         className="lg:sticky lg:top-16"
       />
 
@@ -137,7 +137,7 @@ export function Home() {
           <SectionHeader
             icon={<Sparkles className="h-4 w-4 text-accent-500" />}
             title={t('home.featured')}
-            onViewAll={() => navigate('/books')}
+            onViewAll={() => navigate('/bookstore/books')}
           />
           {loadingFeatured ? (
             <div className="flex justify-center py-10"><LoadingSpinner /></div>
@@ -151,7 +151,7 @@ export function Home() {
           <SectionHeader
             icon={<TrendingUp className="h-4 w-4 text-primary-700" />}
             title={t('home.trending')}
-            onViewAll={() => navigate('/books')}
+            onViewAll={() => navigate('/bookstore/books')}
           />
           {loadingTrending ? (
             <div className="flex justify-center py-10"><LoadingSpinner /></div>

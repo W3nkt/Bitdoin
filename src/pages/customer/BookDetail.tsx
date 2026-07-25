@@ -125,7 +125,7 @@ export function BookDetail() {
 
   function handleBuyNow() {
     handleAddToCart()
-    navigate('/cart')
+    navigate('/bookstore/cart')
   }
 
   return (

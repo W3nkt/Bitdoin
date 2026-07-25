@@ -114,7 +114,7 @@ export function Checkout() {
   const shouldReturnToCart = items.length === 0 && !placedAccess && !paymentModalOpen
 
   useEffect(() => {
-    if (shouldReturnToCart) navigate('/cart', { replace: true })
+    if (shouldReturnToCart) navigate('/bookstore/cart', { replace: true })
   }, [navigate, shouldReturnToCart])
 
   useEffect(() => {
@@ -250,7 +250,7 @@ export function Checkout() {
     }
     clearCart()
     sessionStorage.setItem(`pwen-track-phone:${orderNumber}`, placedPhone)
-    navigate(`/track?order=${encodeURIComponent(orderNumber)}`)
+    navigate(`/bookstore/track?order=${encodeURIComponent(orderNumber)}`)
   }
 
   function completeCheckout(order: Order) {

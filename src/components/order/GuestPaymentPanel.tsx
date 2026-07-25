@@ -44,7 +44,7 @@ export function GuestPaymentPanel({
     queryFn: async () => {
       const { data } = await supabase
         .from('payment_accounts')
-        .select('*')
+        .select('id,method,label,bank_name,account_name,account_number,qr_image_url,instructions,is_active,sort_order,created_at,updated_at')
         .eq('is_active', true)
         .order('sort_order')
       return (data ?? []) as PaymentAccount[]

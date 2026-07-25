@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Lightbulb,
   Lock,
+  LogOut,
   MessageCircle,
   Pencil,
   ReceiptText,
@@ -40,6 +41,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
+import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
@@ -172,6 +174,17 @@ const FALLBACK_PLANS: PremiumPlan[] = [
     is_active: true,
     sort_order: 2,
   },
+  {
+    id: 'premium-yearly',
+    slug: 'premium-yearly',
+    name: 'Premium Yearly',
+    description: 'Daily mentor guidance, AI coach access, learning paths, prompt packs, and productivity tools.',
+    price_lak: 590000,
+    interval: 'year',
+    features: ['Daily mentor dashboard', 'AI Coach shortcut', 'Premium lessons and resources', 'Prompt library access', 'Streak and challenge tracking'],
+    is_active: true,
+    sort_order: 3,
+  },
 ]
 
 const FALLBACK_MOTIVATION: DailyMotivation = {
@@ -253,7 +266,7 @@ const FALLBACK_MEMBER_COMMUNITIES: MemberCommunity[] = [
 export function Subscription() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { profile } = useAuth()
+  const { profile, signOut } = useAuth()
   const { currency, language } = useLanguage()
   usePremiumTranslation()
   const { success, error } = useToast()
@@ -270,7 +283,7 @@ export function Subscription() {
     queryFn: async () => {
       const { data, error: plansError } = await supabase
         .from('premium_plans')
-        .select('*')
+        .select('id,slug,name,description,price_lak,interval,features,is_active,sort_order')
         .eq('is_active', true)
         .order('sort_order')
       if (plansError) throw plansError
@@ -285,7 +298,7 @@ export function Subscription() {
     queryFn: async () => {
       const { data, error: subscriptionError } = await supabase
         .from('premium_subscriptions')
-        .select('*, plan:premium_plans(*)')
+        .select('id,user_id,plan_id,status,starts_at,ends_at,cancelled_at,auto_renew,created_at,plan:premium_plans(id,slug,name,description,price_lak,interval,features,is_active,sort_order)')
         .eq('user_id', profile!.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -302,12 +315,15 @@ export function Subscription() {
     queryFn: async () => {
       const { data, error: paymentsError } = await supabase
         .from('premium_payments')
-        .select('*, plan:premium_plans(name, slug)')
+        .select('id,subscription_id,user_id,plan_id,amount_lak,currency,method,status,receipt_image_url,rejection_reason,created_at,plan:premium_plans(name,slug)')
         .eq('user_id', profile!.id)
         .order('created_at', { ascending: false })
         .limit(8)
       if (paymentsError) throw paymentsError
-      return data as PremiumPayment[]
+      return (data ?? []).map(row => ({
+        ...row,
+        plan: firstRelation(row.plan) ?? undefined,
+      })) as PremiumPayment[]
     },
     retry: 1,
   })
@@ -342,7 +358,7 @@ export function Subscription() {
 
       const { data, error: motivationError } = await supabase
         .from('premium_daily_motivations')
-        .select('*')
+        .select('id,publish_date,quote,reflection,challenge,mission')
         .eq('is_active', true)
         .order('publish_date', { ascending: false })
         .limit(1)
@@ -502,7 +518,7 @@ export function Subscription() {
           status: 'PENDING_PAYMENT',
           auto_renew: false,
         })
-        .select('*')
+        .select('id,user_id,plan_id,status,starts_at,ends_at,cancelled_at,auto_renew,created_at')
         .single()
 
       if (subscriptionError) throw subscriptionError
@@ -681,29 +697,41 @@ export function Subscription() {
             />
             <div className="inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-primary-100 ring-1 ring-white/15 sm:text-sm">
               <Crown className="h-3.5 w-3.5 text-amber-300" />
-              Premium
+              Academy
             </div>
           </div>
           <div className="hidden min-w-0 flex-1 text-center md:block">
             <h1 className="truncate text-lg font-black text-white lg:text-xl">
-              Your daily digital mentor
+              Your Academy home
             </h1>
             <p className="mt-1 truncate text-xs font-semibold text-primary-100 lg:text-sm">
-              Study, AI, and personal growth in one Premium workspace.
+              Learn, practice, and track your progress.
             </p>
           </div>
-          <SubscriptionProfileMenu
-            profile={profile}
-            planName={planName}
-            status={statusLabel(subscription?.status)}
-            statusClassName={statusClass(subscription?.status)}
-            streak={formatStreak(memberProgress?.member.streak ?? 0)}
-            xp={(memberProgress?.member.xp ?? 0).toLocaleString()}
-            expiration={subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'No expiry'}
-            personalization={onboarding?.responses ?? {}}
-            onPersonalizationSaved={() => qc.invalidateQueries({ queryKey: ['premium', 'onboarding-profile-v2', profile?.id] })}
-            onProfileClick={() => navigate(profile ? '/profile' : '/auth')}
-          />
+          <div className="flex items-center gap-2">
+            <Link to="/" className="hidden rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black text-primary-100 hover:bg-white/10 lg:block">
+              Switch platform
+            </Link>
+            <SubscriptionProfileMenu
+              profile={profile}
+              planName={planName}
+              status={statusLabel(subscription?.status)}
+              statusClassName={statusClass(subscription?.status)}
+              streak={formatStreak(memberProgress?.member.streak ?? 0)}
+              xp={(memberProgress?.member.xp ?? 0).toLocaleString()}
+              expiration={subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'No expiry'}
+              personalization={onboarding?.responses ?? {}}
+              onPersonalizationSaved={() => qc.invalidateQueries({ queryKey: ['premium', 'onboarding-profile-v2', profile?.id] })}
+              onAccountAction={async () => {
+                if (!profile) {
+                  navigate('/auth')
+                  return
+                }
+                await signOut()
+                navigate('/')
+              }}
+            />
+          </div>
         </div>
       </section>
 
@@ -720,8 +748,9 @@ export function Subscription() {
               completionResponses={dailyCompletion?.responses ?? {}}
               savingDailyItem={savingDailyItem}
               onSubmitDailyReply={saveDailyReply}
-              onOpenCoach={() => navigate('/premium/coach')}
-              onStartRoleplay={mission => navigate(`/premium/coach?mission=${encodeURIComponent(mission)}`)}
+              onOpenCoach={() => navigate('/academy/coach')}
+              onOpenLearning={() => navigate('/academy/learn')}
+              onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
               events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
               communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
               memberStats={memberProgress?.member}
@@ -802,7 +831,7 @@ export function Subscription() {
                   variant="outline"
                   icon={<Brain className="h-4 w-4" />}
                   disabled={!isPremiumActive}
-                  onClick={() => navigate('/premium/coach')}
+                  onClick={() => navigate('/academy/coach')}
                 >
                   Open AI Coach
                 </Button>
@@ -845,16 +874,25 @@ export function Subscription() {
               <p className="hidden text-sm text-gray-500 sm:block">Manual activation supports Lao payment workflows.</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activePlans.map(plan => {
                 const isCurrent = subscription?.plan_id === plan.id && subscription.status !== 'CANCELLED'
                 const isPremium = plan.price_lak > 0
+                const isYearly = plan.slug === 'premium-yearly'
+                const monthlyPlan = activePlans.find(p => p.slug === 'premium-monthly')
+                const yearlySavings = isYearly && monthlyPlan ? monthlyPlan.price_lak * 12 - plan.price_lak : 0
                 return (
                   <Card key={plan.slug} className={cn(
-                    'border-2',
+                    'relative border-2',
                     isPremium ? 'border-primary-200' : 'border-gray-100',
+                    isYearly && 'border-amber-300',
                     isCurrent && 'border-primary-700',
                   )}>
+                    {isYearly && !isCurrent && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
+                        Best value
+                      </span>
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
@@ -872,6 +910,11 @@ export function Subscription() {
                       <span className="text-3xl font-black text-gray-950">{formatPrice(plan.price_lak, currency)}</span>
                       <span className="text-sm font-semibold text-gray-400">/{plan.interval}</span>
                     </div>
+                    {yearlySavings > 0 && (
+                      <p className="mt-1.5 text-xs font-bold text-emerald-600">
+                        {`Save ${formatPrice(yearlySavings, currency)} — 2 months free`}
+                      </p>
+                    )}
 
                     <div className="mt-5 space-y-2">
                       {plan.features.map(feature => (
@@ -1002,7 +1045,7 @@ function SubscriptionProfileMenu({
   expiration,
   personalization,
   onPersonalizationSaved,
-  onProfileClick,
+  onAccountAction,
 }: {
   profile: AppUser | null
   planName: string
@@ -1013,7 +1056,7 @@ function SubscriptionProfileMenu({
   expiration: string
   personalization: Record<string, string>
   onPersonalizationSaved: () => Promise<unknown>
-  onProfileClick: () => void
+  onAccountAction: () => void | Promise<void>
 }) {
   const { success, error } = useToast()
   const { language, setLanguage } = useLanguage()
@@ -1056,9 +1099,9 @@ function SubscriptionProfileMenu({
     }
   }, [open])
 
-  function handleProfileClick() {
+  function handleAccountAction() {
     setOpen(false)
-    onProfileClick()
+    void onAccountAction()
   }
 
   async function savePersonalization() {
@@ -1228,11 +1271,13 @@ function SubscriptionProfileMenu({
 
           <button
             type="button"
-            onClick={handleProfileClick}
+            onClick={handleAccountAction}
             className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-amber-100 px-3 py-2.5 text-sm font-black text-amber-950 transition hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           >
-            <span>{profile ? 'Back to Profile' : 'Sign in'}</span>
-            <ArrowRight className="h-4 w-4 flex-shrink-0" />
+            <span>{profile ? 'Logout' : 'Sign in'}</span>
+            {profile
+              ? <LogOut className="h-4 w-4 flex-shrink-0" />
+              : <ArrowRight className="h-4 w-4 flex-shrink-0" />}
           </button>
         </div>
       )}
@@ -1287,6 +1332,7 @@ function MemberDashboard({
   savingDailyItem,
   onSubmitDailyReply,
   onOpenCoach,
+  onOpenLearning,
   onStartRoleplay,
   events,
   communities,
@@ -1301,6 +1347,7 @@ function MemberDashboard({
   savingDailyItem: DailyChallengeKind | null
   onSubmitDailyReply: (kind: DailyChallengeKind, reply: string) => Promise<void>
   onOpenCoach: () => void
+  onOpenLearning: () => void
   onStartRoleplay: (mission: string) => void
   events: MemberEvent[]
   communities: MemberCommunity[]
@@ -1348,6 +1395,42 @@ function MemberDashboard({
             <ProfileMenuStat label="Streak" value={formatStreak(memberStats?.streak ?? 0)} icon={<Flame className="h-4 w-4" />} />
             <ProfileMenuStat label="XP" value={(memberStats?.xp ?? 0).toLocaleString()} icon={<Zap className="h-4 w-4" />} />
             <ProfileMenuStat label="Rank" value={memberStats?.rank ? `#${memberStats.rank}` : '—'} icon={<Trophy className="h-4 w-4" />} />
+          </div>
+        </div>
+      </section>
+
+      <section className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl">
+        <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600">Learning Hub</p>
+            <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+              Build skills that move your life forward.
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
+              Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.
+            </p>
+            <button
+              type="button"
+              onClick={onOpenLearning}
+              className="mt-7 inline-flex w-fit items-center gap-3 rounded-full bg-primary-950 px-6 py-3.5 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+            >
+              Open Learning Hub
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </button>
+          </div>
+          <div className="relative overflow-hidden bg-primary-950 p-6 sm:p-8 lg:p-10">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-amber-400/10 blur-3xl" />
+            <div className="relative flex h-full flex-col justify-center">
+              <p className="mb-5 text-xs font-black uppercase tracking-[0.2em] text-primary-200">
+                Learn at your pace
+              </p>
+              <div className="grid grid-cols-1 divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:grid-cols-1 lg:divide-x-0 lg:divide-y">
+                <LearningHubStat label="Lessons" value="8 paths" icon={<GraduationCap className="h-5 w-5" />} />
+                <LearningHubStat label="Challenge" value="Weekly" icon={<Target className="h-5 w-5" />} />
+                <LearningHubStat label="Habits" value="Daily" icon={<CalendarCheck className="h-5 w-5" />} />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -1590,6 +1673,20 @@ function ProfileMenuStat({ label, value, icon }: { label: string; value: string;
       <div className="mb-1 text-primary-200">{icon}</div>
       <p className="truncate text-sm font-black text-white">{value}</p>
       <p className="mt-0.5 truncate text-[10px] font-semibold text-primary-200">{label}</p>
+    </div>
+  )
+}
+
+function LearningHubStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 sm:px-5 sm:first:pl-0 sm:last:pr-0 lg:px-0 lg:first:pt-0 lg:last:pb-0">
+      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-primary-200 ring-1 ring-white/15">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-lg font-black leading-tight text-white">{value}</p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-200">{label}</p>
+      </div>
     </div>
   )
 }

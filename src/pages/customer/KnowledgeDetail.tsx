@@ -153,7 +153,7 @@ function NavArrowButton({ post, direction }: { post: KnowledgePost | null; direc
 
   return (
     <Link
-      to={`/knowledge/${post.id}`}
+      to={`/bookstore/knowledge/${post.id}`}
       aria-label={`${label}: ${title}`}
       title={title}
       className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm hover:border-primary-300 hover:text-primary-600 transition-colors"
@@ -171,7 +171,7 @@ function DetailNavHeader({ post }: { post: KnowledgePost }) {
     <div className="mb-5 flex items-center justify-between gap-2">
       <NavArrowButton post={previous} direction="prev" />
       <Link
-        to="/knowledge"
+        to="/bookstore/knowledge"
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-700 transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
@@ -448,7 +448,7 @@ function RelatedBios({ currentId, categoryId }: { currentId: string; categoryId:
           return (
             <Link
               key={r.id}
-              to={`/knowledge/${r.id}`}
+              to={`/bookstore/knowledge/${r.id}`}
               className="group flex items-center gap-3 overflow-hidden rounded-xl border border-gray-100 bg-white p-3 hover:border-indigo-200 hover:shadow-md transition-all"
             >
               <BioAvatar profile={profile} personName={name} size="sm" />
@@ -581,7 +581,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
               return (
                 <Link
                   key={r.id}
-                  to={`/knowledge/${r.id}`}
+                  to={`/bookstore/knowledge/${r.id}`}
                   className="rounded-xl border border-gray-100 bg-white p-4 hover:border-primary-200 hover:shadow-sm transition-all"
                 >
                   <span className="flex items-center gap-1 text-[10px] text-gray-400 mb-1">
@@ -638,7 +638,7 @@ export function KnowledgeDetail() {
     return (
       <div className="py-24 text-center text-gray-400">
         <p>Post not found.</p>
-        <Link to="/knowledge" className="mt-4 inline-block text-sm text-primary-600 hover:underline">
+        <Link to="/bookstore/knowledge" className="mt-4 inline-block text-sm text-primary-600 hover:underline">
           Back to Knowledge Hub
         </Link>
       </div>

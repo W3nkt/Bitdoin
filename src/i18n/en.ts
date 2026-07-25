@@ -404,6 +404,32 @@ const en = {
     marginRule: 'Margin Rule',
     globalMargin: 'Global Default Margin',
   },
+
+  // ── Landing (platform chooser) ──────────────────────────────────────────────
+  landing: {
+    eyebrow: 'One account, two platforms',
+    title: 'Where would you like to go?',
+    subtitle: 'Bitdoin brings together a nationwide bookstore and a personal growth platform — pick one to get started.',
+    bookstore: {
+      badge: 'Marketplace',
+      title: 'Bitdoin Bookstore',
+      description: 'Compare prices from bookstores across Lao PDR, order online, and get it delivered to your door.',
+      feature1: 'Compare prices across stores',
+      feature2: 'Order online, pay your way',
+      feature3: 'Track delivery in real time',
+      cta: 'Browse Books',
+    },
+    premium: {
+      badge: 'Membership',
+      title: 'Bitdoin Academy',
+      description: 'A guided learning platform with a personal coach, daily challenges, and habit tracking to help you grow.',
+      feature1: 'Personalized learning coach',
+      feature2: 'Daily challenges & habit tracker',
+      feature3: 'Community leaderboard & rewards',
+      cta: 'Explore Academy',
+    },
+    footerNote: 'Not sure yet? You can always switch between platforms later.',
+  },
 }
 
 export default en
