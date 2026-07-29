@@ -13,6 +13,8 @@ import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
+import { careerPaths } from '@/data/careerPaths'
+import { careerPathsLo } from '@/data/careerPathsLo'
 
 interface Message { id: string; role: 'user' | 'assistant'; content: string; created_at: string }
 interface Conversation { id: string; title: string; created_at: string; updated_at: string }
@@ -137,6 +139,8 @@ export function PremiumCoach() {
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const roleplayMission = searchParams.get('mission')
+  const careerId = searchParams.get('career')
+  const careerAssessment = careerPaths.find(career => career.id === careerId)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -147,6 +151,7 @@ export function PremiumCoach() {
   const historyInitialized = useRef(false)
   const roleplayInitialized = useRef(false)
   const roleplayCompleted = useRef(false)
+  const careerAssessmentInitialized = useRef(false)
 
   const access = useQuery({
     queryKey: ['premium-coach-access', profile?.id], enabled: Boolean(profile?.id),
@@ -190,7 +195,32 @@ export function PremiumCoach() {
     setDraft(prompt)
   }, [roleplayMission])
 
-  async function send(event?: FormEvent, starter?: string) {
+  useEffect(() => {
+    if (careerAssessmentInitialized.current || !careerAssessment || access.data !== true) return
+    careerAssessmentInitialized.current = true
+    const laoCareer = careerPathsLo[careerAssessment.id]
+    const prompt = language === 'lo'
+      ? [
+          `ຊ່ວຍປະເມີນວ່າອາຊີບ ${laoCareer?.title ?? careerAssessment.title} ເໝາະກັບຂ້ອຍຫຼືບໍ່.`,
+          `ສາຂາຮຽນທີ່ກ່ຽວຂ້ອງ: ${(laoCareer?.majors ?? careerAssessment.majors).join(', ')}.`,
+          `ທັກສະສຳຄັນ: ${(laoCareer?.skills ?? careerAssessment.skills).join(', ')}.`,
+          '',
+          'ເປັນທີ່ປຶກສາອາຊີບທີ່ເຂົ້າໃຈນັກຮຽນລາວ. ອະທິບາຍອາຊີບນີ້ສັ້ນໆ ແລ້ວຖາມຂ້ອຍເທື່ອລະໜຶ່ງຄຳຖາມກ່ຽວກັບຄວາມສົນໃຈ, ຈຸດແຂງ, ຮູບແບບວຽກ, ວິຊາທີ່ມັກ, ສະຖານທີ່ ແລະ ຂໍ້ຈຳກັດການຮຽນ. ລໍຖ້າຄຳຕອບກ່ອນຖາມຄຳຕໍ່ໄປ. ສຸດທ້າຍໃຫ້ຜົນປະເມີນທີ່ຊື່ສັດ, ທັກສະທີ່ຍັງຂາດ, ແຜນຮຽນທີ່ເຮັດໄດ້ ແລະ ສອງອາຊີບທາງເລືອກ.',
+        ].join('\n')
+      : [
+          `Help me assess whether a career as a ${careerAssessment.title} is a good fit for me.`,
+          `The common majors are: ${careerAssessment.majors.join(', ')}.`,
+          `Important skills include: ${careerAssessment.skills.join(', ')}.`,
+          '',
+          'Act as a supportive career counselor for a student in Laos. Start by briefly explaining what this career is really like, then ask me one question at a time about my interests, strengths, preferred work style, school subjects, location, and study constraints. Wait for each answer before asking the next question. After enough answers, give me an honest fit assessment, possible gaps, a practical study plan, and two alternative careers I should also consider. Do not assume that salary or popularity alone makes this the right career.',
+        ].join('\n')
+    setConversationId(null)
+    setLocalMessages([])
+    setDraft('')
+    void send(undefined, prompt, true)
+  }, [access.data, careerAssessment, language])
+
+  async function send(event?: FormEvent, starter?: string, forceNewConversation = false) {
     event?.preventDefault()
     const content = (starter ?? draft).trim()
     if (!content || sending) return
@@ -198,7 +228,7 @@ export function PremiumCoach() {
     const optimistic: Message = { id: `local-${Date.now()}`, role: 'user', content, created_at: new Date().toISOString() }
     setLocalMessages(previous => [...previous, optimistic])
     const { data, error: invokeError } = await supabase.functions.invoke('premium-coach', {
-      body: { conversationId, message: content, language },
+      body: { conversationId: forceNewConversation ? null : conversationId, message: content, language },
     })
     if (invokeError || data?.error) {
       setLocalMessages(previous => previous.filter(item => item.id !== optimistic.id))
@@ -307,7 +337,7 @@ export function PremiumCoach() {
           {localMessages.length === 0 && (
             <div className="animate-slide-up py-10 text-center md:py-20">
               <Sparkles className="mx-auto h-7 w-7 text-amber-500" />
-              <h1 className="mt-5 text-3xl font-black tracking-tight">{roleplayMission ? 'Ready for your role-play mission?' : 'What should we work on today?'}</h1>
+              <h1 className="mt-5 text-3xl font-black tracking-tight">{roleplayMission ? 'Ready for your role-play mission?' : careerAssessment ? `Assessing ${careerAssessment.title}` : 'What should we work on today?'}</h1>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
                 {roleplayMission ? 'Send the prepared prompt below to begin. Complete your first exchange to earn 20 XP.' : 'I’ll use your goals and coaching preferences to give you practical, personal guidance.'}
               </p>

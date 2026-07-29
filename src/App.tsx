@@ -40,6 +40,7 @@ const BookstorePriceEntry = lazy(() => import('@/pages/public/BookstorePriceEntr
 const PlatformSelector = lazy(() => import('@/pages/PlatformSelector').then(m => ({ default: m.PlatformSelector })))
 const AcademyLanding = lazy(() => import('@/pages/academy/AcademyLanding').then(m => ({ default: m.AcademyLanding })))
 const AcademyProfile = lazy(() => import('@/pages/academy/AcademyProfile').then(m => ({ default: m.AcademyProfile })))
+const CareerExplorer = lazy(() => import('@/pages/academy/CareerExplorer').then(m => ({ default: m.CareerExplorer })))
 
 // Admin pages
 const AdminDashboard  = lazy(() => import('@/pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })))
@@ -148,6 +149,7 @@ export function App() {
                     <Route path="/academy/habits" element={<HabitTrackerPage />} />
                     <Route path="/academy/progress" element={<LearningProgressPage />} />
                     <Route path="/academy/profile" element={<AcademyProfile />} />
+                    <Route path="/academy/careers" element={<CareerExplorer />} />
 
                     {/* Legacy route compatibility */}
                     <Route path="/books" element={<LegacyRedirect to="/bookstore/books" />} />

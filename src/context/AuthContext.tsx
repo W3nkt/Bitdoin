@@ -25,6 +25,7 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const AUTH_STARTUP_TIMEOUT_MS = 10_000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -48,22 +49,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setSupabaseUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id).finally(() => setLoading(false))
-      else setLoading(false)
+    let active = true
+    let authEventHandled = false
+
+    const applySession = (nextSession: Session | null) => {
+      if (!active) return
+      setSession(nextSession)
+      setSupabaseUser(nextSession?.user ?? null)
+
+      if (!nextSession?.user) {
+        setProfile(null)
+        setLoading(false)
+        return
+      }
+
+      // Do not await another Supabase call from inside onAuthStateChange.
+      // The auth client may still hold its internal lock while invoking it.
+      void fetchProfile(nextSession.user.id).finally(() => {
+        if (active) setLoading(false)
+      })
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      authEventHandled = true
+      applySession(nextSession)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      setSupabaseUser(session?.user ?? null)
-      if (session?.user) await fetchProfile(session.user.id)
-      else setProfile(null)
-      setLoading(false)
+    const startupTimeout = window.setTimeout(() => {
+      if (active) setLoading(false)
+    }, AUTH_STARTUP_TIMEOUT_MS)
+
+    void supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!authEventHandled) applySession(initialSession)
+    }).catch(() => {
+      if (active) setLoading(false)
+    }).finally(() => {
+      window.clearTimeout(startupTimeout)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      window.clearTimeout(startupTimeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function signInWithEmail(email: string, password: string) {

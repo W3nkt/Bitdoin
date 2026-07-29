@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -15,7 +15,22 @@ import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
 
-type LessonSection = { heading: string; body: string }
+// Legacy sections carry a single "body" string. Full-depth summaries instead
+// use an ordered "blocks" list, so a section can mix paragraphs, bullet
+// lists, subheadings, and inline definition boxes in any order.
+type LessonListItem = { label?: string; body: string }
+type LessonBlock =
+  | { type: 'p'; text: string }
+  | { type: 'h4'; text: string }
+  | { type: 'list'; items: LessonListItem[] }
+  | { type: 'term'; term: string; body: string }
+type LessonSection = {
+  heading: string
+  body?: string
+  blocks?: LessonBlock[]
+  oneline?: string
+}
+type GlossaryTerm = { term: string; body: string }
 type Category = {
   id: string; slug: string; name_en: string; name_lo: string
   description_en: string; description_lo: string; icon: string; accent: string
@@ -23,7 +38,10 @@ type Category = {
 type BookRef = { id: string; title: string; author: string | null; cover_image_url: string | null }
 type Lesson = {
   id: string; category_id: string; slug: string; title_en: string; title_lo: string
-  summary_en: string; summary_lo: string; content_en: LessonSection[]; content_lo: LessonSection[]
+  summary_en: string; summary_lo: string; deck_en?: string | null; deck_lo?: string | null
+  content_en: LessonSection[]; content_lo: LessonSection[]
+  glossary_en: GlossaryTerm[]; glossary_lo: GlossaryTerm[]
+  reflection_questions_en: string[]; reflection_questions_lo: string[]
   key_takeaways_en: string[]; key_takeaways_lo: string[]; difficulty: string
   estimated_minutes: number; lesson_type: string; source_url?: string | null
   source_verified_at?: string | null; application_deadline?: string | null
@@ -41,6 +59,7 @@ type WeeklyChallenge = {
 type WeeklyProgress = { challenge_id: string; completed_steps: number[]; reflection?: string | null; completed_at?: string | null }
 type Habit = { id: string; name: string; category_slug: string; frequency: string; reminder_time?: string | null }
 type HabitCheckin = { habit_id: string; checkin_date: string }
+type CategoryUnlock = { category_id: string; start_date: string }
 
 const iconMap = {
   'book-open': BookOpen, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
@@ -59,6 +78,52 @@ function localize(language: 'lo' | 'en', en: string, lo: string) {
 
 function today() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Vientiane' }).format(new Date())
+}
+
+function daysBetween(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00Z`).getTime()
+  const end = new Date(`${endDate}T00:00:00Z`).getTime()
+  return Math.floor((end - start) / 86_400_000)
+}
+
+// Deterministic per-seed shuffle (FNV-1a hash -> xorshift32) so each user sees
+// a stable but different lesson order per category, without storing an explicit order.
+function seededShuffle<T>(items: T[], seed: string): T[] {
+  let hash = 2166136261
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  let state = hash >>> 0 || 1
+  const nextRandom = () => {
+    state ^= state << 13; state >>>= 0
+    state ^= state >>> 17
+    state ^= state << 5; state >>>= 0
+    return state / 4294967296
+  }
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(nextRandom() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+// One new lesson unlocks per day per category, in the user's shuffled order.
+function useCategoryLessonOrder(
+  categoryId: string | undefined,
+  lessons: Lesson[] | undefined,
+  userId: string | undefined,
+  unlocks: CategoryUnlock[] | undefined,
+) {
+  const ordered = useMemo(() => {
+    const inCategory = (lessons ?? []).filter(lesson => lesson.category_id === categoryId)
+    return userId && categoryId ? seededShuffle(inCategory, `${userId}:${categoryId}`) : inCategory
+  }, [lessons, categoryId, userId])
+  const unlock = unlocks?.find(item => item.category_id === categoryId)
+  const daysUnlocked = unlock ? daysBetween(unlock.start_date, today()) + 1 : 1
+  const unlockedCount = Math.min(ordered.length, Math.max(1, daysUnlocked))
+  return { ordered, unlockedCount }
 }
 
 function PremiumGate({ children }: { children: React.ReactNode }) {
@@ -131,7 +196,7 @@ function useLearningData() {
     queryKey: ['premium', 'learning-lessons'],
     queryFn: async () => {
       const { data, error } = await supabase.from('premium_lessons')
-        .select('id,category_id,slug,title_en,title_lo,summary_en,summary_lo,content_en,content_lo,key_takeaways_en,key_takeaways_lo,difficulty,estimated_minutes,lesson_type,source_url,source_verified_at,application_deadline,book_id,category:premium_learning_categories(id,slug,name_en,name_lo,description_en,description_lo,icon,accent),book:books(id,title,author,cover_image_url)')
+        .select('id,category_id,slug,title_en,title_lo,summary_en,summary_lo,deck_en,deck_lo,content_en,content_lo,glossary_en,glossary_lo,reflection_questions_en,reflection_questions_lo,key_takeaways_en,key_takeaways_lo,difficulty,estimated_minutes,lesson_type,source_url,source_verified_at,application_deadline,book_id,category:premium_learning_categories(id,slug,name_en,name_lo,description_en,description_lo,icon,accent),book:books(id,title,author,cover_image_url)')
         .eq('status', 'PUBLISHED').order('sort_order')
       if (error) throw error
       return (data ?? []).map(row => ({
@@ -152,7 +217,18 @@ function useLearningData() {
       return data as Progress[]
     },
   })
-  return { categories, lessons, progress }
+  const categoryUnlocks = useQuery({
+    queryKey: ['premium', 'category-unlocks', profile?.id],
+    enabled: Boolean(profile),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('premium_category_unlocks')
+        .select('category_id,start_date')
+        .eq('user_id', profile!.id)
+      if (error) throw error
+      return data as CategoryUnlock[]
+    },
+  })
+  return { categories, lessons, progress, categoryUnlocks }
 }
 
 export function LearningHub() {
@@ -220,6 +296,7 @@ export function LearningHub() {
 
         <nav className="grid gap-3 border-t border-slate-200 py-8 sm:grid-cols-3">
           <WorkspaceLink to="/academy/challenges" icon={Target} title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} />
+          <WorkspaceLink to="/academy/careers" icon={BriefcaseBusiness} title={localize(language, 'Career explorer', 'ສຳຫຼວດອາຊີບ')} />
           <WorkspaceLink to="/academy/habits" icon={ListChecks} title={localize(language, 'Habit tracker', 'ຕິດຕາມນິໄສ')} />
           <WorkspaceLink to="/academy/progress" icon={Trophy} title={localize(language, 'My progress', 'ຄວາມຄືບໜ້າ')} />
         </nav>
@@ -243,20 +320,41 @@ function WorkspaceLink({ to, icon: Icon, title }: { to: string; icon: typeof Tar
 export function LearningCategoryPage() {
   const { categorySlug } = useParams()
   const { language } = useLanguage()
-  const { categories, lessons, progress } = useLearningData()
+  const { profile } = useAuth()
+  const qc = useQueryClient()
+  const { categories, lessons, progress, categoryUnlocks } = useLearningData()
   const category = categories.data?.find(item => item.slug === categorySlug)
-  const filtered = lessons.data?.filter(item => item.category_id === category?.id) ?? []
+  const { ordered, unlockedCount } = useCategoryLessonOrder(category?.id, lessons.data, profile?.id, categoryUnlocks.data)
+
+  const ensureUnlock = useMutation({
+    mutationFn: async () => {
+      if (!profile || !category) return
+      const { error } = await supabase.from('premium_category_unlocks')
+        .upsert({ user_id: profile.id, category_id: category.id }, { onConflict: 'user_id,category_id', ignoreDuplicates: true })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['premium', 'category-unlocks'] }),
+  })
+  useEffect(() => {
+    if (!profile || !category || categoryUnlocks.isLoading || ensureUnlock.isPending) return
+    if (!categoryUnlocks.data?.some(item => item.category_id === category.id)) ensureUnlock.mutate()
+  }, [profile, category, categoryUnlocks.data, categoryUnlocks.isLoading])
+
   if (!categories.isLoading && !category) return <Navigate to="/academy/learn" replace />
   return (
     <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         <p className="max-w-2xl text-lg leading-8 text-slate-600">{category && localize(language, category.description_en, category.description_lo)}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600">{localize(language, 'One new lesson unlocks each day', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້')}</p>
         <div className="mt-10 border-t border-slate-200">
-          {filtered.map((lesson, index) => {
+          {ordered.map((lesson, index) => {
             const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
-            return (
-              <Link key={lesson.id} to={`/academy/lesson/${lesson.slug}`} className="group grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 py-6">
-                {lesson.book?.cover_image_url ? (
+            const locked = index >= unlockedCount
+            const isToday = index === unlockedCount - 1
+            const daysLeft = index + 1 - unlockedCount
+            const content = (
+              <>
+                {lesson.book?.cover_image_url && !locked ? (
                   <span className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded-md bg-slate-200 shadow-sm">
                     <img src={lesson.book.cover_image_url} alt="" className="h-full w-full object-cover" />
                     {itemProgress?.completed_at && (
@@ -264,20 +362,40 @@ export function LearningCategoryPage() {
                     )}
                   </span>
                 ) : (
-                  <span className={cn('grid h-10 w-10 place-items-center rounded-full text-sm font-black', itemProgress?.completed_at ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-slate-500 ring-1 ring-slate-200')}>
-                    {itemProgress?.completed_at ? <Check className="h-4 w-4" /> : index + 1}
+                  <span className={cn('grid h-10 w-10 place-items-center rounded-full text-sm font-black', locked ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200' : itemProgress?.completed_at ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-slate-500 ring-1 ring-slate-200')}>
+                    {locked ? <LockKeyhole className="h-4 w-4" /> : itemProgress?.completed_at ? <Check className="h-4 w-4" /> : index + 1}
                   </span>
                 )}
                 <div>
-                  <h2 className="text-lg font-black group-hover:text-primary-700">{localize(language, lesson.title_en, lesson.title_lo)}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, lesson.summary_en, lesson.summary_lo)}</p>
-                  <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">{lesson.estimated_minutes} min · {lesson.difficulty.toLowerCase()}</p>
+                  <div className="flex items-center gap-2">
+                    <h2 className={cn('text-lg font-black', locked ? 'text-slate-400' : 'group-hover:text-primary-700')}>{localize(language, lesson.title_en, lesson.title_lo)}</h2>
+                    {isToday && !locked && (
+                      <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary-700">{localize(language, 'Today', 'ມື້ນີ້')}</span>
+                    )}
+                  </div>
+                  {locked ? (
+                    <p className="mt-2 text-sm font-semibold text-slate-400">
+                      {daysLeft === 1
+                        ? localize(language, 'Unlocks tomorrow', 'ປົດລັອກມື້ອື່ນ')
+                        : localize(language, `Unlocks in ${daysLeft} days`, `ປົດລັອກໃນ ${daysLeft} ມື້`)}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, lesson.summary_en, lesson.summary_lo)}</p>
+                      <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">{lesson.estimated_minutes} min · {lesson.difficulty.toLowerCase()}</p>
+                    </>
+                  )}
                 </div>
-                <ChevronRight className="mt-2 h-5 w-5 text-slate-300 group-hover:translate-x-1" />
-              </Link>
+                <ChevronRight className={cn('mt-2 h-5 w-5', locked ? 'text-slate-200' : 'text-slate-300 group-hover:translate-x-1')} />
+              </>
+            )
+            return locked ? (
+              <div key={lesson.id} className="grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 py-6 opacity-70">{content}</div>
+            ) : (
+              <Link key={lesson.id} to={`/academy/lesson/${lesson.slug}`} className="group grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 py-6">{content}</Link>
             )
           })}
-          {!lessons.isLoading && filtered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ບົດຮຽນໃໝ່ກຳລັງກະກຽມ.')} />}
+          {!lessons.isLoading && ordered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ບົດຮຽນໃໝ່ກຳລັງກະກຽມ.')} />}
         </div>
       </main>
     </LearningShell>
@@ -290,8 +408,9 @@ export function LessonReaderPage() {
   const { language } = useLanguage()
   const qc = useQueryClient()
   const toast = useToast()
-  const { lessons, progress } = useLearningData()
+  const { lessons, progress, categoryUnlocks } = useLearningData()
   const lesson = lessons.data?.find(item => item.slug === lessonSlug)
+  const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lessons.data, profile?.id, categoryUnlocks.data)
   const questions = useQuery({
     queryKey: ['premium', 'lesson-quiz', lesson?.id],
     enabled: Boolean(lesson),
@@ -331,8 +450,12 @@ export function LessonReaderPage() {
   })
   if (lessons.isLoading) return <LoadingSpinner />
   if (!lesson) return <Navigate to="/academy/learn" replace />
+  const lessonIndex = ordered.findIndex(item => item.id === lesson.id)
+  if (lessonIndex >= unlockedCount) return <Navigate to={`/academy/learn/${lesson.category?.slug ?? ''}`} replace />
   const sections = language === 'lo' ? lesson.content_lo : lesson.content_en
   const takeaways = language === 'lo' ? lesson.key_takeaways_lo : lesson.key_takeaways_en
+  const glossary = language === 'lo' ? lesson.glossary_lo : lesson.glossary_en
+  const reflectionQuestions = language === 'lo' ? lesson.reflection_questions_lo : lesson.reflection_questions_en
   const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
   const allAnswered = !questions.data?.length || questions.data.every(q => answers[q.id] !== undefined)
   return (
@@ -341,7 +464,7 @@ export function LessonReaderPage() {
         <header className="border-b border-slate-200 pb-10">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lesson.lesson_type.replace('_', ' ')}</p>
           <h2 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">{localize(language, lesson.title_en, lesson.title_lo)}</h2>
-          <p className="mt-5 text-lg leading-8 text-slate-600">{localize(language, lesson.summary_en, lesson.summary_lo)}</p>
+          <p className="mt-5 text-lg leading-8 text-slate-600">{localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}</p>
           {lesson.book && (
             <Link to={`/bookstore/books/${lesson.book.id}`} className="mt-7 flex items-center gap-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100 transition hover:ring-primary-200">
               <span className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200 shadow-sm">
@@ -360,12 +483,36 @@ export function LessonReaderPage() {
             </Link>
           )}
         </header>
-        <div className="space-y-10 py-10">
+        <div className="space-y-12 py-10">
           {sections.map((section, index) => (
-            <section key={`${section.heading}-${index}`}>
+            <section key={`${section.heading}-${index}`} className="border-t border-slate-200 pt-8 first:border-t-0 first:pt-0">
               <p className="text-xs font-black text-primary-500">0{index + 1}</p>
               <h3 className="mt-2 text-2xl font-black">{section.heading}</h3>
-              <p className="mt-4 text-base leading-8 text-slate-600">{section.body}</p>
+              {section.blocks?.length ? section.blocks.map((block, bIndex) => {
+                if (block.type === 'p') return <p key={bIndex} className="mt-4 text-base leading-8 text-slate-600">{block.text}</p>
+                if (block.type === 'h4') return <h4 key={bIndex} className="mt-6 text-base font-black">{block.text}</h4>
+                if (block.type === 'term') return (
+                  <div key={bIndex} className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                    <p className="text-sm font-black text-slate-900">{block.term}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{block.body}</p>
+                  </div>
+                )
+                return (
+                  <ul key={bIndex} className="mt-4 list-disc space-y-2 pl-5 text-base leading-7 text-slate-600">
+                    {block.items.map((item, iIndex) => (
+                      <li key={iIndex}>{item.label && <b className="font-black text-slate-900">{item.label} </b>}{item.body}</li>
+                    ))}
+                  </ul>
+                )
+              }) : section.body && <p className="mt-4 text-base leading-8 text-slate-600">{section.body}</p>}
+              {section.oneline && (
+                <div className="mt-6 border-l-2 border-primary-600 pl-4">
+                  <p className="text-sm leading-7 text-slate-600">
+                    <span className="font-black text-slate-900">{localize(language, 'In one line. ', 'ໂດຍສະຫຼຸບ. ')}</span>
+                    {section.oneline}
+                  </p>
+                </div>
+              )}
             </section>
           ))}
         </div>
@@ -375,6 +522,27 @@ export function LessonReaderPage() {
             {takeaways.map(item => <li key={item} className="flex gap-3 text-sm leading-6 text-slate-600"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}
           </ul>
         </section>
+        {!!glossary.length && (
+          <section className="py-10">
+            <h3 className="text-lg font-black">{localize(language, 'Terms worth remembering', 'ຄຳສັບຄວນຈື່')}</h3>
+            <div className="mt-5 space-y-3">
+              {glossary.map(item => (
+                <div key={item.term} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                  <p className="text-sm font-black text-slate-900">{item.term}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {!!reflectionQuestions.length && (
+          <section className="border-t border-slate-200 py-10">
+            <h3 className="text-lg font-black">{localize(language, 'Questions to sit with', 'ຄຳຖາມໃຫ້ຄິດຕໍ່')}</h3>
+            <ul className="mt-5 space-y-3">
+              {reflectionQuestions.map(item => <li key={item} className="text-sm leading-7 text-slate-600">{item}</li>)}
+            </ul>
+          </section>
+        )}
         {!!questions.data?.length && (
           <section className="py-10">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{localize(language, 'Quick check', 'ກວດຄວາມເຂົ້າໃຈ')}</p>
