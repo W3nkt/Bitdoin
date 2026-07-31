@@ -16,9 +16,11 @@ import {
 } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
+import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { usePremiumTranslation } from '@/i18n/premium'
+import type { Language } from '@/types'
 
 type ActivityKind = 'brain_sprint' | 'word_match'
 
@@ -35,6 +37,29 @@ interface Question {
   options: string[]
   answer: string
   explanation: string
+}
+
+interface LocalizedText {
+  en: string
+  lo: string
+}
+
+interface AiBrainSprintItem {
+  id: string
+  prompt: LocalizedText
+  options: LocalizedText[]
+  answerIndex: number
+  explanation: LocalizedText
+}
+
+interface AiWordMatchItem {
+  id: string
+  english: string
+  lao: string
+}
+
+function pickLang(text: LocalizedText, language: Language) {
+  return language === 'lo' ? text.lo : text.en
 }
 
 const BRAIN_QUESTION_BANK: Question[] = [
@@ -215,6 +240,7 @@ export function PlayLearnArcade({
   usePremiumTranslation()
   const queryClient = useQueryClient()
   const { success, error } = useToast()
+  const { language } = useLanguage()
   const [activeActivity, setActiveActivity] = useState<ActivityKind | null>(null)
   const [brainQuestions, setBrainQuestions] = useState<typeof BRAIN_QUESTION_BANK>([])
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -243,14 +269,58 @@ export function PlayLearnArcade({
   })
 
   const today = todayInLaos()
-  const dailyBrainQuestions = useMemo(
-    () => shuffle(BRAIN_QUESTION_BANK, seededRandom(hashSeed(`brain:${today}`))).slice(0, 5),
-    [today],
-  )
-  const dailyWordPairs = useMemo(
-    () => shuffle(WORD_PAIR_BANK, seededRandom(hashSeed(`words:${today}`))).slice(0, 6),
-    [today],
-  )
+
+  // AI-generated content refreshes weekly (see supabase/functions/premium-arcade-pool):
+  // each user gets a unique, non-repeating daily slice of that week's shared pool.
+  // On any failure we fall back to the static banks below so the games never break.
+  const brainPool = useQuery({
+    queryKey: ['premium', 'arcade-pool', 'brain_sprint', profileId, today],
+    queryFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke('premium-arcade-pool', {
+        body: { activity_type: 'brain_sprint' },
+      })
+      if (invokeError || !Array.isArray(data?.items)) {
+        console.error('Could not load AI Brain Sprint content', invokeError ?? data?.error)
+        return null
+      }
+      return data.items as AiBrainSprintItem[]
+    },
+    staleTime: 1000 * 60 * 60 * 24,
+    retry: false,
+  })
+  const wordPool = useQuery({
+    queryKey: ['premium', 'arcade-pool', 'word_match', profileId, today],
+    queryFn: async () => {
+      const { data, error: invokeError } = await supabase.functions.invoke('premium-arcade-pool', {
+        body: { activity_type: 'word_match' },
+      })
+      if (invokeError || !Array.isArray(data?.items)) {
+        console.error('Could not load AI Word Match content', invokeError ?? data?.error)
+        return null
+      }
+      return data.items as AiWordMatchItem[]
+    },
+    staleTime: 1000 * 60 * 60 * 24,
+    retry: false,
+  })
+
+  const dailyBrainQuestions = useMemo(() => {
+    if (brainPool.data && brainPool.data.length > 0) {
+      return brainPool.data.map(item => ({
+        prompt: pickLang(item.prompt, language),
+        options: item.options.map(option => pickLang(option, language)),
+        answer: pickLang(item.options[item.answerIndex], language),
+        explanation: pickLang(item.explanation, language),
+      }))
+    }
+    return shuffle(BRAIN_QUESTION_BANK, seededRandom(hashSeed(`brain:${today}`))).slice(0, 5)
+  }, [brainPool.data, language, today])
+  const dailyWordPairs = useMemo(() => {
+    if (wordPool.data && wordPool.data.length > 0) {
+      return wordPool.data.map(item => ({ id: item.id, left: item.english, right: item.lao }))
+    }
+    return shuffle(WORD_PAIR_BANK, seededRandom(hashSeed(`words:${today}`))).slice(0, 6)
+  }, [wordPool.data, today])
   const dailyRoleplayMission = useMemo(
     () => ROLEPLAY_MISSIONS[hashSeed(`roleplay:${today}`) % ROLEPLAY_MISSIONS.length],
     [today],
@@ -554,7 +624,7 @@ export function PlayLearnArcade({
               <p className="text-sm font-semibold text-slate-600">Match each English word with its Lao meaning.</p>
               <span className="whitespace-nowrap text-xs font-black text-emerald-700">{matchedWords.length}/{dailyWordPairs.length}</span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" data-no-premium-translate>
               {shuffledWords.map(card => {
                 const selected = wordSelection?.id === card.id && wordSelection.side === card.side
                 const matched = matchedWords.includes(card.id)
