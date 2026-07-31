@@ -177,7 +177,7 @@ export function PremiumLearningAdmin() {
         <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4">
           <button onClick={() => navigate('/academy-admin')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p><h1 className="text-xl font-black">Learning content</h1></div>
-          <a href="#/academy/learn" target="_blank" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Member view <ExternalLink className="h-4 w-4" /></a>
+          <a href="/academy/learn" target="_blank" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Member view <ExternalLink className="h-4 w-4" /></a>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8">

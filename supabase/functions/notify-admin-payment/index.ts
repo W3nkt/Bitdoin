@@ -203,7 +203,7 @@ serve(async (req) => {
       console.error('[notify-admin-payment] receipt attachment failed', attachErr)
     }
 
-    const reviewUrl = ADMIN_APP_URL ? `${ADMIN_APP_URL}/#/admin/payments?payment=${payment.id}` : null
+    const reviewUrl = ADMIN_APP_URL ? `${ADMIN_APP_URL}/admin/payments?payment=${payment.id}` : null
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',

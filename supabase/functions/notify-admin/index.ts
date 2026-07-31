@@ -190,8 +190,7 @@ serve(async (req) => {
     order.total_amount = Number(storedOrder.total_amount)
     order.currency = storedOrder.currency
 
-    // The admin app uses HashRouter, so the route lives after the `#`.
-    const reviewUrl = ADMIN_APP_URL ? `${ADMIN_APP_URL}/#/admin/orders?order=${order.order_id}` : null
+    const reviewUrl = ADMIN_APP_URL ? `${ADMIN_APP_URL}/admin/orders?order=${order.order_id}` : null
     const attachment = await fetchReceiptAttachment(supabase, order.order_id, order.order_number)
 
     const res = await fetch('https://api.resend.com/emails', {

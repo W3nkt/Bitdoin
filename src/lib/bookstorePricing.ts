@@ -15,7 +15,7 @@ export interface BookstorePendingBooks {
 }
 
 export function bookstorePriceLinkUrl(token: string): string {
-  return `${window.location.origin}${window.location.pathname}#/bookstore-pricing/${token}`
+  return `${window.location.origin}/bookstore-pricing/${token}`
 }
 
 export async function generateBookstorePriceLink(bookstoreId: string): Promise<string> {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, CheckCircle2, ChevronRight,
@@ -61,6 +61,7 @@ export function CareerExplorer() {
   const [region, setRegion] = useState<(typeof regions)[number]>('All')
   const [field, setField] = useState('All')
   const [selectedId, setSelectedId] = useState(careerPaths[0].id)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const lo = language === 'lo'
   const text = copy[language]
 
@@ -136,7 +137,10 @@ export function CareerExplorer() {
             </div>
             <div className="divide-y divide-slate-900/10 border-y border-slate-900/10">
               {filtered.map(career => (
-                <button key={career.id} onClick={() => setSelectedId(career.id)} className={cn(
+                <button key={career.id} onClick={() => {
+                  setSelectedId(career.id)
+                  if (window.matchMedia('(max-width: 1023px)').matches) setMobileDetailOpen(true)
+                }} className={cn(
                   'group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-1 py-5 text-left transition hover:px-3',
                   selected?.id === career.id && 'bg-white px-3',
                 )}>
@@ -157,9 +161,54 @@ export function CareerExplorer() {
             </div>
           </section>
 
-          {selected && <CareerDetail career={selected} language={language} />}
+          <div className="hidden lg:block">
+            {selected && <CareerDetail career={selected} language={language} />}
+          </div>
         </div>
       </main>
+
+      {selected && (
+        <CareerDetailSheet
+          open={mobileDetailOpen}
+          onClose={() => setMobileDetailOpen(false)}
+          career={selected}
+          language={language}
+        />
+      )}
+    </div>
+  )
+}
+
+function CareerDetailSheet({ open, onClose, career, language }: { open: boolean; onClose: () => void; career: CareerPath; language: 'lo' | 'en' }) {
+  useEffect(() => {
+    if (!open) return
+    document.body.style.overflow = 'hidden'
+    const handler = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', handler)
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end lg:hidden" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white shadow-2xl motion-safe:animate-slide-up">
+        <div className="sticky top-0 z-10 flex justify-center bg-slate-950 pb-1 pt-3">
+          <div className="h-1 w-10 rounded-full bg-white/30" />
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close career details"
+          className="absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <CareerDetail career={career} language={language} />
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react'
-import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
@@ -108,7 +108,7 @@ function OAuthReturnHandler() {
 export function App() {
   return (
     <QueryClientProvider client={qc}>
-      <HashRouter>
+      <BrowserRouter>
         <AuthProvider>
           <LanguageProvider>
             <CartProvider>
@@ -227,7 +227,7 @@ export function App() {
             </CartProvider>
           </LanguageProvider>
         </AuthProvider>
-      </HashRouter>
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

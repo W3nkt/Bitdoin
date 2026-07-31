@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
-import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle } from 'lucide-react'
+import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRight, GraduationCap } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -30,6 +30,14 @@ function sanitizeHtml(html: string): string {
     ],
     ALLOWED_ATTR: [],
   })
+}
+
+interface ReadingSummaryLink {
+  slug: string
+  title_en: string
+  title_lo: string
+  estimated_minutes: number
+  has_access: boolean
 }
 
 export function BookDetail() {
@@ -68,6 +76,16 @@ export function BookDetail() {
       return (data ?? []) as Book[]
     },
     enabled: !!book?.category_id,
+  })
+
+  const { data: readingSummary } = useQuery({
+    queryKey: ['book', id, 'reading-summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_book_reading_summary', { p_book_id: id! })
+      if (error) throw error
+      return (data?.[0] ?? null) as ReadingSummaryLink | null
+    },
+    enabled: !!id,
   })
 
   useEffect(() => {
@@ -126,6 +144,20 @@ export function BookDetail() {
   function handleBuyNow() {
     handleAddToCart()
     navigate('/bookstore/cart')
+  }
+
+  function handleOpenSummary() {
+    if (!readingSummary) return
+    trackGoogleEvent('select_content', {
+      content_type: 'academy_reading_summary',
+      item_id: book!.id,
+      item_name: book!.title,
+    })
+    navigate(
+      readingSummary.has_access
+        ? `/academy/lesson/${readingSummary.slug}`
+        : `/academy/subscription?book=${book!.id}&summary=${encodeURIComponent(readingSummary.slug)}`,
+    )
   }
 
   return (
@@ -282,6 +314,46 @@ export function BookDetail() {
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {readingSummary && (
+          <div className="overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-amber-50 shadow-sm">
+            <div className="flex items-center gap-4 p-4 sm:p-5">
+              <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-violet-700 text-white shadow-sm">
+                <GraduationCap className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
+                  Bitdoin Academy
+                </p>
+                <h2 className="mt-1 text-sm font-black text-gray-950">
+                  {language === 'lo' ? 'ອ່ານສະຫຼຸບປຶ້ມນີ້' : 'Read this book summary'}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-gray-500">
+                  {readingSummary.estimated_minutes} {language === 'lo'
+                    ? 'ນາທີ · ແນວຄິດສຳຄັນ ແລະ ບົດຮຽນນຳໃຊ້'
+                    : 'min · Key ideas and practical takeaways'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleOpenSummary}
+                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-violet-700 px-3.5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-800 active:scale-95 sm:px-4 sm:text-sm"
+              >
+                {readingSummary.has_access
+                  ? (language === 'lo' ? 'ອ່ານເລີຍ' : 'Read now')
+                  : (language === 'lo' ? 'ເປີດໃນ Academy' : 'Open in Academy')}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+            {!readingSummary.has_access && (
+              <p className="border-t border-violet-100 bg-white/60 px-4 py-2 text-center text-[11px] font-semibold text-violet-700">
+                {language === 'lo'
+                  ? 'ສະໝັກ Academy ເພື່ອປົດລັອກສະຫຼຸບ ແລະ ບົດຮຽນທັງໝົດ'
+                  : 'Subscribe to Academy to unlock summaries and the full learning library'}
+              </p>
             )}
           </div>
         )}
