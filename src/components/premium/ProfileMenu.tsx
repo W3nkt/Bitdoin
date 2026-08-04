@@ -56,9 +56,13 @@ function statusClass(status?: PremiumStatus) {
 }
 
 // Self-contained profile dropdown: identity + avatar editing, membership
-// snapshot, mentor personalization, and sign out. Fetches its own data (using
-// the same query keys as the Premium home page) so it can be dropped into
-// any Premium header without the host page wiring anything up.
+// snapshot, mentor personalization, and sign out. Fetches its own data so it
+// can be dropped into any Premium header without the host page wiring
+// anything up. Uses a query key distinct from the host page's own
+// subscription query ('subscription-menu', not 'subscription') — this
+// component's select is intentionally narrower, and sharing a key with a
+// fuller query caused the two fetches to race and clobber each other's
+// cached shape depending on which one resolved last.
 export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'light' }) {
   const { profile, signOut, refreshProfile } = useAuth()
   const { language, setLanguage } = useLanguage()
@@ -67,7 +71,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   const { success, error } = useToast()
 
   const { data: subscription } = useQuery({
-    queryKey: ['premium', 'subscription', profile?.id],
+    queryKey: ['premium', 'subscription-menu', profile?.id],
     enabled: !!profile,
     queryFn: async () => {
       const { data, error: subscriptionError } = await supabase

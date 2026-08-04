@@ -358,6 +358,18 @@ const lao: Record<string, string> = {
   'Sort order': 'ລຳດັບ',
   'Time label': 'ປ້າຍເວລາ',
   'Optional label': 'ປ້າຍເສີມ',
+  'Continue payment': 'ດຳເນີນການຊຳລະຕໍ່',
+  'Payment proof is under review': 'ຫຼັກຖານການຊຳລະກຳລັງຖືກກວດສອບ',
+  'Manual transfer required': 'ຕ້ອງໂອນເງິນດ້ວຍຕົນເອງ',
+  'for Bitdoin Premium, then upload the payment proof here. This is separate from bookstore payment review.': 'ສຳລັບ Bitdoin Premium ແລ້ວອັບໂຫຼດຫຼັກຖານການຊຳລະຢູ່ນີ້. ອັນນີ້ແຍກຕ່າງຫາກຈາກການກວດການຊຳລະຂອງຮ້ານປຶ້ມ.',
+  'View QR': 'ເບິ່ງ QR',
+  'Scan to pay': 'ສະແກນເພື່ອຊຳລະ',
+  'Pay later': 'ຊຳລະພາຍຫຼັງ',
+  "I've paid — upload proof": 'ຂ້ອຍຊຳລະແລ້ວ — ອັບໂຫຼດຫຼັກຖານ',
+  'No payment method has been configured yet. Please contact support.': 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າວິທີການຊຳລະ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.',
+  'Bank:': 'ທະນາຄານ:',
+  'Account name:': 'ຊື່ບັນຊີ:',
+  'Account number:': 'ເລກບັນຊີ:',
 }
 
 const english = new Map(Object.entries(lao).map(([en, lo]) => [lo, en]))

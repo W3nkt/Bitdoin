@@ -15,6 +15,7 @@ import {
   Lightbulb,
   Lock,
   MessageCircle,
+  QrCode,
   ReceiptText,
   Rocket,
   ShieldCheck,
@@ -43,7 +44,7 @@ import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
-import type { Language } from '@/types'
+import type { Language, PaymentAccount } from '@/types'
 
 type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PremiumPaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
@@ -269,6 +270,8 @@ export function Subscription() {
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<PremiumPlan | null>(null)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
+  const [qrPaymentOpen, setQrPaymentOpen] = useState(false)
+  const [qrPlan, setQrPlan] = useState<PremiumPlan | null>(null)
 
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['premium', 'plans'],
@@ -296,13 +299,48 @@ export function Subscription() {
         .limit(1)
         .maybeSingle()
       if (subscriptionError) throw subscriptionError
-      return data as PremiumSubscription | null
+      if (!data) return null
+      return { ...data, plan: firstRelation(data.plan) ?? undefined } as PremiumSubscription
     },
     // Membership status must never be served from the app-wide 2-minute
     // staleTime — after an admin approves a request, the member should see
     // it reflected the moment this page is opened, not minutes later.
     staleTime: 0,
     refetchOnMount: 'always',
+    retry: 1,
+  })
+
+  // Admin approval happens in a separate session/tab — without this, a
+  // member watching this page would only see the update after a full
+  // reload, since staleTime/refetchOnMount only kick in on remount.
+  useEffect(() => {
+    if (!profile) return
+    const channel = supabase
+      .channel(`premium-subscription-${profile.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'premium_subscriptions', filter: `user_id=eq.${profile.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ['premium', 'subscription', profile.id] })
+        qc.invalidateQueries({ queryKey: ['premium', 'subscription-menu', profile.id] })
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'premium_payments', filter: `user_id=eq.${profile.id}` }, () => {
+        qc.invalidateQueries({ queryKey: ['premium', 'payments', profile.id] })
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [profile, qc])
+
+  const { data: paymentAccounts } = useQuery({
+    queryKey: ['premium', 'payment-accounts'],
+    queryFn: async () => {
+      const { data, error: accountsError } = await supabase
+        .from('payment_accounts')
+        .select('id,method,label,bank_name,account_name,account_number,qr_image_url,instructions,is_active,sort_order,created_at,updated_at')
+        .eq('is_active', true)
+        .order('sort_order')
+      if (accountsError) throw accountsError
+      return data as PaymentAccount[]
+    },
+    staleTime: 1000 * 60 * 10,
     retry: 1,
   })
 
@@ -459,6 +497,7 @@ export function Subscription() {
   async function invalidatePremium() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['premium', 'subscription', profile?.id] }),
+      qc.invalidateQueries({ queryKey: ['premium', 'subscription-menu', profile?.id] }),
       qc.invalidateQueries({ queryKey: ['premium', 'payments', profile?.id] }),
     ])
   }
@@ -470,6 +509,15 @@ export function Subscription() {
     }
     if (subscription?.plan_id === plan.id && subscription.status === 'ACTIVE') {
       error('You are already on this plan.')
+      return
+    }
+    // Already have an unpaid request for this exact plan — resume it
+    // instead of creating a duplicate subscription + payment row.
+    if (subscription?.plan_id === plan.id && (subscription.status === 'PENDING_PAYMENT' || subscription.status === 'PAYMENT_REVIEW')) {
+      if (plan.price_lak > 0) {
+        setQrPlan(plan)
+        setQrPaymentOpen(true)
+      }
       return
     }
     if (onboarding?.completed) {
@@ -489,10 +537,24 @@ export function Subscription() {
     await (plan.price_lak > 0 ? startSubscription(plan) : subscribeFree(plan))
   }
 
+  // Abandoned/duplicate pending requests (from retries or switching plans
+  // before finishing payment) must not pile up as separate rows — only the
+  // currently ACTIVE plan (handled server-side on approval) should survive.
+  async function supersedeAbandonedRequests() {
+    if (!profile) return
+    await supabase
+      .from('premium_subscriptions')
+      .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString(), auto_renew: false })
+      .eq('user_id', profile.id)
+      .in('status', ['PENDING_APPROVAL', 'PENDING_PAYMENT', 'PAYMENT_REVIEW'])
+  }
+
   async function subscribeFree(plan: PremiumPlan) {
     if (!profile) return
     setBusyPlanId(plan.id)
     try {
+      await supersedeAbandonedRequests()
+
       const { error: subscriptionError } = await supabase
         .from('premium_subscriptions')
         .insert({
@@ -523,6 +585,8 @@ export function Subscription() {
 
     setBusyPlanId(plan.id)
     try {
+      await supersedeAbandonedRequests()
+
       const { data: createdSubscription, error: subscriptionError } = await supabase
         .from('premium_subscriptions')
         .insert({
@@ -551,7 +615,9 @@ export function Subscription() {
       if (paymentError) throw paymentError
 
       await invalidatePremium()
-      success('Premium subscription created. Upload payment proof after transfer.')
+      setQrPlan(plan)
+      setQrPaymentOpen(true)
+      success('Premium subscription created. Scan the QR code to pay, then upload your proof.')
     } catch (err) {
       console.error(err)
       error('Could not start Premium subscription.')
@@ -811,6 +877,10 @@ export function Subscription() {
               payment={pendingPayment}
               uploading={uploadingProof}
               onUploadClick={() => proofInputRef.current?.click()}
+              onViewQr={() => {
+                setQrPlan(subscription?.plan ?? null)
+                setQrPaymentOpen(true)
+              }}
             />
           )}
 
@@ -894,8 +964,6 @@ export function Subscription() {
              </>
            )}
 
-          {!isPaidPremium && (
-            <>
           <section id="plans" className="scroll-mt-24">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
@@ -908,6 +976,8 @@ export function Subscription() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activePlans.map(plan => {
                 const isCurrent = subscription?.plan_id === plan.id && subscription.status !== 'CANCELLED'
+                const isActiveCurrent = isCurrent && subscription?.status === 'ACTIVE'
+                const isPendingCurrent = isCurrent && (subscription?.status === 'PENDING_PAYMENT' || subscription?.status === 'PAYMENT_REVIEW' || subscription?.status === 'PENDING_APPROVAL')
                 const isPremium = plan.price_lak > 0
                 const isYearly = plan.slug === 'premium-yearly'
                 const monthlyPlan = activePlans.find(p => p.slug === 'premium-monthly')
@@ -964,9 +1034,9 @@ export function Subscription() {
                           icon={<Rocket className="h-4 w-4" />}
                           onClick={() => requestSubscribe(plan)}
                           loading={busyPlanId === plan.id}
-                          disabled={isPremiumActive || isPaymentPending || isReviewing}
+                          disabled={isActiveCurrent}
                         >
-                          {isPremiumActive ? 'Premium active' : isPaymentPending || isReviewing ? 'Payment in progress' : 'Start Premium'}
+                          {isActiveCurrent ? 'Current plan' : isPendingCurrent ? 'Continue payment' : 'Start Premium'}
                         </Button>
                       ) : (
                         <Button
@@ -976,7 +1046,7 @@ export function Subscription() {
                           icon={<CheckCircle2 className="h-4 w-4" />}
                           onClick={() => requestSubscribe(plan)}
                           loading={busyPlanId === plan.id}
-                          disabled={isCurrent || isPremiumActive || isPaymentPending || isReviewing}
+                          disabled={isCurrent || (Boolean(subscription) && subscription!.status !== 'CANCELLED' && subscription!.status !== 'EXPIRED')}
                         >
                           {isCurrent ? 'Subscribed' : 'Subscribe'}
                         </Button>
@@ -1078,8 +1148,6 @@ export function Subscription() {
               </div>
             </section>
           </div>
-            </>
-          )}
         </div>
       )}
 
@@ -1091,6 +1159,61 @@ export function Subscription() {
           onComplete={handleOnboardingComplete}
         />
       )}
+
+      <Modal
+        open={qrPaymentOpen}
+        onClose={() => setQrPaymentOpen(false)}
+        title="Scan to pay"
+        size="md"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => setQrPaymentOpen(false)}>
+              Pay later
+            </Button>
+            <Button
+              type="button"
+              icon={<Upload className="h-4 w-4" />}
+              onClick={() => { setQrPaymentOpen(false); proofInputRef.current?.click() }}
+            >
+              I've paid — upload proof
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-slate-600" data-no-premium-translate>
+            {language === 'lo'
+              ? `ໂອນ ${formatPrice(qrPlan?.price_lak ?? 0, currency)} ສຳລັບ ${qrPlan?.name ?? 'ພຣີມຽມ'} ແລ້ວອັບໂຫລດຫຼັກຖານການຊຳລະ ເພື່ອໃຫ້ແອັດມິນກວດສອບ.`
+              : `Transfer ${formatPrice(qrPlan?.price_lak ?? 0, currency)} for ${qrPlan?.name ?? 'Premium'}, then upload your payment proof so admin can verify it.`}
+          </p>
+          {(paymentAccounts ?? []).length > 0 ? (
+            <div className="space-y-3">
+              {paymentAccounts!.map(account => (
+                <div key={account.id} className="rounded-2xl border border-slate-200 p-4">
+                  <p className="text-sm font-black text-slate-900">{account.label}</p>
+                  {account.qr_image_url && (
+                    <img
+                      src={account.qr_image_url}
+                      alt={account.label}
+                      className="mx-auto mt-3 h-48 w-48 rounded-xl object-contain ring-1 ring-slate-100"
+                    />
+                  )}
+                  <div className="mt-3 space-y-1 text-xs text-slate-500">
+                    {account.bank_name && <p>Bank: <span className="font-bold text-slate-800">{account.bank_name}</span></p>}
+                    {account.account_name && <p>Account name: <span className="font-bold text-slate-800">{account.account_name}</span></p>}
+                    {account.account_number && <p>Account number: <span className="font-bold text-slate-800">{account.account_number}</span></p>}
+                  </div>
+                  {account.instructions && (
+                    <p className="mt-2 text-xs leading-5 text-slate-500">{account.instructions}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No payment method has been configured yet. Please contact support.</p>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -1510,11 +1633,13 @@ function PaymentPanel({
   payment,
   uploading,
   onUploadClick,
+  onViewQr,
 }: {
   status?: PremiumStatus
   payment?: PremiumPayment
   uploading: boolean
   onUploadClick: () => void
+  onViewQr: () => void
 }) {
   const amount = payment ? formatPrice(payment.amount_lak, 'LAK') : 'Pending'
   return (
@@ -1533,16 +1658,28 @@ function PaymentPanel({
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          icon={<Upload className="h-4 w-4" />}
-          onClick={onUploadClick}
-          loading={uploading}
-          disabled={status === 'PAYMENT_REVIEW' || !payment}
-          className="bg-amber-600 hover:bg-amber-700"
-        >
-          Upload proof
-        </Button>
+        <div className="flex flex-shrink-0 gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            icon={<QrCode className="h-4 w-4" />}
+            onClick={onViewQr}
+            disabled={status === 'PAYMENT_REVIEW'}
+            className="border-amber-300 text-amber-800 hover:bg-amber-100"
+          >
+            View QR
+          </Button>
+          <Button
+            type="button"
+            icon={<Upload className="h-4 w-4" />}
+            onClick={onUploadClick}
+            loading={uploading}
+            disabled={status === 'PAYMENT_REVIEW' || !payment}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            Upload proof
+          </Button>
+        </div>
       </div>
     </section>
   )
