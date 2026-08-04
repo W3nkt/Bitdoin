@@ -1,5 +1,5 @@
-import { useRef, useState, type ChangeEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
@@ -255,6 +255,7 @@ const FALLBACK_MEMBER_COMMUNITIES: MemberCommunity[] = [
 
 export function Subscription() {
   const navigate = useNavigate()
+  const location = useLocation()
   const qc = useQueryClient()
   const { profile } = useAuth()
   const { currency, language } = useLanguage()
@@ -267,6 +268,7 @@ export function Subscription() {
   const [savingDailyItem, setSavingDailyItem] = useState<DailyChallengeKind | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<PremiumPlan | null>(null)
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
 
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['premium', 'plans'],
@@ -296,6 +298,11 @@ export function Subscription() {
       if (subscriptionError) throw subscriptionError
       return data as PremiumSubscription | null
     },
+    // Membership status must never be served from the app-wide 2-minute
+    // staleTime — after an admin approves a request, the member should see
+    // it reflected the moment this page is opened, not minutes later.
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: 1,
   })
 
@@ -438,6 +445,12 @@ export function Subscription() {
     && (payment.status === 'PENDING' || payment.status === 'REJECTED')
   ))
   const isPremiumActive = premiumMemberContentEnabled
+  // The member home page (mentor, arcade, events, communities) is a benefit
+  // of ANY active membership, including the Free plan — that's the whole
+  // point of "the subscribed home page". isPaidPremium separately controls
+  // paid-only extras (personalized AI guidance, higher limits) and whether
+  // the upgrade banner/plans are shown.
+  const isMemberActive = subscription?.status === 'ACTIVE'
   const isPaymentPending = subscription?.status === 'PENDING_PAYMENT'
   const isReviewing = subscription?.status === 'PAYMENT_REVIEW'
   const isAwaitingApproval = subscription?.status === 'PENDING_APPROVAL'
@@ -453,6 +466,10 @@ export function Subscription() {
   function requestSubscribe(plan: PremiumPlan) {
     if (!profile) {
       navigate('/auth')
+      return
+    }
+    if (subscription?.plan_id === plan.id && subscription.status === 'ACTIVE') {
+      error('You are already on this plan.')
       return
     }
     if (onboarding?.completed) {
@@ -680,6 +697,15 @@ export function Subscription() {
 
   const pageLoading = plansLoading || (!!profile && subscriptionLoading)
 
+  // React Router doesn't auto-scroll to URL hashes on client-side navigation,
+  // so "Upgrade"/"Subscribe" links from other pages (which land here as
+  // /academy/subscription#plans) need an explicit scroll once the plans
+  // section has actually rendered.
+  useEffect(() => {
+    if (location.hash !== '#plans' || pageLoading) return
+    document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [location.hash, pageLoading])
+
   return (
     <div className="premium-i18n min-h-screen bg-slate-50 pt-[104px] text-slate-950">
       <section className="fixed inset-x-0 top-0 z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
@@ -717,23 +743,47 @@ export function Subscription() {
         <LoadingSpinner />
       ) : (
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-24">
-          {isPremiumActive ? (
-            <MemberDashboard
-              profileId={profile!.id}
-              profileName={profile?.name ?? 'Premium member'}
-              motivation={todaysMotivation}
-              language={language}
-              completionResponses={dailyCompletion?.responses ?? {}}
-              savingDailyItem={savingDailyItem}
-              onSubmitDailyReply={saveDailyReply}
-              onOpenCoach={() => navigate('/academy/coach')}
-              onOpenLearning={() => navigate('/academy/learn')}
-              onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
-              events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
-              communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
-              memberStats={memberProgress?.member}
-              leaderboard={memberProgress?.leaderboard ?? []}
-            />
+          {isMemberActive ? (
+            <>
+              {!isPaidPremium && (
+                <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40">
+                      <Crown className="h-5 w-5 text-amber-300" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">You're on the Free plan</p>
+                      <h2 className="mt-1.5 text-lg font-black leading-tight sm:text-xl">Upgrade for the full Premium experience</h2>
+                      <p className="mt-2 max-w-lg text-sm leading-6 text-primary-100">
+                        Unlock daily personalized mentor guidance, unlimited AI Coach conversations, member events, communities, and every Learning Hub lesson.
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href="#plans"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-black text-primary-950 transition hover:bg-amber-300"
+                  >
+                    See plans <ArrowRight className="h-4 w-4" />
+                  </a>
+                </section>
+              )}
+              <MemberDashboard
+                profileId={profile!.id}
+                profileName={profile?.name ?? 'Premium member'}
+                motivation={todaysMotivation}
+                language={language}
+                completionResponses={dailyCompletion?.responses ?? {}}
+                savingDailyItem={savingDailyItem}
+                onSubmitDailyReply={saveDailyReply}
+                onOpenCoach={() => navigate('/academy/coach')}
+                onOpenLearning={() => navigate('/academy/learn')}
+                onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
+                events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
+                communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
+                memberStats={memberProgress?.member}
+                leaderboard={memberProgress?.leaderboard ?? []}
+              />
+            </>
            ) : (
              <>
           {isAwaitingApproval && (
@@ -771,29 +821,6 @@ export function Subscription() {
             className="sr-only"
             onChange={uploadPaymentProof}
           />
-
-          {subscription?.status === 'ACTIVE' && !isPaidPremium && (
-            <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-4">
-                <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40">
-                  <Crown className="h-5 w-5 text-amber-300" />
-                </span>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">You're on the Free plan</p>
-                  <h2 className="mt-1.5 text-lg font-black leading-tight sm:text-xl">Upgrade for the full Premium experience</h2>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-primary-100">
-                    Unlock daily personalized mentor guidance, unlimited AI Coach conversations, member events, communities, and every Learning Hub lesson.
-                  </p>
-                </div>
-              </div>
-              <a
-                href="#plans"
-                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-black text-primary-950 transition hover:bg-amber-300"
-              >
-                See plans <ArrowRight className="h-4 w-4" />
-              </a>
-            </section>
-          )}
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-3xl bg-white p-5 shadow-card">
@@ -864,12 +891,16 @@ export function Subscription() {
               </div>
             </section>
           </div>
+             </>
+           )}
 
+          {!isPaidPremium && (
+            <>
           <section id="plans" className="scroll-mt-24">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Plans</p>
-                <h2 className="mt-1 text-xl font-black text-gray-950">{isPaidPremium ? 'Manage your plan' : subscription?.status === 'ACTIVE' ? 'Upgrade your plan' : 'Choose your access'}</h2>
+                <h2 className="mt-1 text-xl font-black text-gray-950">{isMemberActive ? 'Upgrade your plan' : 'Choose your access'}</h2>
               </div>
               <p className="hidden text-sm text-gray-500 sm:block">Manual activation supports Lao payment workflows.</p>
             </div>
@@ -947,7 +978,7 @@ export function Subscription() {
                           loading={busyPlanId === plan.id}
                           disabled={isCurrent || isPremiumActive || isPaymentPending || isReviewing}
                         >
-                          {isCurrent ? 'Current plan' : 'Subscribe'}
+                          {isCurrent ? 'Subscribed' : 'Subscribe'}
                         </Button>
                       )}
                     </div>
@@ -979,13 +1010,42 @@ export function Subscription() {
                 variant="outline"
                 fullWidth
                 icon={<XCircle className="h-4 w-4" />}
-                onClick={cancelSubscription}
+                onClick={() => setConfirmCancelOpen(true)}
                 loading={busyPlanId === subscription?.plan_id}
                 disabled={!subscription || subscription.status === 'CANCELLED' || subscription.status === 'EXPIRED'}
                 className="mt-5 border-red-200 text-red-600 hover:bg-red-50"
               >
                 Cancel subscription
               </Button>
+
+              <Modal
+                open={confirmCancelOpen}
+                onClose={() => setConfirmCancelOpen(false)}
+                title="Cancel your subscription?"
+                size="sm"
+                footer={
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button type="button" variant="outline" onClick={() => setConfirmCancelOpen(false)}>
+                      Keep my plan
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      icon={<XCircle className="h-4 w-4" />}
+                      loading={busyPlanId === subscription?.plan_id}
+                      onClick={async () => { await cancelSubscription(); setConfirmCancelOpen(false) }}
+                    >
+                      Yes, cancel subscription
+                    </Button>
+                  </div>
+                }
+              >
+                <p className="text-sm leading-6 text-slate-600">
+                  You'll lose access to <span className="font-bold text-slate-900">{planName}</span> immediately
+                  {isPaidPremium ? ' — this cannot be undone, and any remaining time on your current billing period will not be refunded.' : '.'}
+                  {' '}You can subscribe again at any time.
+                </p>
+              </Modal>
             </section>
 
             <section className="rounded-3xl bg-white p-5 shadow-card">

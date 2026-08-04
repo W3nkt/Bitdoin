@@ -81,6 +81,8 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
       if (!data) return null
       return { ...data, plan: firstRelation(data.plan) ?? undefined } as MenuSubscription
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
     retry: 1,
   })
 

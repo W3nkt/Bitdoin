@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"policy\\\\|enable row level security\")",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalAddress,LocalPort,State\")"
+    ]
+  }
+}

@@ -153,12 +153,24 @@ export function PremiumCoach() {
   const roleplayCompleted = useRef(false)
   const careerAssessmentInitialized = useRef(false)
 
+  // An ACTIVE subscription on the $0 Free plan still has status = 'ACTIVE',
+  // so this must check that the active plan is actually paid. Also never
+  // served from the app-wide staleTime, so it reflects an admin's approval
+  // the moment this page opens.
   const access = useQuery({
-    queryKey: ['premium-coach-access', profile?.id], enabled: Boolean(profile?.id),
+    queryKey: ['premium', 'paid-access', profile?.id], enabled: Boolean(profile?.id),
     queryFn: async () => {
-      const { data } = await supabase.from('premium_subscriptions').select('id').eq('user_id', profile!.id).eq('status', 'ACTIVE').or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`).limit(1).maybeSingle()
-      return Boolean(data)
+      const { data } = await supabase
+        .from('premium_subscriptions')
+        .select('id,plan:premium_plans(price_lak)')
+        .eq('user_id', profile!.id).eq('status', 'ACTIVE')
+        .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      const plan = Array.isArray(data?.plan) ? data?.plan[0] : data?.plan
+      return Boolean(data) && ((plan?.price_lak ?? 0) > 0)
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const conversations = useQuery({
     queryKey: ['premium-coach-conversations', profile?.id], enabled: Boolean(profile?.id),
@@ -292,7 +304,7 @@ export function PremiumCoach() {
           {access.data ? (
             <Crown className="h-5 w-5 text-amber-500" />
           ) : (
-            <Link to="/academy/subscription" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
+            <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
               <Crown className="h-3.5 w-3.5" /> Upgrade
             </Link>
           )}

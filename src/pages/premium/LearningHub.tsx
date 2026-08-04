@@ -161,6 +161,10 @@ function usePremiumAccess() {
       if (error) throw error
       return Boolean(data)
     },
+    // Membership status must not be served from the app-wide staleTime —
+    // it should reflect an admin's approval the moment this page opens.
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
@@ -186,6 +190,8 @@ function usePaidPremiumAccess() {
       const plan = firstRelation(data?.plan)
       return Boolean(data) && (plan?.price_lak ?? 0) > 0
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
@@ -194,7 +200,7 @@ function PremiumGate({ children, requireSubscription = true }: { children: React
   const { data: active, isLoading } = usePremiumAccess()
   if (loading || isLoading) return <LoadingSpinner />
   if (!profile) return <Navigate to="/auth" replace />
-  if (requireSubscription && !active) return <Navigate to="/academy/subscription" replace />
+  if (requireSubscription && !active) return <Navigate to="/academy/subscription#plans" replace />
   return <>{children}</>
 }
 
@@ -353,7 +359,7 @@ export function LearningHub() {
                 'ແຜນຟຣີ: ປົດລັອກ 1 ບົດຮຽນຕໍ່ເສັ້ນທາງ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ທຸກມື້ທີ່ໃຊ້ງານ.',
               )}
             </p>
-            <Link to="/academy/subscription" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
+            <Link to="/academy/subscription#plans" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
               {localize(language, 'Upgrade', 'ອັບເກຣດ')}
             </Link>
           </section>
@@ -457,7 +463,7 @@ export function LearningCategoryPage() {
                 'ທ່ານໄດ້ຮັບບົດຮຽນຟຣີສຳລັບເສັ້ນທາງນີ້ແລ້ວ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ຕໍ່ໄປ.',
               )}
             </p>
-            <Link to="/academy/subscription" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
+            <Link to="/academy/subscription#plans" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
               {localize(language, 'Upgrade', 'ອັບເກຣດ')}
             </Link>
           </div>
@@ -494,7 +500,7 @@ export function LearningCategoryPage() {
                       {tierLocked ? (
                         <>
                           {localize(language, 'Premium lesson', 'ບົດຮຽນສະມາຊິກ')}
-                          <Link to="/academy/subscription" className="font-black text-amber-700 hover:underline">
+                          <Link to="/academy/subscription#plans" className="font-black text-amber-700 hover:underline">
                             {localize(language, 'Subscribe to unlock', 'ສະໝັກເພື່ອປົດລັອກ')}
                           </Link>
                         </>

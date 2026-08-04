@@ -100,6 +100,8 @@ export function CareerExplorer() {
       const plan = firstRelation(data?.plan)
       return Boolean(data) && (plan?.price_lak ?? 0) > 0
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
   const isPremium = Boolean(access.data)
   const isLocked = (career: CareerPath) => !isPremium && !FREE_UNLOCKED_CAREER_IDS.has(career.id)
@@ -404,7 +406,7 @@ function CareerPaywall({ text }: { text: (typeof copy)['en'] }) {
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300 text-slate-950"><Lock className="h-6 w-6" /></span>
       <h3 className="mt-4 text-lg font-black">{text.lockedTitle}</h3>
       <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-emerald-50/80">{text.lockedBody}</p>
-      <Link to="/academy/subscription" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
+      <Link to="/academy/subscription#plans" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
         {text.lockedCta} <ArrowRight className="h-4 w-4" />
       </Link>
     </div>

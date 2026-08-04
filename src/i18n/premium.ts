@@ -17,6 +17,36 @@ const lao: Record<string, string> = {
   Plans: 'ແຜນ',
   'Choose your access': 'ເລືອກການເຂົ້າເຖິງ',
   'Manual activation supports Lao payment workflows.': 'ການເປີດໃຊ້ດ້ວຍຕົນເອງ ຮອງຮັບການຊຳລະເງິນໃນລາວ.',
+  'Upgrade your plan': 'ອັບເກຣດແຜນຂອງທ່ານ',
+  Free: 'ຟຣີ',
+  'Premium Monthly': 'ພຣີມຽມລາຍເດືອນ',
+  'Premium Yearly': 'ພຣີມຽມລາຍປີ',
+  'Start with daily motivation and a preview of the Bitdoin mentor system.': 'ເລີ່ມຕົ້ນດ້ວຍແຮງບັນດານໃຈປະຈຳວັນ ແລະ ການທົດລອງໃຊ້ລະບົບ Bitdoin mentor.',
+  'Daily mentor guidance, AI coach access, learning paths, prompt packs, and productivity tools.': 'ຄຳແນະນຳຈາກ mentor ປະຈຳວັນ, ການເຂົ້າເຖິງ AI Coach, ເສັ້ນທາງການຮຽນ, ຊຸດ prompt ແລະ ເຄື່ອງມືເພີ່ມປະສິດທິພາບ.',
+  'Daily motivation preview': 'ຕົວຢ່າງແຮງບັນດານໃຈປະຈຳວັນ',
+  'Limited learning center access': 'ການເຂົ້າເຖິງສູນການຮຽນຮູ້ແບບຈຳກັດ',
+  'Starter AI prompt library': 'ຄັງ prompt AI ເບື້ອງຕົ້ນ',
+  'Daily mentor dashboard': 'ແດຊບອດ mentor ປະຈຳວັນ',
+  'AI Coach shortcut': 'ທາງລັດ AI Coach',
+  'Premium lessons and resources': 'ບົດຮຽນ ແລະ ຊັບພະຍາກອນພຣີມຽມ',
+  'Prompt library access': 'ການເຂົ້າເຖິງຄັງ prompt',
+  'Streak and challenge tracking': 'ຕິດຕາມຄວາມຕໍ່ເນື່ອງ ແລະ ຄວາມທ້າທາຍ',
+  'Best value': 'ຄຸ້ມຄ່າທີ່ສຸດ',
+  Subscribe: 'ສະໝັກ',
+  Subscribed: 'ສະໝັກແລ້ວ',
+  'Start Premium': 'ເລີ່ມພຣີມຽມ',
+  'Premium active': 'ພຣີມຽມກຳລັງໃຊ້ງານ',
+  'Payment in progress': 'ກຳລັງດຳເນີນການຊຳລະ',
+  month: 'ເດືອນ',
+  year: 'ປີ',
+  'Cancel your subscription?': 'ຍົກເລີກການສະໝັກຂອງທ່ານບໍ?',
+  'Keep my plan': 'ຮັກສາແຜນຂອງຂ້ອຍ',
+  'Yes, cancel subscription': 'ແມ່ນແລ້ວ, ຍົກເລີກການສະໝັກ',
+  'You can subscribe again at any time.': 'ທ່ານສາມາດສະໝັກໄດ້ອີກທຸກເວລາ.',
+  "You're on the Free plan": 'ທ່ານກຳລັງໃຊ້ແຜນຟຣີ',
+  'Upgrade for the full Premium experience': 'ອັບເກຣດເພື່ອປະສົບການພຣີມຽມເຕັມຮູບແບບ',
+  'Unlock daily personalized mentor guidance, unlimited AI Coach conversations, member events, communities, and every Learning Hub lesson.': 'ປົດລັອກຄຳແນະນຳ mentor ສ່ວນຕົວປະຈຳວັນ, ການສົນທະນາ AI Coach ບໍ່ຈຳກັດ, ກິດຈະກຳສະມາຊິກ, ຊຸມຊົນ ແລະ ທຸກບົດຮຽນໃນສູນການຮຽນຮູ້.',
+  'See plans': 'ເບິ່ງແຜນ',
   Current: 'ປັດຈຸບັນ',
   Subscription: 'ການສະໝັກ',
   'Membership control': 'ຈັດການສະມາຊິກ',
@@ -346,6 +376,8 @@ function translateText(value: string, language: 'lo' | 'en') {
     if (mastery) return `${leading}${mastery[1]} ຈາກ 7 ມື້${trailing}`
     const question = clean.match(/^Question (\d+) of (\d+)$/)
     if (question) return `${leading}ຄຳຖາມ ${question[1]} ຈາກ ${question[2]}${trailing}`
+    const yearlySavings = clean.match(/^Save (.+) — 2 months free$/)
+    if (yearlySavings) return `${leading}ປະຢັດ ${yearlySavings[1]} — ຟຣີ 2 ເດືອນ${trailing}`
   }
   return value
 }
