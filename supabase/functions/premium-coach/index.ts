@@ -18,6 +18,8 @@ const COMPLETION_MARKER = '<END>'
 const MAX_COMPLETION_PARTS = 3
 const COACH_MINUTE_LIMIT = positiveIntEnv('AI_COACH_MINUTE_LIMIT', 5)
 const COACH_DAILY_LIMIT = positiveIntEnv('AI_COACH_DAILY_LIMIT', 30)
+// Free accounts: roughly 10,000 tokens/day (~3-5 exchanges at this feature's output caps).
+const COACH_FREE_DAILY_LIMIT = positiveIntEnv('AI_COACH_FREE_DAILY_LIMIT', 4)
 const COACH_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_COACH_GLOBAL_DAILY_LIMIT', 10000)
 const AI_PROVIDER_TIMEOUT_MS = positiveIntEnv('AI_PROVIDER_TIMEOUT_MS', 45000)
 
@@ -168,8 +170,16 @@ serve(async req => {
     if (authError || !user) return json(req, { error: 'Your session has expired.' }, 401)
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    const { data: subscription } = await admin.from('premium_subscriptions').select('id').eq('user_id', user.id).eq('status', 'ACTIVE').or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`).limit(1).maybeSingle()
-    if (!subscription) return json(req, { error: 'An active Premium subscription is required.' }, 403)
+    // An ACTIVE subscription on the $0 Free plan still has status = 'ACTIVE',
+    // so premium access requires the active plan to actually be paid.
+    const { data: subscription } = await admin
+      .from('premium_subscriptions')
+      .select('id,plan:premium_plans(price_lak)')
+      .eq('user_id', user.id).eq('status', 'ACTIVE')
+      .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const subscriptionPlan = Array.isArray(subscription?.plan) ? subscription?.plan[0] : subscription?.plan
+    const isPremium = Boolean(subscription) && ((subscriptionPlan?.price_lak ?? 0) > 0)
 
     const body = await req.json()
     const message = typeof body.message === 'string' ? body.message.trim().slice(0, 4000) : ''
@@ -180,10 +190,19 @@ serve(async req => {
       feature: 'premium-coach',
       subjectHash: await userSubject(user.id),
       minuteLimit: COACH_MINUTE_LIMIT,
-      dailyLimit: COACH_DAILY_LIMIT,
+      dailyLimit: isPremium ? COACH_DAILY_LIMIT : COACH_FREE_DAILY_LIMIT,
       globalDailyLimit: COACH_GLOBAL_DAILY_LIMIT,
     })
-    if (!quota.allowed) return quotaResponse(req, quota, corsHeaders)
+    if (!quota.allowed) {
+      if (quota.reason === 'daily' && !isPremium) {
+        return json(req, {
+          error: 'You’ve reached today’s free AI Coach limit. Subscribe to Premium for more daily conversations.',
+          code: 'AI_RATE_LIMIT_FREE_DAILY',
+          retryAfterSeconds: quota.retry_after_seconds ?? 60,
+        }, 429)
+      }
+      return quotaResponse(req, quota, corsHeaders)
+    }
 
     let conversationId = typeof body.conversationId === 'string' ? body.conversationId : null
     if (conversationId) {

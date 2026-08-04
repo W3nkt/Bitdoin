@@ -6,6 +6,7 @@ import {
   CircleDollarSign, Flame, GraduationCap, Languages, Lightbulb, ListChecks,
   Loader2, LockKeyhole, Plus, Sparkles, Target, Timer, Trash2, Trophy, WalletCards,
 } from 'lucide-react'
+import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui/Toast'
@@ -60,6 +61,7 @@ type WeeklyProgress = { challenge_id: string; completed_steps: number[]; reflect
 type Habit = { id: string; name: string; category_slug: string; frequency: string; reminder_time?: string | null }
 type HabitCheckin = { habit_id: string; checkin_date: string }
 type CategoryUnlock = { category_id: string; start_date: string }
+type ActiveDay = { active_date: string }
 
 const iconMap = {
   'book-open': BookOpen, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
@@ -80,10 +82,17 @@ function today() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Vientiane' }).format(new Date())
 }
 
-function daysBetween(startDate: string, endDate: string) {
+// Counts distinct active days within [startDate, endDate], inclusive, so a
+// gap where the account was not active does not get "caught up" later —
+// the count only grows on days the account was actually seen active.
+function countActiveDaysInRange(startDate: string, endDate: string, activeDates: Set<string>) {
   const start = new Date(`${startDate}T00:00:00Z`).getTime()
   const end = new Date(`${endDate}T00:00:00Z`).getTime()
-  return Math.floor((end - start) / 86_400_000)
+  let count = 0
+  for (let t = start; t <= end; t += 86_400_000) {
+    if (activeDates.has(new Date(t).toISOString().slice(0, 10))) count++
+  }
+  return count
 }
 
 // Deterministic per-seed shuffle (FNV-1a hash -> xorshift32) so each user sees
@@ -109,26 +118,39 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
   return result
 }
 
-// One new lesson unlocks per day per category, in the user's shuffled order.
+// Free accounts get the first lesson of every category; the daily-unlock
+// pacing beyond that is a Premium benefit.
+const FREE_LESSON_CAP = 1
+
+// One new lesson unlocks per day per category, in the user's shuffled order —
+// but only for days the account was actually active. A day the account was
+// not active does not unlock a lesson; the next lesson waits until the user
+// logs in and is active again, it does not "catch up" all at once. Free
+// accounts stay capped at the first lesson regardless of active days.
 function useCategoryLessonOrder(
   categoryId: string | undefined,
   lessons: Lesson[] | undefined,
   userId: string | undefined,
   unlocks: CategoryUnlock[] | undefined,
+  activeDays: ActiveDay[] | undefined,
+  isPremium: boolean,
 ) {
   const ordered = useMemo(() => {
     const inCategory = (lessons ?? []).filter(lesson => lesson.category_id === categoryId)
     return userId && categoryId ? seededShuffle(inCategory, `${userId}:${categoryId}`) : inCategory
   }, [lessons, categoryId, userId])
   const unlock = unlocks?.find(item => item.category_id === categoryId)
-  const daysUnlocked = unlock ? daysBetween(unlock.start_date, today()) + 1 : 1
-  const unlockedCount = Math.min(ordered.length, Math.max(1, daysUnlocked))
-  return { ordered, unlockedCount }
+  const activeDates = useMemo(() => new Set((activeDays ?? []).map(item => item.active_date)), [activeDays])
+  const daysUnlocked = unlock ? countActiveDaysInRange(unlock.start_date, today(), activeDates) : 1
+  const cappedDaysUnlocked = isPremium ? daysUnlocked : Math.min(daysUnlocked, FREE_LESSON_CAP)
+  const unlockedCount = Math.min(ordered.length, Math.max(1, cappedDaysUnlocked))
+  const tierLocked = !isPremium && ordered.length > FREE_LESSON_CAP
+  return { ordered, unlockedCount, tierLocked }
 }
 
-function PremiumGate({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuth()
-  const { data: active, isLoading } = useQuery({
+function usePremiumAccess() {
+  const { profile } = useAuth()
+  return useQuery({
     queryKey: ['premium', 'learning-access', profile?.id],
     enabled: Boolean(profile),
     queryFn: async () => {
@@ -140,19 +162,50 @@ function PremiumGate({ children }: { children: React.ReactNode }) {
       return Boolean(data)
     },
   })
+}
+
+// An ACTIVE subscription on the $0 Free plan still has status = 'ACTIVE', so
+// it is NOT distinguishable from a paid plan via usePremiumAccess() above —
+// that hook only answers "does this account have any Premium membership at
+// all" (used to gate fully Premium-only areas like Weekly Challenge/Habits).
+// The Learning Hub's daily-unlock pacing is a paid-plan benefit, so it needs
+// to know whether the active subscription is actually a paid plan.
+function usePaidPremiumAccess() {
+  const { profile } = useAuth()
+  return useQuery({
+    queryKey: ['premium', 'paid-access', profile?.id],
+    enabled: Boolean(profile),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .select('id,plan:premium_plans(price_lak)')
+        .eq('user_id', profile!.id).eq('status', 'ACTIVE')
+        .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error) throw error
+      const plan = firstRelation(data?.plan)
+      return Boolean(data) && (plan?.price_lak ?? 0) > 0
+    },
+  })
+}
+
+function PremiumGate({ children, requireSubscription = true }: { children: React.ReactNode; requireSubscription?: boolean }) {
+  const { profile, loading } = useAuth()
+  const { data: active, isLoading } = usePremiumAccess()
   if (loading || isLoading) return <LoadingSpinner />
   if (!profile) return <Navigate to="/auth" replace />
-  if (!active) return <Navigate to="/academy/subscription" replace />
+  if (requireSubscription && !active) return <Navigate to="/academy/subscription" replace />
   return <>{children}</>
 }
 
-function LearningShell({ children, title, eyebrow, backTo = '/academy/learn' }: {
+function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hideSwitchPlatform = false, showAvatar = false, requireSubscription = true }: {
   children: React.ReactNode; title: string; eyebrow: string; backTo?: string
+  hideSwitchPlatform?: boolean; showAvatar?: boolean; requireSubscription?: boolean
 }) {
   const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
   return (
-    <PremiumGate>
+    <PremiumGate requireSubscription={requireSubscription}>
       <div className="min-h-screen bg-[#f7f8fb] text-slate-950">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
@@ -163,15 +216,20 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn' }: 
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary-600">{eyebrow}</p>
               <h1 className="truncate text-lg font-black">{title}</h1>
             </div>
-            <Link to="/" className="hidden rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-500 hover:bg-slate-50 sm:block">
-              Switch platform
-            </Link>
-            <button
-              onClick={() => setLanguage(language === 'en' ? 'lo' : 'en')}
-              className="rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-700"
-            >
-              {language === 'en' ? 'ລາວ' : 'EN'}
-            </button>
+            {!hideSwitchPlatform && (
+              <Link to="/" className="hidden rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-500 hover:bg-slate-50 sm:block">
+                Switch platform
+              </Link>
+            )}
+            {showAvatar && <PremiumProfileMenu variant="light" />}
+            {!showAvatar && (
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'lo' : 'en')}
+                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-700"
+              >
+                {language === 'en' ? 'ລາວ' : 'EN'}
+              </button>
+            )}
           </div>
         </header>
         {children}
@@ -182,6 +240,8 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn' }: 
 
 function useLearningData() {
   const { profile } = useAuth()
+  const qc = useQueryClient()
+  const access = usePaidPremiumAccess()
   const categories = useQuery({
     queryKey: ['premium', 'learning-categories'],
     queryFn: async () => {
@@ -228,18 +288,43 @@ function useLearningData() {
       return data as CategoryUnlock[]
     },
   })
-  return { categories, lessons, progress, categoryUnlocks }
+  const activeDays = useQuery({
+    queryKey: ['premium', 'active-days', profile?.id],
+    enabled: Boolean(profile),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('premium_active_days')
+        .select('active_date')
+        .eq('user_id', profile!.id)
+      if (error) throw error
+      return data as ActiveDay[]
+    },
+  })
+  const recordActiveDay = useMutation({
+    mutationFn: async () => {
+      if (!profile) return
+      const { error } = await supabase.from('premium_active_days')
+        .upsert({ user_id: profile.id, active_date: today() }, { onConflict: 'user_id,active_date', ignoreDuplicates: true })
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['premium', 'active-days'] }),
+  })
+  useEffect(() => {
+    if (!profile || activeDays.isLoading || recordActiveDay.isPending) return
+    if (!activeDays.data?.some(item => item.active_date === today())) recordActiveDay.mutate()
+  }, [profile, activeDays.data, activeDays.isLoading])
+  return { categories, lessons, progress, categoryUnlocks, activeDays, access }
 }
 
 export function LearningHub() {
   const { language } = useLanguage()
-  const { categories, lessons, progress } = useLearningData()
+  const { categories, lessons, progress, access } = useLearningData()
+  const isPremium = Boolean(access.data)
   const completed = progress.data?.filter(item => item.completed_at).length ?? 0
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
 
   return (
-    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home">
+    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform showAvatar requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
         <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
           <div className="relative max-w-2xl">
@@ -258,6 +343,21 @@ export function LearningHub() {
             )}
           </div>
         </section>
+
+        {!access.isLoading && !isPremium && (
+          <section className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 px-5 py-4 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold text-amber-900">
+              {localize(
+                language,
+                'Free plan: 1 lesson unlocked per path. Subscribe to unlock a new lesson every active day.',
+                'ແຜນຟຣີ: ປົດລັອກ 1 ບົດຮຽນຕໍ່ເສັ້ນທາງ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ທຸກມື້ທີ່ໃຊ້ງານ.',
+              )}
+            </p>
+            <Link to="/academy/subscription" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
+              {localize(language, 'Upgrade', 'ອັບເກຣດ')}
+            </Link>
+          </section>
+        )}
 
         <section className="grid grid-cols-3 border-b border-slate-200 py-6">
           <Metric value={String(completed)} label={localize(language, 'Lessons done', 'ບົດຮຽນສຳເລັດ')} />
@@ -322,9 +422,10 @@ export function LearningCategoryPage() {
   const { language } = useLanguage()
   const { profile } = useAuth()
   const qc = useQueryClient()
-  const { categories, lessons, progress, categoryUnlocks } = useLearningData()
+  const { categories, lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
+  const isPremium = Boolean(access.data)
   const category = categories.data?.find(item => item.slug === categorySlug)
-  const { ordered, unlockedCount } = useCategoryLessonOrder(category?.id, lessons.data, profile?.id, categoryUnlocks.data)
+  const { ordered, unlockedCount, tierLocked } = useCategoryLessonOrder(category?.id, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, isPremium)
 
   const ensureUnlock = useMutation({
     mutationFn: async () => {
@@ -341,17 +442,32 @@ export function LearningCategoryPage() {
   }, [profile, category, categoryUnlocks.data, categoryUnlocks.isLoading])
 
   if (!categories.isLoading && !category) return <Navigate to="/academy/learn" replace />
+  if (access.isLoading) return <LoadingSpinner />
   return (
-    <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')}>
+    <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')} requireSubscription={false}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         <p className="max-w-2xl text-lg leading-8 text-slate-600">{category && localize(language, category.description_en, category.description_lo)}</p>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600">{localize(language, 'One new lesson unlocks each day', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້')}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600">{localize(language, 'One new lesson unlocks each day you’re active', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້ທີ່ທ່ານໃຊ້ງານ')}</p>
+        {tierLocked && (
+          <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 px-5 py-4 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold text-amber-900">
+              {localize(
+                language,
+                'You’ve reached the free lesson for this path. Subscribe to keep unlocking new lessons every active day.',
+                'ທ່ານໄດ້ຮັບບົດຮຽນຟຣີສຳລັບເສັ້ນທາງນີ້ແລ້ວ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ຕໍ່ໄປ.',
+              )}
+            </p>
+            <Link to="/academy/subscription" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
+              {localize(language, 'Upgrade', 'ອັບເກຣດ')}
+            </Link>
+          </div>
+        )}
         <div className="mt-10 border-t border-slate-200">
           {ordered.map((lesson, index) => {
             const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
             const locked = index >= unlockedCount
             const isToday = index === unlockedCount - 1
-            const daysLeft = index + 1 - unlockedCount
+            const isNext = index === unlockedCount
             const content = (
               <>
                 {lesson.book?.cover_image_url && !locked ? (
@@ -374,10 +490,19 @@ export function LearningCategoryPage() {
                     )}
                   </div>
                   {locked ? (
-                    <p className="mt-2 text-sm font-semibold text-slate-400">
-                      {daysLeft === 1
-                        ? localize(language, 'Unlocks tomorrow', 'ປົດລັອກມື້ອື່ນ')
-                        : localize(language, `Unlocks in ${daysLeft} days`, `ປົດລັອກໃນ ${daysLeft} ມື້`)}
+                    <p className="mt-2 flex flex-wrap items-center gap-x-2 text-sm font-semibold text-slate-400">
+                      {tierLocked ? (
+                        <>
+                          {localize(language, 'Premium lesson', 'ບົດຮຽນສະມາຊິກ')}
+                          <Link to="/academy/subscription" className="font-black text-amber-700 hover:underline">
+                            {localize(language, 'Subscribe to unlock', 'ສະໝັກເພື່ອປົດລັອກ')}
+                          </Link>
+                        </>
+                      ) : isNext ? (
+                        localize(language, 'Unlocks next time you’re active', 'ປົດລັອກເມື່ອທ່ານໃຊ້ງານຄັ້ງຕໍ່ໄປ')
+                      ) : (
+                        localize(language, 'Unlocks after that', 'ປົດລັອກຫຼັງຈາກນັ້ນ')
+                      )}
                     </p>
                   ) : (
                     <>
@@ -408,9 +533,9 @@ export function LessonReaderPage() {
   const { language } = useLanguage()
   const qc = useQueryClient()
   const toast = useToast()
-  const { lessons, progress, categoryUnlocks } = useLearningData()
+  const { lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
   const lesson = lessons.data?.find(item => item.slug === lessonSlug)
-  const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lessons.data, profile?.id, categoryUnlocks.data)
+  const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, Boolean(access.data))
   const questions = useQuery({
     queryKey: ['premium', 'lesson-quiz', lesson?.id],
     enabled: Boolean(lesson),
@@ -448,7 +573,7 @@ export function LessonReaderPage() {
     },
     onError: () => toast.error('Could not save lesson progress.'),
   })
-  if (lessons.isLoading) return <LoadingSpinner />
+  if (lessons.isLoading || access.isLoading) return <LoadingSpinner />
   if (!lesson) return <Navigate to="/academy/learn" replace />
   const lessonIndex = ordered.findIndex(item => item.id === lesson.id)
   if (lessonIndex >= unlockedCount) return <Navigate to={`/academy/learn/${lesson.category?.slug ?? ''}`} replace />

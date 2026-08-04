@@ -161,7 +161,7 @@ export function PremiumCoach() {
     },
   })
   const conversations = useQuery({
-    queryKey: ['premium-coach-conversations', profile?.id], enabled: access.data === true,
+    queryKey: ['premium-coach-conversations', profile?.id], enabled: Boolean(profile?.id),
     queryFn: async () => {
       const { data, error } = await supabase.from('premium_coach_conversations').select('id, title, created_at, updated_at').eq('user_id', profile!.id).order('updated_at', { ascending: false })
       if (error) throw error
@@ -196,7 +196,7 @@ export function PremiumCoach() {
   }, [roleplayMission])
 
   useEffect(() => {
-    if (careerAssessmentInitialized.current || !careerAssessment || access.data !== true) return
+    if (careerAssessmentInitialized.current || !careerAssessment || !profile) return
     careerAssessmentInitialized.current = true
     const laoCareer = careerPathsLo[careerAssessment.id]
     const prompt = language === 'lo'
@@ -218,7 +218,7 @@ export function PremiumCoach() {
     setLocalMessages([])
     setDraft('')
     void send(undefined, prompt, true)
-  }, [access.data, careerAssessment, language])
+  }, [profile, careerAssessment, language])
 
   async function send(event?: FormEvent, starter?: string, forceNewConversation = false) {
     event?.preventDefault()
@@ -276,7 +276,6 @@ export function PremiumCoach() {
 
   if (authLoading || access.isLoading || conversations.isLoading) return <LoadingSpinner className="min-h-screen" />
   if (!profile) return <Navigate to="/auth" replace />
-  if (!access.data) return <Navigate to="/academy/subscription" replace />
 
   return (
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
@@ -290,7 +289,13 @@ export function PremiumCoach() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600">Ready to coach</p></div></div>
-          <Crown className="h-5 w-5 text-amber-500" />
+          {access.data ? (
+            <Crown className="h-5 w-5 text-amber-500" />
+          ) : (
+            <Link to="/academy/subscription" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
+              <Crown className="h-3.5 w-3.5" /> Upgrade
+            </Link>
+          )}
         </div>
       </header>
 

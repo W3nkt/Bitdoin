@@ -33,6 +33,7 @@ const lao: Record<string, string> = {
   'Your Free membership request and profile information are being checked. No payment is required.': 'ຄຳຂໍສະມາຊິກຟຣີ ແລະ ຂໍ້ມູນໂປຣໄຟລ໌ກຳລັງຖືກກວດສອບ. ບໍ່ຕ້ອງຊຳລະເງິນ.',
   'Request submitted': 'ສົ່ງຄຳຂໍແລ້ວ',
   Membership: 'ສະມາຊິກ',
+  Upgrade: 'ອັບເກຣດ',
   Active: 'ໃຊ້ງານ',
   Streak: 'ຕໍ່ເນື່ອງ',
   Expires: 'ໝົດອາຍຸ',

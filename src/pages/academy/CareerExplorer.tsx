@@ -1,19 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, CheckCircle2, ChevronRight,
-  CircleDollarSign, CircleGauge, ExternalLink, Globe2, GraduationCap, MapPin, Search, Sparkles, Target, X,
+  CircleDollarSign, CircleGauge, ExternalLink, Globe2, GraduationCap, Lock, MapPin, Search, Sparkles, Target, X,
 } from 'lucide-react'
 import {
   careerPaths, certificatesForSkill, jobSearchPlatforms, organizationsByCareer, salaryByCareer,
   type CareerPath, type CareerRegion,
 } from '@/data/careerPaths'
+import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { supabase } from '@/lib/supabase'
+import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
 import { careerPathsLo } from '@/data/careerPathsLo'
 
 const regions: Array<'All' | CareerRegion> = ['All', 'Laos', 'Asia', 'Global']
 const fields = ['All', ...new Set(careerPaths.map(item => item.field))]
+// Free accounts get full detail on the first 3 careers (a fixed, stable set
+// by dataset order, not by search/filter order) — everything else needs Premium.
+const FREE_CAREER_LIMIT = 3
+const FREE_UNLOCKED_CAREER_IDS = new Set(careerPaths.slice(0, FREE_CAREER_LIMIT).map(career => career.id))
 const laoLabels: Record<string, string> = {
   All: 'ທັງໝົດ', Laos: 'ລາວ', Asia: 'ອາຊີ', Global: 'ທົ່ວໂລກ',
   Technology: 'ເຕັກໂນໂລຊີ', Engineering: 'ວິສະວະກຳ', Healthcare: 'ສາທາລະນະສຸກ',
@@ -40,6 +48,10 @@ const copy = {
     opportunities: 'illustrative opportunities across selected markets',
     signalNote: 'Market signals are directional sample data in this MVP, not a live or exhaustive count. Source dates and direct posting links will appear here when job feeds are connected.',
     demand: 'demand',
+    lockedBadge: 'Premium career',
+    lockedTitle: 'Unlock full details for this career',
+    lockedBody: `You’ve explored ${FREE_CAREER_LIMIT} careers in full on the Free plan. Subscribe to Premium to unlock majors, skills, certificates, salary ranges, organizations, and job-market signal for every career path.`,
+    lockedCta: 'Subscribe to unlock',
   },
   lo: {
     field: 'ຂະແໜງ', market: 'ຕະຫຼາດ', empty: 'ບໍ່ພົບອາຊີບທີ່ກົງກັນ. ລອງຄົ້ນຫາແບບກວ້າງຂຶ້ນ.',
@@ -52,11 +64,17 @@ const copy = {
     opportunities: 'ໂອກາດວຽກຕົວຢ່າງໃນຕະຫຼາດທີ່ເລືອກ',
     signalNote: 'ຂໍ້ມູນນີ້ເປັນພຽງສັນຍານຕົວຢ່າງ, ບໍ່ແມ່ນຈຳນວນວຽກແບບສົດ ຫຼື ຄົບຖ້ວນ.',
     demand: 'ຄວາມຕ້ອງການ',
+    lockedBadge: 'ອາຊີບສະມາຊິກ',
+    lockedTitle: 'ປົດລັອກລາຍລະອຽດເຕັມຮູບແບບ',
+    lockedBody: `ທ່ານໄດ້ເບິ່ງລາຍລະອຽດເຕັມຮູບແບບ ${FREE_CAREER_LIMIT} ອາຊີບໃນແຜນຟຣີແລ້ວ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກສາຂາຮຽນ, ທັກສະ, ໃບຢັ້ງຢືນ, ຊ່ວງເງິນເດືອນ, ອົງກອນ ແລະ ສັນຍານຕະຫຼາດວຽກສຳລັບທຸກອາຊີບ.`,
+    lockedCta: 'ສະໝັກເພື່ອປົດລັອກ',
   },
 }
 
 export function CareerExplorer() {
   const { language, setLanguage } = useLanguage()
+  const { profile } = useAuth()
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [region, setRegion] = useState<(typeof regions)[number]>('All')
   const [field, setField] = useState('All')
@@ -64,6 +82,27 @@ export function CareerExplorer() {
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const lo = language === 'lo'
   const text = copy[language]
+
+  // An ACTIVE subscription on the $0 Free plan still has status = 'ACTIVE',
+  // so the paywall must check that the active plan is actually paid, not
+  // just that a subscription row exists.
+  const access = useQuery({
+    queryKey: ['premium', 'paid-access', profile?.id],
+    enabled: Boolean(profile),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premium_subscriptions')
+        .select('id,plan:premium_plans(price_lak)')
+        .eq('user_id', profile!.id).eq('status', 'ACTIVE')
+        .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      if (error) throw error
+      const plan = firstRelation(data?.plan)
+      return Boolean(data) && (plan?.price_lak ?? 0) > 0
+    },
+  })
+  const isPremium = Boolean(access.data)
+  const isLocked = (career: CareerPath) => !isPremium && !FREE_UNLOCKED_CAREER_IDS.has(career.id)
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -81,13 +120,20 @@ export function CareerExplorer() {
 
   const selected = filtered.find(item => item.id === selectedId) ?? filtered[0]
 
+  function goBack() {
+    // Go back in history (preserves the Learning Hub's scroll position) when we
+    // arrived from within the app; otherwise fall back to the Learning Hub itself.
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate('/academy/learn')
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f6f2] text-slate-950">
       <header className="sticky top-0 z-30 border-b border-slate-900/10 bg-[#f5f6f2]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <Link to="/academy/home" className="grid h-10 w-10 place-items-center rounded-full hover:bg-slate-900/5" aria-label="Back to Academy">
+          <button type="button" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-full hover:bg-slate-900/5" aria-label="Back to Academy">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700">Bitdoin Academy</p>
             <h1 className="truncate text-base font-black sm:text-lg">{lo ? 'ສຳຫຼວດອາຊີບ' : 'Career Explorer'}</h1>
@@ -136,33 +182,42 @@ export function CareerExplorer() {
               <p className="hidden text-xs text-slate-500 sm:block">{lo ? 'ເລືອກເພື່ອເບິ່ງລາຍລະອຽດ' : 'Select one for details'}</p>
             </div>
             <div className="divide-y divide-slate-900/10 border-y border-slate-900/10">
-              {filtered.map(career => (
-                <button key={career.id} onClick={() => {
-                  setSelectedId(career.id)
-                  if (window.matchMedia('(max-width: 1023px)').matches) setMobileDetailOpen(true)
-                }} className={cn(
-                  'group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-1 py-5 text-left transition hover:px-3',
-                  selected?.id === career.id && 'bg-white px-3',
-                )}>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black">{lo ? careerPathsLo[career.id]?.title ?? career.title : career.title}</h3>
-                      <DemandBadge demand={career.demand} lo={lo} />
+              {filtered.map(career => {
+                const locked = isLocked(career)
+                return (
+                  <button key={career.id} onClick={() => {
+                    setSelectedId(career.id)
+                    if (window.matchMedia('(max-width: 1023px)').matches) setMobileDetailOpen(true)
+                  }} className={cn(
+                    'group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-1 py-5 text-left transition hover:px-3',
+                    selected?.id === career.id && 'bg-white px-3',
+                    locked && 'opacity-70',
+                  )}>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-black">{lo ? careerPathsLo[career.id]?.title ?? career.title : career.title}</h3>
+                        <DemandBadge demand={career.demand} lo={lo} />
+                        {locked && (
+                          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                            <Lock className="h-3 w-3" /> {text.lockedBadge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{lo ? careerPathsLo[career.id]?.summary ?? career.summary : career.summary}</p>
+                      <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                        <GraduationCap className="h-3.5 w-3.5" /> {lo ? careerPathsLo[career.id]?.majors[0] ?? career.majors[0] : career.majors[0]}
+                      </p>
                     </div>
-                    <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{lo ? careerPathsLo[career.id]?.summary ?? career.summary : career.summary}</p>
-                    <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                      <GraduationCap className="h-3.5 w-3.5" /> {lo ? careerPathsLo[career.id]?.majors[0] ?? career.majors[0] : career.majors[0]}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-700" />
-                </button>
-              ))}
+                    <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-700" />
+                  </button>
+                )
+              })}
               {!filtered.length && <div className="py-16 text-center text-sm text-slate-500">{text.empty}</div>}
             </div>
           </section>
 
           <div className="hidden lg:block">
-            {selected && <CareerDetail career={selected} language={language} />}
+            {selected && <CareerDetail career={selected} language={language} locked={isLocked(selected)} />}
           </div>
         </div>
       </main>
@@ -173,13 +228,14 @@ export function CareerExplorer() {
           onClose={() => setMobileDetailOpen(false)}
           career={selected}
           language={language}
+          locked={isLocked(selected)}
         />
       )}
     </div>
   )
 }
 
-function CareerDetailSheet({ open, onClose, career, language }: { open: boolean; onClose: () => void; career: CareerPath; language: 'lo' | 'en' }) {
+function CareerDetailSheet({ open, onClose, career, language, locked }: { open: boolean; onClose: () => void; career: CareerPath; language: 'lo' | 'en'; locked: boolean }) {
   useEffect(() => {
     if (!open) return
     document.body.style.overflow = 'hidden'
@@ -207,7 +263,7 @@ function CareerDetailSheet({ open, onClose, career, language }: { open: boolean;
         >
           <X className="h-5 w-5" />
         </button>
-        <CareerDetail career={career} language={language} />
+        <CareerDetail career={career} language={language} locked={locked} />
       </div>
     </div>
   )
@@ -228,7 +284,7 @@ function DemandBadge({ demand, lo }: { demand: CareerPath['demand']; lo: boolean
   return <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide', demand === 'High' ? 'bg-emerald-100 text-emerald-800' : demand === 'Growing' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600')}>{lo ? laoLabels[demand] : demand}</span>
 }
 
-function CareerDetail({ career, language }: { career: CareerPath; language: 'lo' | 'en' }) {
+function CareerDetail({ career, language, locked }: { career: CareerPath; language: 'lo' | 'en'; locked: boolean }) {
   const lo = language === 'lo'
   const text = copy[language]
   const localized = careerPathsLo[career.id]
@@ -254,6 +310,11 @@ function CareerDetail({ career, language }: { career: CareerPath; language: 'lo'
         </div>
       </div>
 
+      {locked ? (
+        <div className="px-6 py-7 sm:px-8">
+          <CareerPaywall text={text} />
+        </div>
+      ) : (
       <div className="space-y-8 px-6 py-7 sm:px-8">
         <DetailSection icon={GraduationCap} title={text.majors}>
           <div className="flex flex-wrap gap-2">{majors.map(major => <span key={major} className="rounded-full bg-[#edf2e9] px-3 py-2 text-xs font-bold text-slate-700">{major}</span>)}</div>
@@ -328,10 +389,24 @@ function CareerDetail({ career, language }: { career: CareerPath; language: 'lo'
           {text.assess} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
         </Link>
       </div>
+      )}
     </aside>
   )
 }
 
 function DetailSection({ icon: Icon, title, children }: { icon: typeof Target; title: string; children: React.ReactNode }) {
   return <section><h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500"><Icon className="h-4 w-4 text-emerald-700" />{title}</h3>{children}</section>
+}
+
+function CareerPaywall({ text }: { text: (typeof copy)['en'] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-[#092c25] px-6 py-8 text-center text-white">
+      <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300 text-slate-950"><Lock className="h-6 w-6" /></span>
+      <h3 className="mt-4 text-lg font-black">{text.lockedTitle}</h3>
+      <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-emerald-50/80">{text.lockedBody}</p>
+      <Link to="/academy/subscription" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
+        {text.lockedCta} <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  )
 }

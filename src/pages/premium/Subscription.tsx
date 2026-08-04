@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
   Brain,
   CalendarCheck,
-  Camera,
   CheckCircle2,
   Clock,
   Copy,
@@ -14,14 +13,10 @@ import {
   Flame,
   GraduationCap,
   Lightbulb,
-  Loader2,
   Lock,
-  LogOut,
   MessageCircle,
-  Pencil,
   ReceiptText,
   Rocket,
-  Save,
   ShieldCheck,
   Sparkles,
   Target,
@@ -35,6 +30,7 @@ import {
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
+import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -47,7 +43,7 @@ import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
-import type { Language, User as AppUser } from '@/types'
+import type { Language } from '@/types'
 
 type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PremiumPaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
@@ -225,14 +221,6 @@ function statusLabel(status?: PremiumStatus) {
   return labels[status]
 }
 
-function statusClass(status?: PremiumStatus) {
-  if (status === 'ACTIVE') return 'bg-emerald-100 text-emerald-800'
-  if (status === 'PAYMENT_REVIEW') return 'bg-orange-100 text-orange-800'
-  if (status === 'PENDING_APPROVAL' || status === 'PENDING_PAYMENT') return 'bg-yellow-100 text-yellow-800'
-  if (status === 'CANCELLED' || status === 'EXPIRED') return 'bg-gray-100 text-gray-700'
-  return 'bg-primary-100 text-primary-800'
-}
-
 function paymentStatusClass(status: PremiumPaymentStatus) {
   const colors: Record<PremiumPaymentStatus, string> = {
     PENDING: 'bg-yellow-100 text-yellow-800',
@@ -268,7 +256,7 @@ const FALLBACK_MEMBER_COMMUNITIES: MemberCommunity[] = [
 export function Subscription() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const { currency, language } = useLanguage()
   usePremiumTranslation()
   const { success, error } = useToast()
@@ -347,10 +335,16 @@ export function Subscription() {
     retry: 1,
   })
 
+  // An ACTIVE subscription on the $0 Free plan still has status = 'ACTIVE',
+  // so "Premium" access requires the active plan to actually be paid —
+  // otherwise Free members would silently get the full Premium experience
+  // (and never see a plan to upgrade to).
+  const isPaidPremium = subscription?.status === 'ACTIVE' && (subscription?.plan?.price_lak ?? 0) > 0
+
   const { data: motivation } = useQuery({
-    queryKey: ['premium', 'daily-motivation', profile?.id, subscription?.status],
+    queryKey: ['premium', 'daily-motivation', profile?.id, isPaidPremium],
     queryFn: async () => {
-      if (profile && subscription?.status === 'ACTIVE') {
+      if (profile && isPaidPremium) {
         const { data: generated, error: generationError } = await supabase.functions.invoke('premium-daily-mentor')
         if (!generationError && generated?.guidance) {
           return generated.guidance as DailyMotivation
@@ -390,7 +384,7 @@ export function Subscription() {
     retry: 1,
   })
 
-  const premiumMemberContentEnabled = subscription?.status === 'ACTIVE'
+  const premiumMemberContentEnabled = isPaidPremium
 
   const { data: memberEvents } = useQuery({
     queryKey: ['premium', 'member-events', profile?.id],
@@ -714,25 +708,7 @@ export function Subscription() {
             <Link to="/" className="hidden rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black text-primary-100 hover:bg-white/10 lg:block">
               Switch platform
             </Link>
-            <SubscriptionProfileMenu
-              profile={profile}
-              planName={planName}
-              status={statusLabel(subscription?.status)}
-              statusClassName={statusClass(subscription?.status)}
-              streak={formatStreak(memberProgress?.member.streak ?? 0)}
-              xp={(memberProgress?.member.xp ?? 0).toLocaleString()}
-              expiration={subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'No expiry'}
-              personalization={onboarding?.responses ?? {}}
-              onPersonalizationSaved={() => qc.invalidateQueries({ queryKey: ['premium', 'onboarding-profile-v2', profile?.id] })}
-              onAccountAction={async () => {
-                if (!profile) {
-                  navigate('/auth')
-                  return
-                }
-                await signOut()
-                navigate('/')
-              }}
-            />
+            <PremiumProfileMenu variant="dark" />
           </div>
         </div>
       </section>
@@ -796,6 +772,29 @@ export function Subscription() {
             onChange={uploadPaymentProof}
           />
 
+          {subscription?.status === 'ACTIVE' && !isPaidPremium && (
+            <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40">
+                  <Crown className="h-5 w-5 text-amber-300" />
+                </span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">You're on the Free plan</p>
+                  <h2 className="mt-1.5 text-lg font-black leading-tight sm:text-xl">Upgrade for the full Premium experience</h2>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-primary-100">
+                    Unlock daily personalized mentor guidance, unlimited AI Coach conversations, member events, communities, and every Learning Hub lesson.
+                  </p>
+                </div>
+              </div>
+              <a
+                href="#plans"
+                className="inline-flex shrink-0 items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-black text-primary-950 transition hover:bg-amber-300"
+              >
+                See plans <ArrowRight className="h-4 w-4" />
+              </a>
+            </section>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-3xl bg-white p-5 shadow-card">
               <div className="flex items-start justify-between gap-3">
@@ -832,7 +831,6 @@ export function Subscription() {
                   type="button"
                   variant="outline"
                   icon={<Brain className="h-4 w-4" />}
-                  disabled={!isPremiumActive}
                   onClick={() => navigate('/academy/coach')}
                 >
                   Open AI Coach
@@ -867,11 +865,11 @@ export function Subscription() {
             </section>
           </div>
 
-          <section>
+          <section id="plans" className="scroll-mt-24">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Plans</p>
-                <h2 className="mt-1 text-xl font-black text-gray-950">Choose your access</h2>
+                <h2 className="mt-1 text-xl font-black text-gray-950">{isPaidPremium ? 'Manage your plan' : subscription?.status === 'ACTIVE' ? 'Upgrade your plan' : 'Choose your access'}</h2>
               </div>
               <p className="hidden text-sm text-gray-500 sm:block">Manual activation supports Lao payment workflows.</p>
             </div>
@@ -1037,439 +1035,6 @@ export function Subscription() {
   )
 }
 
-function SubscriptionProfileMenu({
-  profile,
-  planName,
-  status,
-  statusClassName,
-  streak,
-  xp,
-  expiration,
-  personalization,
-  onPersonalizationSaved,
-  onAccountAction,
-}: {
-  profile: AppUser | null
-  planName: string
-  status: string
-  statusClassName: string
-  streak: string
-  xp: string
-  expiration: string
-  personalization: Record<string, string>
-  onPersonalizationSaved: () => Promise<unknown>
-  onAccountAction: () => void | Promise<void>
-}) {
-  const { success, error } = useToast()
-  const { refreshProfile } = useAuth()
-  const { language, setLanguage } = useLanguage()
-  const menuRef = useRef<HTMLDivElement>(null)
-  const avatarInputRef = useRef<HTMLInputElement>(null)
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [draft, setDraft] = useState<Record<string, string>>(personalization)
-  const [editingIdentity, setEditingIdentity] = useState(false)
-  const [nameDraft, setNameDraft] = useState('')
-  const [savingIdentity, setSavingIdentity] = useState(false)
-  const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const displayName = profile?.name?.trim() || 'Guest user'
-  const contact = profile?.email ?? profile?.phone ?? 'Sign in to use Premium'
-  const initial = (displayName.charAt(0) || '?').toUpperCase()
-
-  useEffect(() => {
-    if (!editing) setDraft(personalization)
-  }, [editing, personalization])
-
-  useEffect(() => {
-    if (!editingIdentity) setNameDraft(profile?.name ?? '')
-  }, [editingIdentity, profile?.name])
-
-  useEffect(() => {
-    if (!open) return
-
-    function closeOnOutsideClick(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpen(false)
-        setEditing(false)
-        setEditingIdentity(false)
-      }
-    }
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false)
-        setEditing(false)
-        setEditingIdentity(false)
-      }
-    }
-
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    document.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [open])
-
-  function handleAccountAction() {
-    setOpen(false)
-    void onAccountAction()
-  }
-
-  async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !profile) return
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      error('Please choose a JPEG, PNG, or WEBP image.')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      error('Image must be smaller than 5MB.')
-      return
-    }
-
-    setUploadingAvatar(true)
-    try {
-      const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
-      const path = `${profile.id}/avatar-${crypto.randomUUID()}.${extension}`
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { cacheControl: '3600' })
-      if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ avatar_url: publicUrl })
-        .eq('id', profile.id)
-      if (updateError) throw updateError
-
-      await refreshProfile()
-      success('Profile picture updated.')
-    } catch (uploadError) {
-      console.error(uploadError)
-      error('Could not update your profile picture.')
-    } finally {
-      setUploadingAvatar(false)
-    }
-  }
-
-  async function saveIdentity() {
-    if (!profile) return
-    const trimmedName = nameDraft.trim()
-    if (!trimmedName) {
-      error('Name cannot be empty.')
-      return
-    }
-
-    setSavingIdentity(true)
-    try {
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ name: trimmedName })
-        .eq('id', profile.id)
-      if (updateError) throw updateError
-
-      await refreshProfile()
-      setEditingIdentity(false)
-      success('Your profile has been updated.')
-    } catch (updateError) {
-      console.error(updateError)
-      error('Could not update your profile.')
-    } finally {
-      setSavingIdentity(false)
-    }
-  }
-
-  async function savePersonalization() {
-    if (!profile) return
-    setSaving(true)
-    try {
-      const responses = { ...personalization, ...draft }
-      const { error: saveError } = await supabase
-        .from('premium_onboarding_responses')
-        .upsert({ user_id: profile.id, responses }, { onConflict: 'user_id' })
-      if (saveError) throw saveError
-      await onPersonalizationSaved()
-      setEditing(false)
-      success('Your mentor profile has been updated.')
-    } catch (saveError) {
-      console.error(saveError)
-      error('Could not update your mentor profile.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div ref={menuRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(current => {
-          if (current) {
-            setEditing(false)
-            setEditingIdentity(false)
-          }
-          return !current
-        })}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/15 text-sm font-black text-white ring-2 ring-white/25 transition hover:bg-white/20 hover:ring-white/40"
-      >
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt={displayName} className="h-full w-full object-cover" />
-        ) : (
-          <span>{initial}</span>
-        )}
-        <span className="sr-only">Open profile menu</span>
-      </button>
-
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Premium profile and personalization"
-          className="absolute right-0 top-full z-20 mt-3 max-h-[calc(100vh-6.5rem)] w-[min(28rem,calc(100vw-2rem))] origin-top-right overflow-y-auto rounded-[1.75rem] border border-amber-200/60 bg-[#fffdf8] p-3 text-left text-slate-950 shadow-[0_28px_80px_rgba(3,10,24,0.32)] animate-slide-up"
-        >
-          <div className="flex items-center gap-3 px-1 pb-3">
-            <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-950 text-sm font-black text-amber-200 ring-1 ring-amber-300/30">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span>{initial}</span>
-              )}
-              {editingIdentity && profile && (
-                <>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={event => void handleAvatarFileChange(event)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 text-white transition hover:bg-black/60 disabled:opacity-70"
-                  >
-                    {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                    <span className="sr-only">Change profile picture</span>
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              {editingIdentity ? (
-                <input
-                  value={nameDraft}
-                  onChange={event => setNameDraft(event.target.value)}
-                  placeholder="Your name"
-                  className="w-full rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-sm font-black text-slate-950 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
-                />
-              ) : (
-                <p className="truncate text-base font-black tracking-tight text-slate-950">{displayName}</p>
-              )}
-              <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{contact}</p>
-            </div>
-            {profile && (
-              editingIdentity ? (
-                <div className="flex flex-shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setEditingIdentity(false)}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                    aria-label="Cancel editing profile"
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={savingIdentity}
-                    onClick={() => void saveIdentity()}
-                    className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-2 text-xs font-black text-amber-900 transition hover:bg-amber-200 disabled:opacity-60"
-                    aria-label="Save profile"
-                  >
-                    {savingIdentity ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEditingIdentity(true)}
-                  className="flex-shrink-0 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Edit profile"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )
-            )}
-            {!editingIdentity && (
-              <div
-                className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-amber-50 px-2.5 py-2 ring-1 ring-amber-200"
-                role="group"
-                aria-label="Language"
-                data-no-premium-translate
-              >
-                <span className={cn('transition', language === 'en' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
-                  <LanguageFlagIcon language="en" />
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={language === 'lo'}
-                  aria-label={`Switch to ${language === 'lo' ? 'English' : 'Lao'}`}
-                  onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-                  className={cn(
-                    'relative h-7 w-12 rounded-full border p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2',
-                    language === 'lo'
-                      ? 'border-amber-500 bg-amber-400'
-                      : 'border-primary-800 bg-primary-950',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
-                      language === 'lo' && 'translate-x-5',
-                    )}
-                  />
-                </button>
-                <span className={cn('transition', language === 'lo' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
-                  <LanguageFlagIcon language="lo" />
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="relative overflow-hidden rounded-[1.4rem] bg-[#06101f] p-4 text-white">
-            <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-amber-300/15 blur-2xl" />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Membership</p>
-                <p className="mt-1 truncate text-lg font-black">{planName}</p>
-              </div>
-              <span className={cn('flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', statusClassName)}>
-                {status}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <ProfileMenuStat label="Streak" value={streak} icon={<Flame className="h-4 w-4" />} />
-              <ProfileMenuStat label="XP" value={xp} icon={<Zap className="h-4 w-4" />} />
-              <ProfileMenuStat label="Expires" value={expiration} icon={<Clock className="h-4 w-4" />} />
-            </div>
-          </div>
-
-          <div className="px-1 pb-1 pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">Personalization</p>
-                <h3 className="mt-1 text-sm font-black text-slate-950">How your mentor knows you</h3>
-              </div>
-              {!editing && profile && (
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-900 transition hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </button>
-              )}
-            </div>
-
-            {editing ? (
-              <div className="mt-3 space-y-3">
-                <PersonalizationInput label="Preferred name" value={draft.preferred_name ?? ''} onChange={value => setDraft(current => ({ ...current, preferred_name: value }))} />
-                <PersonalizationSelect label="Current status" value={draft.current_status ?? ''} options={['High School Student', 'University Student', 'Vocational Student', 'Working', 'Looking for a Job', 'Other']} onChange={value => setDraft(current => ({ ...current, current_status: value }))} />
-                <PersonalizationInput label="Priority goal" value={draft.priority_goal ?? ''} multiline onChange={value => setDraft(current => ({ ...current, priority_goal: value }))} />
-                <PersonalizationSelect label="Biggest challenge" value={draft.biggest_problem_now ?? ''} options={['I procrastinate', 'I cannot focus', "I don't know what to study", "I don't know what career to choose", 'I feel stressed', 'I have low confidence', "I don't have motivation", 'I cannot speak English', 'I use social media too much']} onChange={value => setDraft(current => ({ ...current, biggest_problem_now: value }))} />
-                <div className="grid grid-cols-2 gap-3">
-                  <PersonalizationSelect label="Daily study" value={draft.daily_study_hours ?? ''} options={['Less than 1 hour', '1-2 hours', '2-3 hours', '3-5 hours', 'More than 5 hours']} onChange={value => setDraft(current => ({ ...current, daily_study_hours: value }))} />
-                  <PersonalizationSelect label="English confidence" value={draft.english_level_self_rating ?? ''} options={['1', '2', '3', '4', '5']} onChange={value => setDraft(current => ({ ...current, english_level_self_rating: value }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <PersonalizationSelect label="Mentor tone" value={draft.preferred_mentor_tone ?? ''} options={['Friend', 'Teacher', 'Mentor', 'Coach', 'Professional']} onChange={value => setDraft(current => ({ ...current, preferred_mentor_tone: value }))} />
-                  <PersonalizationSelect label="Answer style" value={draft.preferred_ai_response_style ?? ''} options={['Simple', 'Detailed', 'Step-by-step', 'Motivational', 'Visual examples']} onChange={value => setDraft(current => ({ ...current, preferred_ai_response_style: value }))} />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button type="button" onClick={() => { setEditing(false); setDraft(personalization) }} className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-black text-slate-600 transition hover:bg-slate-50">
-                    Cancel
-                  </button>
-                  <button type="button" disabled={saving} onClick={() => void savePersonalization()} className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl bg-[#06101f] px-3 py-2.5 text-xs font-black text-white transition hover:bg-primary-900 disabled:opacity-60">
-                    <Save className="h-3.5 w-3.5" />
-                    {saving ? 'Saving…' : 'Save changes'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3 divide-y divide-amber-100 rounded-2xl bg-white px-3 ring-1 ring-amber-100">
-                <PersonalizationRow label="Goal" value={personalization.priority_goal} icon={<Target className="h-4 w-4" />} />
-                <PersonalizationRow label="Status" value={personalization.current_status} icon={<GraduationCap className="h-4 w-4" />} />
-                <PersonalizationRow label="Current challenge" value={personalization.biggest_problem_now} icon={<Lightbulb className="h-4 w-4" />} />
-                <PersonalizationRow label="Learning pace" value={[personalization.daily_study_hours, personalization.english_level_self_rating ? `English ${personalization.english_level_self_rating}/5` : ''].filter(Boolean).join(' · ')} icon={<Clock className="h-4 w-4" />} />
-                <PersonalizationRow label="Mentor style" value={[personalization.preferred_mentor_tone, personalization.preferred_ai_response_style].filter(Boolean).join(' · ')} icon={<Brain className="h-4 w-4" />} />
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleAccountAction}
-            className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-amber-100 px-3 py-2.5 text-sm font-black text-amber-950 transition hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-          >
-            <span>{profile ? 'Logout' : 'Sign in'}</span>
-            {profile
-              ? <LogOut className="h-4 w-4 flex-shrink-0" />
-              : <ArrowRight className="h-4 w-4 flex-shrink-0" />}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function PersonalizationRow({ label, value, icon }: { label: string; value?: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 py-2.5">
-      <span className="mt-0.5 text-amber-700">{icon}</span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="mt-0.5 line-clamp-2 text-xs font-bold leading-5 text-slate-700">{value || 'Not set yet'}</p>
-      </div>
-    </div>
-  )
-}
-
-function PersonalizationInput({ label, value, multiline = false, onChange }: { label: string; value: string; multiline?: boolean; onChange: (value: string) => void }) {
-  const className = 'mt-1.5 w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100'
-  return (
-    <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-      {label}
-      {multiline ? (
-        <textarea rows={2} value={value} onChange={event => onChange(event.target.value)} className={cn(className, 'resize-none leading-5')} />
-      ) : (
-        <input value={value} onChange={event => onChange(event.target.value)} className={className} />
-      )}
-    </label>
-  )
-}
-
-function PersonalizationSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
-  return (
-    <label className="block min-w-0 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-      {label}
-      <select value={value} onChange={event => onChange(event.target.value)} className="mt-1.5 w-full rounded-xl border border-amber-200 bg-white px-3 py-2.5 text-xs font-semibold normal-case text-slate-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100">
-        <option value="">Not set</option>
-        {options.map(option => <option key={option} value={option}>{option}</option>)}
-      </select>
-    </label>
-  )
-}
-
 function MemberDashboard({
   profileId,
   profileName,
@@ -1546,23 +1111,32 @@ function MemberDashboard({
         </div>
       </section>
 
-      <section className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl">
+      <section
+        data-no-premium-translate
+        className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+      >
         <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600">Learning Hub</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600">
+              {language === 'lo' ? 'ສູນການຮຽນຮູ້' : 'Learning Hub'}
+            </p>
             <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
-              Build skills that move your life forward.
+              {language === 'lo' ? 'ສ້າງທັກສະທີ່ພາຊີວິດທ່ານກ້າວໜ້າ.' : 'Build skills that move your life forward.'}
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-              Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.
+              {language === 'lo'
+                ? 'ບົດຮຽນທີ່ນຳໄປໃຊ້ໄດ້ຈິງດ້ານການເງິນ, AI, ພາສາອັງກິດ, ການເຮັດວຽກຢ່າງມີຜົນ, ອາຊີບ, ທຶນການສຶກສາ ແລະ ທຸລະກິດ—ພ້ອມທັງຄວາມທ້າທາຍປະຈຳອາທິດ ແລະ ນິໄສປະຈຳວັນ.'
+                : 'Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.'}
             </p>
             <button
               type="button"
               onClick={onOpenLearning}
-              className="mt-7 inline-flex w-fit items-center gap-3 rounded-full bg-primary-950 px-6 py-3.5 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(9,20,38,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
             >
-              Open Learning Hub
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-full" />
+              <Sparkles className="relative h-4 w-4 text-amber-300" />
+              <span className="relative">{language === 'lo' ? 'ເປີດສູນການຮຽນຮູ້' : 'Open Learning Hub'}</span>
+              <ArrowRight className="relative h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover/cta:translate-x-1.5" />
             </button>
           </div>
           <div className="relative overflow-hidden bg-primary-950 p-6 sm:p-8 lg:p-10">
@@ -1570,12 +1144,24 @@ function MemberDashboard({
             <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-amber-400/10 blur-3xl" />
             <div className="relative flex h-full flex-col justify-center">
               <p className="mb-5 text-xs font-black uppercase tracking-[0.2em] text-primary-200">
-                Learn at your pace
+                {language === 'lo' ? 'ຮຽນຕາມຈັງຫວະຂອງທ່ານ' : 'Learn at your pace'}
               </p>
               <div className="grid grid-cols-1 divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:grid-cols-1 lg:divide-x-0 lg:divide-y">
-                <LearningHubStat label="Lessons" value="8 paths" icon={<GraduationCap className="h-5 w-5" />} />
-                <LearningHubStat label="Challenge" value="Weekly" icon={<Target className="h-5 w-5" />} />
-                <LearningHubStat label="Habits" value="Daily" icon={<CalendarCheck className="h-5 w-5" />} />
+                <LearningHubStat
+                  label={language === 'lo' ? 'ບົດຮຽນ' : 'Lessons'}
+                  value={language === 'lo' ? '8 ເສັ້ນທາງ' : '8 paths'}
+                  icon={<GraduationCap className="h-5 w-5" />}
+                />
+                <LearningHubStat
+                  label={language === 'lo' ? 'ຄວາມທ້າທາຍ' : 'Challenge'}
+                  value={language === 'lo' ? 'ປະຈຳອາທິດ' : 'Weekly'}
+                  icon={<Target className="h-5 w-5" />}
+                />
+                <LearningHubStat
+                  label={language === 'lo' ? 'ນິໄສ' : 'Habits'}
+                  value={language === 'lo' ? 'ປະຈຳວັນ' : 'Daily'}
+                  icon={<CalendarCheck className="h-5 w-5" />}
+                />
               </div>
             </div>
           </div>
@@ -1835,29 +1421,6 @@ function LearningHubStat({ label, value, icon }: { label: string; value: string;
         <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-200">{label}</p>
       </div>
     </div>
-  )
-}
-
-function LanguageFlagIcon({ language }: { language: 'en' | 'lo' }) {
-  if (language === 'lo') {
-    return (
-      <svg viewBox="0 0 30 20" className="h-5 w-7 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-black/10" focusable="false">
-        <rect width="30" height="20" fill="#ce1126" />
-        <rect y="5" width="30" height="10" fill="#002868" />
-        <circle cx="15" cy="10" r="3.6" fill="#fff" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg viewBox="0 0 30 20" className="h-5 w-7 overflow-hidden rounded-[5px] shadow-sm ring-1 ring-black/10" focusable="false">
-      <rect width="30" height="20" fill="#fff" />
-      {[0, 4, 8, 12, 16].map(y => <rect key={y} y={y} width="30" height="2" fill="#b22234" />)}
-      <rect width="14" height="10" fill="#3c3b6e" />
-      {[2, 5, 8, 11].flatMap(x => [2, 5, 8].map(y => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="0.55" fill="#fff" />
-      )))}
-    </svg>
   )
 }
 
