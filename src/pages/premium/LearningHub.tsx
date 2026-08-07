@@ -6,6 +6,7 @@ import {
   CircleDollarSign, Flame, GraduationCap, Languages, Lightbulb, ListChecks,
   Loader2, LockKeyhole, Plus, Sparkles, Target, Timer, Trash2, Trophy, WalletCards,
 } from 'lucide-react'
+import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -74,7 +75,7 @@ const accents: Record<string, string> = {
   indigo: 'bg-indigo-50 text-indigo-700', orange: 'bg-orange-50 text-orange-700',
 }
 
-function localize(language: 'lo' | 'en', en: string, lo: string) {
+export function localize(language: 'lo' | 'en', en: string, lo: string) {
   return language === 'lo' ? lo : en
 }
 
@@ -204,11 +205,10 @@ function PremiumGate({ children, requireSubscription = true }: { children: React
   return <>{children}</>
 }
 
-function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hideSwitchPlatform = false, showAvatar = false, requireSubscription = true }: {
+function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hideSwitchPlatform = false, requireSubscription = true }: {
   children: React.ReactNode; title: string; eyebrow: string; backTo?: string
-  hideSwitchPlatform?: boolean; showAvatar?: boolean; requireSubscription?: boolean
+  hideSwitchPlatform?: boolean; requireSubscription?: boolean
 }) {
-  const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
   return (
     <PremiumGate requireSubscription={requireSubscription}>
@@ -227,15 +227,7 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hi
                 Switch platform
               </Link>
             )}
-            {showAvatar && <PremiumProfileMenu variant="light" />}
-            {!showAvatar && (
-              <button
-                onClick={() => setLanguage(language === 'en' ? 'lo' : 'en')}
-                className="rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-700"
-              >
-                {language === 'en' ? 'ລາວ' : 'EN'}
-              </button>
-            )}
+            <PremiumProfileMenu variant="light" />
           </div>
         </header>
         {children}
@@ -330,7 +322,7 @@ export function LearningHub() {
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
 
   return (
-    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform showAvatar requireSubscription={false}>
+    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
         <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
           <div className="relative max-w-2xl">
@@ -589,6 +581,38 @@ export function LessonReaderPage() {
   const reflectionQuestions = language === 'lo' ? lesson.reflection_questions_lo : lesson.reflection_questions_en
   const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
   const allAnswered = !questions.data?.length || questions.data.every(q => answers[q.id] !== undefined)
+  if (lesson.lesson_type === 'READING_SUMMARY') {
+    return (
+      <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={`/academy/learn/${lesson.category?.slug ?? ''}`}>
+        <BookSummaryReader
+          language={language}
+          title={localize(language, lesson.title_en, lesson.title_lo)}
+          deck={localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}
+          estimatedMinutes={lesson.estimated_minutes}
+          difficulty={lesson.difficulty}
+          bookTitle={lesson.book?.title}
+          bookAuthor={lesson.book?.author}
+          coverImageUrl={lesson.book?.cover_image_url}
+          bookHref={lesson.book ? `/bookstore/books/${lesson.book.id}` : undefined}
+          sections={sections}
+          takeaways={takeaways}
+          glossary={glossary}
+          reflectionQuestions={reflectionQuestions}
+          quiz={(questions.data ?? []).map(q => ({
+            id: q.id,
+            prompt: localize(language, q.prompt_en, q.prompt_lo),
+            options: language === 'lo' ? q.options_lo : q.options_en,
+          }))}
+          answers={answers}
+          onAnswer={(id, optionIndex) => setAnswers(old => ({ ...old, [id]: optionIndex }))}
+          completed={Boolean(itemProgress?.completed_at)}
+          completing={complete.isPending}
+          allAnswered={allAnswered}
+          onComplete={() => complete.mutate()}
+        />
+      </LearningShell>
+    )
+  }
   return (
     <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={`/academy/learn/${lesson.category?.slug ?? ''}`}>
       <article className="mx-auto max-w-3xl px-4 py-10 pb-28">

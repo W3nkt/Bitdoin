@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
+import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -301,13 +302,16 @@ export function PremiumCoach() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600">Ready to coach</p></div></div>
-          {access.data ? (
-            <Crown className="h-5 w-5 text-amber-500" />
-          ) : (
-            <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
-              <Crown className="h-3.5 w-3.5" /> Upgrade
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            {access.data ? (
+              <Crown className="h-5 w-5 text-amber-500" />
+            ) : (
+              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
+                <Crown className="h-3.5 w-3.5" /> Upgrade
+              </Link>
+            )}
+            <PremiumProfileMenu variant="light" />
+          </div>
         </div>
       </header>
 

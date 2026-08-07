@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -68,9 +69,14 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
 
   if (!open) return null
 
-  return (
+  // Rendered via a portal straight onto <body>: a header (or any ancestor)
+  // with backdrop-blur/backdrop-filter establishes a new CSS containing
+  // block for `position: fixed` descendants, which would otherwise confine
+  // this overlay to that ancestor's small bounding box instead of the
+  // viewport — cropping the dialog off-screen. Portaling escapes that.
+  return createPortal(
     // On mobile: bottom-sheet (items-end). On md+: centered dialog.
-    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center md:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pt-10 md:items-center md:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
         ref={dialogRef}
@@ -78,18 +84,18 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         className={cn(
-        'relative w-full bg-white shadow-xl animate-slide-up',
+        'relative flex max-h-[calc(100vh-2.5rem)] w-full flex-col bg-white shadow-xl animate-slide-up',
         // Mobile: full width, rounded top corners, no max-height limit issues
-        'rounded-t-2xl md:rounded-2xl',
+        'rounded-t-2xl md:max-h-[85vh] md:rounded-2xl',
         sizes[size],
       )}>
         {/* Drag indicator on mobile */}
-        <div className="flex justify-center pt-3 pb-0 md:hidden">
+        <div className="flex shrink-0 justify-center pt-3 pb-0 md:hidden">
           <div className="h-1 w-10 rounded-full bg-gray-300" />
         </div>
 
         {title && (
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
             <h2 id={titleId} className="text-base font-semibold text-gray-900">{title}</h2>
             <button
               onClick={onClose}
@@ -100,15 +106,16 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
             </button>
           </div>
         )}
-        <div className="px-5 py-4 overflow-y-auto max-h-[80vh] md:max-h-[75vh]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {children}
         </div>
         {footer && (
-          <div className="border-t border-gray-100 px-5 py-4 flex justify-end gap-3">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 px-5 py-4">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

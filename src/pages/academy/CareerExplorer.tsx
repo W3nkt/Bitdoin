@@ -9,6 +9,7 @@ import {
   careerPaths, certificatesForSkill, jobSearchPlatforms, organizationsByCareer, salaryByCareer,
   type CareerPath, type CareerRegion,
 } from '@/data/careerPaths'
+import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
@@ -140,9 +141,13 @@ export function CareerExplorer() {
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700">Bitdoin Academy</p>
             <h1 className="truncate text-base font-black sm:text-lg">{lo ? 'ສຳຫຼວດອາຊີບ' : 'Career Explorer'}</h1>
           </div>
-          <button onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 px-3 py-2 text-xs font-black">
-            {lo ? 'EN' : 'ລາວ'}
-          </button>
+          {profile ? (
+            <PremiumProfileMenu variant="light" />
+          ) : (
+            <button onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 px-3 py-2 text-xs font-black">
+              {lo ? 'EN' : 'ລາວ'}
+            </button>
+          )}
         </div>
       </header>
 

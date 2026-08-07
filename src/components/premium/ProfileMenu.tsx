@@ -5,6 +5,8 @@ import {
   ArrowRight, Brain, Camera, Clock, Flame, GraduationCap, Lightbulb,
   Loader2, LogOut, Pencil, Save, Target, XCircle, Zap,
 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -136,6 +138,8 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   const [nameDraft, setNameDraft] = useState('')
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [confirmingLogout, setConfirmingLogout] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
   const displayName = profile?.name?.trim() || 'Guest user'
   const contact = profile?.email ?? profile?.phone ?? 'Sign in to use Premium'
   const initial = (displayName.charAt(0) || '?').toUpperCase()
@@ -177,14 +181,24 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
     }
   }, [open])
 
-  async function handleAccountAction() {
+  function handleAccountAction() {
     setOpen(false)
     if (!profile) {
       navigate('/auth')
       return
     }
-    await signOut()
-    navigate('/')
+    setConfirmingLogout(true)
+  }
+
+  async function confirmLogout() {
+    setSigningOut(true)
+    try {
+      await signOut()
+      navigate('/')
+    } finally {
+      setSigningOut(false)
+      setConfirmingLogout(false)
+    }
   }
 
   async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -382,38 +396,29 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               )
             )}
             {!editingIdentity && (
-              <div
-                className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-amber-50 px-2.5 py-2 ring-1 ring-amber-200"
-                role="group"
-                aria-label="Language"
-                data-no-premium-translate
-              >
-                <span className={cn('transition', language === 'en' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
-                  <LanguageFlagIcon language="en" />
-                </span>
+              <div className="flex flex-shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  role="switch"
-                  aria-checked={language === 'lo'}
-                  aria-label={`Switch to ${language === 'lo' ? 'English' : 'Lao'}`}
                   onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
+                  aria-label={`Switch to ${language === 'lo' ? 'English' : 'Lao'}`}
+                  data-no-premium-translate
+                  className="grid h-9 w-9 place-items-center rounded-full bg-amber-50 ring-1 ring-amber-200 transition hover:bg-amber-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                >
+                  <LanguageFlagIcon language={language} />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAccountAction}
+                  aria-label={profile ? 'Logout' : 'Sign in'}
                   className={cn(
-                    'relative h-7 w-12 rounded-full border p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2',
-                    language === 'lo'
-                      ? 'border-amber-500 bg-amber-400'
-                      : 'border-primary-800 bg-primary-950',
+                    'grid h-9 w-9 place-items-center rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
+                    profile
+                      ? 'bg-red-50 text-red-600 ring-1 ring-red-200 hover:scale-110 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-500/40 focus-visible:ring-red-500'
+                      : 'bg-amber-100 text-amber-950 hover:bg-amber-200 focus-visible:ring-amber-500',
                   )}
                 >
-                  <span
-                    className={cn(
-                      'block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-200',
-                      language === 'lo' && 'translate-x-5',
-                    )}
-                  />
+                  {profile ? <LogOut className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
                 </button>
-                <span className={cn('transition', language === 'lo' ? 'opacity-100' : 'opacity-40 grayscale')} aria-hidden="true">
-                  <LanguageFlagIcon language="lo" />
-                </span>
               </div>
             )}
           </div>
@@ -489,19 +494,29 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               </div>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => void handleAccountAction()}
-            className="mt-2 flex w-full items-center justify-between gap-3 rounded-xl bg-amber-100 px-3 py-2.5 text-sm font-black text-amber-950 transition hover:bg-amber-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-          >
-            <span>{profile ? 'Logout' : 'Sign in'}</span>
-            {profile
-              ? <LogOut className="h-4 w-4 flex-shrink-0" />
-              : <ArrowRight className="h-4 w-4 flex-shrink-0" />}
-          </button>
         </div>
       )}
+
+      <Modal
+        open={confirmingLogout}
+        onClose={() => setConfirmingLogout(false)}
+        title="Log out?"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmingLogout(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" loading={signingOut} onClick={() => void confirmLogout()} icon={<LogOut className="h-4 w-4" />}>
+              Log out
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-6 text-gray-600">
+          You'll be signed out of your Bitdoin Academy account on this device. You can log back in anytime to pick up where you left off.
+        </p>
+      </Modal>
     </div>
   )
 }
