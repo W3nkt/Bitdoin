@@ -9,6 +9,7 @@ import { CustomerLayout } from '@/components/layout/CustomerLayout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedirect'
+import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import '@/i18n'
 
 // Customer pages
@@ -90,6 +91,11 @@ function PlatformTitle() {
   return null
 }
 
+function GoogleAnalyticsTracker() {
+  useGoogleAnalytics()
+  return null
+}
+
 function OAuthReturnHandler() {
   const { profile, loading } = useAuth()
   const navigate = useNavigate()
@@ -114,6 +120,7 @@ export function App() {
             <CartProvider>
               <ToastProvider>
                 <PlatformTitle />
+                <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>

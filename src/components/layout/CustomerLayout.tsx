@@ -7,7 +7,6 @@ import { Tooltip } from '@/components/ui/Tooltip'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
 
@@ -21,7 +20,6 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { profile } = useAuth()
   const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
-  useGoogleAnalytics()
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

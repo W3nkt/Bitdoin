@@ -42,7 +42,7 @@ export function trackPageView(path: string) {
   const pagePath = path.startsWith('/') ? path : `/${path}`
   window.gtag('event', 'page_view', {
     page_title: document.title,
-    page_location: `${window.location.origin}${window.location.pathname}#${pagePath}`,
+    page_location: `${window.location.origin}${pagePath}`,
     page_path: pagePath,
   })
 }
