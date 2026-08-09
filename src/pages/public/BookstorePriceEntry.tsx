@@ -5,6 +5,7 @@ import { getPendingBooksForToken, submitBookstorePrice, type PendingBook } from 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { Modal } from '@/components/ui/Modal'
 import { publicAsset } from '@/lib/assets'
 
 export function BookstorePriceEntry() {
@@ -13,6 +14,7 @@ export function BookstorePriceEntry() {
   const [books, setBooks] = useState<PendingBook[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [enlargedCover, setEnlargedCover] = useState<{ url: string; title: string } | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -63,17 +65,36 @@ export function BookstorePriceEntry() {
                 same link anytime to update prices or add new books.
               </p>
               {books.map(book => (
-                <BookPriceRow key={book.id} book={book} token={token!} />
+                <BookPriceRow key={book.id} book={book} token={token!} onEnlargeCover={setEnlargedCover} />
               ))}
             </div>
           )
         )}
       </div>
+
+      <Modal
+        open={!!enlargedCover}
+        onClose={() => setEnlargedCover(null)}
+        title={enlargedCover?.title}
+        size="lg"
+      >
+        {enlargedCover && (
+          <img src={enlargedCover.url} alt={enlargedCover.title} className="w-full rounded-lg object-contain" />
+        )}
+      </Modal>
     </div>
   )
 }
 
-function BookPriceRow({ book, token }: { book: PendingBook; token: string }) {
+function BookPriceRow({
+  book,
+  token,
+  onEnlargeCover,
+}: {
+  book: PendingBook
+  token: string
+  onEnlargeCover: (cover: { url: string; title: string }) => void
+}) {
   const [price, setPrice] = useState(book.submitted_price ? String(Math.round(book.submitted_price)) : '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -109,7 +130,14 @@ function BookPriceRow({ book, token }: { book: PendingBook; token: string }) {
     <div className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
       <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
         {book.cover_image_url ? (
-          <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />
+          <button
+            type="button"
+            onClick={() => onEnlargeCover({ url: book.cover_image_url!, title: book.title })}
+            className="h-full w-full cursor-zoom-in"
+            aria-label={`Enlarge cover for ${book.title}`}
+          >
+            <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />
+          </button>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-primary-50">
             <BookOpen className="h-5 w-5 text-primary-300" />
