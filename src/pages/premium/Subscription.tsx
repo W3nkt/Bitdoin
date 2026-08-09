@@ -40,6 +40,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
+import { notifyAdminOfAcademyPayment, notifyAdminOfAcademySubscription } from '@/lib/premiumNotify'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { cn } from '@/lib/utils'
@@ -555,7 +556,7 @@ export function Subscription() {
     try {
       await supersedeAbandonedRequests()
 
-      const { error: subscriptionError } = await supabase
+      const { data: createdSubscription, error: subscriptionError } = await supabase
         .from('premium_subscriptions')
         .insert({
           user_id: profile.id,
@@ -563,8 +564,12 @@ export function Subscription() {
           status: 'PENDING_APPROVAL',
           auto_renew: false,
         })
+        .select('id')
+        .single()
 
       if (subscriptionError) throw subscriptionError
+
+      notifyAdminOfAcademySubscription(createdSubscription.id)
 
       await invalidatePremium()
       success('Your Free membership request was sent for admin approval.')
@@ -613,6 +618,8 @@ export function Subscription() {
         })
 
       if (paymentError) throw paymentError
+
+      notifyAdminOfAcademySubscription(createdSubscription.id)
 
       await invalidatePremium()
       setQrPlan(plan)
@@ -682,6 +689,8 @@ export function Subscription() {
         .eq('id', subscription.id)
 
       if (subscriptionUpdateError) throw subscriptionUpdateError
+
+      notifyAdminOfAcademyPayment(subscription.id, pendingPayment.id)
 
       await invalidatePremium()
       success('Payment proof submitted. Admin will review it.')
