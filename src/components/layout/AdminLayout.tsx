@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { AdminNotificationsContext } from '@/context/AdminNotificationsContext'
 import { useAdminNotifications } from '@/hooks/useAdminNotifications'
+import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
 
@@ -20,6 +21,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { language, setLanguage, currency, setCurrency } = useLanguage()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [profileSettingsOpen, setProfileSettingsOpen] = useState(false)
   const { orderBadge, paymentBadge, deliveryBadge, markSeen } = useAdminNotifications()
 
   const badgeCounts: Record<string, number> = {
@@ -125,15 +127,26 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* User footer */}
       <div className="p-3 border-t border-white/10 flex-shrink-0 space-y-1">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/10">
-          <div className="h-8 w-8 rounded-full bg-accent-500 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-white">
-              {profile?.name?.charAt(0).toUpperCase() ?? 'A'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{profile?.name ?? 'Admin'}</p>
-            <p className="text-xs text-primary-300 truncate capitalize">{profile?.role?.toLowerCase()}</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setProfileSettingsOpen(true)}
+            title="Edit admin profile"
+            className="flex flex-1 min-w-0 items-center gap-3 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          >
+            <div className="h-8 w-8 rounded-full bg-accent-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold text-white">
+                  {profile?.name?.charAt(0).toUpperCase() ?? 'A'}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{profile?.name ?? 'Admin'}</p>
+              <p className="text-xs text-primary-300 truncate capitalize">{profile?.role?.toLowerCase()}</p>
+            </div>
+          </button>
            <button
              onClick={handleSignOut}
              title="Sign out"
@@ -231,6 +244,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
     </div>
+    <AdminProfileModal open={profileSettingsOpen} onClose={() => setProfileSettingsOpen(false)} />
     </AdminNotificationsContext.Provider>
   )
 }

@@ -25,6 +25,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -212,6 +213,7 @@ export function PremiumAdminDashboard() {
   const { profile, signOut } = useAuth()
   const { success, error } = useToast()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const [profileSettingsOpen, setProfileSettingsOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const [reviewingSubscriptionId, setReviewingSubscriptionId] = useState<string | null>(null)
   const [rejectingRequest, setRejectingRequest] = useState<RejectingRequest | null>(null)
@@ -741,7 +743,7 @@ export function PremiumAdminDashboard() {
                 <button
                   type="button"
                   role="menuitem"
-                  onClick={() => navigate('/admin/settings')}
+                  onClick={() => { setProfileMenuOpen(false); setProfileSettingsOpen(true) }}
                   className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
                 >
                   <Settings className="h-4 w-4 text-slate-500" />
@@ -1407,6 +1409,8 @@ export function PremiumAdminDashboard() {
           </div>
         )}
       </Modal>
+
+      <AdminProfileModal open={profileSettingsOpen} onClose={() => setProfileSettingsOpen(false)} />
     </div>
   )
 }
