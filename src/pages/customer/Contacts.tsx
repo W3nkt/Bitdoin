@@ -12,7 +12,7 @@ export default function Contacts() {
 
   const phoneHref = `tel:${waNumber}`
 
-  const email = 'ckateng25@gmail.com'
+  const email = 'bitdoin0@gmail.com'
   const emailHref = `mailto:${email}`
 
   return (

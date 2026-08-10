@@ -56,7 +56,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const rawMessenger = import.meta.env.VITE_ADMIN_MESSENGER || 'm.me/620472337804971'
   const messengerHref = rawMessenger.startsWith('http') ? rawMessenger : `https://${rawMessenger.replace(/^\/+/, '')}`
   const phoneHref = `tel:${waNumber}`
-  const email = 'ckateng25@gmail.com'
+  const email = 'bitdoin0@gmail.com'
   const emailHref = `mailto:${email}`
 
   return (
