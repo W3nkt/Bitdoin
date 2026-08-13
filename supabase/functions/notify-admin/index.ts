@@ -2,9 +2,11 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') ?? ''
+const ADMIN_EMAIL = 'wen.kt2020@gmail.com'
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Bitdoin <onboarding@resend.dev>'
-const ADMIN_APP_URL = (Deno.env.get('ADMIN_APP_URL') ?? '').replace(/\/$/, '')
+const ADMIN_APP_URL = (Deno.env.get('ADMIN_APP_URL') ?? '')
+  .split('#', 1)[0]
+  .replace(/\/+$/, '')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
