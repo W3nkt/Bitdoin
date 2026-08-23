@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bitdoin Book Intake"
+  short_description: "Research books and create safe intake SQL"
+  default_prompt: "Use $bitdoin-book-intake to research this book and prepare it for the Bitdoin intake list."
