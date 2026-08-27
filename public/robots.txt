@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Private, account-gated, or thin pages — no value to a crawler, may expose
+# a login redirect or empty state instead of real content.
+Disallow: /admin
+Disallow: /academy-admin
+Disallow: /premium-admin
+Disallow: /auth
+Disallow: /bookstore/cart
+Disallow: /bookstore/checkout
+Disallow: /bookstore/orders
+Disallow: /bookstore/profile
+Disallow: /bookstore-pricing/
+Disallow: /academy/coach
+Disallow: /academy/learn
+Disallow: /academy/challenges
+Disallow: /academy/habits
+Disallow: /academy/progress
+Disallow: /academy/profile
