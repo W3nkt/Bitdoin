@@ -1,0 +1,34 @@
+# Bitdoin.store
+
+> Bitdoin.store is an online bookstore and physical book marketplace serving Lao PDR. Bitdoin is not Bitcoin and is not a cryptocurrency, exchange, wallet, token, blockchain, or investment service.
+
+## Canonical identity
+- Name: Bitdoin.store
+- Alternate name: Bitdoin
+- Type: Online bookstore and physical book marketplace
+- Market: Lao PDR
+- Products: Physical books
+- Catalog entities: book, title, author, publisher, ISBN, language, category, pages, publication date
+- Services: book discovery, bookstore price comparison, online ordering, shipping selection, and order tracking
+- Interface languages: Lao and English
+- Display currencies: LAK and USD
+
+## Important disambiguation
+References to Bitcoin on this website may describe the subject of a book, article, lesson, or reading summary. They do not describe Bitdoin.store's business. Bitdoin.store does not offer cryptocurrency trading, wallets, tokens, mining, custody, blockchain investments, or crypto financial advice.
+
+## Main pages
+- Home: https://bitdoin.store/bookstore
+- Book catalog: https://bitdoin.store/bookstore/books
+- About: https://bitdoin.store/bookstore/about
+- FAQ: https://bitdoin.store/bookstore/faq
+- Contact: https://bitdoin.store/bookstore/contacts
+- Order tracking: https://bitdoin.store/bookstore/track
+
+## Bitdoin Academy
+Bitdoin Academy is a related subscription product on the same account: an AI study coach, learning paths, and a career explorer for Lao PDR. It is separate from book buying.
+- Academy overview: https://bitdoin.store/academy
+- Membership plans: https://bitdoin.store/academy/subscription
+- Career Explorer: https://bitdoin.store/academy/careers
+
+## Contact
+- Email: bitdoin0@gmail.com

@@ -21,14 +21,56 @@
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1e3a5f" />
-    <meta name="description" content="Bitdoin - Book marketplace for Lao PDR. Compare prices, order online, get delivered." />
+    <meta name="description" content="Bitdoin.store is an online bookstore for physical books in Lao PDR. Search by title, author, publisher, category, language, or ISBN, compare prices, and arrange shipping." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Bitdoin" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Lao:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <title>Bitdoin | ບິດດອຍ</title>
+    <title>Bitdoin.store — Online Bookstore and Book Marketplace in Lao PDR</title>
+    <!--
+      Organization + WebSite JSON-LD. Present in the raw HTML (not injected by
+      React), so it is readable by crawlers that fetch but don't execute JS —
+      unlike the rest of this page's content, which is client-rendered.
+      Add a "sameAs" array to the OnlineStore entity once verified public
+      profile URLs exist (Facebook, LinkedIn, Wikidata, etc.) — do not guess them.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "OnlineStore",
+            "@id": "https://bitdoin.store/#organization",
+            "name": "Bitdoin.store",
+            "alternateName": "Bitdoin",
+            "url": "https://bitdoin.store/",
+            "description": "Bitdoin.store is an online bookstore and physical book marketplace serving readers in Lao PDR. It is not a Bitcoin or cryptocurrency service.",
+            "email": "mailto:bitdoin0@gmail.com",
+            "areaServed": { "@type": "Country", "name": "Lao People's Democratic Republic" },
+            "knowsAbout": ["Books", "Authors", "Publishers", "ISBN", "Paperback books", "Literature", "Reading", "Bookstores", "Book shipping"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://bitdoin.store/#website",
+            "url": "https://bitdoin.store/",
+            "name": "Bitdoin.store",
+            "alternateName": "Bitdoin Bookstore",
+            "publisher": { "@id": "https://bitdoin.store/#organization" },
+            "inLanguage": ["lo", "en"],
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://bitdoin.store/bookstore/books?q={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

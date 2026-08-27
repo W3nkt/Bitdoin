@@ -18,6 +18,8 @@ const en = {
     signOut: 'Sign Out',
     admin: 'Admin',
     knowledge: 'Knowledge',
+    about: 'About',
+    faq: 'FAQ',
   },
 
   contacts: {

@@ -132,6 +132,12 @@ export function Home() {
           </div>
         </section>
 
+        {/* ── Entity clarification strip ── */}
+        <p className="mb-6 -mt-2 rounded-xl bg-slate-50 px-4 py-2.5 text-center text-xs text-slate-500">
+          Bitdoin.store is a bookstore, not a cryptocurrency platform. We help readers find and order physical
+          books; we do not offer Bitcoin trading, crypto wallets, tokens, or investment services.
+        </p>
+
         {/* ── Featured books ── */}
         <section>
           <SectionHeader

@@ -18,6 +18,8 @@ const lo: Translations = {
     signOut: 'ອອກຈາກລະບົບ',
     admin: 'ຜູ້ດູແລ',
     knowledge: 'ຄັງຄວາມຮູ້',
+    about: 'ກ່ຽວກັບພວກເຮົາ',
+    faq: 'ຄຳຖາມທີ່ພົບເລື້ອຍ',
   },
 
   contacts: {

@@ -10,6 +10,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedirect'
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
+import { useSeoMeta } from '@/hooks/useSeoMeta'
 import '@/i18n'
 
 // Customer pages
@@ -33,6 +34,8 @@ const LearningProgressPage = lazy(() => import('@/pages/premium/LearningHub').th
 const PremiumAdminDashboard = lazy(() => import('@/pages/premium/AdminDashboard').then(m => ({ default: m.PremiumAdminDashboard })))
 const PremiumLearningAdmin = lazy(() => import('@/pages/premium/LearningAdmin').then(m => ({ default: m.PremiumLearningAdmin })))
 const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
+const About           = lazy(() => import('@/pages/customer/About').then(m => ({ default: m.About })))
+const Faq              = lazy(() => import('@/pages/customer/Faq').then(m => ({ default: m.Faq })))
 const Knowledge       = lazy(() => import('@/pages/customer/Knowledge').then(m => ({ default: m.Knowledge })))
 const KnowledgeDetail = lazy(() => import('@/pages/customer/KnowledgeDetail').then(m => ({ default: m.KnowledgeDetail })))
 const Auth       = lazy(() => import('@/pages/Auth').then(m => ({ default: m.Auth })))
@@ -81,13 +84,21 @@ function LegacyRedirect({ to, appendParam }: { to: string; appendParam?: string 
 
 function PlatformTitle() {
   const { pathname } = useLocation()
-  useEffect(() => {
-    document.title = pathname.startsWith('/academy')
-      ? 'Bitdoin Academy'
-      : pathname.startsWith('/bookstore')
-        ? 'Bitdoin Bookstore'
-        : 'Bitdoin'
-  }, [pathname])
+  const meta = pathname.startsWith('/academy')
+    ? {
+        title: 'Bitdoin Academy — Learning & Career Coaching in Lao PDR',
+        description: 'Bitdoin Academy is a subscription learning and career-coaching platform for Lao PDR, with an AI study coach, learning paths, and a career explorer.',
+      }
+    : pathname.startsWith('/bookstore')
+      ? {
+          title: 'Bitdoin Bookstore — Online Bookstore in Lao PDR',
+          description: 'Bitdoin.store is an online bookstore for physical books in Lao PDR. Search by title, author, publisher, category, language, or ISBN, compare prices, and arrange shipping.',
+        }
+      : {
+          title: 'Bitdoin — Bookstore & Academy for Lao PDR',
+          description: 'Bitdoin.store is an online bookstore for physical books in Lao PDR, paired with Bitdoin Academy, a subscription learning and career-coaching platform.',
+        }
+  useSeoMeta({ ...meta, canonicalPath: pathname })
   return null
 }
 
@@ -134,6 +145,8 @@ export function App() {
                     <Route path="/bookstore" element={<CustomerLayout><Home /></CustomerLayout>} />
                     <Route path="/bookstore/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
                     <Route path="/bookstore/contacts" element={<CustomerLayout><Contacts /></CustomerLayout>} />
+                    <Route path="/bookstore/about" element={<CustomerLayout><About /></CustomerLayout>} />
+                    <Route path="/bookstore/faq" element={<CustomerLayout><Faq /></CustomerLayout>} />
                     <Route path="/bookstore/knowledge" element={<CustomerLayout><Knowledge /></CustomerLayout>} />
                     <Route path="/bookstore/knowledge/:id" element={<CustomerLayout><KnowledgeDetail /></CustomerLayout>} />
                     <Route path="/bookstore/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
@@ -162,6 +175,8 @@ export function App() {
                     <Route path="/books" element={<LegacyRedirect to="/bookstore/books" />} />
                     <Route path="/books/:id" element={<LegacyRedirect to="/bookstore/books" appendParam="id" />} />
                     <Route path="/contacts" element={<LegacyRedirect to="/bookstore/contacts" />} />
+                    <Route path="/about" element={<LegacyRedirect to="/bookstore/about" />} />
+                    <Route path="/faq" element={<LegacyRedirect to="/bookstore/faq" />} />
                     <Route path="/knowledge" element={<LegacyRedirect to="/bookstore/knowledge" />} />
                     <Route path="/knowledge/:id" element={<LegacyRedirect to="/bookstore/knowledge" appendParam="id" />} />
                     <Route path="/cart" element={<LegacyRedirect to="/bookstore/cart" />} />

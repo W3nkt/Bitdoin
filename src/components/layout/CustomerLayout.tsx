@@ -165,6 +165,11 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 className="h-10 w-28 object-contain object-left brightness-0 invert mb-2"
               />
               <p className="text-xs text-primary-400">© {new Date().getFullYear()} Bitdoin. All rights reserved.</p>
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-primary-300">
+                <Link to="/bookstore/about" className="transition-colors hover:text-white">{t('nav.about')}</Link>
+                <Link to="/bookstore/faq" className="transition-colors hover:text-white">{t('nav.faq')}</Link>
+                <Link to="/bookstore/knowledge" className="transition-colors hover:text-white">{t('nav.knowledge')}</Link>
+              </div>
             </div>
 
             {/* Contact links */}
