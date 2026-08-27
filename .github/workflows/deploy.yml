@@ -35,6 +35,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright Chromium (for prerendering)
+        run: npx playwright install --with-deps chromium
+        continue-on-error: true
+
       - name: Validate deployment configuration
         shell: bash
         run: |
