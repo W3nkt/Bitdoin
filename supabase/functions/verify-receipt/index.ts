@@ -13,6 +13,7 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
 
 interface VerifyRequest {
   payment_id: string
+  guest_access_token?: string
 }
 
 interface ReceiptExtraction {
@@ -159,13 +160,13 @@ serve(async (req) => {
     })
 
     const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if (userError || !user) return jsonResponse(req, { success: false, error: 'Invalid session' }, 401)
+    if ((userError || !user) && !body.guest_access_token) {
+      return jsonResponse(req, { success: false, error: 'Invalid session' }, 401)
+    }
 
-    const { data: roleRow } = await serviceClient
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    const { data: roleRow } = user
+      ? await serviceClient.from('users').select('role').eq('id', user.id).maybeSingle()
+      : { data: null }
     const role = roleRow?.role
     const isStaff = role === 'ADMIN' || role === 'FINANCE'
 
@@ -178,8 +179,20 @@ serve(async (req) => {
     if (paymentError || !payment) return jsonResponse(req, { success: false, error: 'Payment not found' }, 404)
 
     const order = Array.isArray(payment.order) ? payment.order[0] : payment.order
-    const ownsPayment = payment.user_id === user.id || order?.customer_id === user.id
-    if (!isStaff && !ownsPayment) return jsonResponse(req, { success: false, error: 'Not authorized' }, 403)
+    const ownsPayment = !!user && (payment.user_id === user.id || order?.customer_id === user.id)
+    let guestAuthorized = false
+    if (!ownsPayment && !isStaff && body.guest_access_token) {
+      // This RPC is intentionally granted to anon/authenticated (not service_role)
+      // and validates the hashed guest token without exposing it.
+      const { data: allowed, error: guestAuthError } = await userClient.rpc('guest_receipt_path_allowed', {
+        p_order_id: payment.order_id,
+        p_access_token: body.guest_access_token,
+      })
+      guestAuthorized = !guestAuthError && allowed === true
+    }
+    if (!isStaff && !ownsPayment && !guestAuthorized) {
+      return jsonResponse(req, { success: false, error: 'Not authorized' }, 403)
+    }
     if (!payment.receipt_image_url) return jsonResponse(req, { success: false, error: 'No receipt uploaded' }, 400)
 
     const expectedAmount = Number(payment.amount || order?.total_amount || 0)
@@ -189,8 +202,11 @@ serve(async (req) => {
 
     const extraction = await extractReceiptWithQwen(serviceClient, payment.receipt_image_url, expectedAmount)
 
-    const amountMatches = extraction.amount !== null &&
-      Math.abs(extraction.amount - expectedAmount) / expectedAmount < 0.01
+    // A small OCR tolerance is allowed below the total; overpayments are sufficient.
+    const amountCoveragePercent = extraction.amount !== null
+      ? (extraction.amount / expectedAmount) * 100
+      : null
+    const amountMatches = amountCoveragePercent !== null && amountCoveragePercent >= 99
     const receiptDate = extraction.date ? new Date(extraction.date) : null
     const dateWithin24h = receiptDate && !Number.isNaN(receiptDate.getTime())
       ? (Date.now() - receiptDate.getTime()) >= -5 * 60 * 1000 &&
@@ -212,14 +228,30 @@ serve(async (req) => {
     if (!extraction.is_payment_receipt) score = 0
     if (extraction.currency && extraction.currency !== 'LAK') score = Math.min(score, 50)
     if (!amountMatches) score = Math.min(score, 50)
-    if (!dateWithin24h) score = Math.min(score, 60)
     if (!transactionUnique) score = 0
+
+    // The admin-facing confidence is the payment coverage percentage. Keep it
+    // aligned with the coverage badge, capped at 100 for exact/overpayments.
+    const canScoreCoverage = extraction.is_payment_receipt &&
+      (!extraction.currency || extraction.currency === 'LAK') && transactionUnique &&
+      amountCoveragePercent !== null
+    if (canScoreCoverage) score = Math.min(100, Math.max(0, amountCoveragePercent))
 
     const autoApprove = extraction.is_payment_receipt && score >= 90 && amountMatches && dateWithin24h && transactionUnique
 
+    const extractedData = {
+      ...extraction,
+      verification: {
+        amount_matches: amountMatches,
+        amount_coverage_percent: amountCoveragePercent,
+        date_within_24h: dateWithin24h,
+        transaction_unique: transactionUnique,
+      },
+    }
+
     await serviceClient.from('payments').update({
       ai_confidence_score: score,
-      ai_extracted_data: extraction,
+      ai_extracted_data: extractedData,
       sender_name: extraction.sender,
       transaction_reference: extraction.transaction_id,
       bank_name: extraction.bank,
@@ -249,8 +281,10 @@ serve(async (req) => {
       auto_approved: autoApprove,
       confidence_score: score,
       amount_matches: amountMatches,
+      amount_coverage_percent: amountCoveragePercent,
+      date_within_24h: dateWithin24h,
       transaction_unique: transactionUnique,
-      extracted: extraction,
+      extracted: extractedData,
     })
   } catch (err) {
     console.error('[verify-receipt]', err)

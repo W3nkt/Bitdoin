@@ -97,10 +97,12 @@ export function OrderDetail() {
         .eq('id', payment.id)
       if (updateErr) throw updateErr
 
-      // Trigger AI verification in the background (non-blocking)
-      supabase.functions.invoke('verify-receipt', {
+      // Trigger OCR immediately while this page is still active, so navigation
+      // cannot cancel the request after the receipt has been submitted.
+      const { error: ocrError } = await supabase.functions.invoke('verify-receipt', {
         body: { payment_id: payment.id },
-      }).catch(() => {})
+      })
+      if (ocrError) console.error('[verify-receipt] Receipt saved, but automatic OCR failed', ocrError)
 
       // Best-effort admin email; the receipt is already saved either way
       supabase.functions.invoke('notify-admin-payment', {

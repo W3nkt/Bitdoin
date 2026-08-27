@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, Eye, ReceiptText } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, ReceiptText, RefreshCw, Sparkles } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
@@ -19,6 +19,65 @@ import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice, formatDateTime, paymentStatusLabel, normalizeLaoPhone } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
+interface ReceiptAiData {
+  is_payment_receipt?: boolean
+  amount?: number | null
+  currency?: string | null
+  date?: string | null
+  sender?: string | null
+  transaction_id?: string | null
+  bank?: string | null
+  confidence?: number
+  raw?: string
+  provider?: string
+  model?: string
+  verification?: {
+    amount_matches?: boolean
+    amount_coverage_percent?: number | null
+    date_within_24h?: boolean
+    transaction_unique?: boolean
+  }
+}
+
+function receiptAiData(payment: Payment): ReceiptAiData | null {
+  if (!payment.ai_extracted_data || typeof payment.ai_extracted_data !== 'object') return null
+  return payment.ai_extracted_data as ReceiptAiData
+}
+
+function formatLak(amount: number): string {
+  return `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount)} LAK`
+}
+
+function amountMatches(payment: Payment, ai: ReceiptAiData | null): boolean | null {
+  const extracted = Number(ai?.amount)
+  if (!Number.isFinite(extracted) || extracted <= 0 || payment.amount <= 0) return null
+  return extracted / payment.amount >= 0.99
+}
+
+function amountCoverage(payment: Payment, ai: ReceiptAiData | null): number | null {
+  const storedCoverage = Number(ai?.verification?.amount_coverage_percent)
+  if (Number.isFinite(storedCoverage) && storedCoverage >= 0) return storedCoverage
+  const extracted = Number(ai?.amount)
+  if (!Number.isFinite(extracted) || extracted <= 0 || payment.amount <= 0) return null
+  return (extracted / payment.amount) * 100
+}
+
+function verificationConfidence(payment: Payment): number | null {
+  const ai = receiptAiData(payment)
+  if (!ai) return payment.ai_confidence_score == null ? null : Number(payment.ai_confidence_score)
+  const coverage = amountCoverage(payment, ai)
+  const currencyMatches = !ai.currency || ai.currency === 'LAK'
+  const transactionUnique = ai.verification?.transaction_unique !== false
+  if (ai.is_payment_receipt === true && coverage !== null && currencyMatches && transactionUnique) {
+    return Math.min(100, Math.max(0, coverage))
+  }
+  return payment.ai_confidence_score == null ? Number(ai.confidence ?? 0) : Number(payment.ai_confidence_score)
+}
+
+function laoAmountMismatchReason(payment: Payment, ai: ReceiptAiData): string {
+  return `ຈຳນວນເງິນໃນຫຼັກຖານການໂອນ (${formatLak(Number(ai.amount))}) ບໍ່ກົງກັບຍອດຄຳສັ່ງ (${formatLak(payment.amount)}). ກະລຸນາກວດສອບ ແລະ ສົ່ງຫຼັກຖານການຊຳລະໃໝ່.`
+}
+
 export function AdminPayments() {
   const { t } = useTranslation()
   const qc = useQueryClient()
@@ -33,6 +92,17 @@ export function AdminPayments() {
   const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [actioning, setActioning] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+
+  useEffect(() => {
+    if (!detailPayment) return
+    const ai = receiptAiData(detailPayment)
+    if (ai && amountMatches(detailPayment, ai) === false) {
+      setRejectionReason(laoAmountMismatchReason(detailPayment, ai))
+    } else {
+      setRejectionReason(detailPayment.rejection_reason ?? '')
+    }
+  }, [detailPayment])
 
   // Deep link from the admin notification email, e.g. /admin/payments?payment=<id>
   useEffect(() => {
@@ -50,7 +120,6 @@ export function AdminPayments() {
         setDetailPayment(payment as Payment)
         markSeen(paymentId)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const { data: payments, isLoading } = useQuery({
@@ -138,6 +207,45 @@ export function AdminPayments() {
       error(t('common.error'))
     } finally {
       setActioning(false)
+    }
+  }
+
+  async function analyzePayment(payment: Payment) {
+    setAnalyzing(true)
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('verify-receipt', {
+        body: { payment_id: payment.id },
+      })
+      if (invokeError) {
+        let detail = invokeError.message
+        const context = (invokeError as { context?: Response }).context
+        if (context) {
+          try {
+            const responseBody = await context.clone().json() as { error?: string }
+            if (responseBody.error) detail = responseBody.error
+          } catch {
+            // Keep the Supabase client error when the response is not JSON.
+          }
+        }
+        throw new Error(detail)
+      }
+      if (data?.success === false) throw new Error(data.error || 'AI OCR failed')
+
+      const { data: refreshed, error: refreshError } = await supabase
+        .from('payments')
+        .select('*, order:orders(order_number, total_amount, customer_name, customer_phone, items:order_items(id, quantity, book:books(title)))')
+        .eq('id', payment.id)
+        .single()
+      if (refreshError) throw refreshError
+
+      setDetailPayment(refreshed as Payment)
+      await qc.invalidateQueries({ queryKey: ['admin', 'payments'] })
+      success('Qwen OCR analysis completed')
+    } catch (analysisError) {
+      console.error('[analyze payment]', analysisError)
+      error(analysisError instanceof Error ? analysisError.message : 'Unable to run Qwen OCR')
+    } finally {
+      setAnalyzing(false)
     }
   }
 
@@ -277,20 +385,20 @@ export function AdminPayments() {
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    {payment.ai_confidence_score !== null && payment.ai_confidence_score !== undefined ? (
+                    {verificationConfidence(payment) !== null ? (
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
-                              Number(payment.ai_confidence_score) >= 90 ? 'bg-green-500' : 'bg-orange-400'
+                              Number(verificationConfidence(payment)) >= 90 ? 'bg-green-500' : 'bg-orange-400'
                             }`}
-                            style={{ width: `${Number(payment.ai_confidence_score)}%` }}
+                            style={{ width: `${Number(verificationConfidence(payment))}%` }}
                           />
                         </div>
                         <span className={`text-xs font-semibold ${
-                          Number(payment.ai_confidence_score) >= 90 ? 'text-green-600' : 'text-orange-600'
+                          Number(verificationConfidence(payment)) >= 90 ? 'text-green-600' : 'text-orange-600'
                         }`}>
-                          {Number(payment.ai_confidence_score).toFixed(0)}%
+                          {new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(Number(verificationConfidence(payment)))}%
                         </span>
                       </div>
                     ) : (
@@ -384,27 +492,116 @@ export function AdminPayments() {
                   <p className="text-sm text-gray-700">{formatDateTime(detailPayment.transferred_at, language)}</p>
                 </div>
               )}
-              {detailPayment.ai_confidence_score !== undefined && (
+              {verificationConfidence(detailPayment) !== null && (
                 <div className="bg-gray-50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-2">AI Confidence</p>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          Number(detailPayment.ai_confidence_score) >= 90 ? 'bg-green-500' : 'bg-orange-400'
+                          Number(verificationConfidence(detailPayment)) >= 90 ? 'bg-green-500' : 'bg-orange-400'
                         }`}
-                        style={{ width: `${Number(detailPayment.ai_confidence_score)}%` }}
+                        style={{ width: `${Number(verificationConfidence(detailPayment))}%` }}
                       />
                     </div>
                     <span className={`text-sm font-bold ${
-                      Number(detailPayment.ai_confidence_score) >= 90 ? 'text-green-600' : 'text-orange-500'
+                      Number(verificationConfidence(detailPayment)) >= 90 ? 'text-green-600' : 'text-orange-500'
                     }`}>
-                      {Number(detailPayment.ai_confidence_score).toFixed(1)}%
+                      {Number(verificationConfidence(detailPayment)).toFixed(1)}%
                     </span>
                   </div>
                 </div>
               )}
             </div>
+
+            {(() => {
+              const ai = receiptAiData(detailPayment)
+              const matches = amountMatches(detailPayment, ai)
+              const coverage = amountCoverage(detailPayment, ai)
+              const currencyMatches = !ai?.currency || ai.currency === 'LAK'
+              const transactionUnique = ai?.verification?.transaction_unique !== false
+              const recommendApprove = ai?.is_payment_receipt === true && matches === true &&
+                currencyMatches && transactionUnique
+
+              if (!ai) {
+                return (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-amber-900">AI OCR has not been completed</p>
+                        <p className="mt-1 text-xs text-amber-700">Run Qwen OCR to extract the slip amount, transaction date, and recommendation.</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        icon={<RefreshCw className="h-4 w-4" />}
+                        loading={analyzing}
+                        onClick={() => analyzePayment(detailPayment)}
+                      >
+                        Run AI OCR
+                      </Button>
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div className={cn(
+                  'rounded-xl border p-3',
+                  recommendApprove ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50',
+                )}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={cn(
+                        'flex items-center gap-1.5 text-sm font-semibold',
+                        recommendApprove ? 'text-green-800' : 'text-red-800',
+                      )}>
+                        <Sparkles className="h-4 w-4" />
+                        AI suggests: {recommendApprove ? 'Approve' : 'Reject / review'}
+                      </p>
+                      <p className="mt-1.5 text-sm text-gray-700">
+                        OCR amount: <strong>{ai.amount != null ? formatLak(Number(ai.amount)) : 'Not detected'}</strong>
+                        {' · '}Transaction date: <strong>{ai.date ? formatDateTime(ai.date, language) : 'Not detected'}</strong>
+                      </p>
+                      {coverage !== null && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-bold',
+                            matches ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+                          )}>
+                            {new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(coverage)}% of order total
+                          </span>
+                          <span className={cn('text-xs font-semibold', matches ? 'text-green-700' : 'text-red-700')}>
+                            {matches ? 'Amount matched' : 'Amount short'}
+                          </span>
+                        </div>
+                      )}
+                      <p className="mt-1 text-xs text-gray-600">
+                        {matches === true
+                          ? coverage !== null && coverage > 100
+                            ? `The transfer exceeds the order total by ${formatLak(Number(ai.amount) - detailPayment.amount)}.`
+                            : 'The OCR amount matches the order total.'
+                          : matches === false
+                            ? `Amount mismatch: expected ${formatLak(detailPayment.amount)}.`
+                            : 'The amount could not be compared. Manual review is required.'}
+                        {ai.raw ? ` ${ai.raw}` : ''}
+                      </p>
+                      <p className="mt-1 text-[11px] text-gray-400">
+                        {ai.provider === 'qwen' ? 'Qwen' : 'AI'}{ai.model ? ` · ${ai.model}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => analyzePayment(detailPayment)}
+                      disabled={analyzing}
+                      className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/70 disabled:opacity-50"
+                      title="Run Qwen OCR again"
+                    >
+                      <RefreshCw className={cn('h-4 w-4', analyzing && 'animate-spin')} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Receipt image */}
             {detailPayment.receipt_image_url && (
