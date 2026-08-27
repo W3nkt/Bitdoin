@@ -1,8 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
+import { analyzeImageWithQwen } from '../_shared/qwen-vision.ts'
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') ?? ''
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -16,14 +15,18 @@ interface VerifyRequest {
   payment_id: string
 }
 
-interface GeminiExtraction {
+interface ReceiptExtraction {
+  is_payment_receipt: boolean
   amount: number | null
+  currency: string | null
   date: string | null
   sender: string | null
   transaction_id: string | null
   bank: string | null
   confidence: number
   raw: string
+  provider?: string
+  model?: string
 }
 
 type ReceiptStorageClient = {
@@ -76,7 +79,11 @@ async function fetchReceiptAsBase64(
   const { bucket, path } = normalizeStorageRef(receiptRef)
   const { data, error } = await supabase.storage.from(bucket).download(path)
   if (error || !data) throw new Error('Receipt image could not be read')
-  if (data.size > 10 * 1024 * 1024) throw new Error('Receipt image is too large')
+  // Qwen's Base64 data URL must remain below 10 MB after encoding.
+  if (data.size > 7 * 1024 * 1024) throw new Error('Receipt image is too large for OCR (maximum 7 MB)')
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(data.type)) {
+    throw new Error('Receipt must be a JPEG, PNG, or WebP image')
+  }
 
   return {
     base64: bytesToBase64(new Uint8Array(await data.arrayBuffer())),
@@ -84,57 +91,47 @@ async function fetchReceiptAsBase64(
   }
 }
 
-async function extractReceiptWithGemini(
+async function extractReceiptWithQwen(
   supabase: ReceiptStorageClient,
   receiptRef: string,
   expectedAmount: number,
-): Promise<GeminiExtraction> {
-  if (!GEMINI_API_KEY) {
-    return { amount: null, date: null, sender: null, transaction_id: null, bank: null, confidence: 0, raw: 'GEMINI_API_KEY not configured' }
-  }
-
+): Promise<ReceiptExtraction> {
   const image = await fetchReceiptAsBase64(supabase, receiptRef)
-  const prompt = `You are a financial document analyst. Extract payment receipt fields and determine whether it is a valid receipt for ${expectedAmount} LAK.
+  const prompt = `You are an OCR and financial-document verification system. Carefully read all visible Lao, Thai, and English text in this image. Determine whether the image is a genuine-looking completed bank payment receipt (not a QR code, blank transfer form, unrelated image, or obvious screenshot edit) for an expected payment of ${expectedAmount} LAK.
 
-Return ONLY valid JSON:
+Return ONLY one valid JSON object. Never infer unreadable values and never wrap the JSON in Markdown:
 {
+  "is_payment_receipt": <boolean>,
   "amount": <number or null>,
-  "date": "<ISO date string or null>",
+  "currency": "<ISO currency code such as LAK, or null>",
+  "date": "<ISO 8601 date-time with timezone when visible, otherwise the most precise ISO value possible, or null>",
   "sender": "<name or null>",
   "transaction_id": "<id or null>",
   "bank": "<bank name or null>",
-  "confidence": <0-100>,
-  "raw": "<brief notes>"
+  "confidence": <integer 0-100 reflecting OCR clarity and receipt authenticity>,
+  "raw": "<brief verification notes without sensitive account numbers>"
 }`
 
-  const response = await fetchWithTimeout(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: image.mimeType, data: image.base64 } },
-          ],
-        }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-    },
-    AI_PROVIDER_TIMEOUT_MS,
-  )
-
-  if (!response.ok) {
-    return { amount: null, date: null, sender: null, transaction_id: null, bank: null, confidence: 0, raw: 'Gemini API error' }
-  }
-
-  const data = await response.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+  const result = await analyzeImageWithQwen(image, prompt, AI_PROVIDER_TIMEOUT_MS)
   try {
-    return JSON.parse(text.replace(/```json\n?|\n?```/g, '').trim())
+    const parsed = JSON.parse(result.content) as Partial<ReceiptExtraction>
+    const amount = parsed.amount === null ? null : Number(parsed.amount)
+    const confidence = Math.min(100, Math.max(0, Number(parsed.confidence) || 0))
+    return {
+      is_payment_receipt: parsed.is_payment_receipt === true,
+      amount: amount !== null && Number.isFinite(amount) ? amount : null,
+      currency: typeof parsed.currency === 'string' ? parsed.currency.toUpperCase().slice(0, 10) : null,
+      date: typeof parsed.date === 'string' ? parsed.date : null,
+      sender: typeof parsed.sender === 'string' ? parsed.sender : null,
+      transaction_id: typeof parsed.transaction_id === 'string' ? parsed.transaction_id : null,
+      bank: typeof parsed.bank === 'string' ? parsed.bank : null,
+      confidence,
+      raw: typeof parsed.raw === 'string' ? parsed.raw : '',
+      provider: 'qwen',
+      model: result.model,
+    }
   } catch {
-    return { amount: null, date: null, sender: null, transaction_id: null, bank: null, confidence: 0, raw: text }
+    return { is_payment_receipt: false, amount: null, currency: null, date: null, sender: null, transaction_id: null, bank: null, confidence: 0, raw: 'Qwen returned invalid JSON', provider: 'qwen', model: result.model }
   }
 }
 
@@ -190,13 +187,14 @@ serve(async (req) => {
       return jsonResponse(req, { success: false, error: 'Invalid payment amount' }, 400)
     }
 
-    const extraction = await extractReceiptWithGemini(serviceClient, payment.receipt_image_url, expectedAmount)
+    const extraction = await extractReceiptWithQwen(serviceClient, payment.receipt_image_url, expectedAmount)
 
     const amountMatches = extraction.amount !== null &&
       Math.abs(extraction.amount - expectedAmount) / expectedAmount < 0.01
     const receiptDate = extraction.date ? new Date(extraction.date) : null
     const dateWithin24h = receiptDate && !Number.isNaN(receiptDate.getTime())
-      ? (Date.now() - receiptDate.getTime()) < 24 * 60 * 60 * 1000
+      ? (Date.now() - receiptDate.getTime()) >= -5 * 60 * 1000 &&
+        (Date.now() - receiptDate.getTime()) < 24 * 60 * 60 * 1000
       : false
 
     let transactionUnique = true
@@ -211,11 +209,13 @@ serve(async (req) => {
     }
 
     let score = Number(extraction.confidence || 0)
+    if (!extraction.is_payment_receipt) score = 0
+    if (extraction.currency && extraction.currency !== 'LAK') score = Math.min(score, 50)
     if (!amountMatches) score = Math.min(score, 50)
     if (!dateWithin24h) score = Math.min(score, 60)
     if (!transactionUnique) score = 0
 
-    const autoApprove = score >= 90 && amountMatches && transactionUnique
+    const autoApprove = extraction.is_payment_receipt && score >= 90 && amountMatches && dateWithin24h && transactionUnique
 
     await serviceClient.from('payments').update({
       ai_confidence_score: score,
