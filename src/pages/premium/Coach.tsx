@@ -189,6 +189,22 @@ export function PremiumCoach() {
       return data as Message[]
     },
   })
+  const generatedRoleplay = useQuery({
+    queryKey: ['premium', 'roleplay-prompt', roleplayMission],
+    enabled: Boolean(roleplayMission && !ROLEPLAY_PROMPTS[roleplayMission]),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premium_roleplay_missions')
+        .select('coach_prompt_en,coach_prompt_lo')
+        .eq('slug', roleplayMission!)
+        .single()
+      if (error) throw error
+      return data
+    },
+  })
+  const roleplayPrompt = roleplayMission
+    ? ROLEPLAY_PROMPTS[roleplayMission] ?? (language === 'lo' ? generatedRoleplay.data?.coach_prompt_lo : generatedRoleplay.data?.coach_prompt_en)
+    : undefined
 
   useEffect(() => {
     if (!historyInitialized.current && conversations.data) {
@@ -199,14 +215,12 @@ export function PremiumCoach() {
   useEffect(() => { if (messages.data) setLocalMessages(messages.data) }, [messages.data])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [localMessages, sending])
   useEffect(() => {
-    if (roleplayInitialized.current || !roleplayMission) return
-    const prompt = ROLEPLAY_PROMPTS[roleplayMission]
-    if (!prompt) return
+    if (roleplayInitialized.current || !roleplayMission || !roleplayPrompt) return
     roleplayInitialized.current = true
     setConversationId(null)
     setLocalMessages([])
-    setDraft(prompt)
-  }, [roleplayMission])
+    setDraft(roleplayPrompt)
+  }, [roleplayMission, roleplayPrompt])
 
   useEffect(() => {
     if (careerAssessmentInitialized.current || !careerAssessment || !profile) return
@@ -250,7 +264,7 @@ export function PremiumCoach() {
       setConversationId(data.conversationId)
       setLocalMessages(previous => [...previous, { id: `reply-${Date.now()}`, role: 'assistant', content: data.answer, created_at: new Date().toISOString() }])
       await queryClient.invalidateQueries({ queryKey: ['premium-coach-conversations', profile?.id] })
-      if (roleplayMission && ROLEPLAY_PROMPTS[roleplayMission] && !roleplayCompleted.current) {
+      if (roleplayMission && roleplayPrompt && !roleplayCompleted.current) {
         const { error: activityError } = await supabase.rpc('complete_premium_learning_activity', {
           p_activity_type: 'ai_roleplay',
           p_score: 1,

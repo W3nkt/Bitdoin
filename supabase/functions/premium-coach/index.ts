@@ -7,7 +7,9 @@ import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
+const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
+const QWEN_BASE_URL = (Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')
+const QWEN_TEXT_MODEL = Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-plus'
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean)
 // Lao generally tokenizes less efficiently than English. These are safety ceilings,
 // not targets: billing follows generated tokens, not the configured maximum.
@@ -78,20 +80,23 @@ async function requestCompletion(messages: ChatMessage[], maxOutputTokens: numbe
   let lastFinishReason = 'unknown'
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const response = await fetchWithTimeout('https://api.deepseek.com/chat/completions', {
+    const response = await fetchWithTimeout(`${QWEN_BASE_URL}/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${QWEN_API_KEY}` },
       body: JSON.stringify({
-        model: 'deepseek-v4-flash',
+        model: QWEN_TEXT_MODEL,
         messages,
         temperature: attempt === 1 ? 0.6 : 0.3,
         max_tokens: maxOutputTokens,
         stream: false,
-        thinking: { type: 'disabled' },
+        enable_thinking: false,
       }),
     }, AI_PROVIDER_TIMEOUT_MS)
-    const result = await response.json()
-    if (!response.ok) throw new Error(result?.error?.message ?? 'The AI provider did not respond.')
+    const result = await response.json().catch(() => null)
+    if (!response.ok) {
+      const providerMessage = result?.error?.message ?? result?.message
+      throw new Error(providerMessage ? `Qwen error: ${providerMessage}` : `Qwen did not respond (${response.status}).`)
+    }
 
     const choice = result?.choices?.[0]
     const answer = typeof choice?.message?.content === 'string' ? choice.message.content.trim() : ''
@@ -159,7 +164,7 @@ async function generateCompleteAnswer(messages: ChatMessage[], preferLao = false
 serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(req) })
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed.' }, 405)
-  if (!DEEPSEEK_API_KEY) return json(req, { error: 'AI Coach is not configured.' }, 503)
+  if (!QWEN_API_KEY) return json(req, { error: 'AI Coach is not configured.' }, 503)
 
   try {
     const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''

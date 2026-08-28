@@ -41,3 +41,9 @@ redirect_uri = ""
 # can validate them and return a useful error.
 [functions.verify-receipt]
 verify_jwt = false
+
+[functions.premium-coach]
+verify_jwt = false
+
+[functions.generate-academy-week]
+verify_jwt = false

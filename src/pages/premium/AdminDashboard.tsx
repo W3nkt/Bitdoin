@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -11,6 +12,10 @@ import {
   FileText,
   Flame,
   GraduationCap,
+  BrainCircuit,
+  BookOpen,
+  Gamepad2,
+  LibraryBig,
   Languages,
   LogOut,
   Mail,
@@ -23,6 +28,7 @@ import {
   Sparkles,
   Store,
   Users,
+  WandSparkles,
   XCircle,
 } from 'lucide-react'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
@@ -42,7 +48,7 @@ import { cn, formatDate, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
-type PremiumAdminSection = 'overview' | 'payments' | 'members' | 'plans' | 'mentor' | 'content'
+type PremiumAdminSection = 'overview' | 'forge' | 'payments' | 'members' | 'plans' | 'mentor' | 'content'
 
 interface PremiumPlan {
   id: string
@@ -119,6 +125,24 @@ interface DailyMotivation {
   challenge: string
   mission: string
   is_active: boolean
+}
+
+interface WeeklyContentRun {
+  id: string
+  week_start: string
+  status: 'GENERATING' | 'READY' | 'FAILED' | 'CANCELLED'
+  content_counts: Record<string, number>
+  error_message?: string | null
+  started_at: string
+  completed_at?: string | null
+}
+
+type GenerationStep = {
+  id: string
+  label: string
+  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+  detail?: string
+  categoryId?: string
 }
 
 interface PremiumMemberEvent {
@@ -205,6 +229,13 @@ function paymentStatusClass(status: PaymentStatus) {
   return 'bg-yellow-100 text-yellow-800'
 }
 
+function nextAcademyWeekStart() {
+  const now = new Date()
+  const days = ((8 - now.getDay()) % 7) || 7
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+}
+
 export function PremiumAdminDashboard() {
   usePremiumTranslation()
   const navigate = useNavigate()
@@ -225,6 +256,11 @@ export function PremiumAdminDashboard() {
   const [editingCommunity, setEditingCommunity] = useState<MemberContentFormState | null>(null)
   const [editingHighlight, setEditingHighlight] = useState<PerformanceFormState | null>(null)
   const [savingMotivation, setSavingMotivation] = useState(false)
+  const [generatingWeek, setGeneratingWeek] = useState(false)
+  const [generationOpen, setGenerationOpen] = useState(false)
+  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([])
+  const generationRunId = useRef<string | null>(null)
+  const cancelGenerationRequested = useRef(false)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
 
   useEffect(() => {
@@ -337,6 +373,20 @@ export function PremiumAdminDashboard() {
     },
   })
 
+  const { data: weeklyRun, isLoading: weeklyRunLoading } = useQuery({
+    queryKey: ['premium-admin', 'weekly-content-run'],
+    queryFn: async () => {
+      const { data, error: runError } = await supabase
+        .from('premium_weekly_content_runs')
+        .select('id,week_start,status,content_counts,error_message,started_at,completed_at')
+        .eq('week_start', nextAcademyWeekStart())
+        .maybeSingle()
+      if (runError) throw runError
+      return data as WeeklyContentRun | null
+    },
+    refetchInterval: query => query.state.data?.status === 'GENERATING' ? 5000 : false,
+  })
+
   const { data: memberEvents, isLoading: memberEventsLoading } = useQuery({
     queryKey: ['premium-admin', 'member-events'],
     queryFn: async () => {
@@ -406,6 +456,7 @@ export function PremiumAdminDashboard() {
     badge?: ReactNode
   }> = [
     { id: 'overview', label: 'Overview', detail: 'Premium health', icon: <Sparkles className="h-4 w-4" /> },
+    { id: 'forge', label: 'Weekly Content', detail: 'Sunday AI generation', icon: <WandSparkles className="h-4 w-4" /> },
     { id: 'payments', label: 'Payment Review', detail: 'Transfer proofs', icon: <ReceiptText className="h-4 w-4" />, badge: reviewCount },
     { id: 'members', label: 'Members', detail: 'Subscriptions', icon: <Users className="h-4 w-4" />, badge: subscriptionRequests.length },
     { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
@@ -430,7 +481,90 @@ export function PremiumAdminDashboard() {
       qc.invalidateQueries({ queryKey: ['premium-admin', 'member-events'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'communities'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'performance-highlights'] }),
+      qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] }),
     ])
+  }
+
+  async function generateNextAcademyWeek() {
+    setGenerationOpen(true)
+    setGeneratingWeek(true)
+    setGenerationSteps([{ id: 'initialize', label: 'Preparing next week', status: 'running' }])
+    cancelGenerationRequested.current = false
+    generationRunId.current = null
+    try {
+      const invoke = async (body: Record<string, unknown>) => {
+        const { data, error: invokeError } = await supabase.functions.invoke('generate-academy-week', { body })
+        if (data?.error) throw new Error(data.error)
+        if (invokeError instanceof FunctionsHttpError) {
+          const responseBody = await invokeError.context.json().catch(() => null)
+          throw new Error(responseBody?.error ?? invokeError.message)
+        }
+        if (invokeError) throw new Error(invokeError.message ?? 'The generation service could not be reached.')
+        return data
+      }
+      const initialized = await invoke({ action: 'initialize' })
+      generationRunId.current = initialized.runId
+      const steps: GenerationStep[] = [
+        { id: 'brain_sprint', label: 'Daily Brain Sprint', status: 'queued' },
+        { id: 'word_match', label: 'Word Match', status: 'queued' },
+        { id: 'roleplay_missions', label: 'AI role-play missions', status: 'queued' },
+        { id: 'daily_mentor', label: 'Daily Mentor', status: 'queued' },
+        { id: 'prompt_library', label: 'AI Prompt Library', status: 'queued' },
+        ...(initialized.categories as Array<{ id: string; name_en: string }>).map((category, index) => ({
+          id: `lesson-${category.id}`, label: `Learning Hub · ${category.name_en}`, status: 'queued' as const,
+          categoryId: category.id, detail: `Lesson ${index + 1} of ${initialized.categories.length}`,
+        })),
+      ]
+      setGenerationSteps(steps)
+
+      for (const step of steps) {
+        if (cancelGenerationRequested.current) break
+        setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'running', detail: 'Researching and writing…' } : item))
+        try {
+          const result = await invoke({
+            action: step.categoryId ? 'lesson' : step.id,
+            runId: initialized.runId,
+            ...(step.categoryId ? { categoryId: step.categoryId } : {}),
+          })
+          const countKey = step.categoryId ? 'lessons' : step.id
+          const count = result.counts?.[countKey]
+          setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'done', detail: step.categoryId ? 'Lesson ready' : `${count ?? ''} items ready`.trim() } : item))
+        } catch (stepError) {
+          setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'failed', detail: stepError instanceof Error ? stepError.message : 'Generation failed' } : item))
+          throw stepError
+        }
+      }
+
+      if (cancelGenerationRequested.current) {
+        setGenerationSteps(current => current.map(item => item.status === 'queued' ? { ...item, status: 'cancelled', detail: 'Not generated' } : item))
+        await invoke({ action: 'cancel', runId: initialized.runId }).catch(() => undefined)
+        await qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] })
+        return
+      }
+
+      const completed = await invoke({ action: 'finalize', runId: initialized.runId })
+      await invalidateAdminPremium()
+      success(`Next week is ready: ${Object.values(completed.counts as Record<string, number>).reduce((sum, count) => sum + count, 0)} content items generated.`)
+    } catch (err) {
+      console.error(err)
+      if (generationRunId.current && !cancelGenerationRequested.current) {
+        await supabase.functions.invoke('generate-academy-week', {
+          body: { action: 'cancel', runId: generationRunId.current },
+        }).catch(() => undefined)
+      }
+      await qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] })
+      if (!cancelGenerationRequested.current) error(err instanceof Error ? err.message : 'Could not generate next week’s Academy content.')
+    } finally {
+      setGeneratingWeek(false)
+    }
+  }
+
+  async function cancelWeeklyGeneration() {
+    cancelGenerationRequested.current = true
+    setGenerationSteps(current => current.map(item => item.status === 'queued' ? { ...item, status: 'cancelled', detail: 'Cancelled' } : item))
+    if (generationRunId.current) {
+      await supabase.functions.invoke('generate-academy-week', { body: { action: 'cancel', runId: generationRunId.current } }).catch(() => undefined)
+    }
   }
 
   async function approveSubscription(subscriptionId: string) {
@@ -687,7 +821,7 @@ export function PremiumAdminDashboard() {
     }
   }
 
-  const loading = plansLoading || subscriptionsLoading || paymentsLoading || onboardingResponsesLoading || motivationsLoading || memberEventsLoading || communitiesLoading || performanceHighlightsLoading
+  const loading = plansLoading || subscriptionsLoading || paymentsLoading || onboardingResponsesLoading || motivationsLoading || weeklyRunLoading || memberEventsLoading || communitiesLoading || performanceHighlightsLoading
   const selectedOnboarding = selectedSubscription
     ? onboardingByUser.get(selectedSubscription.user_id)
     : undefined
@@ -864,6 +998,8 @@ export function PremiumAdminDashboard() {
             <Stat label="Verified revenue" value={formatPrice(monthlyRevenueLak, currency)} icon={<Crown className="h-5 w-5" />} color="green" />
             <Stat label="Daily posts" value={motivations?.length ?? 0} icon={<CalendarCheck className="h-5 w-5" />} color="purple" />
           </section>
+
+          <WeeklyContentForge run={weeklyRun} generating={generatingWeek} onGenerate={generateNextAcademyWeek} />
 
           <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <Panel
@@ -1205,6 +1341,59 @@ export function PremiumAdminDashboard() {
       )}
 
       <Modal
+        open={generationOpen}
+        onClose={() => { if (!generatingWeek) setGenerationOpen(false) }}
+        title="Academy Content Forge"
+        size="lg"
+        footer={
+          generatingWeek ? (
+            <Button type="button" variant="danger" onClick={() => void cancelWeeklyGeneration()} disabled={cancelGenerationRequested.current}>
+              {cancelGenerationRequested.current ? 'Stopping after current step…' : 'Cancel generation'}
+            </Button>
+          ) : (
+            <Button type="button" onClick={() => setGenerationOpen(false)}>Close</Button>
+          )
+        }
+      >
+        <div className="overflow-hidden rounded-3xl bg-[#110b24] p-5 text-white">
+          <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 text-[#160b2d]">
+              <WandSparkles className={cn('h-5 w-5', generatingWeek && !cancelGenerationRequested.current && 'motion-safe:animate-pulse')} />
+            </span>
+            <div>
+              <p className="font-black">{generatingWeek ? 'Creating next week' : weeklyRun?.status === 'READY' ? 'Next week is ready' : cancelGenerationRequested.current ? 'Generation stopped' : 'Generation finished'}</p>
+              <p className="mt-0.5 text-xs text-violet-200/70">Each completed step is saved immediately.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 max-h-[52vh] space-y-1 overflow-y-auto pr-1">
+            {generationSteps.map((step, index) => (
+              <div key={step.id} className="grid grid-cols-[28px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3">
+                <span className={cn(
+                  'grid h-7 w-7 place-items-center rounded-full text-xs font-black',
+                  step.status === 'done' && 'bg-emerald-400 text-emerald-950',
+                  step.status === 'running' && 'bg-amber-300 text-amber-950',
+                  step.status === 'failed' && 'bg-red-400 text-red-950',
+                  step.status === 'cancelled' && 'bg-white/10 text-violet-300',
+                  step.status === 'queued' && 'border border-white/15 text-violet-300',
+                )}>
+                  {step.status === 'done' ? <CheckCircle2 className="h-4 w-4" /> : step.status === 'running' ? <Sparkles className="h-4 w-4 motion-safe:animate-spin" /> : step.status === 'failed' ? <XCircle className="h-4 w-4" /> : index + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className={cn('truncate text-sm font-bold', (step.status === 'queued' || step.status === 'cancelled') && 'text-violet-300')}>{step.label}</p>
+                  {step.detail && <p className={cn('mt-0.5 truncate text-xs', step.status === 'failed' ? 'text-red-300' : 'text-violet-300/65')}>{step.detail}</p>}
+                </div>
+                <span className={cn(
+                  'text-[10px] font-black uppercase tracking-wider',
+                  step.status === 'done' ? 'text-emerald-300' : step.status === 'running' ? 'text-amber-300' : step.status === 'failed' ? 'text-red-300' : 'text-violet-400',
+                )}>{step.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         open={!!selectedSubscription}
         onClose={() => setSelectedSubscription(null)}
         title="Member Details"
@@ -1432,6 +1621,89 @@ function Stat({ label, value, icon, color }: { label: string; value: ReactNode; 
         <div className={cn('rounded-2xl p-3', colors[color])}>{icon}</div>
       </div>
     </Card>
+  )
+}
+
+function WeeklyContentForge({
+  run,
+  generating,
+  onGenerate,
+}: {
+  run?: WeeklyContentRun | null
+  generating: boolean
+  onGenerate: () => void
+}) {
+  const ready = run?.status === 'READY'
+  const working = generating || run?.status === 'GENERATING'
+  const counts = run?.content_counts ?? {}
+  const streams = [
+    { key: 'brain_sprint', label: 'Brain Sprint', icon: <BrainCircuit className="h-4 w-4" />, fallback: 35 },
+    { key: 'word_match', label: 'Word Match', icon: <Gamepad2 className="h-4 w-4" />, fallback: 42 },
+    { key: 'roleplay_missions', label: 'Role-play', icon: <MessageSquareText className="h-4 w-4" />, fallback: 7 },
+    { key: 'daily_mentor', label: 'Daily Mentor', icon: <Sparkles className="h-4 w-4" />, fallback: 7 },
+    { key: 'prompt_library', label: 'Prompt Library', icon: <LibraryBig className="h-4 w-4" />, fallback: 7 },
+    { key: 'lessons', label: 'Hub Lessons', icon: <BookOpen className="h-4 w-4" />, fallback: 8 },
+  ]
+  const targetWeek = run?.week_start ?? nextAcademyWeekStart()
+  const weekLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${targetWeek}T00:00:00Z`))
+
+  return (
+    <section id="premium-forge" className="relative scroll-mt-6 overflow-hidden rounded-[2rem] bg-[#110b24] px-5 py-6 text-white shadow-[0_24px_70px_-28px_rgba(67,33,132,0.8)] sm:px-8 sm:py-8">
+      <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl motion-safe:animate-pulse" />
+      <div className="pointer-events-none absolute -bottom-24 left-1/4 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
+      <div className="relative grid gap-8 xl:grid-cols-[1fr_auto] xl:items-center">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
+            <WandSparkles className="h-4 w-4" />
+            Sunday content forge
+          </div>
+          <h2 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Create the next Academy week</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-violet-100/75">
+            Qwen researches fresh topics, writes bilingual content, validates every set, and prepares the release beginning {weekLabel}.
+          </p>
+
+          <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
+            {streams.map(stream => (
+              <div key={stream.key} className="flex items-center gap-2 border-b border-white/10 pb-3 text-sm text-violet-100">
+                <span className="text-amber-300">{stream.icon}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{stream.label}</span>
+                <span className="font-black text-white">{ready ? counts[stream.key] ?? 0 : stream.fallback}</span>
+              </div>
+            ))}
+          </div>
+
+          {run?.status === 'FAILED' && (
+            <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-xs font-semibold text-red-100">
+              Last attempt failed: {run.error_message ?? 'Unknown generation error. You can safely try again.'}
+            </p>
+          )}
+        </div>
+
+        <div className="flex min-w-[250px] flex-col items-center xl:pl-6">
+          <div className="relative">
+            <div className={cn(
+              'pointer-events-none absolute -inset-3 rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-400 to-violet-500 opacity-65 blur-lg transition duration-500',
+              working ? 'motion-safe:animate-pulse' : 'group-hover:opacity-90',
+            )} />
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={working || ready}
+              className="group relative flex h-36 w-36 flex-col items-center justify-center overflow-hidden rounded-full border border-white/25 bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 p-4 text-center text-[#160b2d] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_50px_rgba(168,85,247,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/70 disabled:cursor-not-allowed disabled:grayscale-[0.15] disabled:hover:translate-y-0 disabled:hover:scale-100 motion-reduce:transition-none"
+            >
+              <span className="absolute inset-x-0 top-0 h-1/2 -translate-x-full skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/55 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              {working ? <Sparkles className="h-8 w-8 motion-safe:animate-spin" /> : ready ? <CheckCircle2 className="h-8 w-8" /> : <WandSparkles className="h-8 w-8 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />}
+              <span className="mt-2 text-xs font-black uppercase tracking-[0.12em]">
+                {working ? 'Creating…' : ready ? 'Week ready' : 'Forge week'}
+              </span>
+            </button>
+          </div>
+          <p className="mt-5 text-center text-xs font-semibold text-violet-200/70">
+            {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'This can take a few minutes. Keep this page open.' : 'Use once every Sunday · duplicate weeks are blocked'}
+          </p>
+        </div>
+      </div>
+    </section>
   )
 }
 

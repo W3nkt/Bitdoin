@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, Check, ChevronRight,
-  CircleDollarSign, Flame, GraduationCap, Languages, Lightbulb, ListChecks,
+  CircleDollarSign, Copy, Flame, GraduationCap, Languages, Lightbulb, ListChecks,
   Loader2, LockKeyhole, Plus, Sparkles, Target, Timer, Trash2, Trophy, WalletCards,
 } from 'lucide-react'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
@@ -63,6 +63,10 @@ type Habit = { id: string; name: string; category_slug: string; frequency: strin
 type HabitCheckin = { habit_id: string; checkin_date: string }
 type CategoryUnlock = { category_id: string; start_date: string }
 type ActiveDay = { active_date: string }
+type LibraryPrompt = {
+  id: string; category: string; title_en: string; title_lo: string
+  description_en: string; description_lo: string; prompt_en: string; prompt_lo: string
+}
 
 const iconMap = {
   'book-open': BookOpen, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
@@ -255,7 +259,7 @@ function useLearningData() {
     queryFn: async () => {
       const { data, error } = await supabase.from('premium_lessons')
         .select('id,category_id,slug,title_en,title_lo,summary_en,summary_lo,deck_en,deck_lo,content_en,content_lo,glossary_en,glossary_lo,reflection_questions_en,reflection_questions_lo,key_takeaways_en,key_takeaways_lo,difficulty,estimated_minutes,lesson_type,source_url,source_verified_at,application_deadline,book_id,category:premium_learning_categories(id,slug,name_en,name_lo,description_en,description_lo,icon,accent),book:books(id,title,author,cover_image_url)')
-        .eq('status', 'PUBLISHED').order('sort_order')
+        .eq('status', 'PUBLISHED').or(`published_at.is.null,published_at.lte.${new Date().toISOString()}`).order('sort_order')
       if (error) throw error
       return (data ?? []).map(row => ({
         ...row,
@@ -315,11 +319,28 @@ function useLearningData() {
 
 export function LearningHub() {
   const { language } = useLanguage()
+  const { success } = useToast()
   const { categories, lessons, progress, access } = useLearningData()
   const isPremium = Boolean(access.data)
   const completed = progress.data?.filter(item => item.completed_at).length ?? 0
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
+  const promptLibrary = useQuery({
+    queryKey: ['premium', 'prompt-library', today()],
+    enabled: Boolean(access.data),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('premium_prompt_library')
+        .select('id,category,title_en,title_lo,description_en,description_lo,prompt_en,prompt_lo')
+        .lte('week_start', today()).order('week_start', { ascending: false }).order('sort_order').limit(7)
+      if (error) throw error
+      return data as LibraryPrompt[]
+    },
+  })
+
+  async function copyPrompt(prompt: LibraryPrompt) {
+    await navigator.clipboard.writeText(localize(language, prompt.prompt_en, prompt.prompt_lo))
+    success(localize(language, 'Prompt copied.', 'ສຳເນົາ prompt ແລ້ວ.'))
+  }
 
   return (
     <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform requireSubscription={false}>
@@ -391,6 +412,34 @@ export function LearningHub() {
             })}
           </div>
         </section>
+
+        {isPremium && (promptLibrary.data?.length ?? 0) > 0 && (
+          <section className="border-t border-slate-200 py-10">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">
+              {localize(language, 'Fresh this week', 'ໃໝ່ປະຈຳອາທິດ')}
+            </p>
+            <h2 className="mt-2 text-2xl font-black">{localize(language, 'AI Prompt Library', 'ຄັງ Prompt AI')}</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              {localize(language, 'Copy a ready-made prompt, replace the brackets, and use it with Bitdoin Mentor.', 'ສຳເນົາ prompt, ປ່ຽນຂໍ້ຄວາມໃນວົງເລັບ ແລະ ນຳໄປໃຊ້ກັບ Bitdoin Mentor.')}
+            </p>
+            <div className="mt-6 divide-y divide-slate-200 border-y border-slate-200">
+              {promptLibrary.data!.map(prompt => (
+                <div key={prompt.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3>
+                      <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary-700">{prompt.category}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">{localize(language, prompt.description_en, prompt.description_lo)}</p>
+                  </div>
+                  <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>
+                    {localize(language, 'Copy prompt', 'ສຳເນົາ')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <nav className="grid gap-3 border-t border-slate-200 py-8 sm:grid-cols-3">
           <WorkspaceLink to="/academy/challenges" icon={Target} title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} />

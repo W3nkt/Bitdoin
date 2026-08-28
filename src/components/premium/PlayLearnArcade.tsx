@@ -303,6 +303,20 @@ export function PlayLearnArcade({
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
   })
+  const generatedRoleplay = useQuery({
+    queryKey: ['premium', 'roleplay-mission', today],
+    queryFn: async () => {
+      const { data, error: missionError } = await supabase
+        .from('premium_roleplay_missions')
+        .select('slug,description_en,description_lo')
+        .eq('mission_date', today)
+        .maybeSingle()
+      if (missionError) throw missionError
+      return data
+    },
+    staleTime: 1000 * 60 * 60 * 24,
+    retry: false,
+  })
 
   const dailyBrainQuestions = useMemo(() => {
     if (brainPool.data && brainPool.data.length > 0) {
@@ -322,8 +336,10 @@ export function PlayLearnArcade({
     return shuffle(WORD_PAIR_BANK, seededRandom(hashSeed(`words:${today}`))).slice(0, 6)
   }, [wordPool.data, today])
   const dailyRoleplayMission = useMemo(
-    () => ROLEPLAY_MISSIONS[hashSeed(`roleplay:${today}`) % ROLEPLAY_MISSIONS.length],
-    [today],
+    () => generatedRoleplay.data
+      ? { slug: generatedRoleplay.data.slug, description: language === 'lo' ? generatedRoleplay.data.description_lo : generatedRoleplay.data.description_en }
+      : ROLEPLAY_MISSIONS[hashSeed(`roleplay:${today}`) % ROLEPLAY_MISSIONS.length],
+    [generatedRoleplay.data, language, today],
   )
   const todayAttempts = (attempts.data ?? []).filter(attempt => todayInLaosFromIso(attempt.completed_at) === today)
   const completedToday = new Set(todayAttempts.map(attempt => attempt.activity_type))
