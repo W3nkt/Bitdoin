@@ -132,21 +132,6 @@ export async function uploadGuestReceipt(input: {
   })
   if (submitError) throw new Error(submitError.message)
 
-  const paymentId = input.order.payments?.[0]?.id
-  if (paymentId) {
-    const { data: ocrResult, error: ocrError } = await supabase.functions.invoke('verify-receipt', {
-      body: { payment_id: paymentId, guest_access_token: access.access_token },
-    })
-    if (ocrError || ocrResult?.success === false) {
-      console.error(
-        '[verify-receipt] Guest receipt saved, but automatic OCR failed',
-        ocrError ?? ocrResult?.error,
-      )
-    }
-  } else {
-    console.error('[verify-receipt] Guest receipt saved, but its payment ID was unavailable for automatic OCR')
-  }
-
   // Best-effort: the receipt is already saved regardless of whether the admin gets emailed.
   supabase.functions.invoke('notify-admin-payment', {
     body: {

@@ -13,7 +13,6 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
 
 interface VerifyRequest {
   payment_id: string
-  guest_access_token?: string
 }
 
 interface ReceiptExtraction {
@@ -160,13 +159,13 @@ serve(async (req) => {
     })
 
     const { data: { user }, error: userError } = await userClient.auth.getUser()
-    if ((userError || !user) && !body.guest_access_token) {
-      return jsonResponse(req, { success: false, error: 'Invalid session' }, 401)
-    }
+    if (userError || !user) return jsonResponse(req, { success: false, error: 'Invalid session' }, 401)
 
-    const { data: roleRow } = user
-      ? await serviceClient.from('users').select('role').eq('id', user.id).maybeSingle()
-      : { data: null }
+    const { data: roleRow } = await serviceClient
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
     const role = roleRow?.role
     const isStaff = role === 'ADMIN' || role === 'FINANCE'
 
@@ -179,20 +178,8 @@ serve(async (req) => {
     if (paymentError || !payment) return jsonResponse(req, { success: false, error: 'Payment not found' }, 404)
 
     const order = Array.isArray(payment.order) ? payment.order[0] : payment.order
-    const ownsPayment = !!user && (payment.user_id === user.id || order?.customer_id === user.id)
-    let guestAuthorized = false
-    if (!ownsPayment && !isStaff && body.guest_access_token) {
-      // This RPC is intentionally granted to anon/authenticated (not service_role)
-      // and validates the hashed guest token without exposing it.
-      const { data: allowed, error: guestAuthError } = await userClient.rpc('guest_receipt_path_allowed', {
-        p_order_id: payment.order_id,
-        p_access_token: body.guest_access_token,
-      })
-      guestAuthorized = !guestAuthError && allowed === true
-    }
-    if (!isStaff && !ownsPayment && !guestAuthorized) {
-      return jsonResponse(req, { success: false, error: 'Not authorized' }, 403)
-    }
+    const ownsPayment = payment.user_id === user.id || order?.customer_id === user.id
+    if (!isStaff && !ownsPayment) return jsonResponse(req, { success: false, error: 'Not authorized' }, 403)
     if (!payment.receipt_image_url) return jsonResponse(req, { success: false, error: 'No receipt uploaded' }, 400)
 
     const expectedAmount = Number(payment.amount || order?.total_amount || 0)
