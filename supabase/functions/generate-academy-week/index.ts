@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
+import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -9,6 +10,9 @@ const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
 const QWEN_BASE_URL = (Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')
 const MODEL = Deno.env.get('QWEN_CONTENT_MODEL') ?? Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-plus'
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean)
+const GENERATION_MINUTE_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_MINUTE_LIMIT', 15)
+const GENERATION_DAILY_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_DAILY_LIMIT', 30)
+const GENERATION_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_GLOBAL_DAILY_LIMIT', 50)
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get('Origin') ?? ''
@@ -162,6 +166,15 @@ serve(async req => {
     }
     if (run.status !== 'GENERATING') return json(req, { error: `This generation run is ${run.status.toLowerCase()}.` }, 409)
     const counts = { ...(run.content_counts as Record<string, number> ?? {}) }
+
+    if (action !== 'finalize') {
+      const quota = await consumeAiQuota(admin, {
+        feature: 'generate-academy-week', subjectHash: await userSubject(user.id),
+        minuteLimit: GENERATION_MINUTE_LIMIT, dailyLimit: GENERATION_DAILY_LIMIT,
+        globalDailyLimit: GENERATION_GLOBAL_DAILY_LIMIT,
+      })
+      if (!quota.allowed) return quotaResponse(req, quota, corsHeaders)
+    }
 
     if (action === 'brain_sprint') {
       const items = await generateBrainSprint(weekStart)

@@ -1,16 +1,15 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { consumeAiQuota, positiveIntEnv, quotaResponse, requestSubject } from '../_shared/ai-rate-limit.ts'
+import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 
 const GEMINI_API_KEY       = Deno.env.get('GEMINI_API_KEY') ?? ''
 const SUPABASE_URL         = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY    = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const AI_RATE_LIMIT_PEPPER = Deno.env.get('AI_RATE_LIMIT_PEPPER') ?? SUPABASE_SERVICE_ROLE_KEY
-const SEARCH_MINUTE_LIMIT = positiveIntEnv('AI_SEARCH_MINUTE_LIMIT', 10)
-const SEARCH_DAILY_LIMIT = positiveIntEnv('AI_SEARCH_DAILY_LIMIT', 100)
-const SEARCH_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_SEARCH_GLOBAL_DAILY_LIMIT', 10000)
+const SEARCH_MINUTE_LIMIT = positiveIntEnv('AI_SEARCH_MINUTE_LIMIT', 5)
+const SEARCH_DAILY_LIMIT = positiveIntEnv('AI_SEARCH_DAILY_LIMIT', 30)
+const SEARCH_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_SEARCH_GLOBAL_DAILY_LIMIT', 2000)
 const AI_PROVIDER_TIMEOUT_MS = positiveIntEnv('AI_SEARCH_PROVIDER_TIMEOUT_MS', 12000)
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
@@ -101,6 +100,12 @@ serve(async (req) => {
   }
 
   try {
+    const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+    if (!token) return new Response(JSON.stringify({ error: 'Please sign in.', books: [] }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders(req) } })
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token)
+    if (authError || !user) return new Response(JSON.stringify({ error: 'Invalid session.', books: [] }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders(req) } })
+
     const body: SearchRequest = await req.json()
     const query = cleanSearchValue(body.query ?? '')
     const language = body.language?.slice(0, 20)
@@ -115,7 +120,7 @@ serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     const quota = await consumeAiQuota(admin, {
       feature: 'ai-search',
-      subjectHash: await requestSubject(req, AI_RATE_LIMIT_PEPPER),
+      subjectHash: await userSubject(user.id),
       minuteLimit: SEARCH_MINUTE_LIMIT,
       dailyLimit: SEARCH_DAILY_LIMIT,
       globalDailyLimit: SEARCH_GLOBAL_DAILY_LIMIT,

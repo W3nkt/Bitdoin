@@ -1,11 +1,15 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { analyzeImageWithQwen } from '../_shared/qwen-vision.ts'
+import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const AI_PROVIDER_TIMEOUT_MS = Number(Deno.env.get('AI_RECEIPT_PROVIDER_TIMEOUT_MS')) || 30000
+const RECEIPT_MINUTE_LIMIT = positiveIntEnv('AI_RECEIPT_MINUTE_LIMIT', 2)
+const RECEIPT_DAILY_LIMIT = positiveIntEnv('AI_RECEIPT_DAILY_LIMIT', 5)
+const RECEIPT_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_RECEIPT_GLOBAL_DAILY_LIMIT', 200)
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map(origin => origin.trim())
@@ -187,6 +191,13 @@ serve(async (req) => {
     const ownsPayment = payment.user_id === user.id || order?.customer_id === user.id
     if (!isStaff && !ownsPayment) return jsonResponse(req, { success: false, error: 'Not authorized' }, 403)
     if (!payment.receipt_image_url) return jsonResponse(req, { success: false, error: 'No receipt uploaded' }, 400)
+
+    const quota = await consumeAiQuota(serviceClient, {
+      feature: 'verify-receipt', subjectHash: await userSubject(user.id),
+      minuteLimit: RECEIPT_MINUTE_LIMIT, dailyLimit: RECEIPT_DAILY_LIMIT,
+      globalDailyLimit: RECEIPT_GLOBAL_DAILY_LIMIT,
+    })
+    if (!quota.allowed) return quotaResponse(req, quota, corsHeaders)
 
     const expectedAmount = Number(payment.amount || order?.total_amount || 0)
     if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
