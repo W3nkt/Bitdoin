@@ -99,8 +99,12 @@ export function OrderDetail() {
 
       // Trigger OCR immediately while this page is still active, so navigation
       // cannot cancel the request after the receipt has been submitted.
+      const { data: { session } } = await supabase.auth.getSession()
       const { error: ocrError } = await supabase.functions.invoke('verify-receipt', {
         body: { payment_id: payment.id },
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : undefined,
       })
       if (ocrError) console.error('[verify-receipt] Receipt saved, but automatic OCR failed', ocrError)
 

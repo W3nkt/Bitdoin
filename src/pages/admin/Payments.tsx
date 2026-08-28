@@ -67,8 +67,7 @@ function verificationConfidence(payment: Payment): number | null {
   if (!ai) return payment.ai_confidence_score == null ? null : Number(payment.ai_confidence_score)
   const coverage = amountCoverage(payment, ai)
   const currencyMatches = !ai.currency || ai.currency === 'LAK'
-  const transactionUnique = ai.verification?.transaction_unique !== false
-  if (ai.is_payment_receipt === true && coverage !== null && currencyMatches && transactionUnique) {
+  if (ai.is_payment_receipt === true && coverage !== null && currencyMatches) {
     return Math.min(100, Math.max(0, coverage))
   }
   return payment.ai_confidence_score == null ? Number(ai.confidence ?? 0) : Number(payment.ai_confidence_score)
@@ -213,8 +212,12 @@ export function AdminPayments() {
   async function analyzePayment(payment: Payment) {
     setAnalyzing(true)
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.access_token) throw new Error('Your admin session has expired. Please sign in again.')
+
       const { data, error: invokeError } = await supabase.functions.invoke('verify-receipt', {
         body: { payment_id: payment.id },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (invokeError) {
         let detail = invokeError.message
@@ -521,7 +524,7 @@ export function AdminPayments() {
               const currencyMatches = !ai?.currency || ai.currency === 'LAK'
               const transactionUnique = ai?.verification?.transaction_unique !== false
               const recommendApprove = ai?.is_payment_receipt === true && matches === true &&
-                currencyMatches && transactionUnique
+                currencyMatches
 
               if (!ai) {
                 return (
@@ -585,6 +588,11 @@ export function AdminPayments() {
                             : 'The amount could not be compared. Manual review is required.'}
                         {ai.raw ? ` ${ai.raw}` : ''}
                       </p>
+                      {!transactionUnique && (
+                        <p className="mt-1.5 text-xs font-semibold text-amber-700">
+                          Warning: this transaction reference was also detected on another payment. Please confirm it manually.
+                        </p>
+                      )}
                       <p className="mt-1 text-[11px] text-gray-400">
                         {ai.provider === 'qwen' ? 'Qwen' : 'AI'}{ai.model ? ` · ${ai.model}` : ''}
                       </p>

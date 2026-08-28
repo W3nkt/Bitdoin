@@ -81,13 +81,16 @@ async function fetchReceiptAsBase64(
   if (error || !data) throw new Error('Receipt image could not be read')
   // Qwen's Base64 data URL must remain below 10 MB after encoding.
   if (data.size > 7 * 1024 * 1024) throw new Error('Receipt image is too large for OCR (maximum 7 MB)')
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(data.type)) {
+  const extension = path.split('.').pop()?.toLowerCase()
+  const inferredMime = extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg'
+  const mimeType = data.type && data.type !== 'application/octet-stream' ? data.type : inferredMime
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) {
     throw new Error('Receipt must be a JPEG, PNG, or WebP image')
   }
 
   return {
     base64: bytesToBase64(new Uint8Array(await data.arrayBuffer())),
-    mimeType: data.type || 'image/jpeg',
+    mimeType,
   }
 }
 
@@ -143,6 +146,7 @@ serve(async (req) => {
     return jsonResponse(req, { success: false, error: 'Method not allowed' }, 405)
   }
 
+  let stage = 'request'
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return jsonResponse(req, { success: false, error: 'Authentication required' }, 401)
@@ -158,6 +162,7 @@ serve(async (req) => {
       auth: { persistSession: false },
     })
 
+    stage = 'authentication'
     const { data: { user }, error: userError } = await userClient.auth.getUser()
     if (userError || !user) return jsonResponse(req, { success: false, error: 'Invalid session' }, 401)
 
@@ -169,6 +174,7 @@ serve(async (req) => {
     const role = roleRow?.role
     const isStaff = role === 'ADMIN' || role === 'FINANCE'
 
+    stage = 'payment_lookup'
     const { data: payment, error: paymentError } = await serviceClient
       .from('payments')
       .select('id, order_id, user_id, amount, receipt_image_url, verification_status, order:orders(id, customer_id, total_amount)')
@@ -187,6 +193,7 @@ serve(async (req) => {
       return jsonResponse(req, { success: false, error: 'Invalid payment amount' }, 400)
     }
 
+    stage = 'qwen_ocr'
     const extraction = await extractReceiptWithQwen(serviceClient, payment.receipt_image_url, expectedAmount)
 
     // A small OCR tolerance is allowed below the total; overpayments are sufficient.
@@ -220,7 +227,7 @@ serve(async (req) => {
     // The admin-facing confidence is the payment coverage percentage. Keep it
     // aligned with the coverage badge, capped at 100 for exact/overpayments.
     const canScoreCoverage = extraction.is_payment_receipt &&
-      (!extraction.currency || extraction.currency === 'LAK') && transactionUnique &&
+      (!extraction.currency || extraction.currency === 'LAK') &&
       amountCoveragePercent !== null
     if (canScoreCoverage) score = Math.min(100, Math.max(0, amountCoveragePercent))
 
@@ -236,15 +243,19 @@ serve(async (req) => {
       },
     }
 
-    await serviceClient.from('payments').update({
+    stage = 'payment_update'
+    const { error: updateError } = await serviceClient.from('payments').update({
       ai_confidence_score: score,
       ai_extracted_data: extractedData,
       sender_name: extraction.sender,
-      transaction_reference: extraction.transaction_id,
+      // Preserve duplicate IDs in ai_extracted_data for review, but never write
+      // them into the uniquely constrained canonical reference column.
+      transaction_reference: transactionUnique ? extraction.transaction_id : null,
       bank_name: extraction.bank,
       transferred_at: extraction.date,
       verification_status: autoApprove ? 'VERIFIED' : 'REQUIRES_REVIEW',
     }).eq('id', body.payment_id)
+    if (updateError) throw new Error(`Could not save OCR result: ${updateError.message}`)
 
     if (autoApprove && order?.id) {
       await serviceClient.from('orders').update({
@@ -274,7 +285,11 @@ serve(async (req) => {
       extracted: extractedData,
     })
   } catch (err) {
-    console.error('[verify-receipt]', err)
-    return jsonResponse(req, { success: false, error: err instanceof Error ? err.message : String(err) }, 500)
+    console.error(`[verify-receipt:${stage}]`, err)
+    return jsonResponse(req, {
+      success: false,
+      stage,
+      error: err instanceof Error ? err.message : String(err),
+    }, 500)
   }
 })

@@ -49,7 +49,16 @@ export async function analyzeImageWithQwen(
 
   if (!response.ok) {
     const requestId = response.headers.get('x-request-id')
-    throw new Error(`Qwen vision API error (${response.status})${requestId ? ` [${requestId}]` : ''}`)
+    let providerMessage = ''
+    try {
+      const errorBody = await response.json()
+      providerMessage = errorBody?.error?.message || errorBody?.message || ''
+    } catch {
+      // The status and request ID still identify non-JSON provider failures.
+    }
+    throw new Error(
+      `Qwen vision API error (${response.status})${providerMessage ? `: ${providerMessage}` : ''}${requestId ? ` [${requestId}]` : ''}`,
+    )
   }
 
   const data = await response.json()

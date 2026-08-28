@@ -35,3 +35,9 @@ enabled = true
 client_id = "env(GOOGLE_CLIENT_ID)"
 secret = "env(GOOGLE_CLIENT_SECRET)"
 redirect_uri = ""
+
+# Authentication is enforced inside the function with auth.getUser(). Keeping
+# gateway verification off avoids rejecting valid sessions before the function
+# can validate them and return a useful error.
+[functions.verify-receipt]
+verify_jwt = false
