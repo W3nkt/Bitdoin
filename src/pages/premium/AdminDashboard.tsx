@@ -134,6 +134,7 @@ interface WeeklyContentRun {
   content_counts: Record<string, number>
   error_message?: string | null
   started_at: string
+  updated_at?: string | null
   completed_at?: string | null
 }
 
@@ -143,6 +144,8 @@ type GenerationStep = {
   status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
   detail?: string
   categoryId?: string
+  action?: string
+  batchIndex?: number
 }
 
 interface PremiumMemberEvent {
@@ -236,6 +239,13 @@ function nextAcademyWeekStart() {
   return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
 }
 
+const WEEKLY_RUN_STALE_MS = 20 * 60 * 1000
+
+function weeklyRunIsStale(run?: WeeklyContentRun | null) {
+  return run?.status === 'GENERATING'
+    && Date.now() - new Date(run.updated_at ?? run.started_at).getTime() > WEEKLY_RUN_STALE_MS
+}
+
 export function PremiumAdminDashboard() {
   usePremiumTranslation()
   const navigate = useNavigate()
@@ -261,6 +271,7 @@ export function PremiumAdminDashboard() {
   const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([])
   const generationRunId = useRef<string | null>(null)
   const cancelGenerationRequested = useRef(false)
+  const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
 
   useEffect(() => {
@@ -378,14 +389,22 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: runError } = await supabase
         .from('premium_weekly_content_runs')
-        .select('id,week_start,status,content_counts,error_message,started_at,completed_at')
+        .select('id,week_start,status,content_counts,error_message,started_at,completed_at,updated_at')
         .eq('week_start', nextAcademyWeekStart())
         .maybeSingle()
       if (runError) throw runError
       return data as WeeklyContentRun | null
     },
-    refetchInterval: query => query.state.data?.status === 'GENERATING' ? 5000 : false,
+    refetchInterval: query => query.state.data?.status === 'GENERATING' && !weeklyRunIsStale(query.state.data) ? 5000 : false,
   })
+
+  useEffect(() => {
+    if (!weeklyRun || !weeklyRunIsStale(weeklyRun) || staleRecoveryRunId.current === weeklyRun.id) return
+    staleRecoveryRunId.current = weeklyRun.id
+    void supabase.functions.invoke('generate-academy-week', {
+      body: { action: 'cancel', runId: weeklyRun.id },
+    }).finally(() => qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] }))
+  }, [weeklyRun, qc])
 
   const { data: memberEvents, isLoading: memberEventsLoading } = useQuery({
     queryKey: ['premium-admin', 'member-events'],
@@ -456,7 +475,7 @@ export function PremiumAdminDashboard() {
     badge?: ReactNode
   }> = [
     { id: 'overview', label: 'Overview', detail: 'Premium health', icon: <Sparkles className="h-4 w-4" /> },
-    { id: 'forge', label: 'Weekly Content', detail: 'Sunday AI generation', icon: <WandSparkles className="h-4 w-4" /> },
+    { id: 'forge', label: 'Weekly Content', detail: 'Generate next week', icon: <WandSparkles className="h-4 w-4" /> },
     { id: 'payments', label: 'Payment Review', detail: 'Transfer proofs', icon: <ReceiptText className="h-4 w-4" />, badge: reviewCount },
     { id: 'members', label: 'Members', detail: 'Subscriptions', icon: <Users className="h-4 w-4" />, badge: subscriptionRequests.length },
     { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
@@ -488,12 +507,19 @@ export function PremiumAdminDashboard() {
   async function generateNextAcademyWeek() {
     setGenerationOpen(true)
     setGeneratingWeek(true)
-    setGenerationSteps([{ id: 'initialize', label: 'Preparing next week', status: 'running' }])
+    setGenerationSteps([{ id: 'check', label: 'Checking next week’s existing content', status: 'running' }])
     cancelGenerationRequested.current = false
     generationRunId.current = null
     try {
       const invoke = async (body: Record<string, unknown>) => {
-        const { data, error: invokeError } = await supabase.functions.invoke('generate-academy-week', { body })
+        let timeoutId: ReturnType<typeof setTimeout> | undefined
+        const timeout = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('This step timed out after 5 minutes. Completed steps were saved; click Continue generation to resume.')), 5 * 60_000)
+        })
+        const { data, error: invokeError } = await Promise.race([
+          supabase.functions.invoke('generate-academy-week', { body }),
+          timeout,
+        ]).finally(() => { if (timeoutId) clearTimeout(timeoutId) })
         if (data?.error) throw new Error(data.error)
         if (invokeError instanceof FunctionsHttpError) {
           const responseBody = await invokeError.context.json().catch(() => null)
@@ -502,56 +528,56 @@ export function PremiumAdminDashboard() {
         if (invokeError) throw new Error(invokeError.message ?? 'The generation service could not be reached.')
         return data
       }
+      const existing = await invoke({ action: 'check' })
+      if (existing.exists) {
+        setGenerationSteps([{ id: 'check', label: 'Next week’s content already exists', status: 'done', detail: `${Object.values(existing.counts as Record<string, number>).reduce((sum, count) => sum + count, 0)} items are ready` }])
+        success(`Content for the week beginning ${existing.weekStart} already exists. Nothing was generated.`)
+        return
+      }
+      setGenerationSteps([{ id: 'initialize', label: 'Preparing next week', status: 'running' }])
       const initialized = await invoke({ action: 'initialize' })
       generationRunId.current = initialized.runId
       const steps: GenerationStep[] = [
-        { id: 'brain_sprint', label: 'Daily Brain Sprint', status: 'queued' },
-        { id: 'word_match', label: 'Word Match', status: 'queued' },
-        { id: 'roleplay_missions', label: 'AI role-play missions', status: 'queued' },
-        { id: 'daily_mentor', label: 'Daily Mentor', status: 'queued' },
-        { id: 'prompt_library', label: 'AI Prompt Library', status: 'queued' },
+        ...Array.from({ length: 5 }, (_, index) => ({ id: `brain_sprint-${index}`, label: `Daily Brain Sprint · Batch ${index + 1}/5`, status: 'queued' as const })),
+        ...Array.from({ length: 3 }, (_, index) => ({ id: `word_match-${index}`, label: `Word Match · Batch ${index + 1}/3`, status: 'queued' as const })),
+        { id: 'daily_mentor', label: 'Daily Mentor', status: 'queued' as const },
+        { id: 'roleplay_missions', label: 'AI role-play missions', status: 'queued' as const },
+        { id: 'prompt_library', label: 'AI Prompt Library', status: 'queued' as const },
         ...(initialized.categories as Array<{ id: string; name_en: string }>).map((category, index) => ({
           id: `lesson-${category.id}`, label: `Learning Hub · ${category.name_en}`, status: 'queued' as const,
-          categoryId: category.id, detail: `Lesson ${index + 1} of ${initialized.categories.length}`,
+          detail: `Lesson ${index + 1} of ${initialized.categories.length}`,
         })),
       ]
       setGenerationSteps(steps)
 
-      for (const step of steps) {
-        if (cancelGenerationRequested.current) break
-        setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'running', detail: 'Researching and writing…' } : item))
-        try {
-          const result = await invoke({
-            action: step.categoryId ? 'lesson' : step.id,
-            runId: initialized.runId,
-            ...(step.categoryId ? { categoryId: step.categoryId } : {}),
-          })
-          const countKey = step.categoryId ? 'lessons' : step.id
-          const count = result.counts?.[countKey]
-          setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'done', detail: step.categoryId ? 'Lesson ready' : `${count ?? ''} items ready`.trim() } : item))
-        } catch (stepError) {
-          setGenerationSteps(current => current.map(item => item.id === step.id ? { ...item, status: 'failed', detail: stepError instanceof Error ? stepError.message : 'Generation failed' } : item))
-          throw stepError
+      // The backend owns generation. This loop only observes durable task state;
+      // closing the tab does not stop or lose the job.
+      for (let poll = 0; poll < 360 && !cancelGenerationRequested.current; poll += 1) {
+        const [{ data: tasks, error: tasksError }, { data: runState, error: runStateError }] = await Promise.all([
+          supabase.from('premium_weekly_content_tasks').select('task_key,status,error_message').eq('run_id', initialized.runId),
+          supabase.from('premium_weekly_content_runs').select('status,error_message,content_counts').eq('id', initialized.runId).single(),
+        ])
+        if (tasksError) throw tasksError
+        if (runStateError) throw runStateError
+        const taskByKey = new Map((tasks ?? []).map(task => [task.task_key, task]))
+        setGenerationSteps(current => current.map(step => {
+          const task = taskByKey.get(step.id)
+          if (!task) return step
+          const status = task.status === 'DONE' ? 'done' : task.status === 'PROCESSING' ? 'running' : task.status === 'FAILED' ? 'failed' : task.status === 'CANCELLED' ? 'cancelled' : 'queued'
+          return { ...step, status, detail: task.error_message ?? (status === 'done' ? 'Saved and ready' : status === 'running' ? 'Researching and writing…' : step.detail) }
+        }))
+        if (runState.status === 'READY') {
+          await invalidateAdminPremium()
+          success(`Next week is ready: ${Object.values((runState.content_counts ?? {}) as Record<string, number>).reduce((sum, count) => sum + Number(count), 0)} content items generated.`)
+          return
         }
+        if (runState.status === 'FAILED') throw new Error(runState.error_message ?? 'Weekly generation failed after automatic retries.')
+        if (runState.status === 'CANCELLED') return
+        await new Promise(resolve => setTimeout(resolve, 5000))
       }
-
-      if (cancelGenerationRequested.current) {
-        setGenerationSteps(current => current.map(item => item.status === 'queued' ? { ...item, status: 'cancelled', detail: 'Not generated' } : item))
-        await invoke({ action: 'cancel', runId: initialized.runId }).catch(() => undefined)
-        await qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] })
-        return
-      }
-
-      const completed = await invoke({ action: 'finalize', runId: initialized.runId })
-      await invalidateAdminPremium()
-      success(`Next week is ready: ${Object.values(completed.counts as Record<string, number>).reduce((sum, count) => sum + count, 0)} content items generated.`)
+      if (!cancelGenerationRequested.current) success('Generation is continuing safely in the background. You may close this page and return later.')
     } catch (err) {
       console.error(err)
-      if (generationRunId.current && !cancelGenerationRequested.current) {
-        await supabase.functions.invoke('generate-academy-week', {
-          body: { action: 'cancel', runId: generationRunId.current },
-        }).catch(() => undefined)
-      }
       await qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] })
       if (!cancelGenerationRequested.current) error(err instanceof Error ? err.message : 'Could not generate next week’s Academy content.')
     } finally {
@@ -1351,7 +1377,14 @@ export function PremiumAdminDashboard() {
               {cancelGenerationRequested.current ? 'Stopping after current step…' : 'Cancel generation'}
             </Button>
           ) : (
-            <Button type="button" onClick={() => setGenerationOpen(false)}>Close</Button>
+            <div className="flex gap-2">
+              {weeklyRun?.status !== 'READY' && generationSteps.some(step => step.status === 'failed' || step.status === 'cancelled') && (
+                <Button type="button" onClick={() => void generateNextAcademyWeek()}>
+                  <Sparkles className="mr-2 h-4 w-4" /> Continue generation
+                </Button>
+              )}
+              <Button type="button" variant="outline" onClick={() => setGenerationOpen(false)}>Close</Button>
+            </div>
           )
         }
       >
@@ -1634,8 +1667,11 @@ function WeeklyContentForge({
   onGenerate: () => void
 }) {
   const ready = run?.status === 'READY'
-  const working = generating || run?.status === 'GENERATING'
+  const stale = weeklyRunIsStale(run)
+  const working = generating || (run?.status === 'GENERATING' && !stale)
   const counts = run?.content_counts ?? {}
+  const hasSavedProgress = Object.values(counts).some(count => Number(count) > 0)
+  const canContinue = !ready && (hasSavedProgress || run?.status === 'CANCELLED' || run?.status === 'FAILED' || stale)
   const streams = [
     { key: 'brain_sprint', label: 'Brain Sprint', icon: <BrainCircuit className="h-4 w-4" />, fallback: 35 },
     { key: 'word_match', label: 'Word Match', icon: <Gamepad2 className="h-4 w-4" />, fallback: 42 },
@@ -1655,7 +1691,7 @@ function WeeklyContentForge({
         <div>
           <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
             <WandSparkles className="h-4 w-4" />
-            Sunday content forge
+            Weekly content forge
           </div>
           <h2 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Create the next Academy week</h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-violet-100/75">
@@ -1694,12 +1730,12 @@ function WeeklyContentForge({
               <span className="absolute inset-x-0 top-0 h-1/2 -translate-x-full skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/55 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               {working ? <Sparkles className="h-8 w-8 motion-safe:animate-spin" /> : ready ? <CheckCircle2 className="h-8 w-8" /> : <WandSparkles className="h-8 w-8 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />}
               <span className="mt-2 text-xs font-black uppercase tracking-[0.12em]">
-                {working ? 'Creating…' : ready ? 'Week ready' : 'Forge week'}
+                {working ? 'Creating…' : ready ? 'Week ready' : canContinue ? 'Continue' : 'Forge week'}
               </span>
             </button>
           </div>
           <p className="mt-5 text-center text-xs font-semibold text-violet-200/70">
-            {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'This can take a few minutes. Keep this page open.' : 'Use once every Sunday · duplicate weeks are blocked'}
+            {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'This can take a few minutes. Every completed step is saved.' : canContinue ? 'Continue from the first unfinished step—saved content will not be regenerated.' : 'Generate on any day · existing weeks are checked first'}
           </p>
         </div>
       </div>

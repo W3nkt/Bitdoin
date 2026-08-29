@@ -6,9 +6,10 @@ import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-const DEEPSEEK_API_KEY = Deno.env.get('DEEPSEEK_API_KEY') ?? ''
+const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
+const QWEN_BASE_URL = (Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(value => value.trim()).filter(Boolean)
-const MODEL = 'deepseek-v4-flash'
+const MODEL = Deno.env.get('QWEN_CONTENT_MODEL') ?? Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-plus'
 const ARCADE_POOL_MINUTE_LIMIT = positiveIntEnv('AI_ARCADE_POOL_MINUTE_LIMIT', 2)
 const ARCADE_POOL_DAILY_LIMIT = positiveIntEnv('AI_ARCADE_POOL_DAILY_LIMIT', 5)
 const ARCADE_POOL_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_ARCADE_POOL_GLOBAL_DAILY_LIMIT', 20)
@@ -206,10 +207,10 @@ WORDS TO AVOID REPEATING (from recent weeks)
 ${recent.length ? recent.join(', ') : '(none)'}`
 }
 
-async function callDeepSeek(systemPrompt: string, userPrompt: string, temperature: number) {
-  const response = await fetchWithTimeout('https://api.deepseek.com/chat/completions', {
+async function callQwen(systemPrompt: string, userPrompt: string, temperature: number) {
+  const response = await fetchWithTimeout(`${QWEN_BASE_URL}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${QWEN_API_KEY}` },
     body: JSON.stringify({
       model: MODEL,
       messages: [
@@ -217,14 +218,14 @@ async function callDeepSeek(systemPrompt: string, userPrompt: string, temperatur
         { role: 'user', content: userPrompt },
       ],
       response_format: { type: 'json_object' },
-      thinking: { type: 'disabled' },
+      enable_thinking: false,
       temperature,
       max_tokens: 8000,
       stream: false,
     }),
   }, AI_PROVIDER_TIMEOUT_MS)
-  const result = await response.json()
-  if (!response.ok) throw new Error(result?.error?.message ?? 'The AI provider did not respond.')
+  const result = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(result?.error?.message ?? `Qwen did not respond (${response.status}).`)
   const content = result?.choices?.[0]?.message?.content
   if (typeof content !== 'string') return null
   try {
@@ -241,7 +242,7 @@ async function generatePool(activityType: ActivityType, recent: string[]) {
   const validate = activityType === 'brain_sprint' ? validateBrainSprintItems : validateWordMatchItems
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const raw = await callDeepSeek(systemPrompt, userPrompt, attempt === 1 ? 0.9 : 0.5)
+    const raw = await callQwen(systemPrompt, userPrompt, attempt === 1 ? 0.9 : 0.5)
     const items = validate(raw)
     if (items) return items
   }
@@ -251,8 +252,6 @@ async function generatePool(activityType: ActivityType, recent: string[]) {
 serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders(req) })
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed.' }, 405)
-  if (!DEEPSEEK_API_KEY) return json(req, { error: 'Play & Learn AI content is not configured.' }, 503)
-
   try {
     const body = await req.json().catch(() => null)
     const activityType = body?.activity_type
@@ -292,6 +291,19 @@ serve(async req => {
     let generatedAt = existingPool?.generated_at as string | undefined
 
     if (!pool) {
+      // Weekly AI pools are prepared by the admin Content Forge. Never make a
+      // long, expensive provider call during a student's page load: if the
+      // admin has not prepared this week yet, the client immediately uses its
+      // bundled, deterministic fallback bank instead.
+      return json(req, {
+        items: [],
+        pool_week: poolWeek,
+        generated_at: null,
+        source: 'fallback',
+      })
+
+      /* Legacy lazy-generation path retained below for reference; unreachable
+         by design so student traffic can never trigger an AI provider call. */
       const { data: leaseToken, error: leaseError } = await admin.rpc('claim_arcade_pool_generation', {
         p_activity_type: activityType,
         p_pool_week: poolWeek,

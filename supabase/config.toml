@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.generate-academy-week]
 verify_jwt = false
+
+[functions.premium-arcade-pool]
+verify_jwt = false
