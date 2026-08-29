@@ -1687,8 +1687,8 @@ function WeeklyContentForge({
     <section id="premium-forge" className="relative scroll-mt-6 overflow-hidden rounded-[2rem] bg-[#110b24] px-5 py-6 text-white shadow-[0_24px_70px_-28px_rgba(67,33,132,0.8)] sm:px-8 sm:py-8">
       <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl motion-safe:animate-pulse" />
       <div className="pointer-events-none absolute -bottom-24 left-1/4 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
-      <div className="relative grid gap-8 xl:grid-cols-[1fr_auto] xl:items-center">
-        <div>
+      <div className="relative grid gap-8 lg:grid-cols-3 lg:items-center lg:gap-10 xl:gap-14">
+        <div className="lg:col-span-2">
           <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-amber-300">
             <WandSparkles className="h-4 w-4" />
             Weekly content forge
@@ -1698,11 +1698,11 @@ function WeeklyContentForge({
             Qwen researches fresh topics, writes bilingual content, validates every set, and prepares the release beginning {weekLabel}.
           </p>
 
-          <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
             {streams.map(stream => (
-              <div key={stream.key} className="flex items-center gap-2 border-b border-white/10 pb-3 text-sm text-violet-100">
-                <span className="text-amber-300">{stream.icon}</span>
-                <span className="min-w-0 flex-1 truncate font-semibold">{stream.label}</span>
+              <div key={stream.key} className="flex min-w-0 items-center gap-3 border-b border-white/10 pb-3 text-sm text-violet-100">
+                <span className="shrink-0 text-amber-300">{stream.icon}</span>
+                <span className="min-w-max flex-1 whitespace-nowrap font-semibold">{stream.label}</span>
                 <span className="font-black text-white">{ready ? counts[stream.key] ?? 0 : stream.fallback}</span>
               </div>
             ))}
@@ -1715,7 +1715,7 @@ function WeeklyContentForge({
           )}
         </div>
 
-        <div className="flex min-w-[250px] flex-col items-center xl:pl-6">
+        <div className="flex min-w-0 flex-col items-center lg:col-span-1 lg:justify-self-end lg:pl-4 xl:pr-6">
           <div className="relative">
             <div className={cn(
               'pointer-events-none absolute -inset-3 rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-400 to-violet-500 opacity-65 blur-lg transition duration-500',
