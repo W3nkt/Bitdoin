@@ -31,6 +31,7 @@ const LessonReaderPage = lazy(() => import('@/pages/premium/LearningHub').then(m
 const WeeklyChallengesPage = lazy(() => import('@/pages/premium/LearningHub').then(m => ({ default: m.WeeklyChallengesPage })))
 const HabitTrackerPage = lazy(() => import('@/pages/premium/LearningHub').then(m => ({ default: m.HabitTrackerPage })))
 const LearningProgressPage = lazy(() => import('@/pages/premium/LearningHub').then(m => ({ default: m.LearningProgressPage })))
+const PromptLibraryPage = lazy(() => import('@/pages/premium/LearningHub').then(m => ({ default: m.PromptLibraryPage })))
 const PremiumAdminDashboard = lazy(() => import('@/pages/premium/AdminDashboard').then(m => ({ default: m.PremiumAdminDashboard })))
 const PremiumLearningAdmin = lazy(() => import('@/pages/premium/LearningAdmin').then(m => ({ default: m.PremiumLearningAdmin })))
 const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
@@ -168,6 +169,7 @@ export function App() {
                     <Route path="/academy/challenges" element={<WeeklyChallengesPage />} />
                     <Route path="/academy/habits" element={<HabitTrackerPage />} />
                     <Route path="/academy/progress" element={<LearningProgressPage />} />
+                    <Route path="/academy/prompts" element={<PromptLibraryPage />} />
                     <Route path="/academy/profile" element={<AcademyProfile />} />
                     <Route path="/academy/careers" element={<CareerExplorer />} />
 

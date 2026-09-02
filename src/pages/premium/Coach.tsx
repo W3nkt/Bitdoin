@@ -20,15 +20,40 @@ import { careerPathsLo } from '@/data/careerPathsLo'
 interface Message { id: string; role: 'user' | 'assistant'; content: string; created_at: string }
 interface Conversation { id: string; title: string; created_at: string; updated_at: string }
 
-const STARTERS = ['Help me plan my study session', 'I feel unmotivated today', 'Practice English with me']
-const ROLEPLAY_PROMPTS: Record<string, string> = {
-  'job-interview': 'Start a realistic entry-level job interview role-play with me. Ask one question at a time, wait for my answer, and give brief supportive feedback before the next question.',
-  'english-cafe': 'Start a friendly English café role-play with me. Be the server, ask one question at a time, wait for my reply, and gently correct important mistakes.',
-  'class-presentation': 'Help me practise a short class presentation in English. Ask me to present one small section at a time, then give concise, encouraging feedback.',
-  'ask-teacher-help': 'Role-play as my teacher while I practise asking for help with a lesson. Respond naturally, ask one question at a time, and help me make my request clear and polite.',
-  'scholarship-interview': 'Start a supportive scholarship interview role-play with me. Ask one realistic question at a time and give brief feedback that improves my next answer.',
-  'customer-service': 'Role-play a simple customer-service situation with me in English. Ask one question at a time, wait for my answer, and gently improve my useful phrases.',
-  'travel-directions': 'Role-play as a local person while I ask for and follow travel directions in English. Keep each turn short and correct any confusing wording.',
+const STARTERS = [
+  { en: 'Help me plan my study session', lo: 'ຊ່ວຍຂ້ອຍວາງແຜນເວລາຮຽນ' },
+  { en: 'I feel unmotivated today', lo: 'ມື້ນີ້ຂ້ອຍຮູ້ສຶກບໍ່ມີແຮງຈູງໃຈ' },
+  { en: 'Practice English with me', lo: 'ຝຶກພາສາອັງກິດກັບຂ້ອຍ' },
+]
+const ROLEPLAY_PROMPTS: Record<string, Record<'en' | 'lo', string>> = {
+  'job-interview': {
+    en: 'Start a realistic entry-level job interview role-play with me. Ask one question at a time, wait for my answer, and give brief supportive feedback before the next question.',
+    lo: 'ເລີ່ມຈຳລອງການສຳພາດວຽກລະດັບເລີ່ມຕົ້ນທີ່ສົມຈິງກັບຂ້ອຍ. ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ, ລໍຖ້າຄຳຕອບຂອງຂ້ອຍ ແລະ ໃຫ້ຄຳແນະນຳສັ້ນໆທີ່ເປັນກຳລັງໃຈກ່ອນຖາມຄຳຖາມຕໍ່ໄປ.',
+  },
+  'english-cafe': {
+    en: 'Start a friendly English café role-play with me. Be the server, ask one question at a time, wait for my reply, and gently correct important mistakes.',
+    lo: 'ເລີ່ມຈຳລອງສະຖານະການໃນຮ້ານກາເຟພາສາອັງກິດກັບຂ້ອຍແບບເປັນມິດ. ໃຫ້ທ່ານເປັນພະນັກງານເສີບ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ, ລໍຖ້າຄຳຕອບຂອງຂ້ອຍ ແລະ ຊ່ວຍແກ້ຂໍ້ຜິດພາດສຳຄັນຢ່າງສຸພາບ.',
+  },
+  'class-presentation': {
+    en: 'Help me practise a short class presentation in English. Ask me to present one small section at a time, then give concise, encouraging feedback.',
+    lo: 'ຊ່ວຍຂ້ອຍຝຶກນຳສະເໜີໜ້າຫ້ອງແບບສັ້ນໆເປັນພາສາອັງກິດ. ໃຫ້ຂ້ອຍນຳສະເໜີເທື່ອລະພາກສ່ວນນ້ອຍໆ ແລ້ວໃຫ້ຄຳແນະນຳທີ່ສັ້ນ, ຊັດເຈນ ແລະ ເປັນກຳລັງໃຈ.',
+  },
+  'ask-teacher-help': {
+    en: 'Role-play as my teacher while I practise asking for help with a lesson. Respond naturally, ask one question at a time, and help me make my request clear and polite.',
+    lo: 'ຈຳລອງບົດບາດເປັນຄູຂອງຂ້ອຍ ໃນຂະນະທີ່ຂ້ອຍຝຶກຂໍຄວາມຊ່ວຍເຫຼືອກ່ຽວກັບບົດຮຽນ. ຕອບຢ່າງເປັນທຳມະຊາດ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ ແລະ ຊ່ວຍໃຫ້ຄຳຂໍຂອງຂ້ອຍຊັດເຈນ ແລະ ສຸພາບ.',
+  },
+  'scholarship-interview': {
+    en: 'Start a supportive scholarship interview role-play with me. Ask one realistic question at a time and give brief feedback that improves my next answer.',
+    lo: 'ເລີ່ມຈຳລອງການສຳພາດທຶນການສຶກສາກັບຂ້ອຍແບບໃຫ້ກຳລັງໃຈ. ຖາມເທື່ອລະໜຶ່ງຄຳຖາມທີ່ສົມຈິງ ແລະ ໃຫ້ຄຳແນະນຳສັ້ນໆເພື່ອປັບປຸງຄຳຕອບຕໍ່ໄປຂອງຂ້ອຍ.',
+  },
+  'customer-service': {
+    en: 'Role-play a simple customer-service situation with me in English. Ask one question at a time, wait for my answer, and gently improve my useful phrases.',
+    lo: 'ຈຳລອງສະຖານະການບໍລິການລູກຄ້າແບບງ່າຍໆກັບຂ້ອຍເປັນພາສາອັງກິດ. ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ, ລໍຖ້າຄຳຕອບຂອງຂ້ອຍ ແລະ ຊ່ວຍປັບປຸງປະໂຫຍກທີ່ເປັນປະໂຫຍດຢ່າງສຸພາບ.',
+  },
+  'travel-directions': {
+    en: 'Role-play as a local person while I ask for and follow travel directions in English. Keep each turn short and correct any confusing wording.',
+    lo: 'ຈຳລອງບົດບາດເປັນຄົນທ້ອງຖິ່ນ ໃນຂະນະທີ່ຂ້ອຍຖາມ ແລະ ເຮັດຕາມເສັ້ນທາງເປັນພາສາອັງກິດ. ໃຫ້ແຕ່ລະບົດສົນທະນາສັ້ນ ແລະ ຊ່ວຍແກ້ຖ້ອຍຄຳທີ່ບໍ່ຊັດເຈນ.',
+  },
 }
 const markdownSchema = {
   ...defaultSchema,
@@ -151,6 +176,7 @@ export function PremiumCoach() {
   const endRef = useRef<HTMLDivElement>(null)
   const historyInitialized = useRef(false)
   const roleplayInitialized = useRef(false)
+  const lastRoleplayPrompt = useRef<string | null>(null)
   const roleplayCompleted = useRef(false)
   const careerAssessmentInitialized = useRef(false)
 
@@ -203,7 +229,7 @@ export function PremiumCoach() {
     },
   })
   const roleplayPrompt = roleplayMission
-    ? ROLEPLAY_PROMPTS[roleplayMission] ?? (language === 'lo' ? generatedRoleplay.data?.coach_prompt_lo : generatedRoleplay.data?.coach_prompt_en)
+    ? ROLEPLAY_PROMPTS[roleplayMission]?.[language] ?? (language === 'lo' ? generatedRoleplay.data?.coach_prompt_lo : generatedRoleplay.data?.coach_prompt_en)
     : undefined
 
   useEffect(() => {
@@ -215,12 +241,16 @@ export function PremiumCoach() {
   useEffect(() => { if (messages.data) setLocalMessages(messages.data) }, [messages.data])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [localMessages, sending])
   useEffect(() => {
-    if (roleplayInitialized.current || !roleplayMission || !roleplayPrompt) return
-    roleplayInitialized.current = true
-    setConversationId(null)
-    setLocalMessages([])
+    if (!roleplayMission || !roleplayPrompt) return
+    if (roleplayInitialized.current && draft !== lastRoleplayPrompt.current) return
+    if (!roleplayInitialized.current) {
+      roleplayInitialized.current = true
+      setConversationId(null)
+      setLocalMessages([])
+    }
     setDraft(roleplayPrompt)
-  }, [roleplayMission, roleplayPrompt])
+    lastRoleplayPrompt.current = roleplayPrompt
+  }, [draft, roleplayMission, roleplayPrompt])
 
   useEffect(() => {
     if (careerAssessmentInitialized.current || !careerAssessment || !profile) return
@@ -376,7 +406,10 @@ export function PremiumCoach() {
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
                 {roleplayMission ? 'Send the prepared prompt below to begin. Complete your first exchange to earn 20 XP.' : 'I’ll use your goals and coaching preferences to give you practical, personal guidance.'}
               </p>
-              <div className="mx-auto mt-8 grid max-w-lg gap-2 sm:grid-cols-3">{STARTERS.map(starter => <button key={starter} onClick={() => void send(undefined, starter)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm">{starter}</button>)}</div>
+              <div className="mx-auto mt-8 grid max-w-lg gap-2 sm:grid-cols-3">{STARTERS.map(starter => {
+                const prompt = starter[language]
+                return <button key={starter.en} onClick={() => void send(undefined, prompt)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm">{prompt}</button>
+              })}</div>
             </div>
           )}
           {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white' : 'rounded-bl-md bg-white text-gray-800 shadow-sm'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at)}</time></div></div>)}

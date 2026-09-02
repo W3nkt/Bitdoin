@@ -13,6 +13,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { usePremiumTranslation } from '@/i18n/premium'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
@@ -66,6 +67,8 @@ type ActiveDay = { active_date: string }
 type LibraryPrompt = {
   id: string; category: string; title_en: string; title_lo: string
   description_en: string; description_lo: string; prompt_en: string; prompt_lo: string
+  example_output_en?: string | null; example_output_lo?: string | null
+  source_url?: string | null; tags?: string[]
 }
 
 const iconMap = {
@@ -214,9 +217,10 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hi
   hideSwitchPlatform?: boolean; requireSubscription?: boolean
 }) {
   const navigate = useNavigate()
+  usePremiumTranslation()
   return (
     <PremiumGate requireSubscription={requireSubscription}>
-      <div className="min-h-screen bg-[#f7f8fb] text-slate-950">
+      <div className="premium-i18n min-h-screen bg-[#f7f8fb] text-slate-950">
         <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
             <button onClick={() => navigate(backTo)} className="grid h-10 w-10 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Go back">
@@ -319,29 +323,11 @@ function useLearningData() {
 
 export function LearningHub() {
   const { language } = useLanguage()
-  const { success } = useToast()
   const { categories, lessons, progress, access } = useLearningData()
   const isPremium = Boolean(access.data)
   const completed = progress.data?.filter(item => item.completed_at).length ?? 0
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
-  const promptLibrary = useQuery({
-    queryKey: ['premium', 'prompt-library', today()],
-    enabled: Boolean(access.data),
-    queryFn: async () => {
-      const { data, error } = await supabase.from('premium_prompt_library')
-        .select('id,category,title_en,title_lo,description_en,description_lo,prompt_en,prompt_lo')
-        .lte('week_start', today()).order('week_start', { ascending: false }).order('sort_order').limit(7)
-      if (error) throw error
-      return data as LibraryPrompt[]
-    },
-  })
-
-  async function copyPrompt(prompt: LibraryPrompt) {
-    await navigator.clipboard.writeText(localize(language, prompt.prompt_en, prompt.prompt_lo))
-    success(localize(language, 'Prompt copied.', 'ສຳເນົາ prompt ແລ້ວ.'))
-  }
-
   return (
     <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
@@ -393,6 +379,20 @@ export function LearningHub() {
             {(categories.isLoading || lessons.isLoading) && <Loader2 className="h-5 w-5 animate-spin text-primary-600" />}
           </div>
           <div className="mt-7 grid gap-x-8 md:grid-cols-2">
+            <DirectionLink
+              to="/academy/careers"
+              icon={BriefcaseBusiness}
+              accent="cyan"
+              title={localize(language, 'Career explorer', 'ສຳຫຼວດອາຊີບ')}
+              description={localize(language, 'Explore careers, required skills, and practical next steps.', 'ສຳຫຼວດອາຊີບ, ທັກສະທີ່ຕ້ອງການ ແລະ ຂັ້ນຕອນຕໍ່ໄປທີ່ເຮັດໄດ້ຈິງ.')}
+            />
+            <DirectionLink
+              to="/academy/prompts"
+              icon={Sparkles}
+              accent="violet"
+              title="AI Prompt Library"
+              description={localize(language, 'Useful AI prompts for daily life, work, study, and creative images.', 'ຄຳສັ່ງ AI ທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດປະຈຳວັນ, ວຽກ, ການຮຽນ ແລະ ຮູບພາບສ້າງສັນ.')}
+            />
             {(categories.data ?? []).map(category => {
               const Icon = iconMap[category.icon as keyof typeof iconMap] ?? BookOpen
               const lessonCount = lessons.data?.filter(item => item.category_id === category.id).length ?? 0
@@ -413,40 +413,89 @@ export function LearningHub() {
           </div>
         </section>
 
-        {isPremium && (promptLibrary.data?.length ?? 0) > 0 && (
-          <section className="border-t border-slate-200 py-10">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">
-              {localize(language, 'Fresh this week', 'ໃໝ່ປະຈຳອາທິດ')}
-            </p>
-            <h2 className="mt-2 text-2xl font-black">{localize(language, 'AI Prompt Library', 'ຄັງ Prompt AI')}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              {localize(language, 'Copy a ready-made prompt, replace the brackets, and use it with Bitdoin Mentor.', 'ສຳເນົາ prompt, ປ່ຽນຂໍ້ຄວາມໃນວົງເລັບ ແລະ ນຳໄປໃຊ້ກັບ Bitdoin Mentor.')}
-            </p>
-            <div className="mt-6 divide-y divide-slate-200 border-y border-slate-200">
-              {promptLibrary.data!.map(prompt => (
-                <div key={prompt.id} className="grid gap-4 py-5 sm:grid-cols-[1fr_auto] sm:items-center">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3>
-                      <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary-700">{prompt.category}</span>
-                    </div>
-                    <p className="mt-1 text-sm leading-6 text-slate-500">{localize(language, prompt.description_en, prompt.description_lo)}</p>
-                  </div>
-                  <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>
-                    {localize(language, 'Copy prompt', 'ສຳເນົາ')}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         <nav className="grid gap-3 border-t border-slate-200 py-8 sm:grid-cols-3">
           <WorkspaceLink to="/academy/challenges" icon={Target} title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} />
-          <WorkspaceLink to="/academy/careers" icon={BriefcaseBusiness} title={localize(language, 'Career explorer', 'ສຳຫຼວດອາຊີບ')} />
           <WorkspaceLink to="/academy/habits" icon={ListChecks} title={localize(language, 'Habit tracker', 'ຕິດຕາມນິໄສ')} />
           <WorkspaceLink to="/academy/progress" icon={Trophy} title={localize(language, 'My progress', 'ຄວາມຄືບໜ້າ')} />
         </nav>
+      </main>
+    </LearningShell>
+  )
+}
+
+function DirectionLink({ to, icon: Icon, accent, title, description }: {
+  to: string; icon: typeof Sparkles; accent: keyof typeof accents; title: string; description: string
+}) {
+  return (
+    <Link to={to} className="group flex items-center gap-4 border-t border-slate-200 py-5">
+      <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[accent])}><Icon className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1"><h3 className="font-black">{title}</h3><p className="mt-1 line-clamp-1 text-sm text-slate-500">{description}</p></div>
+      <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600" />
+    </Link>
+  )
+}
+
+export function PromptLibraryPage() {
+  const { language } = useLanguage()
+  const { success } = useToast()
+  const { activeDays } = useLearningData()
+  const [search, setSearch] = useState('')
+  const prompts = useQuery({
+    queryKey: ['premium', 'prompt-library-unlocked', activeDays.data?.length],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_unlocked_prompt_library')
+      if (error) throw error
+      return data as LibraryPrompt[]
+    },
+  })
+  const unlockedCount = Math.max(5, (activeDays.data?.length ?? 1) * 5)
+  const availableCount = prompts.data?.length ?? 0
+  const query = search.trim().toLocaleLowerCase()
+  const visible = (prompts.data ?? []).filter(prompt => !query || [
+    prompt.title_en, prompt.title_lo, prompt.description_en, prompt.description_lo,
+    prompt.category, ...(prompt.tags ?? []),
+  ].some(value => value?.toLocaleLowerCase().includes(query)))
+
+  async function copyPrompt(prompt: LibraryPrompt) {
+    await navigator.clipboard.writeText(localize(language, prompt.prompt_en, prompt.prompt_lo))
+    success(localize(language, 'Prompt copied.', 'ສຳເນົາຄຳສັ່ງແລ້ວ.'))
+  }
+
+  return (
+    <LearningShell title="AI Prompt Library" eyebrow="Bitdoin Academy" requireSubscription>
+      <main className="mx-auto max-w-5xl px-4 py-8 pb-24">
+        <section className="rounded-[2rem] bg-violet-950 px-6 py-8 text-white sm:px-10">
+          <Sparkles className="h-7 w-7 text-violet-300" />
+          <h2 className="mt-4 text-3xl font-black">{localize(language, 'Useful prompts for real life', 'ຄຳສັ່ງທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດຈິງ')}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-violet-100">{localize(language, 'Discover tested templates for daily planning, study, work, writing, research, and creative images—with example outputs.', 'ຄົ້ນພົບແບບຄຳສັ່ງສຳລັບການວາງແຜນປະຈຳວັນ, ການຮຽນ, ວຽກ, ການຂຽນ, ການຄົ້ນຄວ້າ ແລະ ຮູບພາບສ້າງສັນ ພ້ອມຕົວຢ່າງຜົນລັບ.')}</p>
+          <p className="mt-5 text-xs font-black uppercase tracking-wider text-violet-300">{localize(language, availableCount + ' prompts available · Unlock limit ' + unlockedCount + ' · 5 more each active day', 'ມີ ' + availableCount + ' ຄຳສັ່ງ · ຂີດຈຳກັດປົດລັອກ ' + unlockedCount + ' · ເພີ່ມ 5 ຄຳສັ່ງໃນແຕ່ລະມື້ທີ່ໃຊ້ງານ')}</p>
+        </section>
+
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+
+        {prompts.isLoading ? <LoadingSpinner /> : prompts.isError ? (
+          <div className="mt-6 rounded-3xl bg-red-50 p-6 text-center ring-1 ring-red-100">
+            <p className="font-black text-red-900">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງຄຳສັ່ງໄດ້')}</p>
+            <p className="mt-2 text-sm text-red-700">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຄັງຄຳສັ່ງ.')}</p>
+            <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => void prompts.refetch()}>{localize(language, 'Retry', 'ລອງໃໝ່')}</Button>
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="mt-6 rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-100">
+            <p className="font-black">{localize(language, search ? 'No prompts match your search.' : 'No prompts are available yet.', search ? 'ບໍ່ພົບຄຳສັ່ງທີ່ກົງກັບການຄົ້ນຫາ.' : 'ຍັງບໍ່ມີຄຳສັ່ງ.')}</p>
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4">
+            {visible.map(prompt => (
+              <article key={prompt.id} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">{prompt.category}</span></div>
+                <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, prompt.description_en, prompt.description_lo)}</p>
+                <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{localize(language, prompt.prompt_en, prompt.prompt_lo)}</pre>
+                {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນລັບ')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
+                <Button className="mt-4" type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາຄຳສັ່ງ')}</Button>
+              </article>
+            ))}
+          </div>
+        )}
       </main>
     </LearningShell>
   )
