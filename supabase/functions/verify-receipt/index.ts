@@ -242,7 +242,15 @@ serve(async (req) => {
       amountCoveragePercent !== null
     if (canScoreCoverage) score = Math.min(100, Math.max(0, amountCoveragePercent))
 
-    const autoApprove = extraction.is_payment_receipt && score >= 90 && amountMatches && dateWithin24h && transactionUnique
+    const suggestedAction = extraction.is_payment_receipt && amountMatches &&
+      (!extraction.currency || extraction.currency === 'LAK')
+      ? 'APPROVE'
+      : 'REJECT_REVIEW'
+    const rejectionReasonLo = !amountMatches && extraction.amount !== null
+      ? `ຈຳນວນເງິນໃນຫຼັກຖານການໂອນ (${Math.round(extraction.amount).toLocaleString('en-US')} LAK) ບໍ່ກົງກັບຍອດຄຳສັ່ງ (${Math.round(expectedAmount).toLocaleString('en-US')} LAK). ກະລຸນາກວດສອບ ແລະ ສົ່ງຫຼັກຖານການຊຳລະໃໝ່.`
+      : !extraction.is_payment_receipt
+        ? 'ບໍ່ສາມາດຢືນຢັນວ່າຮູບທີ່ສົ່ງມາເປັນຫຼັກຖານການຊຳລະທີ່ສົມບູນ. ກະລຸນາກວດສອບ ແລະ ສົ່ງຫຼັກຖານໃໝ່.'
+        : null
 
     const extractedData = {
       ...extraction,
@@ -251,6 +259,11 @@ serve(async (req) => {
         amount_coverage_percent: amountCoveragePercent,
         date_within_24h: dateWithin24h,
         transaction_unique: transactionUnique,
+      },
+      review: {
+        suggested_action: suggestedAction,
+        rejection_reason_lo: rejectionReasonLo,
+        admin_decision_required: true,
       },
     }
 
@@ -264,30 +277,18 @@ serve(async (req) => {
       transaction_reference: transactionUnique ? extraction.transaction_id : null,
       bank_name: extraction.bank,
       transferred_at: extraction.date,
-      verification_status: autoApprove ? 'VERIFIED' : 'REQUIRES_REVIEW',
+      // OCR is advisory only. It must never approve or reject a payment.
+      verification_status: ['VERIFIED', 'REJECTED', 'REFUNDED'].includes(payment.verification_status)
+        ? payment.verification_status
+        : 'REQUIRES_REVIEW',
     }).eq('id', body.payment_id)
     if (updateError) throw new Error(`Could not save OCR result: ${updateError.message}`)
 
-    if (autoApprove && order?.id) {
-      await serviceClient.from('orders').update({
-        payment_status: 'VERIFIED',
-        status: 'PROCESSING',
-      }).eq('id', order.id)
-
-      await serviceClient.from('notifications').insert({
-        user_id: order.customer_id,
-        channel: 'IN_APP',
-        recipient: order.customer_id ?? order.id,
-        subject: 'Payment Verified',
-        message: 'Your payment has been verified automatically. Your order is now being processed.',
-        status: 'SENT',
-        sent_at: new Date().toISOString(),
-      })
-    }
-
     return jsonResponse(req, {
       success: true,
-      auto_approved: autoApprove,
+      admin_decision_required: true,
+      suggested_action: suggestedAction,
+      rejection_reason_lo: rejectionReasonLo,
       confidence_score: score,
       amount_matches: amountMatches,
       amount_coverage_percent: amountCoveragePercent,

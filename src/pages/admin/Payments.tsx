@@ -37,6 +37,11 @@ interface ReceiptAiData {
     date_within_24h?: boolean
     transaction_unique?: boolean
   }
+  review?: {
+    suggested_action?: 'APPROVE' | 'REJECT_REVIEW'
+    rejection_reason_lo?: string | null
+    admin_decision_required?: boolean
+  }
 }
 
 function receiptAiData(payment: Payment): ReceiptAiData | null {
@@ -96,7 +101,9 @@ export function AdminPayments() {
   useEffect(() => {
     if (!detailPayment) return
     const ai = receiptAiData(detailPayment)
-    if (ai && amountMatches(detailPayment, ai) === false) {
+    if (ai?.review?.rejection_reason_lo) {
+      setRejectionReason(ai.review.rejection_reason_lo)
+    } else if (ai && amountMatches(detailPayment, ai) === false) {
       setRejectionReason(laoAmountMismatchReason(detailPayment, ai))
     } else {
       setRejectionReason(detailPayment.rejection_reason ?? '')
