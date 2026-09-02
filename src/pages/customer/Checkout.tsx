@@ -25,7 +25,7 @@ const PHONE_PREFIX = '020'
 
 const schema = z.object({
   full_name: z.string().min(2),
-  phone: z.string().regex(/^\d{8}$/),
+  phone: z.string().regex(/^(?!0)\d{8}$/),
   logistics_provider: z.string().min(1),
   province: z.string().min(1),
   district: z.string().min(1),
@@ -133,6 +133,11 @@ export function Checkout() {
   }, [])
 
   async function onSubmit(form: CheckoutForm) {
+    if (form.phone.startsWith('20')) {
+      const confirmed = window.confirm(t('checkout.phoneConfirmation', { phone: form.phone }))
+      if (!confirmed) return
+    }
+
     setCheckoutDraft(form)
     setSelectedPaymentMethod(form.payment_method)
     setPaymentStep(2)
@@ -286,9 +291,13 @@ export function Checkout() {
             inputMode="numeric"
             required
             maxLength={8}
-            placeholder="XXXXXXXX"
-            leftIcon={<span className="text-sm font-medium text-gray-500">{PHONE_PREFIX}-</span>}
-            className="pl-14"
+            placeholder="2xxx, 5xx, 7xx, 9xx"
+            leftIcon={(
+              <span className="-ml-3 flex h-full items-center rounded-l-lg border-r border-primary-200 bg-primary-50 px-3 text-sm font-bold text-primary-800">
+                {PHONE_PREFIX}-
+              </span>
+            )}
+            className="pl-20"
             error={errors.phone ? t('checkout.phoneInvalid') : undefined}
             {...register('phone', {
               onChange: (event: ChangeEvent<HTMLInputElement>) => {

@@ -110,6 +110,7 @@ const lo: Translations = {
     fullName: 'ຊື່ ແລະ ນາມສະກຸນ',
     phone: 'ເບີໂທລະສັບ (WhatsApp)',
     phoneInvalid: 'ກະລຸນາປ້ອນເບີໂທ 8 ໂຕເລກໃຫ້ຖືກຕ້ອງ',
+    phoneConfirmation: 'ກະລຸນາກວດສອບວ່າເບີຂອງທ່ານຖືກຕ້ອງ: 020-{{phone}}\n\nໝາຍເຫດ: ກະລຸນາປ້ອນພຽງ 8 ຕົວເລກເທົ່ານັ້ນ, ບໍ່ຕ້ອງປ້ອນ 020.',
     logisticsProvider: 'ບໍລິສັດຂົນສົ່ງ',
     province: 'ແຂວງ',
     district: 'ເມືອງ',

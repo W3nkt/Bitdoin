@@ -115,6 +115,7 @@ const en = {
     fullName: 'Full Name',
     phone: 'Phone Number (WhatsApp)',
     phoneInvalid: 'Please enter a valid 8-digit phone number',
+    phoneConfirmation: 'Please make sure your number is correct: 020-{{phone}}\n\nNote: You must put only the 8 digit number. No need to enter 020.',
     logisticsProvider: 'Logistics Company',
     province: 'Province',
     district: 'District',

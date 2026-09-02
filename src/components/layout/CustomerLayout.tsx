@@ -86,7 +86,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           </button>
 
           {/* Nav links — md+ only */}
-          <nav className="hidden md:flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-hide px-2">
+          <nav className="hidden md:flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto scrollbar-hide px-2 py-2">
             {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
               <Tooltip key={to} label={label}>
                 <NavLink
