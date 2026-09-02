@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, Check, ChevronRight,
-  CircleDollarSign, Copy, Flame, GraduationCap, Languages, Lightbulb, ListChecks,
-  Loader2, LockKeyhole, Plus, Sparkles, Target, Timer, Trash2, Trophy, WalletCards,
+  CircleDollarSign, Copy, Flame, GraduationCap, Image as ImageIcon, Languages,
+  LayoutGrid, Lightbulb, ListChecks, Loader2, LockKeyhole, Plus, Sparkles,
+  Target, Timer, Trash2, Trophy, Type as TypeIcon, Video, WalletCards,
 } from 'lucide-react'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
@@ -435,11 +436,35 @@ function DirectionLink({ to, icon: Icon, accent, title, description }: {
   )
 }
 
+type PromptMediaType = 'image' | 'video' | 'text'
+type PromptTypeFilter = 'all' | PromptMediaType
+
+// The library only stores a fine-grained `category` (e.g. "YouTube Thumbnail")
+// plus free-form tags — there's no explicit media-type column. Bucket every
+// prompt into a coarse Image / Video / Text type from those signals so the
+// page can offer a simple top-level filter, with the fine-grained categories
+// available underneath as a second, narrower filter.
+function promptMediaType(prompt: LibraryPrompt): PromptMediaType {
+  const haystack = [prompt.category, ...(prompt.tags ?? [])].join(' ').toLocaleLowerCase()
+  if (haystack.includes('video')) return 'video'
+  if (haystack.includes('image')) return 'image'
+  return 'text'
+}
+
+const PROMPT_TYPE_LABELS: Record<PromptTypeFilter, [string, string]> = {
+  all: ['All', 'ທັງໝົດ'], image: ['Image', 'ຮູບພາບ'], video: ['Video', 'ວິດີໂອ'], text: ['Text', 'ຂໍ້ຄວາມ'],
+}
+const PROMPT_TYPE_ICONS: Record<PromptTypeFilter, typeof Sparkles> = {
+  all: LayoutGrid, image: ImageIcon, video: Video, text: TypeIcon,
+}
+
 export function PromptLibraryPage() {
   const { language } = useLanguage()
   const { success } = useToast()
   const { activeDays } = useLearningData()
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<PromptTypeFilter>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const prompts = useQuery({
     queryKey: ['premium', 'prompt-library-unlocked', activeDays.data?.length],
     queryFn: async () => {
@@ -450,11 +475,40 @@ export function PromptLibraryPage() {
   })
   const unlockedCount = Math.max(5, (activeDays.data?.length ?? 1) * 5)
   const availableCount = prompts.data?.length ?? 0
+
+  const typeCounts = useMemo(() => {
+    const counts: Record<PromptTypeFilter, number> = { all: 0, image: 0, video: 0, text: 0 }
+    for (const prompt of prompts.data ?? []) { counts.all++; counts[promptMediaType(prompt)]++ }
+    return counts
+  }, [prompts.data])
+
+  // Sub-categories for the currently selected type (e.g. within Image:
+  // "YouTube Thumbnail", "Profile / Avatar", …), most popular first.
+  const subCategories = useMemo(() => {
+    if (typeFilter === 'all') return []
+    const counts = new Map<string, number>()
+    for (const prompt of prompts.data ?? []) {
+      if (promptMediaType(prompt) !== typeFilter) continue
+      counts.set(prompt.category, (counts.get(prompt.category) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])
+  }, [prompts.data, typeFilter])
+
+  function selectType(type: PromptTypeFilter) {
+    setTypeFilter(type)
+    setCategoryFilter(null)
+  }
+
   const query = search.trim().toLocaleLowerCase()
-  const visible = (prompts.data ?? []).filter(prompt => !query || [
-    prompt.title_en, prompt.title_lo, prompt.description_en, prompt.description_lo,
-    prompt.category, ...(prompt.tags ?? []),
-  ].some(value => value?.toLocaleLowerCase().includes(query)))
+  const visible = (prompts.data ?? []).filter(prompt => {
+    if (typeFilter !== 'all' && promptMediaType(prompt) !== typeFilter) return false
+    if (categoryFilter && prompt.category !== categoryFilter) return false
+    return !query || [
+      prompt.title_en, prompt.title_lo, prompt.description_en, prompt.description_lo,
+      prompt.category, ...(prompt.tags ?? []),
+    ].some(value => value?.toLocaleLowerCase().includes(query))
+  })
+  const isFiltered = Boolean(search) || typeFilter !== 'all' || Boolean(categoryFilter)
 
   async function copyPrompt(prompt: LibraryPrompt) {
     await navigator.clipboard.writeText(localize(language, prompt.prompt_en, prompt.prompt_lo))
@@ -468,10 +522,43 @@ export function PromptLibraryPage() {
           <Sparkles className="h-7 w-7 text-violet-300" />
           <h2 className="mt-4 text-3xl font-black">{localize(language, 'Useful prompts for real life', 'ຄຳສັ່ງທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດຈິງ')}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-violet-100">{localize(language, 'Discover tested templates for daily planning, study, work, writing, research, and creative images—with example outputs.', 'ຄົ້ນພົບແບບຄຳສັ່ງສຳລັບການວາງແຜນປະຈຳວັນ, ການຮຽນ, ວຽກ, ການຂຽນ, ການຄົ້ນຄວ້າ ແລະ ຮູບພາບສ້າງສັນ ພ້ອມຕົວຢ່າງຜົນລັບ.')}</p>
-          <p className="mt-5 text-xs font-black uppercase tracking-wider text-violet-300">{localize(language, availableCount + ' prompts available · Unlock limit ' + unlockedCount + ' · 5 more each active day', 'ມີ ' + availableCount + ' ຄຳສັ່ງ · ຂີດຈຳກັດປົດລັອກ ' + unlockedCount + ' · ເພີ່ມ 5 ຄຳສັ່ງໃນແຕ່ລະມື້ທີ່ໃຊ້ງານ')}</p>
+          <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-3">
+            <div>
+              <p className="text-2xl font-black sm:text-3xl">{availableCount}</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-violet-300">{localize(language, 'Available now', 'ໃຊ້ໄດ້ຕອນນີ້')}</p>
+            </div>
+            <div>
+              <p className="text-2xl font-black sm:text-3xl">{unlockedCount}</p>
+              <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-violet-300">{localize(language, 'Unlocked', 'ປົດລັອກແລ້ວ')}</p>
+            </div>
+            <p className="pb-1 text-xs font-bold text-violet-300">{localize(language, '+5 more each active day', '+5 ຄຳສັ່ງເພີ່ມທຸກມື້ທີ່ໃຊ້ງານ')}</p>
+          </div>
         </section>
 
         <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {(Object.keys(PROMPT_TYPE_LABELS) as PromptTypeFilter[]).map(type => {
+            const Icon = PROMPT_TYPE_ICONS[type]
+            const [en, lo] = PROMPT_TYPE_LABELS[type]
+            const active = typeFilter === type
+            return (
+              <button key={type} type="button" onClick={() => selectType(type)} className={cn('flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition', active ? 'bg-violet-950 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-violet-700 hover:ring-violet-200')}>
+                <Icon className="h-3.5 w-3.5" />{localize(language, en, lo)}
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px]', active ? 'bg-white/20' : 'bg-slate-100')}>{typeCounts[type]}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {subCategories.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setCategoryFilter(null)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', !categoryFilter ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-700')}>{localize(language, 'All categories', 'ທຸກໝວດໝູ່')}</button>
+            {subCategories.map(([category, count]) => (
+              <button key={category} type="button" onClick={() => setCategoryFilter(category)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', categoryFilter === category ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-700')}>{category} · {count}</button>
+            ))}
+          </div>
+        )}
 
         {prompts.isLoading ? <LoadingSpinner /> : prompts.isError ? (
           <div className="mt-6 rounded-3xl bg-red-50 p-6 text-center ring-1 ring-red-100">
@@ -481,7 +568,8 @@ export function PromptLibraryPage() {
           </div>
         ) : visible.length === 0 ? (
           <div className="mt-6 rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-100">
-            <p className="font-black">{localize(language, search ? 'No prompts match your search.' : 'No prompts are available yet.', search ? 'ບໍ່ພົບຄຳສັ່ງທີ່ກົງກັບການຄົ້ນຫາ.' : 'ຍັງບໍ່ມີຄຳສັ່ງ.')}</p>
+            <p className="font-black">{localize(language, isFiltered ? 'No prompts match your filters.' : 'No prompts are available yet.', isFiltered ? 'ບໍ່ພົບຄຳສັ່ງທີ່ກົງກັບການກັ່ນຕອງ.' : 'ຍັງບໍ່ມີຄຳສັ່ງ.')}</p>
+            {isFiltered && <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => { setSearch(''); selectType('all') }}>{localize(language, 'Clear filters', 'ລ້າງການກັ່ນຕອງ')}</Button>}
           </div>
         ) : (
           <div className="mt-6 grid gap-4">
