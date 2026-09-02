@@ -20,11 +20,6 @@ const prompts = starts.map((match, index) => {
   return { externalId: String(index + 1), title, description, prompt, preview, language, category }
 }).filter(item => item.prompt)
 
-function sql(value) {
-  if (value == null) return 'null'
-  return `$${value.replaceAll('$tag$', '$ tag $')}$tag$`.replace(/^\$/, '$tag$')
-}
-
 // Dollar quoting with a stable delimiter keeps JSON prompts and multilingual text intact.
 function q(value) {
   if (value == null) return 'null'

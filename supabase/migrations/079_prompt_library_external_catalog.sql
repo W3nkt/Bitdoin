@@ -37,3 +37,19 @@ create index if not exists premium_prompt_library_search_idx
   on public.premium_prompt_library using gin (
     public.immutable_prompt_search_vector(title_en, description_en, prompt_en, tags)
   );
+
+create or replace function public.get_prompt_library_catalog_count()
+returns bigint
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select count(*)
+  from public.premium_prompt_library
+  where week_start <= timezone('Asia/Vientiane', now())::date
+    and (public.has_active_premium_subscription() or public.get_user_role() = 'ADMIN');
+$$;
+
+revoke all on function public.get_prompt_library_catalog_count() from public;
+grant execute on function public.get_prompt_library_catalog_count() to authenticated;

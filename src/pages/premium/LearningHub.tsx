@@ -18,6 +18,7 @@ import { usePremiumTranslation } from '@/i18n/premium'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
+import { careerPaths } from '@/data/careerPaths'
 
 // Legacy sections carry a single "body" string. Full-depth summaries instead
 // use an ordered "blocks" list, so a section can mix paragraphs, bullet
@@ -69,7 +70,8 @@ type LibraryPrompt = {
   id: string; category: string; title_en: string; title_lo: string
   description_en: string; description_lo: string; prompt_en: string; prompt_lo: string
   example_output_en?: string | null; example_output_lo?: string | null
-  source_url?: string | null; tags?: string[]
+  source_url?: string | null; tags?: string[]; preview_url?: string | null
+  source_name?: string | null; source_license?: string | null; source_language?: string | null
 }
 
 const iconMap = {
@@ -327,6 +329,14 @@ export function LearningHub() {
   const { categories, lessons, progress, access } = useLearningData()
   const isPremium = Boolean(access.data)
   const completed = progress.data?.filter(item => item.completed_at).length ?? 0
+  const promptCatalogCount = useQuery({
+    queryKey: ['premium', 'prompt-library-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_prompt_library_catalog_count')
+      if (error) throw error
+      return Number(data ?? 0)
+    },
+  })
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
   return (
@@ -386,6 +396,7 @@ export function LearningHub() {
               accent="cyan"
               title={localize(language, 'Career explorer', 'ສຳຫຼວດອາຊີບ')}
               description={localize(language, 'Explore careers, required skills, and practical next steps.', 'ສຳຫຼວດອາຊີບ, ທັກສະທີ່ຕ້ອງການ ແລະ ຂັ້ນຕອນຕໍ່ໄປທີ່ເຮັດໄດ້ຈິງ.')}
+              count={careerPaths.length}
             />
             <DirectionLink
               to="/academy/prompts"
@@ -393,6 +404,7 @@ export function LearningHub() {
               accent="violet"
               title="AI Prompt Library"
               description={localize(language, 'Useful AI prompts for daily life, work, study, and creative images.', 'ຄຳສັ່ງ AI ທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດປະຈຳວັນ, ວຽກ, ການຮຽນ ແລະ ຮູບພາບສ້າງສັນ.')}
+              count={promptCatalogCount.data}
             />
             {(categories.data ?? []).map(category => {
               const Icon = iconMap[category.icon as keyof typeof iconMap] ?? BookOpen
@@ -424,13 +436,14 @@ export function LearningHub() {
   )
 }
 
-function DirectionLink({ to, icon: Icon, accent, title, description }: {
-  to: string; icon: typeof Sparkles; accent: keyof typeof accents; title: string; description: string
+function DirectionLink({ to, icon: Icon, accent, title, description, count }: {
+  to: string; icon: typeof Sparkles; accent: keyof typeof accents; title: string; description: string; count?: number
 }) {
   return (
     <Link to={to} className="group flex items-center gap-4 border-t border-slate-200 py-5">
       <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[accent])}><Icon className="h-5 w-5" /></span>
       <div className="min-w-0 flex-1"><h3 className="font-black">{title}</h3><p className="mt-1 line-clamp-1 text-sm text-slate-500">{description}</p></div>
+      {typeof count === 'number' && <span className="text-xs font-bold text-slate-400">{count}</span>}
       <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600" />
     </Link>
   )
@@ -536,6 +549,9 @@ export function PromptLibraryPage() {
         </section>
 
         <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
+        <a href={'https://youmind.com/gpt-image-2-prompts/explore?search=' + encodeURIComponent(search)} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-black text-violet-700 hover:underline">
+          {localize(language, search ? 'Search the full 16,000+ attributed image-prompt catalog ↗' : 'Browse the full 16,000+ attributed image-prompt catalog ↗', search ? 'ຄົ້ນຫາໃນຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗' : 'ເບິ່ງຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗')}
+        </a>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {(Object.keys(PROMPT_TYPE_LABELS) as PromptTypeFilter[]).map(type => {
@@ -575,11 +591,15 @@ export function PromptLibraryPage() {
           <div className="mt-6 grid gap-4">
             {visible.map(prompt => (
               <article key={prompt.id} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                {prompt.preview_url && <img src={prompt.preview_url} alt={localize(language, prompt.title_en, prompt.title_lo)} loading="lazy" className="mb-5 max-h-[32rem] w-full rounded-2xl bg-slate-100 object-contain" />}
                 <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">{prompt.category}</span></div>
                 <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, prompt.description_en, prompt.description_lo)}</p>
                 <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{localize(language, prompt.prompt_en, prompt.prompt_lo)}</pre>
                 {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນລັບ')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
-                <Button className="mt-4" type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາຄຳສັ່ງ')}</Button>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາຄຳສັ່ງ')}</Button>
+                  {prompt.source_name && <a href={prompt.source_url ?? undefined} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-400 hover:text-violet-700">{prompt.source_name} · {prompt.source_license}</a>}
+                </div>
               </article>
             ))}
           </div>
