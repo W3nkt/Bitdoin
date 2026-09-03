@@ -155,6 +155,24 @@ const BRAIN_QUESTION_BANK: Question[] = [
   },
 ]
 
+const BRAIN_QUESTION_BANK_LO: Question[] = [
+  { prompt: '15% ຂອງ 200 ແມ່ນເທົ່າໃດ?', options: ['15', '20', '30', '40'], answer: '30', explanation: '10% ແມ່ນ 20 ແລະ 5% ແມ່ນ 10, ດັ່ງນັ້ນ 15% ແມ່ນ 30.' },
+  { prompt: 'ເລືອກປະໂຫຍກທີ່ຖືກຕ້ອງ.', options: ['She go to school.', 'She goes to school.', 'She going to school.', 'She gone school.'], answer: 'She goes to school.', explanation: 'ເມື່ອໃຊ້ “she” ໃນ present simple, ຄຳກິລິຍາຕ້ອງເພີ່ມ -s: “goes”.' },
+  { prompt: 'ວິທີຮຽນແບບໃດຊ່ວຍເສີມຄວາມຈຳໄລຍະຍາວໄດ້ດີທີ່ສຸດ?', options: ['ອ່ານຊ້ຳໜຶ່ງຄັ້ງ', 'ຂີດໝາຍທຸກຢ່າງ', 'ຝຶກທົບທວນຈາກຄວາມຈຳ', 'ຮຽນຕະຫຼອດຄືນ'], answer: 'ຝຶກທົບທວນຈາກຄວາມຈຳ', explanation: 'ການພະຍາຍາມນຶກຄຳຕອບດ້ວຍຕົນເອງຊ່ວຍເສີມຄວາມຈຳໄດ້ດີກວ່າການອ່ານຊ້ຳແບບຜ່ານໆ.' },
+  { prompt: 'ປຶ້ມຫົວໜຶ່ງລາຄາ 80,000 ກີບ ຫຼັງຈາກຫຼຸດ 20%. ລາຄາເດີມແມ່ນເທົ່າໃດ?', options: ['90,000 ກີບ', '96,000 ກີບ', '100,000 ກີບ', '120,000 ກີບ'], answer: '100,000 ກີບ', explanation: '80,000 ແມ່ນ 80% ຂອງລາຄາເດີມ, ດັ່ງນັ້ນ 80,000 ÷ 0.8 = 100,000.' },
+  { prompt: 'ການກະທຳໃດເປັນຂັ້ນຕອນຕໍ່ໄປທີ່ຊັດເຈນທີ່ສຸດສຳລັບເປົ້າໝາຍໃຫຍ່?', options: ['ລໍຖ້າແຮງຈູງໃຈ', 'ຕັ້ງເປົ້າໝາຍໃຫ້ໃຫຍ່ຂຶ້ນ', 'ເລືອກໜຶ່ງວຽກນ້ອຍໆ', 'ຄິດເຖິງທຸກຄວາມສ່ຽງ'], answer: 'ເລືອກໜຶ່ງວຽກນ້ອຍໆ', explanation: 'ການກຳນົດຂັ້ນຕອນນ້ອຍໆທີ່ຊັດເຈນແລະເຮັດໄດ້ ຊ່ວຍໃຫ້ເລີ່ມຕົ້ນແລະວັດແທກຄວາມຄືບໜ້າໄດ້ງ່າຍຂຶ້ນ.' },
+  { prompt: '3/4 ຂຽນເປັນເປີເຊັນໄດ້ເທົ່າໃດ?', options: ['25%', '50%', '75%', '80%'], answer: '75%', explanation: 'ສາມຫານດ້ວຍສີ່ເທົ່າກັບ 0.75 ຫຼື 75%.' },
+  { prompt: 'ເລືອກຄຳທີ່ເຕີມປະໂຫຍກໄດ້ຖືກຕ້ອງ: “I have ___ my homework.”', options: ['finish', 'finished', 'finishing', 'finishes'], answer: 'finished', explanation: 'Present perfect ໃຊ້ “have” ບວກກັບ past participle: “have finished”.' },
+  { prompt: 'ແຫຼ່ງຂໍ້ມູນໃດໜ້າເຊື່ອຖືທີ່ສຸດສຳລັບຫຼັກສູດການສຶກສາຂອງລາວ?', options: ['ໂພສທີ່ບໍ່ຮູ້ຜູ້ຂຽນ', 'ຄຳເຫັນທົ່ວໄປ', 'ກະຊວງສຶກສາທິການ', 'ໂຄສະນາ'], answer: 'ກະຊວງສຶກສາທິການ', explanation: 'ຂໍ້ມູນຈາກກະຊວງເປັນແຫຼ່ງຂໍ້ມູນທາງການຫຼັກສຳລັບຫຼັກສູດແຫ່ງຊາດ.' },
+  { prompt: 'ຖ້າທ່ານອອມເງິນມື້ລະ 10,000 ກີບ ເປັນເວລາ 30 ມື້, ຈະອອມໄດ້ເທົ່າໃດ?', options: ['30,000 ກີບ', '100,000 ກີບ', '300,000 ກີບ', '3,000,000 ກີບ'], answer: '300,000 ກີບ', explanation: '10,000 ຄູນ 30 ເທົ່າກັບ 300,000 ກີບ.' },
+  { prompt: 'ນິໄສໃດມີປະໂຫຍດທີ່ສຸດກ່ອນສອບເສັງ?', options: ['ຮຽນໜັກຕະຫຼອດຄືນຄັ້ງດຽວ', 'ທົບທວນສັ້ນໆເປັນໄລຍະ', 'ບໍ່ນອນ', 'ອ່ານແຕ່ບັນທຶກຊ້ຳ'], answer: 'ທົບທວນສັ້ນໆເປັນໄລຍະ', explanation: 'ການແບ່ງເວລາຮຽນອອກເປັນຫຼາຍຄັ້ງຊ່ວຍສ້າງຄວາມຈຳໄລຍະຍາວໄດ້ດີກວ່າ.' },
+  { prompt: 'ປະໂຫຍກໃດເປັນການຂໍຄວາມຊ່ວຍເຫຼືອຢ່າງສຸພາບ?', options: ['Help me now.', 'You must help.', 'Could you please help me?', 'Why no help?'], answer: 'Could you please help me?', explanation: '“Could you please…” ເປັນຮູບແບບການຂໍຮ້ອງທີ່ຊັດເຈນແລະສຸພາບ.' },
+  { prompt: 'ລົດເມອອກເວລາ 08:35 ແລະ ໃຊ້ເວລາເດີນທາງ 1 ຊົ່ວໂມງ 45 ນາທີ. ຈະໄປຮອດຈັກໂມງ?', options: ['09:20', '10:10', '10:20', '11:20'], answer: '10:20', explanation: '08:35 ບວກໜຶ່ງຊົ່ວໂມງແມ່ນ 09:35, ແລ້ວບວກອີກ 45 ນາທີແມ່ນ 10:20.' },
+  { prompt: 'ທ່ານຄວນເຮັດຫຍັງກ່ອນ ເມື່ອພົບຂໍ້ອ້າງອີງອອນລາຍທີ່ໜ້າແປກໃຈ?', options: ['ແບ່ງປັນທັນທີ', 'ກວດເບິ່ງແຫຼ່ງຂໍ້ມູນຕົ້ນສະບັບ', 'ເຊື່ອຫົວຂໍ້ຂ່າວ', 'ບໍ່ສົນໃຈຫຼັກຖານທັງໝົດ'], answer: 'ກວດເບິ່ງແຫຼ່ງຂໍ້ມູນຕົ້ນສະບັບ', explanation: 'ການກວດແຫຼ່ງຂໍ້ມູນຕົ້ນສະບັບແລະອີກໜຶ່ງແຫຼ່ງທີ່ໜ້າເຊື່ອຖື ຊ່ວຍຢືນຢັນຂໍ້ອ້າງໄດ້.' },
+  { prompt: 'ພະລັງງານໃດເປັນພະລັງງານໝູນວຽນ?', options: ['ຖ່ານຫີນ', 'ນ້ຳມັນກາຊວນ', 'ພະລັງງານແສງຕາເວັນ', 'ອາຍແກັສທຳມະຊາດ'], answer: 'ພະລັງງານແສງຕາເວັນ', explanation: 'ແສງຕາເວັນເກີດຂຶ້ນທົດແທນໄດ້ຕາມທຳມະຊາດ, ດັ່ງນັ້ນພະລັງງານແສງຕາເວັນຈຶ່ງເປັນພະລັງງານໝູນວຽນ.' },
+  { prompt: 'ວິທີໃດດີທີ່ສຸດໃນການກຳນົດເປົ້າໝາຍການຮຽນໃຫ້ວັດແທກໄດ້?', options: ['ຮຽນໃຫ້ຫຼາຍຂຶ້ນ', 'ພະຍາຍາມໃຫ້ໜັກຂຶ້ນ', 'ອ່ານປຶ້ມ 10 ໜ້າໃນຄືນນີ້', 'ສະຫຼາດຂຶ້ນ'], answer: 'ອ່ານປຶ້ມ 10 ໜ້າໃນຄືນນີ້', explanation: 'ເປົ້າໝາຍທີ່ວັດແທກໄດ້ຈະລະບຸການກະທຳແລະຈຳນວນທີ່ຊັດເຈນ.' },
+]
+
 const WORD_PAIR_BANK = [
   { id: 'learn', left: 'Learn', right: 'ຮຽນ' },
   { id: 'teacher', left: 'Teacher', right: 'ຄູ' },
@@ -327,7 +345,8 @@ export function PlayLearnArcade({
         explanation: pickLang(item.explanation, language),
       }))
     }
-    return shuffle(BRAIN_QUESTION_BANK, seededRandom(hashSeed(`brain:${today}`))).slice(0, 5)
+    const fallbackBank = language === 'lo' ? BRAIN_QUESTION_BANK_LO : BRAIN_QUESTION_BANK
+    return shuffle(fallbackBank, seededRandom(hashSeed(`brain:${today}`))).slice(0, 5)
   }, [brainPool.data, language, today])
   const dailyWordPairs = useMemo(() => {
     if (wordPool.data && wordPool.data.length > 0) {
@@ -398,10 +417,12 @@ export function PlayLearnArcade({
         queryClient.invalidateQueries({ queryKey: ['premium', 'learning-activity-attempts', profileId] }),
         queryClient.invalidateQueries({ queryKey: ['premium', 'member-progress', profileId] }),
       ])
-      success(result?.xp_earned ? `Activity complete! +${result.xp_earned} XP` : 'Activity complete! Replay anytime.')
+      success(result?.xp_earned
+        ? (language === 'lo' ? `ສຳເລັດກິດຈະກຳ! +${result.xp_earned} XP` : `Activity complete! +${result.xp_earned} XP`)
+        : (language === 'lo' ? 'ສຳເລັດກິດຈະກຳ! ຫຼິ້ນຄືນໄດ້ທຸກເວລາ.' : 'Activity complete! Replay anytime.'))
     } catch (completionError) {
       console.error(completionError)
-      error('Could not save this activity. Please try again.')
+      error(language === 'lo' ? 'ບໍ່ສາມາດບັນທຶກກິດຈະກຳນີ້ໄດ້. ກະລຸນາລອງໃໝ່.' : 'Could not save this activity. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -508,23 +529,23 @@ export function PlayLearnArcade({
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Today’s challenge</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-300">{language === 'lo' ? 'ຄວາມທ້າທາຍມື້ນີ້' : 'Today’s challenge'}</p>
                 {completedToday.has('brain_sprint') && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold text-white">
-                    <RotateCcw className="h-3 w-3" /> Replay
+                    <RotateCcw className="h-3 w-3" /> {language === 'lo' ? 'ຫຼິ້ນຄືນ' : 'Replay'}
                   </span>
                 )}
               </div>
-              <h3 className="mt-2 text-xl font-black">Daily Brain Sprint</h3>
-              <p className="mt-1 text-sm leading-6 text-primary-100">Five quick questions to strengthen recall and practical thinking.</p>
+              <h3 className="mt-2 text-xl font-black">{language === 'lo' ? 'ຝຶກສະໝອງປະຈຳວັນ' : 'Daily Brain Sprint'}</h3>
+              <p className="mt-1 text-sm leading-6 text-primary-100">{language === 'lo' ? '5 ຄຳຖາມສັ້ນໆ ເພື່ອຝຶກຄວາມຈຳແລະການຄິດທີ່ນຳໄປໃຊ້ໄດ້.' : 'Five quick questions to strengthen recall and practical thinking.'}</p>
               <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-primary-100">
-                <span className="inline-flex items-center gap-1.5"><Clock3 className="h-4 w-4" /> ~3 min</span>
-                <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-emerald-300" /> {bestBrainScore ? `Best: ${bestBrainScore}%` : '+15 XP'}</span>
+                <span className="inline-flex items-center gap-1.5"><Clock3 className="h-4 w-4" /> ~3 {language === 'lo' ? 'ນາທີ' : 'min'}</span>
+                <span className="inline-flex items-center gap-1.5"><Star className="h-4 w-4 text-emerald-300" /> {bestBrainScore ? `${language === 'lo' ? 'ດີທີ່ສຸດ' : 'Best'}: ${bestBrainScore}%` : '+15 XP'}</span>
               </div>
             </div>
           </div>
           <span className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black text-white transition group-hover:bg-emerald-400">
-            {completedToday.has('brain_sprint') ? 'Play again' : 'Play now'}
+            {completedToday.has('brain_sprint') ? (language === 'lo' ? 'ຫຼິ້ນອີກຄັ້ງ' : 'Play again') : (language === 'lo' ? 'ຫຼິ້ນດຽວນີ້' : 'Play now')}
             <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
           </span>
         </button>
@@ -555,21 +576,23 @@ export function PlayLearnArcade({
       <Modal
         open={activeActivity === 'brain_sprint'}
         onClose={() => setActiveActivity(null)}
-        title="Daily Brain Sprint"
+        title={language === 'lo' ? 'ຝຶກສະໝອງປະຈຳວັນ' : 'Daily Brain Sprint'}
         size="lg"
       >
         {brainFinished ? (
           <ActivityResult
             score={`${brainScore}/${brainQuestions.length}`}
-            title={brainScore >= 4 ? 'Strong thinking!' : 'Good practice!'}
-            detail="Your result is saved. Replay to improve your score—XP is awarded once each day."
+            title={brainScore >= 4 ? (language === 'lo' ? 'ຄິດໄດ້ດີຫຼາຍ!' : 'Strong thinking!') : (language === 'lo' ? 'ຝຶກໄດ້ດີ!' : 'Good practice!')}
+            detail={language === 'lo' ? 'ຜົນຄະແນນຖືກບັນທຶກແລ້ວ. ຫຼິ້ນຄືນເພື່ອເພີ່ມຄະແນນ—XP ຈະໄດ້ຮັບໜຶ່ງຄັ້ງຕໍ່ມື້.' : 'Your result is saved. Replay to improve your score—XP is awarded once each day.'}
+            replayLabel={language === 'lo' ? 'ຫຼິ້ນອີກຄັ້ງ' : 'Play again'}
+            doneLabel={language === 'lo' ? 'ສຳເລັດ' : 'Done'}
             onReplay={resetBrainSprint}
             onClose={() => setActiveActivity(null)}
           />
         ) : currentQuestion ? (
           <div>
             <div className="mb-5 flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-emerald-700">Question {questionIndex + 1} of {brainQuestions.length}</span>
+              <span className="text-xs font-black text-emerald-700">{language === 'lo' ? `ຄຳຖາມທີ ${questionIndex + 1} ຈາກ ${brainQuestions.length}` : `Question ${questionIndex + 1} of ${brainQuestions.length}`}</span>
               <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
                 <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((questionIndex + 1) / brainQuestions.length) * 100}%` }} />
               </div>
@@ -609,7 +632,11 @@ export function PlayLearnArcade({
               onClick={() => void advanceBrainSprint()}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-950 px-5 py-3.5 text-sm font-black text-white transition hover:bg-primary-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {showExplanation ? (questionIndex === brainQuestions.length - 1 ? 'See result' : 'Next question') : 'Check answer'}
+              {showExplanation
+                ? (questionIndex === brainQuestions.length - 1
+                  ? (language === 'lo' ? 'ເບິ່ງຜົນ' : 'See result')
+                  : (language === 'lo' ? 'ຄຳຖາມຕໍ່ໄປ' : 'Next question'))
+                : (language === 'lo' ? 'ກວດຄຳຕອບ' : 'Check answer')}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -742,12 +769,16 @@ function ActivityResult({
   detail,
   onReplay,
   onClose,
+  replayLabel = 'Play again',
+  doneLabel = 'Done',
 }: {
   score: string
   title: string
   detail: string
   onReplay: () => void
   onClose: () => void
+  replayLabel?: string
+  doneLabel?: string
 }) {
   return (
     <div className="py-3 text-center">
@@ -756,10 +787,10 @@ function ActivityResult({
       <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500">{detail}</p>
       <div className="mt-6 grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={onReplay} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
-          <RotateCcw className="h-4 w-4" /> Play again
+          <RotateCcw className="h-4 w-4" /> {replayLabel}
         </button>
         <button type="button" onClick={onClose} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-950 px-4 py-3 text-sm font-black text-white hover:bg-primary-800">
-          Done <CheckCircle2 className="h-4 w-4" />
+          {doneLabel} <CheckCircle2 className="h-4 w-4" />
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
+  AlertTriangle,
   Brain,
   CalendarCheck,
   CheckCircle2,
@@ -12,10 +13,13 @@ import {
   FileText,
   Flame,
   GraduationCap,
+  History,
+  ImageDown,
   Lightbulb,
   Lock,
   MessageCircle,
   QrCode,
+  RefreshCw,
   ReceiptText,
   Rocket,
   ShieldCheck,
@@ -25,6 +29,7 @@ import {
   Trophy,
   Upload,
   Users,
+  ZoomIn,
   XCircle,
   Zap,
 } from 'lucide-react'
@@ -110,6 +115,12 @@ type DailyChallengeKind = 'reflection' | 'challenge' | 'mission'
 interface DailyChallengeCompletion {
   responses: Partial<Record<DailyChallengeKind, string>>
   completed_at: string | null
+}
+
+interface DailyChallengeHistoryEntry extends DailyChallengeCompletion {
+  id: string
+  motivation?: Pick<DailyMotivation, 'publish_date' | 'quote' | 'reflection' | 'challenge' | 'mission'> | null
+  guidance?: Pick<DailyMotivation, 'publish_date' | 'quote' | 'reflection' | 'challenge' | 'mission'> | null
 }
 
 interface MemberEvent {
@@ -273,6 +284,9 @@ export function Subscription() {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
   const [qrPaymentOpen, setQrPaymentOpen] = useState(false)
   const [qrPlan, setQrPlan] = useState<PremiumPlan | null>(null)
+  const [qrPreview, setQrPreview] = useState<{ url: string; label: string } | null>(null)
+  const [savingQr, setSavingQr] = useState(false)
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['premium', 'plans'],
@@ -430,6 +444,30 @@ export function Subscription() {
     retry: 1,
   })
 
+  const { data: dailyHistory, isLoading: dailyHistoryLoading } = useQuery({
+    queryKey: ['premium', 'daily-history', profile?.id],
+    enabled: Boolean(profile && subscription?.status === 'ACTIVE'),
+    queryFn: async () => {
+      const { data, error: historyError } = await supabase
+        .from('premium_challenge_completions')
+        .select('id,responses,completed_at,motivation:premium_daily_motivations(publish_date,quote,reflection,challenge,mission),guidance:premium_personalized_daily_guidance(publish_date,quote,reflection,challenge,mission)')
+        .eq('user_id', profile!.id)
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .limit(30)
+      if (historyError) throw historyError
+      return (data ?? []).map(row => ({
+        ...row,
+        motivation: firstRelation(row.motivation),
+        guidance: firstRelation(row.guidance),
+      })).sort((a, b) => {
+        const aDate = firstRelation(a.guidance)?.publish_date ?? firstRelation(a.motivation)?.publish_date ?? ''
+        const bDate = firstRelation(b.guidance)?.publish_date ?? firstRelation(b.motivation)?.publish_date ?? ''
+        return bDate.localeCompare(aDate)
+      }) as DailyChallengeHistoryEntry[]
+    },
+    retry: 1,
+  })
+
   const premiumMemberContentEnabled = isPaidPremium
 
   const { data: memberEvents } = useQuery({
@@ -494,6 +532,23 @@ export function Subscription() {
   const isReviewing = subscription?.status === 'PAYMENT_REVIEW'
   const isAwaitingApproval = subscription?.status === 'PENDING_APPROVAL'
   const planName = subscription?.plan?.name ?? (isPremiumActive ? 'Premium Monthly' : 'Free')
+  const subscriptionRemainingMs = subscription?.ends_at ? new Date(subscription.ends_at).getTime() - nowMs : null
+  const showExpiryWarning = Boolean(
+    isPaidPremium
+    && subscriptionRemainingMs != null
+    && subscriptionRemainingMs > 0
+    && subscriptionRemainingMs <= 3 * 24 * 60 * 60 * 1000,
+  )
+  const remainingTotalHours = Math.max(0, Math.ceil((subscriptionRemainingMs ?? 0) / (60 * 60 * 1000)))
+  const remainingDays = Math.floor(remainingTotalHours / 24)
+  const remainingHours = remainingTotalHours % 24
+
+  useEffect(() => {
+    if (!subscription?.ends_at || subscription.status !== 'ACTIVE') return
+    setNowMs(Date.now())
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [subscription?.ends_at, subscription?.status])
 
   async function invalidatePremium() {
     await Promise.all([
@@ -702,6 +757,42 @@ export function Subscription() {
     }
   }
 
+  async function copyAccountNumber(accountNumber: string) {
+    try {
+      await navigator.clipboard.writeText(accountNumber)
+      success(language === 'lo' ? 'ສຳເນົາເລກບັນຊີແລ້ວ' : 'Account number copied')
+    } catch (copyError) {
+      console.error(copyError)
+      error(language === 'lo' ? 'ບໍ່ສາມາດສຳເນົາເລກບັນຊີໄດ້' : 'Could not copy the account number')
+    }
+  }
+
+  async function saveQrImage() {
+    if (!qrPreview) return
+    setSavingQr(true)
+    try {
+      const response = await fetch(qrPreview.url)
+      if (!response.ok) throw new Error('Could not download QR image')
+      const blob = await response.blob()
+      const extension = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png'
+      const objectUrl = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `bitdoin-payment-qr.${extension}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+      success(language === 'lo' ? 'ບັນທຶກຮູບ QR ແລ້ວ' : 'QR image saved')
+    } catch (downloadError) {
+      console.error(downloadError)
+      window.open(qrPreview.url, '_blank', 'noopener,noreferrer')
+      error(language === 'lo' ? 'ເປີດຮູບ QR ແລ້ວ. ກົດຄ້າງທີ່ຮູບເພື່ອບັນທຶກ.' : 'QR image opened. Press and hold the image to save it.')
+    } finally {
+      setSavingQr(false)
+    }
+  }
+
   async function completeChallenge() {
     if (!profile || !todaysMotivation || todaysMotivation.id === 'fallback') {
       if (!profile) navigate('/auth')
@@ -760,6 +851,7 @@ export function Subscription() {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['premium', 'daily-completion', profile.id, todaysMotivation.id] }),
         qc.invalidateQueries({ queryKey: ['premium', 'member-progress', profile.id] }),
+        qc.invalidateQueries({ queryKey: ['premium', 'daily-history', profile.id] }),
       ])
       success(allCompleted ? 'All three daily challenges completed!' : 'Reply saved. Keep going!')
     } catch (saveError) {
@@ -820,6 +912,41 @@ export function Subscription() {
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-24">
           {isMemberActive ? (
             <>
+              {showExpiryWarning && subscription?.plan && (
+                <section
+                  role="alert"
+                  className="animate-slide-up overflow-hidden rounded-2xl border border-red-300 bg-red-600 text-white shadow-[0_12px_30px_-16px_rgba(220,38,38,0.8)]"
+                >
+                  <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
+                        <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-black sm:text-base">
+                          {language === 'lo' ? 'ການສະໝັກສະມາຊິກຂອງທ່ານໃກ້ໝົດອາຍຸ' : 'Your subscription expires soon'}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold leading-5 text-red-50 sm:text-sm">
+                          {language === 'lo'
+                            ? `ເຫຼືອອີກ ${remainingDays} ມື້ ${remainingHours} ຊົ່ວໂມງ · ໝົດອາຍຸ ${formatDate(subscription.ends_at!, language)}`
+                            : `${remainingDays} ${remainingDays === 1 ? 'day' : 'days'} ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} remaining · Expires ${formatDate(subscription.ends_at!, language)}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busyPlanId === subscription.plan.id}
+                      onClick={() => void startSubscription(subscription.plan!)}
+                      className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-red-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                    >
+                      <RefreshCw className={cn('h-4 w-4', busyPlanId === subscription.plan.id && 'animate-spin')} />
+                      {busyPlanId === subscription.plan.id
+                        ? (language === 'lo' ? 'ກຳລັງດຳເນີນການ…' : 'Processing…')
+                        : (language === 'lo' ? 'ສະໝັກຕໍ່' : 'Resubscribe')}
+                    </button>
+                  </div>
+                </section>
+              )}
               {!isPaidPremium && (
                 <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
@@ -848,6 +975,8 @@ export function Subscription() {
                 motivation={todaysMotivation}
                 language={language}
                 completionResponses={dailyCompletion?.responses ?? {}}
+                history={dailyHistory ?? []}
+                historyLoading={dailyHistoryLoading}
                 savingDailyItem={savingDailyItem}
                 onSubmitDailyReply={saveDailyReply}
                 onOpenCoach={() => navigate('/academy/coach')}
@@ -1171,29 +1300,69 @@ export function Subscription() {
 
       <Modal
         open={qrPaymentOpen}
-        onClose={() => setQrPaymentOpen(false)}
-        title="Scan to pay"
+        onClose={() => { setQrPaymentOpen(false); setQrPreview(null) }}
+        title={qrPreview ? (language === 'lo' ? 'QR ສຳລັບຊຳລະ' : 'Payment QR') : (language === 'lo' ? 'ສະແກນເພື່ອຊຳລະ' : 'Scan to pay')}
         size="md"
         footer={
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => setQrPaymentOpen(false)}>
-              Pay later
-            </Button>
-            <Button
-              type="button"
-              icon={<Upload className="h-4 w-4" />}
-              onClick={() => { setQrPaymentOpen(false); proofInputRef.current?.click() }}
-            >
-              I've paid — upload proof
-            </Button>
-          </div>
+          qrPreview ? (
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setQrPreview(null)}>
+                {language === 'lo' ? 'ກັບຄືນ' : 'Back'}
+              </Button>
+              <Button type="button" loading={savingQr} icon={<ImageDown className="h-4 w-4" />} onClick={() => void saveQrImage()}>
+                {language === 'lo' ? 'ບັນທຶກຮູບ QR' : 'Save QR image'}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setQrPaymentOpen(false)}>
+                {language === 'lo' ? 'ຊຳລະພາຍຫຼັງ' : 'Pay later'}
+              </Button>
+              <Button
+                type="button"
+                icon={<Upload className="h-4 w-4" />}
+                onClick={() => { setQrPaymentOpen(false); proofInputRef.current?.click() }}
+              >
+                {language === 'lo' ? 'ຊຳລະແລ້ວ — ອັບໂຫຼດຫຼັກຖານ' : 'I’ve paid — upload proof'}
+              </Button>
+            </div>
+          )
         }
       >
-        <div className="space-y-4">
-          <p className="text-sm leading-6 text-slate-600" data-no-premium-translate>
+        {qrPreview ? (
+          <div className="flex flex-col items-center py-2 text-center" data-no-premium-translate>
+            <div className="w-full rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 sm:p-5">
+              <img src={qrPreview.url} alt={qrPreview.label} className="mx-auto max-h-[58vh] w-full object-contain" />
+            </div>
+            <p className="mt-3 text-xs font-semibold text-slate-500">
+              {language === 'lo' ? 'ສະແກນ QR ນີ້ເພື່ອຊຳລະ ຫຼື ບັນທຶກຮູບໄວ້ໃນເຄື່ອງ.' : 'Scan this QR to pay, or save the image to your device.'}
+            </p>
+          </div>
+        ) : (
+        <div className="space-y-4" data-no-premium-translate>
+          <div className="overflow-hidden rounded-2xl bg-primary-950 text-white shadow-lg shadow-primary-950/15 ring-1 ring-primary-800">
+            <div className="bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.2),transparent_45%)] px-5 py-5 text-center">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-300">
+                {language === 'lo' ? 'ຈຳນວນເງິນທີ່ຕ້ອງຊຳລະ' : 'Payment amount'}
+              </p>
+              <p className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                {formatPrice(qrPlan?.price_lak ?? 0, currency)}
+              </p>
+              {currency !== 'LAK' && (
+                <p className="mt-1 text-xs font-bold text-primary-200">
+                  {language === 'lo' ? 'ຈຳນວນເງິນໂອນ' : 'Transfer amount'}: {formatPrice(qrPlan?.price_lak ?? 0, 'LAK')}
+                </p>
+              )}
+              <div className="mx-auto mt-3 h-px max-w-48 bg-white/10" />
+              <p className="mt-3 text-sm font-bold text-primary-100">
+                {language === 'lo' ? 'ແຜນ' : 'Plan'}: {qrPlan?.name ?? (language === 'lo' ? 'ພຣີມຽມ' : 'Premium')}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm font-semibold leading-6 text-slate-600">
             {language === 'lo'
-              ? `ໂອນ ${formatPrice(qrPlan?.price_lak ?? 0, currency)} ສຳລັບ ${qrPlan?.name ?? 'ພຣີມຽມ'} ແລ້ວອັບໂຫລດຫຼັກຖານການຊຳລະ ເພື່ອໃຫ້ແອັດມິນກວດສອບ.`
-              : `Transfer ${formatPrice(qrPlan?.price_lak ?? 0, currency)} for ${qrPlan?.name ?? 'Premium'}, then upload your payment proof so admin can verify it.`}
+              ? 'ສະແກນ QR ຫຼື ໂອນເຂົ້າບັນຊີດ້ານລຸ່ມ, ແລ້ວອັບໂຫຼດຫຼັກຖານເພື່ອໃຫ້ແອັດມິນກວດສອບ.'
+              : 'Scan the QR code or transfer to the account below, then upload your payment proof for admin verification.'}
           </p>
           {(paymentAccounts ?? []).length > 0 ? (
             <div className="space-y-3">
@@ -1201,16 +1370,39 @@ export function Subscription() {
                 <div key={account.id} className="rounded-2xl border border-slate-200 p-4">
                   <p className="text-sm font-black text-slate-900">{account.label}</p>
                   {account.qr_image_url && (
-                    <img
-                      src={account.qr_image_url}
-                      alt={account.label}
-                      className="mx-auto mt-3 h-48 w-48 rounded-xl object-contain ring-1 ring-slate-100"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setQrPreview({ url: account.qr_image_url!, label: account.label })}
+                      aria-label={language === 'lo' ? `ຂະຫຍາຍ QR ${account.label}` : `Enlarge ${account.label} QR code`}
+                      className="group/qr relative mx-auto mt-3 block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                    >
+                      <img
+                        src={account.qr_image_url}
+                        alt={account.label}
+                        className="h-48 w-48 rounded-xl object-contain ring-1 ring-slate-100 transition duration-200 group-hover/qr:scale-[1.02] group-hover/qr:brightness-95"
+                      />
+                      <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-950/90 text-white shadow-lg transition group-hover/qr:scale-110">
+                        <ZoomIn className="h-4 w-4" />
+                      </span>
+                    </button>
                   )}
                   <div className="mt-3 space-y-1 text-xs text-slate-500">
-                    {account.bank_name && <p>Bank: <span className="font-bold text-slate-800">{account.bank_name}</span></p>}
-                    {account.account_name && <p>Account name: <span className="font-bold text-slate-800">{account.account_name}</span></p>}
-                    {account.account_number && <p>Account number: <span className="font-bold text-slate-800">{account.account_number}</span></p>}
+                    {account.bank_name && <p>{language === 'lo' ? 'ທະນາຄານ' : 'Bank'}: <span className="font-bold text-slate-800">{account.bank_name}</span></p>}
+                    {account.account_name && <p>{language === 'lo' ? 'ຊື່ບັນຊີ' : 'Account name'}: <span className="font-bold text-slate-800">{account.account_name}</span></p>}
+                    {account.account_number && (
+                      <div className="flex items-center gap-2">
+                        <p className="min-w-0 flex-1 break-all">{language === 'lo' ? 'ເລກບັນຊີ' : 'Account number'}: <span className="font-bold text-slate-800">{account.account_number}</span></p>
+                        <button
+                          type="button"
+                          onClick={() => void copyAccountNumber(account.account_number!)}
+                          aria-label={language === 'lo' ? 'ສຳເນົາເລກບັນຊີ' : 'Copy account number'}
+                          title={language === 'lo' ? 'ສຳເນົາ' : 'Copy'}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 ring-1 ring-primary-100 transition hover:bg-primary-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {account.instructions && (
                     <p className="mt-2 text-xs leading-5 text-slate-500">{account.instructions}</p>
@@ -1219,9 +1411,10 @@ export function Subscription() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">No payment method has been configured yet. Please contact support.</p>
+            <p className="text-sm text-slate-500">{language === 'lo' ? 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າວິທີຊຳລະ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.' : 'No payment method has been configured yet. Please contact support.'}</p>
           )}
         </div>
+        )}
       </Modal>
     </div>
   )
@@ -1233,6 +1426,8 @@ function MemberDashboard({
   motivation,
   language,
   completionResponses,
+  history,
+  historyLoading,
   savingDailyItem,
   onSubmitDailyReply,
   onOpenCoach,
@@ -1248,6 +1443,8 @@ function MemberDashboard({
   motivation: DailyMotivation
   language: Language
   completionResponses: Partial<Record<DailyChallengeKind, string>>
+  history: DailyChallengeHistoryEntry[]
+  historyLoading: boolean
   savingDailyItem: DailyChallengeKind | null
   onSubmitDailyReply: (kind: DailyChallengeKind, reply: string) => Promise<void>
   onOpenCoach: () => void
@@ -1259,14 +1456,20 @@ function MemberDashboard({
   leaderboard: PremiumLeaderboardEntry[]
 }) {
   const [activeDailyItem, setActiveDailyItem] = useState<DailyChallengeKind | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [dailyDrafts, setDailyDrafts] = useState<Partial<Record<DailyChallengeKind, string>>>({})
   const dailyItems: Array<{ kind: DailyChallengeKind; label: string; text: string; prompt: string; icon: React.ReactNode }> = [
-    { kind: 'reflection', label: 'Reflection', text: motivation.reflection, prompt: 'Write your reflection…', icon: <Lightbulb className="h-4 w-4" /> },
-    { kind: 'challenge', label: 'Challenge', text: motivation.challenge, prompt: 'Tell us what you did…', icon: <Target className="h-4 w-4" /> },
-    { kind: 'mission', label: 'Mission', text: motivation.mission, prompt: 'What did you learn today?', icon: <CalendarCheck className="h-4 w-4" /> },
+    { kind: 'reflection', label: language === 'lo' ? 'ທົບທວນ' : 'Reflection', text: motivation.reflection, prompt: language === 'lo' ? 'ຂຽນສິ່ງທີ່ທ່ານຄິດ…' : 'Write your reflection…', icon: <Lightbulb className="h-4 w-4" /> },
+    { kind: 'challenge', label: language === 'lo' ? 'ຄວາມທ້າທາຍ' : 'Challenge', text: motivation.challenge, prompt: language === 'lo' ? 'ບອກພວກເຮົາວ່າທ່ານໄດ້ເຮັດຫຍັງ…' : 'Tell us what you did…', icon: <Target className="h-4 w-4" /> },
+    { kind: 'mission', label: language === 'lo' ? 'ພາລະກິດ' : 'Mission', text: motivation.mission, prompt: language === 'lo' ? 'ມື້ນີ້ທ່ານໄດ້ຮຽນຮູ້ຫຍັງ?' : 'What did you learn today?', icon: <CalendarCheck className="h-4 w-4" /> },
   ]
   const completedCount = dailyItems.filter(item => Boolean(completionResponses[item.kind]?.trim())).length
   const selectedItem = dailyItems.find(item => item.kind === activeDailyItem)
+  const historyItems = history.map(entry => ({
+    ...entry,
+    content: entry.guidance ?? entry.motivation,
+    completedCount: dailyItems.filter(item => Boolean(entry.responses[item.kind]?.trim())).length,
+  }))
 
   function selectDailyItem(kind: DailyChallengeKind) {
     setActiveDailyItem(kind)
@@ -1366,10 +1569,20 @@ function MemberDashboard({
         <section className="rounded-3xl bg-white p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Today</p>
-              <h2 className="mt-1 text-xl font-black text-gray-950">Daily mentor</h2>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{language === 'lo' ? 'ມື້ນີ້' : 'Today'}</p>
+              <h2 className="mt-1 text-xl font-black text-gray-950">{language === 'lo' ? 'Mentor ປະຈຳວັນ' : 'Daily mentor'}</h2>
             </div>
-            <div className="text-right">
+            <div className="flex items-start gap-2 text-right">
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                aria-label={language === 'lo' ? 'ເບິ່ງປະຫວັດຄວາມຄືບໜ້າ' : 'View progress history'}
+                title={language === 'lo' ? 'ປະຫວັດຄວາມຄືບໜ້າ' : 'Progress history'}
+                className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-primary-700 ring-1 ring-slate-200 transition duration-200 hover:-translate-y-0.5 hover:bg-primary-50 hover:text-primary-900 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              >
+                <History className="h-4 w-4" />
+              </button>
+              <div>
               {motivation.source === 'personalized' && (
                 <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">
                   <Sparkles className="h-3 w-3" />
@@ -1380,7 +1593,8 @@ function MemberDashboard({
               <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
                 {formatDate(motivation.publish_date, language)}
               </span>
-              <p className="mt-2 text-[11px] font-black text-slate-500">{completedCount}/3 completed</p>
+              <p className="mt-2 text-[11px] font-black text-slate-500">{completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
+              </div>
             </div>
           </div>
 
@@ -1430,7 +1644,7 @@ function MemberDashboard({
           <Modal
             open={Boolean(selectedItem)}
             onClose={() => setActiveDailyItem(null)}
-            title={selectedItem ? `Reply to ${selectedItem.label.toLowerCase()}` : undefined}
+            title={selectedItem ? (language === 'lo' ? `ຕອບກັບ: ${selectedItem.label}` : `Reply to ${selectedItem.label.toLowerCase()}`) : undefined}
             size="lg"
           >
             {selectedItem && (
@@ -1454,11 +1668,72 @@ function MemberDashboard({
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-900 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     <CheckCircle2 className="h-4 w-4" />
-                    {savingDailyItem === selectedItem.kind ? 'Saving…' : completionResponses[selectedItem.kind] ? 'Update reply' : 'Complete item'}
+                    {savingDailyItem === selectedItem.kind
+                      ? (language === 'lo' ? 'ກຳລັງບັນທຶກ…' : 'Saving…')
+                      : completionResponses[selectedItem.kind]
+                        ? (language === 'lo' ? 'ອັບເດດຄຳຕອບ' : 'Update reply')
+                        : (language === 'lo' ? 'ສຳເລັດກິດຈະກຳ' : 'Complete item')}
                   </button>
                 </div>
               </div>
             )}
+          </Modal>
+
+          <Modal
+            open={historyOpen}
+            onClose={() => setHistoryOpen(false)}
+            title={language === 'lo' ? 'ປະຫວັດຄວາມຄືບໜ້າ' : 'Progress history'}
+            size="lg"
+          >
+            <div className="pb-2">
+              <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl bg-primary-950 px-4 py-4 text-white">
+                <div>
+                  <p className="text-2xl font-black">{memberStats?.completed_items ?? historyItems.reduce((total, item) => total + item.completedCount, 0)}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-primary-200">{language === 'lo' ? 'ກິດຈະກຳທີ່ເຮັດແລ້ວ' : 'activities completed'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black">{memberStats?.completed_days ?? historyItems.filter(item => item.completedCount === 3).length}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-primary-200">{language === 'lo' ? 'ມື້ທີ່ສຳເລັດ' : 'days completed'}</p>
+                </div>
+              </div>
+
+              {historyLoading ? (
+                <div className="flex min-h-44 items-center justify-center"><LoadingSpinner /></div>
+              ) : historyItems.length === 0 ? (
+                <div className="py-10 text-center">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-primary-700"><History className="h-5 w-5" /></span>
+                  <p className="mt-4 text-sm font-black text-slate-900">{language === 'lo' ? 'ຍັງບໍ່ມີປະຫວັດ' : 'No progress yet'}</p>
+                  <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-slate-500">{language === 'lo' ? 'ຄຳຕອບຂອງທ່ານຈະປາກົດຢູ່ນີ້ຫຼັງຈາກເຮັດກິດຈະກຳທຳອິດ.' : 'Your replies will appear here after you complete your first activity.'}</p>
+                </div>
+              ) : (
+                <ol className="relative ml-2 border-l border-slate-200 pl-5">
+                  {historyItems.map((entry, entryIndex) => (
+                    <li key={entry.id} className={cn('relative', entryIndex > 0 && 'mt-6')}>
+                      <span className={cn('absolute -left-[29px] top-1.5 h-4 w-4 rounded-full border-4 border-white', entry.completedCount === 3 ? 'bg-emerald-500' : 'bg-primary-500')} />
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">{entry.content ? formatDate(entry.content.publish_date, language) : (language === 'lo' ? 'ກິດຈະກຳ Mentor' : 'Mentor activity')}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500">{entry.completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
+                        </div>
+                        {entry.completedCount === 3 && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />}
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {dailyItems.map(item => {
+                          const reply = entry.responses[item.kind]?.trim()
+                          if (!reply) return null
+                          return (
+                            <div key={item.kind} className="rounded-xl bg-slate-50 px-3.5 py-3 ring-1 ring-slate-100">
+                              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-primary-700">{item.icon}{item.label}</div>
+                              <p className="mt-1.5 text-sm font-semibold leading-5 text-slate-700">“{reply}”</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
           </Modal>
 
           <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">

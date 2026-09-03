@@ -108,6 +108,14 @@ interface RejectingRequest {
   userName: string
 }
 
+interface ProofPreview {
+  url: string
+  userName: string
+  planName: string
+  amountLak: number
+  createdAt: string
+}
+
 interface PremiumOnboarding {
   user_id: string
   responses: Record<string, string>
@@ -258,6 +266,8 @@ export function PremiumAdminDashboard() {
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const [reviewingSubscriptionId, setReviewingSubscriptionId] = useState<string | null>(null)
   const [rejectingRequest, setRejectingRequest] = useState<RejectingRequest | null>(null)
+  const [proofPreview, setProofPreview] = useState<ProofPreview | null>(null)
+  const [loadingProofId, setLoadingProofId] = useState<string | null>(null)
   const [selectedSubscription, setSelectedSubscription] = useState<PremiumSubscription | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [editingPlan, setEditingPlan] = useState<PlanFormState | null>(null)
@@ -642,16 +652,25 @@ export function PremiumAdminDashboard() {
       return
     }
 
+    setLoadingProofId(payment.id)
     try {
       const { data, error: signedUrlError } = await supabase.storage
         .from('premium-payment-proofs')
         .createSignedUrl(payment.receipt_image_url, 60)
 
       if (signedUrlError) throw signedUrlError
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+      setProofPreview({
+        url: data.signedUrl,
+        userName: payment.user?.name ?? 'Unknown user',
+        planName: payment.plan?.name ?? 'Premium',
+        amountLak: payment.amount_lak,
+        createdAt: payment.created_at,
+      })
     } catch (err) {
       console.error(err)
       error('Could not open payment proof.')
+    } finally {
+      setLoadingProofId(null)
     }
   }
 
@@ -1045,19 +1064,9 @@ export function PremiumAdminDashboard() {
                           {payment.plan?.name ?? 'Premium'} · {formatPrice(payment.amount_lak, currency)} · {formatDate(payment.created_at, language)}
                         </p>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" variant="outline" icon={<Eye className="h-4 w-4" />} onClick={() => viewProof(payment)}>
+                      <div className="grid w-full grid-cols-3 gap-2 md:w-auto">
+                        <Button type="button" size="sm" variant="outline" loading={loadingProofId === payment.id} icon={<Eye className="h-4 w-4" />} onClick={() => void viewProof(payment)}>
                           Proof
-                        </Button>
-                         <Button
-                           type="button"
-                           size="sm"
-                           variant="success"
-                           icon={<CheckCircle2 className="h-4 w-4" />}
-                          onClick={() => approveSubscription(payment.subscription_id)}
-                          loading={reviewingSubscriptionId === payment.subscription_id}
-                        >
-                          Approve
                         </Button>
                         <Button
                           type="button"
@@ -1073,6 +1082,16 @@ export function PremiumAdminDashboard() {
                           }}
                         >
                           Reject
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="success"
+                          icon={<CheckCircle2 className="h-4 w-4" />}
+                          onClick={() => void approveSubscription(payment.subscription_id)}
+                          loading={reviewingSubscriptionId === payment.subscription_id}
+                        >
+                          Approve
                         </Button>
                       </div>
                     </div>
@@ -1190,60 +1209,91 @@ export function PremiumAdminDashboard() {
                                  </div>
                                </div>
 
-                               <div className="flex flex-col gap-3 border-t border-orange-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                                 <div className="min-w-0">
-                                   {payment?.receipt_image_url ? (
+                               <div className="border-t border-orange-200 pt-3">
+                                 {payment?.receipt_image_url ? (
+                                   <div className="grid grid-cols-3 gap-2">
                                      <Button
                                        type="button"
                                        size="sm"
                                        variant="outline"
+                                       loading={loadingProofId === payment.id}
                                        icon={<Eye className="h-4 w-4" />}
                                        onClick={event => {
                                          event.stopPropagation()
                                          void viewProof(payment)
                                        }}
                                      >
-                                       Check proof
+                                       Proof
                                      </Button>
-                                   ) : isFreeRequest ? (
-                                     <span className="text-xs font-semibold text-primary-700">Free plan · No payment required</span>
-                                   ) : (
-                                     <span className="text-xs font-semibold text-amber-700">Waiting for payment proof</span>
-                                   )}
-                                 </div>
-                                 <div className="flex flex-nowrap items-center gap-2 self-end sm:self-auto">
-                                   {readyForReview ? (
                                      <Button
                                        type="button"
                                        size="sm"
-                                       variant="success"
-                                       icon={<CheckCircle2 className="h-4 w-4" />}
+                                       variant="danger"
+                                       icon={<XCircle className="h-4 w-4" />}
                                        onClick={event => {
                                          event.stopPropagation()
-                                         void approveSubscription(subscription.id)
+                                         setRejectingRequest({
+                                           subscriptionId: subscription.id,
+                                           userName: subscription.user?.name ?? 'Unknown user',
+                                         })
+                                         setRejectReason('')
                                        }}
-                                       loading={reviewingSubscriptionId === subscription.id}
                                      >
-                                       Approve
+                                       Reject
                                      </Button>
-                                   ) : null}
-                                   <Button
-                                     type="button"
-                                     size="sm"
-                                     variant="danger"
-                                     icon={<XCircle className="h-4 w-4" />}
-                                     onClick={event => {
-                                       event.stopPropagation()
-                                       setRejectingRequest({
-                                         subscriptionId: subscription.id,
-                                         userName: subscription.user?.name ?? 'Unknown user',
-                                       })
-                                       setRejectReason('')
-                                     }}
-                                   >
-                                     Reject
-                                   </Button>
-                                 </div>
+                                     {readyForReview ? (
+                                       <Button
+                                         type="button"
+                                         size="sm"
+                                         variant="success"
+                                         icon={<CheckCircle2 className="h-4 w-4" />}
+                                         onClick={event => {
+                                           event.stopPropagation()
+                                           void approveSubscription(subscription.id)
+                                         }}
+                                         loading={reviewingSubscriptionId === subscription.id}
+                                       >
+                                         Approve
+                                       </Button>
+                                     ) : <span />}
+                                   </div>
+                                 ) : isFreeRequest ? (
+                                   <div className="flex items-center justify-between gap-3">
+                                     <span className="text-xs font-semibold text-primary-700">Free plan · No payment required</span>
+                                     <div className="flex gap-2">
+                                       <Button
+                                         type="button"
+                                         size="sm"
+                                         variant="danger"
+                                         icon={<XCircle className="h-4 w-4" />}
+                                         onClick={event => {
+                                           event.stopPropagation()
+                                           setRejectingRequest({ subscriptionId: subscription.id, userName: subscription.user?.name ?? 'Unknown user' })
+                                           setRejectReason('')
+                                         }}
+                                       >
+                                         Reject
+                                       </Button>
+                                       {readyForReview && (
+                                         <Button
+                                           type="button"
+                                           size="sm"
+                                           variant="success"
+                                           icon={<CheckCircle2 className="h-4 w-4" />}
+                                           onClick={event => {
+                                             event.stopPropagation()
+                                             void approveSubscription(subscription.id)
+                                           }}
+                                           loading={reviewingSubscriptionId === subscription.id}
+                                         >
+                                           Approve
+                                         </Button>
+                                       )}
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <span className="text-xs font-semibold text-amber-700">Waiting for payment proof</span>
+                                 )}
                                </div>
                              </div>
                            </div>
@@ -1548,12 +1598,52 @@ export function PremiumAdminDashboard() {
       </Modal>
 
       <Modal
+        open={!!proofPreview}
+        onClose={() => setProofPreview(null)}
+        title={language === 'lo' ? 'ຫຼັກຖານການຊຳລະ' : 'Payment Proof'}
+        size="xl"
+        footer={<Button type="button" onClick={() => setProofPreview(null)}>{language === 'lo' ? 'ປິດ' : 'Close'}</Button>}
+      >
+        {proofPreview && (
+          <div>
+            <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-2xl bg-slate-50 p-4 text-sm ring-1 ring-slate-100">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ຜູ້ສະໝັກສະມາຊິກ' : 'Subscriber'}</p>
+                <p className="mt-0.5 truncate font-black text-slate-950">{proofPreview.userName}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ຈຳນວນເງິນ' : 'Amount'}</p>
+                <p className="mt-0.5 font-black text-slate-950">{formatPrice(proofPreview.amountLak, currency)}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ແຜນສະມາຊິກ' : 'Plan'}</p>
+                <p className="mt-0.5 truncate font-bold text-slate-800">{proofPreview.planName}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ວັນທີສົ່ງ' : 'Submitted'}</p>
+                <p className="mt-0.5 font-bold text-slate-800">{formatDate(proofPreview.createdAt, language)}</p>
+              </div>
+            </div>
+            <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 p-2 ring-1 ring-slate-200 sm:p-4">
+              <img
+                src={proofPreview.url}
+                alt={language === 'lo' ? `ຫຼັກຖານການຊຳລະຈາກ ${proofPreview.userName}` : `Payment proof from ${proofPreview.userName}`}
+                className="max-h-[62vh] w-full rounded-xl object-contain"
+              />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
         open={!!rejectingRequest}
         onClose={() => setRejectingRequest(null)}
-        title="Reject Subscription Request"
+        title={language === 'lo' ? 'ປະຕິເສດຄຳຂໍສະໝັກສະມາຊິກ' : 'Reject Subscription Request'}
         footer={
           <>
-            <Button type="button" variant="ghost" onClick={() => setRejectingRequest(null)}>Cancel</Button>
+            <Button type="button" variant="ghost" onClick={() => setRejectingRequest(null)}>
+              {language === 'lo' ? 'ຍົກເລີກ' : 'Cancel'}
+            </Button>
             <Button
               type="button"
               variant="danger"
@@ -1561,20 +1651,24 @@ export function PremiumAdminDashboard() {
               onClick={rejectSubscription}
               loading={reviewingSubscriptionId === rejectingRequest?.subscriptionId}
             >
-              Reject request
+              {language === 'lo' ? 'ປະຕິເສດຄຳຂໍ' : 'Reject request'}
             </Button>
           </>
         }
       >
-        <p className="mb-4 text-sm text-gray-600">
-          Rejecting the request for <span className="font-bold text-gray-950">{rejectingRequest?.userName}</span> will prevent access to Premium activities.
+        <p className="mb-4 text-sm text-gray-600" data-no-premium-translate>
+          {language === 'lo' ? (
+            <>ການປະຕິເສດຄຳຂໍຂອງ <span className="font-bold text-gray-950">{rejectingRequest?.userName}</span> ຈະເຮັດໃຫ້ບໍ່ສາມາດເຂົ້າໃຊ້ກິດຈະກຳ Premium ໄດ້.</>
+          ) : (
+            <>Rejecting the request for <span className="font-bold text-gray-950">{rejectingRequest?.userName}</span> will prevent access to Premium activities.</>
+          )}
         </p>
         <Textarea
-          label="Reason"
+          label={language === 'lo' ? 'ເຫດຜົນ' : 'Reason'}
           rows={4}
           value={rejectReason}
           onChange={event => setRejectReason(event.target.value)}
-          placeholder="Explain why this subscription request was not approved."
+          placeholder={language === 'lo' ? 'ອະທິບາຍເຫດຜົນທີ່ຄຳຂໍສະໝັກສະມາຊິກນີ້ບໍ່ໄດ້ຮັບການອະນຸມັດ.' : 'Explain why this subscription request was not approved.'}
         />
       </Modal>
 
