@@ -35,6 +35,8 @@ const ACTION_LABELS: Record<string, string> = {
   BOOK_PRICE_UPDATED: 'Book Price Updated',
   BOOK_PRICE_DELETED: 'Book Price Deleted',
   MARGIN_RULE_CREATED: 'Margin Rule Created',
+  MARGIN_RULE_UPDATED: 'Margin Rule Updated',
+  MARGIN_RULE_DELETED: 'Margin Rule Deleted',
 }
 
 function actionBadge(action: string): string {

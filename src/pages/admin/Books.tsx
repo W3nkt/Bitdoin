@@ -5,16 +5,32 @@ import DOMPurify from 'dompurify'
 import { Plus, Search, Edit2, Trash2, BookOpen, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting, Star } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
-import { cn } from '@/lib/utils'
+import { cn, formatDateTime } from '@/lib/utils'
 import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Pagination } from '@/components/ui/Pagination'
+import { SortableHeader, type SortDirection } from '@/components/ui/SortableHeader'
 import { useToast } from '@/components/ui/Toast'
+import { useLanguage } from '@/context/LanguageContext'
 
 const PAGE_SIZE = 15
+// Sorting runs in the database because the table is paginated server-side, so
+// every sortable key has to map onto a real `books` column.
+type BookSortKey = 'title' | 'language' | 'isbn' | 'created'
+const SORT_COLUMNS: Record<BookSortKey, string> = {
+  title: 'title',
+  language: 'language',
+  isbn: 'isbn',
+  created: 'created_at',
+}
+// Matches the sortable cells in SortableHeader so a sticky <thead> stays opaque
+// and keeps its divider.
+const HEADER_CELL_BASE = 'bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 shadow-[inset_0_-1px_0_0_#f3f4f6]'
+const HEADER_CELL = `${HEADER_CELL_BASE} hidden text-left md:table-cell`
+
 const MAX_COVER_SIZE = 5 * 1024 * 1024
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const ALLOWED_DESCRIPTION_TAGS = [
@@ -47,9 +63,12 @@ export function AdminBooks() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const { success, error } = useToast()
+  const { language } = useLanguage()
 
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [sortKey, setSortKey] = useState<BookSortKey>('created')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [modalOpen, setModalOpen] = useState(false)
   const [deleteModal, setDeleteModal] = useState<Book | null>(null)
   const [editBook, setEditBook] = useState<Book | null>(null)
@@ -83,17 +102,29 @@ export function AdminBooks() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'books', search, page],
+    queryKey: ['admin', 'books', search, page, sortKey, sortDirection],
     queryFn: async () => {
       let q = supabase
         .from('books')
         .select('*, category:categories(name_en)', { count: 'exact' })
       if (search) q = q.or(`title.ilike.%${search}%,author.ilike.%${search}%,isbn.eq.${search}`)
       const from = (page - 1) * PAGE_SIZE
-      const { data, count } = await q.range(from, from + PAGE_SIZE - 1).order('created_at', { ascending: false })
+      const { data, count } = await q
+        .order(SORT_COLUMNS[sortKey], { ascending: sortDirection === 'asc', nullsFirst: false })
+        .range(from, from + PAGE_SIZE - 1)
       return { data: (data ?? []) as Book[], count: count ?? 0 }
     },
   })
+
+  function handleSort(key: BookSortKey) {
+    if (sortKey === key) {
+      setSortDirection(current => (current === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDirection(key === 'created' ? 'desc' : 'asc')
+    }
+    setPage(1)
+  }
 
   function openAdd() {
     setEditBook(null)
@@ -256,9 +287,9 @@ export function AdminBooks() {
     : catOptions
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full min-h-0 flex-col gap-5">
       {/* Page header */}
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.books')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Manage the book catalog</p>
@@ -274,7 +305,7 @@ export function AdminBooks() {
       </div>
 
       {/* Search bar */}
-      <div className="relative">
+      <div className="relative flex-shrink-0">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           value={search}
@@ -285,15 +316,20 @@ export function AdminBooks() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50/80 border-b border-gray-100">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-card">
+          {/* Only this box scrolls, so `sticky top-0` pins the header to the card. */}
+          <div className="min-h-0 flex-1 overflow-auto">
+          {/* `table-fixed` from md up keeps column widths off the content, so a long
+              title no longer widens the Book column. Below md the table stays fluid. */}
+          <table className="w-full table-auto text-sm md:table-fixed">
+            <thead className="sticky top-0 z-10">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Book</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Language</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">ISBN</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <SortableHeader label="Book" sortValue="title" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="md:w-[340px]" />
+                <th className={HEADER_CELL}>Category</th>
+                <SortableHeader label="Language" sortValue="language" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell lg:w-[120px]" />
+                <SortableHeader label="ISBN" sortValue="isbn" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell lg:w-[150px]" />
+                <SortableHeader label="Created" sortValue="created" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell lg:w-[180px]" />
+                <th className={cn(HEADER_CELL_BASE, 'text-right md:w-[130px]')}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -313,18 +349,21 @@ export function AdminBooks() {
                         }
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate max-w-xs">{book.title}</p>
+                        <p className="truncate font-medium text-gray-900">{book.title}</p>
                         {book.author && <p className="text-xs text-gray-400 truncate">{book.author}</p>}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                    <span className="inline-flex max-w-full items-center truncate rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
                       {(book.category as { name_en?: string } | undefined)?.name_en ?? '—'}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">{book.language}</td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">{book.isbn ?? '—'}</td>
+                  <td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap text-xs text-gray-500">
+                    {book.created_at ? formatDateTime(book.created_at, language) : '—'}
+                  </td>
                   <td className="px-4 py-3 text-right">
                      <div className="flex items-center justify-end gap-1.5">
                        <button
@@ -363,8 +402,9 @@ export function AdminBooks() {
               ))}
             </tbody>
           </table>
+          </div>
           {data && data.count > PAGE_SIZE && (
-            <div className="px-4 py-3 border-t border-gray-50">
+            <div className="flex-shrink-0 border-t border-gray-100 px-4 py-3">
               <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
             </div>
           )}

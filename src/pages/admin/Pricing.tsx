@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowDown,
   ArrowRight,
-  ArrowUp,
-  ArrowUpDown,
   BookOpen,
   Calculator,
   Edit2,
@@ -17,14 +14,16 @@ import {
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
-import type { BookPrice, MarginRule } from '@/types'
+import type { BookPrice, Category, MarginRule } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { SortableHeader, type SortDirection } from '@/components/ui/SortableHeader'
 import { useToast } from '@/components/ui/Toast'
+import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-import { formatPrice, calcFinalPrice } from '@/lib/utils'
+import { cn, formatPrice, calcFinalPrice, formatDateTime } from '@/lib/utils'
 
 interface PriceForm {
   book_id: string
@@ -43,21 +42,33 @@ interface MarginForm {
   max_price: string
   margin_percent: string
   priority: string
+  is_active: string
 }
 
-type PriceSortKey = 'book' | 'store' | 'storePrice' | 'margin' | 'finalPrice' | 'stock'
-type SortDirection = 'asc' | 'desc'
+type PriceSortKey = 'book' | 'store' | 'storePrice' | 'margin' | 'finalPrice' | 'stock' | 'created'
+
+// Matches the sortable cells in SortableHeader so a sticky <thead> stays opaque
+// and keeps its divider.
+const HEADER_CELL = 'bg-gray-50 px-4 py-3 shadow-[inset_0_-1px_0_0_#f3f4f6]'
 
 export function AdminPricing() {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const { success, error } = useToast()
   const { language, currency } = useLanguage()
+  const { profile } = useAuth()
+  // `margin_rules` is guarded by an ADMIN-only RLS policy while AdminGuard lets
+  // any non-customer role reach this page, so hide the write controls from the
+  // roles whose writes the database would reject.
+  const canManageRules = profile?.role === 'ADMIN'
 
   const [tab, setTab] = useState<'prices' | 'rules'>('prices')
   const [priceModal, setPriceModal] = useState(false)
   const [editPrice, setEditPrice] = useState<BookPrice | null>(null)
   const [marginModal, setMarginModal] = useState(false)
+  const [editRule, setEditRule] = useState<MarginRule | null>(null)
+  const [deleteRule, setDeleteRule] = useState<MarginRule | null>(null)
+  const [deletingRule, setDeletingRule] = useState(false)
   const [saving, setSaving] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<PriceSortKey>('book')
@@ -99,6 +110,14 @@ export function AdminPricing() {
     queryFn: async () => {
       const { data } = await supabase.from('bookstores').select('id, name').eq('is_active', true).order('name')
       return (data ?? []) as { id: string; name: string }[]
+    },
+  })
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data } = await supabase.from('categories').select('id,name_lo,name_en,slug,created_at').order('name_en')
+      return (data ?? []) as Category[]
     },
   })
 
@@ -161,31 +180,138 @@ export function AdminPricing() {
     }
   }
 
+  function openAddRule() {
+    setEditRule(null)
+    resetMargin({
+      name: '',
+      category_id: '',
+      bookstore_id: '',
+      min_price: '',
+      max_price: '',
+      margin_percent: '',
+      priority: '100',
+      is_active: 'true',
+    })
+    setMarginModal(true)
+  }
+
+  function openEditRule(rule: MarginRule) {
+    setEditRule(rule)
+    resetMargin({
+      name: rule.name,
+      category_id: rule.category_id ?? '',
+      bookstore_id: rule.bookstore_id ?? '',
+      min_price: rule.min_price != null ? String(rule.min_price) : '',
+      max_price: rule.max_price != null ? String(rule.max_price) : '',
+      margin_percent: String(rule.margin_percent),
+      priority: String(rule.priority),
+      is_active: rule.is_active ? 'true' : 'false',
+    })
+    setMarginModal(true)
+  }
+
   async function onSubmitMargin(form: MarginForm) {
     setSaving(true)
+    // Every column is written on both paths, so editing can't silently drop the
+    // category/store scope a rule was seeded with.
+    const payload = {
+      name: form.name,
+      category_id: form.category_id || null,
+      bookstore_id: form.bookstore_id || null,
+      min_price: form.min_price ? parseFloat(form.min_price) : null,
+      max_price: form.max_price ? parseFloat(form.max_price) : null,
+      margin_percent: parseFloat(form.margin_percent),
+      priority: parseInt(form.priority) || 100,
+      is_active: form.is_active !== 'false',
+    }
     try {
-      const { data: created } = await supabase.from('margin_rules').insert({
-        name: form.name,
-        category_id: form.category_id || null,
-        bookstore_id: form.bookstore_id || null,
-        min_price: form.min_price ? parseFloat(form.min_price) : null,
-        max_price: form.max_price ? parseFloat(form.max_price) : null,
-        margin_percent: parseFloat(form.margin_percent),
-        priority: parseInt(form.priority) || 100,
-      }).select('id').single()
-      await logAudit({
-        entity: 'margin_rule',
-        entityId: created?.id,
-        action: 'MARGIN_RULE_CREATED',
-        newValue: { name: form.name, margin_percent: parseFloat(form.margin_percent), priority: parseInt(form.priority) || 100 },
-      })
+      if (editRule) {
+        const { data: updated, error: updateError } = await supabase
+          .from('margin_rules')
+          .update(payload)
+          .eq('id', editRule.id)
+          .select('id')
+        if (updateError) throw updateError
+        if (!updated?.length) throw new Error('rls')
+        await logAudit({
+          entity: 'margin_rule',
+          entityId: editRule.id,
+          action: 'MARGIN_RULE_UPDATED',
+          oldValue: {
+            name: editRule.name,
+            category_id: editRule.category_id ?? null,
+            bookstore_id: editRule.bookstore_id ?? null,
+            min_price: editRule.min_price ?? null,
+            max_price: editRule.max_price ?? null,
+            margin_percent: editRule.margin_percent,
+            priority: editRule.priority,
+            is_active: editRule.is_active,
+          },
+          newValue: payload,
+        })
+        success('Margin rule updated. Prices already recorded keep their margin.')
+      } else {
+        const { data: created, error: insertError } = await supabase
+          .from('margin_rules')
+          .insert(payload)
+          .select('id')
+          .single()
+        if (insertError) throw insertError
+        await logAudit({
+          entity: 'margin_rule',
+          entityId: created?.id,
+          action: 'MARGIN_RULE_CREATED',
+          newValue: payload,
+        })
+        success('Margin rule added')
+      }
       await qc.invalidateQueries({ queryKey: ['admin', 'margin-rules'] })
       setMarginModal(false)
-      success('Margin rule added')
-    } catch {
-      error(t('common.error'))
+      setEditRule(null)
+    } catch (err) {
+      error(err instanceof Error && err.message === 'rls'
+        ? 'Only an admin can change margin rules.'
+        : t('common.error'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDeleteRule() {
+    if (!deleteRule) return
+    setDeletingRule(true)
+    try {
+      const { data: removed, error: deleteError } = await supabase
+        .from('margin_rules')
+        .delete()
+        .eq('id', deleteRule.id)
+        .select('id')
+      if (deleteError) throw deleteError
+      if (!removed?.length) throw new Error('rls')
+      await logAudit({
+        entity: 'margin_rule',
+        entityId: deleteRule.id,
+        action: 'MARGIN_RULE_DELETED',
+        oldValue: {
+          name: deleteRule.name,
+          category_id: deleteRule.category_id ?? null,
+          bookstore_id: deleteRule.bookstore_id ?? null,
+          min_price: deleteRule.min_price ?? null,
+          max_price: deleteRule.max_price ?? null,
+          margin_percent: deleteRule.margin_percent,
+          priority: deleteRule.priority,
+          is_active: deleteRule.is_active,
+        },
+      })
+      await qc.invalidateQueries({ queryKey: ['admin', 'margin-rules'] })
+      setDeleteRule(null)
+      success('Margin rule deleted. Prices already recorded keep their margin.')
+    } catch (err) {
+      error(err instanceof Error && err.message === 'rls'
+        ? 'Only an admin can delete margin rules.'
+        : t('common.error'))
+    } finally {
+      setDeletingRule(false)
     }
   }
 
@@ -259,6 +385,16 @@ export function AdminPricing() {
 
   const bookOptions = books?.map(b => ({ value: b.id, label: b.title })) ?? []
   const storeOptions = bookstores?.map(b => ({ value: b.id, label: b.name })) ?? []
+  const categoryLabel = (c: Category) => (language === 'lo' ? c.name_lo : c.name_en)
+  const categoryOptions = categories?.map(c => ({ value: c.id, label: categoryLabel(c) })) ?? []
+  const storeNames = useMemo(
+    () => new Map(bookstores?.map(b => [b.id, b.name])),
+    [bookstores],
+  )
+  const categoryNames = useMemo(
+    () => new Map(categories?.map(c => [c.id, language === 'lo' ? c.name_lo : c.name_en])),
+    [categories, language],
+  )
   const bookCoverMap = useMemo(() => {
     const map = new Map<string, string | undefined>()
     books?.forEach(b => map.set(b.id, b.cover_image_url))
@@ -293,6 +429,7 @@ export function AdminPricing() {
         margin: [a.margin_percent, b.margin_percent],
         finalPrice: [a.final_price, b.final_price],
         stock: [a.availability, b.availability],
+        created: [new Date(a.created_at).getTime(), new Date(b.created_at).getTime()],
       }
       const [left, right] = values[sortKey]
       const result = typeof left === 'number' && typeof right === 'number'
@@ -303,9 +440,9 @@ export function AdminPricing() {
   }, [language, prices, searchQuery, sortDirection, sortKey])
 
   return (
-    <div className="space-y-5">
+    <div className="flex h-full min-h-0 flex-col gap-5">
       {/* Page header */}
-      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">{t('admin.pricing')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Book prices and margin rules</p>
@@ -316,8 +453,8 @@ export function AdminPricing() {
               Add Price
             </Button>
           )}
-          {tab === 'rules' && (
-            <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => { resetMargin({}); setMarginModal(true) }}>
+          {tab === 'rules' && canManageRules && (
+            <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openAddRule}>
               Add Rule
             </Button>
           )}
@@ -325,7 +462,7 @@ export function AdminPricing() {
       </div>
 
       {/* Pill-style tab switcher */}
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit">
+      <div className="flex w-fit flex-shrink-0 gap-1 rounded-2xl bg-gray-100 p-1">
         {(['prices', 'rules'] as const).map(t2 => (
           <button
             key={t2}
@@ -343,8 +480,8 @@ export function AdminPricing() {
 
       {tab === 'prices' && (
         isLoading ? <LoadingSpinner /> : (
-          <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-            <div className="flex flex-col gap-2 border-b border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-card">
+            <div className="flex flex-shrink-0 flex-col gap-2 border-b border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="w-full sm:max-w-sm">
                 <Input
                   type="search"
@@ -359,17 +496,21 @@ export function AdminPricing() {
                 {visiblePrices.length} of {prices?.length ?? 0} rows
               </p>
             </div>
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50/80 border-b border-gray-100">
+            {/* Only this box scrolls, so `sticky top-0` pins the header below the search bar. */}
+            <div className="min-h-0 flex-1 overflow-auto">
+            {/* `table-fixed` from md up keeps column widths off the content, so a long
+                book title no longer widens the Book column. Below md it stays fluid. */}
+            <table className="w-full table-auto text-sm md:table-fixed">
+              <thead className="sticky top-0 z-10">
                 <tr>
-                  <SortableHeader label="Book" sortValue="book" activeKey={sortKey} direction={sortDirection} onSort={handleSort} />
+                  <SortableHeader label="Book" sortValue="book" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="md:w-[260px]" />
                   <SortableHeader label="Store" sortValue="store" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden md:table-cell" />
-                  <SortableHeader label="Store Price" sortValue="storePrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
-                  <SortableHeader label="Margin" sortValue="margin" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
-                  <SortableHeader label="Final Price" sortValue="finalPrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" />
-                  <SortableHeader label="Stock" sortValue="stock" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell" />
-                  <th className="px-4 py-3"></th>
+                  <SortableHeader label="Store Price" sortValue="storePrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" className="md:w-[120px]" />
+                  <SortableHeader label="Margin" sortValue="margin" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" className="md:w-[100px]" />
+                  <SortableHeader label="Final Price" sortValue="finalPrice" activeKey={sortKey} direction={sortDirection} onSort={handleSort} align="right" className="md:w-[130px]" />
+                  <SortableHeader label="Stock" sortValue="stock" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden lg:table-cell lg:w-[140px]" />
+                  <SortableHeader label="Created" sortValue="created" activeKey={sortKey} direction={sortDirection} onSort={handleSort} className="hidden xl:table-cell xl:w-[175px]" />
+                  <th className={cn(HEADER_CELL, 'md:w-[100px]')}></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -390,12 +531,12 @@ export function AdminPricing() {
                             </div>
                           )}
                         </div>
-                        <p className="font-medium text-gray-900 truncate max-w-xs text-xs">
+                        <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
                           {(price.book as { title?: string } | undefined)?.title ?? '—'}
                         </p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-500">
+                    <td className="px-4 py-3 hidden md:table-cell truncate text-xs text-gray-500">
                       {(price.bookstore as { name?: string } | undefined)?.name ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-gray-600">{formatPrice(price.bookstore_price, currency)}</td>
@@ -413,6 +554,9 @@ export function AdminPricing() {
                       }`}>
                         {price.availability}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 hidden xl:table-cell whitespace-nowrap text-xs text-gray-500">
+                      {price.created_at ? formatDateTime(price.created_at, language) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -449,7 +593,7 @@ export function AdminPricing() {
                 ))}
                 {visiblePrices.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                       No price rows match your search.
                     </td>
                   </tr>
@@ -462,18 +606,33 @@ export function AdminPricing() {
       )}
 
       {tab === 'rules' && (
-        <div className="space-y-3">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {rules?.map(rule => (
-            <div key={rule.id} className="bg-white rounded-2xl shadow-card p-5 flex items-center justify-between">
-              <div className="flex items-start gap-3">
+            <div key={rule.id} className="bg-white rounded-2xl shadow-card p-5 flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
                 {/* Priority badge */}
                 <span className="inline-flex items-center rounded-xl bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700 flex-shrink-0">
                   P{rule.priority}
                 </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-gray-400" />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Tag className="h-4 w-4 flex-shrink-0 text-gray-400" />
                     <p className="font-semibold text-gray-800 text-sm">{rule.name}</p>
+                    {!rule.is_active && (
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  {/* Scope: without these two, rules that differ only by store or
+                      category are indistinguishable in the list. */}
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                      {rule.bookstore_id ? (storeNames.get(rule.bookstore_id) ?? 'Unknown store') : 'All stores'}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                      {rule.category_id ? (categoryNames.get(rule.category_id) ?? 'Unknown category') : 'All categories'}
+                    </span>
                   </div>
                   <div className="flex gap-3 mt-1 text-xs text-gray-500">
                     {rule.min_price && <span>Min: {formatPrice(rule.min_price, currency)}</span>}
@@ -482,9 +641,31 @@ export function AdminPricing() {
                   </div>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-2xl font-bold text-primary-700">{rule.margin_percent}%</p>
-                <p className="text-xs text-gray-400">margin</p>
+              <div className="flex flex-shrink-0 items-center gap-4">
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-primary-700">{rule.margin_percent}%</p>
+                  <p className="text-xs text-gray-400">margin</p>
+                </div>
+                {canManageRules && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => openEditRule(rule)}
+                    className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                    title={t('common.edit')}
+                    aria-label={`Edit margin rule ${rule.name}`}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteRule(rule)}
+                    className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    title={t('common.delete')}
+                    aria-label={`Delete margin rule ${rule.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                )}
               </div>
             </div>
           ))}
@@ -552,7 +733,7 @@ export function AdminPricing() {
       <Modal
         open={marginModal}
         onClose={() => setMarginModal(false)}
-        title="Add Margin Rule"
+        title={editRule ? 'Edit Margin Rule' : 'Add Margin Rule'}
         size="md"
         footer={
           <>
@@ -563,14 +744,53 @@ export function AdminPricing() {
       >
         <form className="space-y-4">
           <Input label="Rule Name" required {...rMargin('name', { required: true })} />
-          <Input label="Margin %" type="number" step="0.1" required {...rMargin('margin_percent', { required: true })} />
-          <Input label="Priority (lower = higher priority)" type="number" defaultValue="100" {...rMargin('priority')} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Margin %" type="number" step="0.1" required {...rMargin('margin_percent', { required: true })} />
+            <Input label="Priority (lower = higher priority)" type="number" {...rMargin('priority')} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Select label="Bookstore (optional)" options={storeOptions} placeholder="All stores" {...rMargin('bookstore_id')} />
-            <Input label="Min Price" type="number" {...rMargin('min_price')} />
+            <Select label="Category (optional)" options={categoryOptions} placeholder="All categories" {...rMargin('category_id')} />
           </div>
-          <Input label="Max Price" type="number" {...rMargin('max_price')} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Min Price" type="number" {...rMargin('min_price')} />
+            <Input label="Max Price" type="number" {...rMargin('max_price')} />
+          </div>
+          <Select
+            label="Status"
+            options={[{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }]}
+            {...rMargin('is_active')}
+          />
+          <p className="rounded-xl bg-gray-50 px-3 py-2.5 text-xs leading-5 text-gray-500">
+            Margin rules are applied when a bookstore submits a price, and the resulting
+            margin is stored on that price row. Editing this rule changes future
+            submissions only &mdash; prices already in the table keep the margin they were
+            given. To change an existing one, edit it on the Book Prices tab.
+          </p>
         </form>
+      </Modal>
+
+      <Modal
+        open={!!deleteRule}
+        onClose={() => !deletingRule && setDeleteRule(null)}
+        title="Delete Margin Rule"
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" disabled={deletingRule} onClick={() => setDeleteRule(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="danger" loading={deletingRule} onClick={handleDeleteRule}>
+              {t('common.delete')}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-6 text-gray-600">
+          Delete <strong className="text-gray-900">{deleteRule?.name}</strong>? New price
+          submissions will fall through to the next matching rule. Prices already in the
+          table keep the margin they were given.
+        </p>
       </Modal>
 
       <Modal
@@ -598,42 +818,5 @@ export function AdminPricing() {
         </p>
       </Modal>
     </div>
-  )
-}
-
-function SortableHeader({
-  label,
-  sortValue,
-  activeKey,
-  direction,
-  onSort,
-  align = 'left',
-  className = '',
-}: {
-  label: string
-  sortValue: PriceSortKey
-  activeKey: PriceSortKey
-  direction: SortDirection
-  onSort: (key: PriceSortKey) => void
-  align?: 'left' | 'right'
-  className?: string
-}) {
-  const active = activeKey === sortValue
-  const Icon = active ? direction === 'asc' ? ArrowUp : ArrowDown : ArrowUpDown
-
-  return (
-    <th className={`px-4 py-3 ${className}`}>
-      <button
-        type="button"
-        onClick={() => onSort(sortValue)}
-        className={`flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-primary-700 ${
-          active ? 'text-primary-700' : 'text-gray-500'
-        } ${align === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}
-        aria-label={`Sort by ${label}`}
-      >
-        <span>{label}</span>
-        <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-      </button>
-    </th>
   )
 }
