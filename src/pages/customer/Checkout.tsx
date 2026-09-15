@@ -18,6 +18,7 @@ import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
 import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
+import { saveActiveGuestOrder } from '@/lib/guestTracking'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import {
   clearCheckoutAttempt,
@@ -199,6 +200,9 @@ export function Checkout() {
       setPlacedPhone(customerPhone)
       setGuestAccessToken(access.access_token)
       setPlacedAccess(access)
+      // Persist immediately (not just on modal close) so the code/phone
+      // survive even if the customer closes the tab before uploading proof.
+      saveActiveGuestOrder(access.order_number, customerPhone)
       // The order now exists (or was recovered via the idempotency key above),
       // so a stale draft/attempt on disk would only risk a future duplicate.
       clearCheckoutDraft()
@@ -276,7 +280,6 @@ export function Checkout() {
       return
     }
     clearCart()
-    sessionStorage.setItem(`pwen-track-phone:${orderNumber}`, placedPhone)
     navigate(`/bookstore/track?order=${encodeURIComponent(orderNumber)}`)
   }
 

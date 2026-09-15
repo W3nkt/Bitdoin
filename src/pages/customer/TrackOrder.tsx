@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PackageSearch, Search } from 'lucide-react'
 import { trackOrder } from '@/lib/guestOrders'
+import { loadActiveGuestOrder, saveActiveGuestOrder } from '@/lib/guestTracking'
 import { useLanguage } from '@/context/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
@@ -16,11 +17,18 @@ export function TrackOrder() {
   const { currency, language } = useLanguage()
   const { error } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  const initialOrderNumber = searchParams.get('order') ?? ''
-  const [orderNumber, setOrderNumber] = useState(initialOrderNumber)
-  const [phone, setPhone] = useState(
-    initialOrderNumber ? sessionStorage.getItem(`pwen-track-phone:${initialOrderNumber}`) ?? '' : ''
+  const [orderNumber, setOrderNumber] = useState(
+    () => searchParams.get('order') ?? loadActiveGuestOrder()?.orderNumber ?? ''
   )
+  const [phone, setPhone] = useState(() => {
+    const urlOrderNumber = searchParams.get('order')
+    const saved = loadActiveGuestOrder()
+    // Only reuse the saved phone when it belongs to the order we're about to
+    // look up (either the URL's order, or the saved order when the URL has
+    // none) — never pair a stranger's order code with our saved phone.
+    if (saved && (!urlOrderNumber || urlOrderNumber === saved.orderNumber)) return saved.phone
+    return ''
+  })
   const [order, setOrder] = useState<Order | null>(null)
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
@@ -34,7 +42,7 @@ export function TrackOrder() {
       setOrder(result)
       setSearched(true)
       if (result) {
-        sessionStorage.setItem(`pwen-track-phone:${result.order_number}`, phone)
+        saveActiveGuestOrder(result.order_number, phone)
         setSearchParams({ order: result.order_number })
       }
     } catch (trackError) {
@@ -62,7 +70,7 @@ export function TrackOrder() {
           label={t('tracking.orderCode')}
           value={orderNumber}
           onChange={event => setOrderNumber(event.target.value.toUpperCase())}
-          placeholder="PB-XXXXXXXXXXXX"
+          placeholder="BD-XXXX"
           autoComplete="off"
           required
         />
