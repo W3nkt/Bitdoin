@@ -37,6 +37,7 @@ export async function createCheckoutOrder(input: {
   currency: Currency
   paymentMethod: PaymentMethod
   items: CartItem[]
+  idempotencyKey: string
 }) {
   const { data, error } = await supabase.rpc('create_checkout_order', {
     p_customer_name: input.customerName,
@@ -50,6 +51,7 @@ export async function createCheckoutOrder(input: {
       bookstore_id: item.bookstore_id,
       quantity: item.quantity,
     })),
+    p_idempotency_key: input.idempotencyKey,
   })
   if (error) throw new Error(error.message)
 
