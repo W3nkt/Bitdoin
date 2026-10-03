@@ -18,8 +18,8 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 // Guests are rate limited by a peppered IP hash so raw addresses are never stored.
 const GUEST_PEPPER = Deno.env.get('BITTY_GUEST_PEPPER') || SUPABASE_SERVICE_ROLE_KEY
-const MINUTE_LIMIT = positiveIntEnv('BITTY_MINUTE_LIMIT', 10)
-const DAILY_LIMIT = positiveIntEnv('BITTY_DAILY_LIMIT', 40)
+const MINUTE_LIMIT = positiveIntEnv('BITTY_MINUTE_LIMIT', 25)
+const DAILY_LIMIT = positiveIntEnv('BITTY_DAILY_LIMIT', 100)
 const GLOBAL_DAILY_LIMIT = positiveIntEnv('BITTY_GLOBAL_DAILY_LIMIT', 3000)
 const PROVIDER_TIMEOUT_MS = positiveIntEnv('BITTY_PROVIDER_TIMEOUT_MS', 45000)
 const CATALOG_TTL_MS = 5 * 60_000
