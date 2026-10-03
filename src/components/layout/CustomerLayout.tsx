@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
+import { BittyAssistant } from '@/components/bitty/BittyAssistant'
 
 interface CustomerLayoutProps {
   children: ReactNode
@@ -282,6 +283,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
         </div>
       </nav>
 
+      <BittyAssistant />
     </div>
   )
 }

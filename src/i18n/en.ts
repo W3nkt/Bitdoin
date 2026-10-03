@@ -347,6 +347,40 @@ const en = {
     publish: 'Save & Publish',
   },
 
+  // ── Bitty Assistant ──────────────────────────────────────────────────────────
+  bitty: {
+    name: 'Bitty Assistant',
+    subtitle: 'Helps you find the right book',
+    open: 'Ask Bitty for a book suggestion',
+    close: 'Close chat',
+    startOver: 'Start over',
+    greeting: "Hi, I'm Bitty! I'll help you find a good book from our store. What are you reading for?",
+    purposeSkill: 'Learn a skill',
+    purposeCareer: 'Career',
+    purposeSchool: 'School',
+    purposeInterest: 'Personal interest',
+    skip: 'Skip',
+    placeholder: 'Type a message…',
+    send: 'Send',
+    typing: 'Bitty is typing',
+    details: 'Details',
+    addToCart: 'Add to Cart',
+    added: 'Added to cart',
+    outOfStock: 'Out of stock',
+    noPrice: 'Price on request',
+    offTopic: "Thank you for your question! I'm Bitty, your book guide, so I'm not able to help with that topic. I'd be happy to help you find a book you'll enjoy, though. What would you like to read about?",
+    retry: 'Try again',
+    disclaimer: 'Bitty uses AI and can make mistakes.',
+    errors: {
+      timeout: 'Bitty took too long to answer. Please try again.',
+      busy: 'Bitty is very busy right now. Please wait a moment and try again.',
+      unavailable: "Bitty isn't available right now. Please try again later.",
+      rate_limited: "You're sending messages too quickly. Please wait a moment.",
+      network: "Couldn't connect. Check your internet connection and try again.",
+      unknown: 'Something went wrong. Please try again.',
+    },
+  },
+
   // ── Common ────────────────────────────────────────────────────────────────────
   common: {
     loading: 'Loading…',

@@ -1,0 +1,153 @@
+/* Bitty Assistant open/close effects. Disabled entirely for prefers-reduced-motion. */
+
+/* ── Panel: circular reveal from the launcher corner with a springy settle ── */
+.bitty-panel-enter {
+  transform-origin: 100% 100%;
+  animation: bitty-panel-in 560ms cubic-bezier(0.22, 1.2, 0.36, 1) backwards;
+}
+
+.bitty-panel-exit {
+  transform-origin: 100% 100%;
+  pointer-events: none;
+  animation: bitty-panel-out 300ms cubic-bezier(0.55, 0, 0.75, 0) forwards;
+}
+
+@keyframes bitty-panel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.55);
+    filter: blur(10px);
+    clip-path: circle(0% at 100% 100%);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+    clip-path: circle(150% at 100% 100%);
+  }
+}
+
+@keyframes bitty-panel-out {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+    clip-path: circle(150% at 100% 100%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.6);
+    filter: blur(8px);
+    clip-path: circle(0% at 100% 100%);
+  }
+}
+
+/* ── Header shimmer sweep once the panel has opened ── */
+.bitty-panel-enter .bitty-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: bitty-shimmer 900ms ease-out 260ms forwards;
+  pointer-events: none;
+}
+
+@keyframes bitty-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ── Messages cascade in on open; new messages pop in on their own ── */
+.bitty-msg {
+  animation: bitty-msg-in 280ms ease-out backwards;
+}
+
+.bitty-panel-enter .bitty-msg {
+  animation-duration: 380ms;
+  animation-delay: calc(180ms + var(--bitty-i, 0) * 60ms);
+}
+
+@keyframes bitty-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+/* ── Launcher: bounce back in after closing, gentle glow while idle ── */
+.bitty-launcher-return {
+  animation: bitty-launcher-in 620ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+.bitty-launcher-return .bitty-launcher-avatar {
+  animation: bitty-avatar-spin 620ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@keyframes bitty-launcher-in {
+  0% { opacity: 0; transform: scale(0.3) translateY(16px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes bitty-avatar-spin {
+  from { transform: rotate(-200deg) scale(0.6); }
+}
+
+.bitty-launcher::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55);
+  animation: bitty-glow 4s ease-out 1.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes bitty-glow {
+  0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55); }
+  30%, 100% { box-shadow: 0 0 0 14px rgba(249, 115, 22, 0); }
+}
+
+/* ── Burst of rings and sparks from the launcher on open ── */
+.bitty-burst-ring {
+  animation: bitty-ring 700ms cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+.bitty-burst-ring + .bitty-burst-ring {
+  animation-delay: 120ms;
+}
+
+@keyframes bitty-ring {
+  from { opacity: 0.9; transform: scale(0.6); }
+  to { opacity: 0; transform: scale(4); }
+}
+
+.bitty-spark {
+  transform: rotate(var(--bitty-angle)) translateX(0) scale(1);
+  animation: bitty-spark 720ms cubic-bezier(0.15, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes bitty-spark {
+  70% { opacity: 1; }
+  to {
+    opacity: 0;
+    transform: rotate(var(--bitty-angle)) translateX(var(--bitty-distance)) scale(0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bitty-panel-enter,
+  .bitty-panel-exit,
+  .bitty-panel-enter .bitty-header::after,
+  .bitty-msg,
+  .bitty-launcher-return,
+  .bitty-launcher-return .bitty-launcher-avatar,
+  .bitty-launcher::before,
+  .bitty-burst-ring,
+  .bitty-spark {
+    animation: none !important;
+  }
+}
