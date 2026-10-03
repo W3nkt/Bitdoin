@@ -18,7 +18,15 @@ import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
 import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
+import { saveActiveGuestOrder } from '@/lib/guestTracking'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
+import {
+  clearCheckoutAttempt,
+  clearCheckoutDraft,
+  getCheckoutIdempotencyKey,
+  loadCheckoutDraft,
+  saveCheckoutDraft,
+} from '@/lib/checkoutDraft'
 import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const PHONE_PREFIX = '020'
@@ -80,6 +88,8 @@ export function Checkout() {
   const [guestAccessToken, setGuestAccessToken] = useState<string>()
   const [placedPhone, setPlacedPhone] = useState('')
 
+  const initialDraft = useMemo(() => loadCheckoutDraft(), [])
+
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -90,8 +100,16 @@ export function Checkout() {
       logistics_provider: '',
       province: '',
       district: '',
+      ...initialDraft,
     },
   })
+
+  // Keep the in-progress form on disk so a refresh (or a resubmit after one)
+  // doesn't force the customer to re-type everything.
+  useEffect(() => {
+    const subscription = watch(value => saveCheckoutDraft(value as Partial<CheckoutForm>))
+    return () => subscription.unsubscribe()
+  }, [watch])
 
   const selectedProvinceId = watch('province')
   const selectedLogistics = watch('logistics_provider')
@@ -177,10 +195,18 @@ export function Checkout() {
         currency,
         paymentMethod: selectedPaymentMethod,
         items,
+        idempotencyKey: getCheckoutIdempotencyKey(items),
       })
       setPlacedPhone(customerPhone)
       setGuestAccessToken(access.access_token)
       setPlacedAccess(access)
+      // Persist immediately (not just on modal close) so the code/phone
+      // survive even if the customer closes the tab before uploading proof.
+      saveActiveGuestOrder(access.order_number, customerPhone)
+      // The order now exists (or was recovered via the idempotency key above),
+      // so a stale draft/attempt on disk would only risk a future duplicate.
+      clearCheckoutDraft()
+      clearCheckoutAttempt()
       trackGoogleEvent('purchase', {
         transaction_id: access.order_number,
         currency,
@@ -254,7 +280,6 @@ export function Checkout() {
       return
     }
     clearCart()
-    sessionStorage.setItem(`pwen-track-phone:${orderNumber}`, placedPhone)
     navigate(`/bookstore/track?order=${encodeURIComponent(orderNumber)}`)
   }
 

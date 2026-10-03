@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { CheckCircle, Clock, Copy, CreditCard, Download, ImageUp, Smartphone, Upload, XCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { trackOrder, uploadGuestReceipt } from '@/lib/guestOrders'
+import { clearActiveGuestOrder } from '@/lib/guestTracking'
 import { useLanguage } from '@/context/LanguageContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
@@ -78,6 +79,9 @@ export function GuestPaymentPanel({
         onOrderChange(refreshed)
         onPaymentSubmitted?.(refreshed)
       }
+      // Proof is in; there's nothing left for the customer to come back and
+      // do, so stop pre-filling their tracking code/phone from here on.
+      clearActiveGuestOrder()
       success(t('payment.receiptUploaded'))
     } catch (uploadError) {
       console.error('[guest receipt upload]', uploadError)
