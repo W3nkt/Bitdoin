@@ -8,8 +8,10 @@ import {
   buildCatalog,
   classifyModelError,
   extractInlineRecommendations,
+  endsWithQuestion,
   extractListedOptions,
   findCatalogBook,
+  formatPlans,
   createBittyHandler,
   MAX_MESSAGES,
   MAX_USER_CHARS,
@@ -510,6 +512,8 @@ Deno.test('numbered, bulleted and inline choice lists are recognised', () => {
 })
 
 Deno.test('lists that are not choices for a question are left alone', () => {
+  const howTo = 'Want to order? Here is how:\n1. Add books to your cart\n2. Go to checkout'
+  assertEquals(extractListedOptions(howTo), { text: howTo, options: [] })
   const notAQuestion = 'Tips for reading:\n- Read daily\n- Take notes'
   assertEquals(extractListedOptions(notAQuestion), { text: notAQuestion, options: [] })
   const oneItem = 'Which level?\n- Beginner'
@@ -601,10 +605,76 @@ Deno.test('if the retry also fails, the customer gets a retryable error instead 
 })
 
 Deno.test('ordinary replies do not trigger a retry', async () => {
-  for (const text of ['What topics do you like?', 'Which level?\n- Beginner\n- Advanced']) {
+  for (const text of ['Happy reading!','Which level?\n- Beginner\n- Advanced']) {
     const model = scriptedModel([{ finishReason: 'stop', toolCalls: [] }], [[text]])
     const { deps } = makeDeps({ runModel: model.runModel })
     await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
     assertEquals(model.inputs.length, 1, text)
   }
+})
+
+Deno.test('Academy plan prices from the database reach the platform guide', async () => {
+  const { deps, calls } = makeDeps({
+    loadPlans: () => Promise.resolve([
+      { name: 'Free', priceLak: 0, interval: 'month' },
+      { name: 'Premium Monthly', priceLak: 39000, interval: 'month' },
+    ]),
+  })
+  await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  const system = calls.modelInputs[0].messages[0].content as string
+  assertStringIncludes(system, 'You are Arlin')
+  assertStringIncludes(system, 'How to buy books')
+  assertStringIncludes(system, '- Premium Monthly: 39,000 LAK per month.')
+  assertStringIncludes(system, '- Free: free, needs admin approval, no payment.')
+})
+
+Deno.test('a failed plan lookup does not stop the chat', async () => {
+  const { deps, calls } = makeDeps({ loadPlans: () => Promise.reject(new Error('db down')) })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(events.at(-1), { type: 'done' })
+  assertStringIncludes(calls.modelInputs[0].messages[0].content as string, formatPlans([]))
+})
+
+Deno.test('example lists in brackets after a question become quick replies', () => {
+  assertEquals(
+    extractListedOptions('ທ່ານມີຄວາມສົນໃຈເປັນພິເສດກັບຫົວຂໍ້ໃດ? (ເຊັ່ນ: ການຄິດ, ການຈັດການເວລາ, ຈິດຕະວິທະຍາ, ການເງິນ, ແລະອື່ນໆ)'),
+    { text: 'ທ່ານມີຄວາມສົນໃຈເປັນພິເສດກັບຫົວຂໍ້ໃດ?', options: ['ການຄິດ', 'ການຈັດການເວລາ', 'ຈິດຕະວິທະຍາ', 'ການເງິນ'] },
+  )
+  assertEquals(
+    extractListedOptions('Which topic interests you? (e.g. Money, Organizing, or History, etc.)'),
+    { text: 'Which topic interests you?', options: ['Money', 'Organizing', 'History'] },
+  )
+  // A bracket after a statement is not a set of choices.
+  const note = 'We ship to every province (Vientiane, Luang Prabang, Pakse).'
+  assertEquals(extractListedOptions(note), { text: note, options: [] })
+})
+
+Deno.test('endsWithQuestion looks only at the last line', () => {
+  assert(endsWithQuestion('Great choice.\nWhich level are you at?'))
+  assert(endsWithQuestion('Which level? (any is fine)'))
+  assert(!endsWithQuestion('Any questions? Here is how:\n1. Add to cart'))
+})
+
+Deno.test('a question without buttons asks once more for its choices', async () => {
+  const model = scriptedModel([
+    { finishReason: 'stop', toolCalls: [] },
+    { finishReason: 'tool_calls', toolCalls: [{ name: 'show_quick_replies', input: { question: 'Which topic?', options: ['Money', 'History'] } }] },
+  ], [['Which topic do you like?']])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(model.inputs.length, 2)
+  assertEquals(model.inputs[1].toolChoice, { type: 'function', function: { name: 'show_quick_replies' } })
+  assertEquals(events.filter(e => e.type === 'quick_replies'), [{ type: 'quick_replies', options: ['Money', 'History'] }])
+  assertEquals(events.at(-1), { type: 'done' })
+})
+
+Deno.test('an open question can stay without buttons', async () => {
+  const model = scriptedModel([
+    { finishReason: 'stop', toolCalls: [] },
+    { finishReason: 'tool_calls', toolCalls: [{ name: 'show_quick_replies', input: { question: 'What is it about?', options: [] } }] },
+  ], [['What is the book about?']])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(events.filter(e => e.type === 'quick_replies' || e.type === 'error'), [])
+  assertEquals(events.at(-1), { type: 'done' })
 })

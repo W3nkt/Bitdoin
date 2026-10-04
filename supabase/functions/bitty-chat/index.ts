@@ -7,7 +7,7 @@ import {
   requestSubject,
   userSubject,
 } from '../_shared/ai-rate-limit.ts'
-import { buildCatalog, type CatalogBook, createBittyHandler } from './bitty.ts'
+import { type AcademyPlan, buildCatalog, type CatalogBook, createBittyHandler } from './bitty.ts'
 import { streamQwenChat } from './qwen.ts'
 
 const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
@@ -61,6 +61,22 @@ async function loadCatalog(): Promise<CatalogBook[]> {
   return books
 }
 
+let plansCache: { plans: AcademyPlan[]; expiresAt: number } | null = null
+
+async function loadPlans(): Promise<AcademyPlan[]> {
+  if (plansCache && plansCache.expiresAt > Date.now()) return plansCache.plans
+  // Same anon-key rule as the catalog: only active plans are publicly readable.
+  const { data, error } = await publicDb
+    .from('premium_plans')
+    .select('name, price_lak, interval')
+    .eq('is_active', true)
+    .order('sort_order')
+  if (error) throw new Error(`Plans query failed: ${error.message}`)
+  const plans = (data ?? []).map(row => ({ name: row.name, priceLak: Number(row.price_lak), interval: row.interval }))
+  plansCache = { plans, expiresAt: Date.now() + CATALOG_TTL_MS }
+  return plans
+}
+
 async function identify(req: Request): Promise<string> {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (token && token !== SUPABASE_ANON_KEY) {
@@ -74,6 +90,7 @@ serve(createBittyHandler({
   corsHeaders,
   identify,
   loadCatalog,
+  loadPlans,
   consumeQuota: subjectHash => consumeAiQuota(admin, {
     feature: 'bitty-chat',
     subjectHash,

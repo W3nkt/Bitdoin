@@ -129,10 +129,18 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
   }
 
   const last = messages[messages.length - 1]
-  const greetingReplies = [t('bitty.purposeSkill'), t('bitty.purposeCareer'), t('bitty.purposeSchool'), t('bitty.purposeInterest')]
+  const greetingReplies = [t('bitty.topicBook'), t('bitty.topicOrder'), t('bitty.topicTrack'), t('bitty.topicAccount'), t('bitty.topicAcademy')]
+  // Only 3 books fit in one reply, so book cards always come with a way to see more.
+  const afterBooksReplies = (modelReplies: string[]) => {
+    const fallback = [t('bitty.otherCategory'), t('bitty.otherLanguage')]
+    const rest = (modelReplies.length > 0 ? modelReplies : fallback).filter(option => option !== t('bitty.moreBooks'))
+    return [t('bitty.moreBooks'), ...rest].slice(0, 5)
+  }
   const quickReplies = !busy && last?.role === 'assistant' && !last.error
-    // After a greeting or an off-topic reply, offer the reading purposes to get back on track.
-    ? (last.greeting || last.offTopic ? greetingReplies : last.quickReplies ?? [])
+    // After a greeting or an off-topic reply, offer the main help topics to get back on track.
+    ? (last.greeting || last.offTopic
+        ? greetingReplies
+        : last.books?.length ? afterBooksReplies(last.quickReplies ?? []) : last.quickReplies ?? [])
     : []
 
   const cascade = (index: number) => ({ '--bitty-i': Math.max(0, index - (messages.length - CASCADE_ROWS)) }) as CSSProperties
@@ -194,19 +202,13 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
               : message.error
                 ? t(`bitty.errors.${message.error}`)
                 : plainText(message.text)
-          const typing = message.pending && !text && !message.books?.length
+          // Keep showing progress until the reply is complete, even after text or books arrive.
+          const typing = message.pending
 
           return (
             <div key={message.id} className="bitty-msg flex items-start gap-2" style={cascade(index)}>
               <BittyAvatar className="mt-0.5 h-6 w-6 ring-1 ring-gray-200 sm:h-7 sm:w-7" />
               <div className="min-w-0 max-w-[85%] space-y-2">
-                {typing && (
-                  <div className="flex gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-sm ring-1 ring-primary-100" aria-label={t('bitty.typing')}>
-                    {[0, 150, 300].map(delay => (
-                      <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: `${delay}ms` }} />
-                    ))}
-                  </div>
-                )}
                 {text && (
                   <p className={cn(
                     'whitespace-pre-wrap rounded-2xl rounded-bl-md px-3 py-1.5 text-[13px] shadow-sm sm:px-3.5 sm:py-2 sm:text-sm',
@@ -227,6 +229,16 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
                     ))}
                   </ul>
                 )}
+                {typing && (
+                  <div role="status" className="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-primary-100">
+                    <span className="flex gap-1" aria-hidden="true">
+                      {[0, 150, 300].map(delay => (
+                        <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-primary-400" style={{ animationDelay: `${delay}ms` }} />
+                      ))}
+                    </span>
+                    <span className="text-[11px] text-gray-500 sm:text-xs">{t('bitty.typing')}…</span>
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -244,7 +256,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
                 {option}
               </button>
             ))}
-            {!last?.books?.length && !last?.offTopic && (
+            {!last?.books?.length && !last?.offTopic && !last?.greeting && (
               <button
                 type="button"
                 onClick={() => send(t('bitty.skip'))}

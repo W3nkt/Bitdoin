@@ -32,7 +32,7 @@ function prefersReducedMotion() {
 
 type Phase = 'closed' | 'open' | 'closing'
 
-/** Floating "Bitty Assistant" book-finder. Rendered only by the Bookstore layout. */
+/** Floating "Arlin" Bitdoin assistant. Rendered only by the Bookstore layout. */
 export function BittyAssistant() {
   const { t } = useTranslation()
   // A panel restored after page navigation opens without the entrance effect.
@@ -99,7 +99,7 @@ export function BittyAssistant() {
           )}
         >
           <BittyAvatar className="bitty-launcher-avatar h-8 w-8 ring-2 ring-white/40 sm:h-10 sm:w-10" />
-          <span className="text-xs font-semibold sm:text-sm">Bitty</span>
+          <span className="text-xs font-semibold sm:text-sm">{t('bitty.name')}</span>
         </button>
       )}
 
