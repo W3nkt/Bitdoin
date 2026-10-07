@@ -12,7 +12,7 @@ import { useAdminNotifications } from '@/hooks/useAdminNotifications'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
-import { useApplyTheme, useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 
 interface AdminLayoutProps { children: ReactNode }
 
@@ -25,7 +25,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(false)
   const theme = useTheme(state => state.theme)
   const toggleTheme = useTheme(state => state.toggleTheme)
-  useApplyTheme()
   const themeLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
   const { orderBadge, paymentBadge, deliveryBadge, markSeen } = useAdminNotifications()
 

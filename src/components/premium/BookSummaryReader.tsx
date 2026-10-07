@@ -120,23 +120,23 @@ function paginateWeighted<T>(items: T[], weight: (item: T) => number, budgetFor:
 }
 
 function renderBlock(block: ReaderBlock, i: number, t: (k: keyof typeof STRINGS) => string) {
-  if (block.type === 'p') return <p key={i} className="mt-3 text-[13.5px] leading-6 text-slate-600 first:mt-0">{block.text}</p>
-  if (block.type === 'h4') return <h4 key={i} className="mt-5 text-sm font-black text-slate-900 first:mt-0">{block.text}</h4>
+  if (block.type === 'p') return <p key={i} className="mt-3 text-[13.5px] leading-6 text-slate-600 dark:text-slate-300 first:mt-0">{block.text}</p>
+  if (block.type === 'h4') return <h4 key={i} className="mt-5 text-sm font-black text-slate-900 dark:text-slate-100 first:mt-0">{block.text}</h4>
   if (block.type === 'oneline') return (
-    <div key={i} className="mt-4 border-l-2 border-primary-600 pl-3 first:mt-0">
-      <p className="text-[12.5px] leading-5 text-slate-600"><span className="font-black text-slate-900">{t('In one line.')}</span>{block.text}</p>
+    <div key={i} className="mt-4 border-l-2 border-primary-600 dark:border-primary-400 pl-3 first:mt-0">
+      <p className="text-[12.5px] leading-5 text-slate-600 dark:text-slate-300"><span className="font-black text-slate-900 dark:text-slate-100">{t('In one line.')}</span>{block.text}</p>
     </div>
   )
   if (block.type === 'term') return (
-    <div key={i} className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100 first:mt-0">
-      <p className="text-xs font-black text-slate-900">{block.term}</p>
-      <p className="mt-1 text-xs leading-5 text-slate-600">{block.body}</p>
+    <div key={i} className="mt-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 ring-1 ring-slate-100 dark:ring-slate-800 first:mt-0">
+      <p className="text-xs font-black text-slate-900 dark:text-slate-100">{block.term}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{block.body}</p>
     </div>
   )
   return (
-    <ul key={i} className="mt-3 list-disc space-y-2 pl-4 text-[13px] leading-5 text-slate-600 first:mt-0">
+    <ul key={i} className="mt-3 list-disc space-y-2 pl-4 text-[13px] leading-5 text-slate-600 dark:text-slate-300 first:mt-0">
       {block.items.map((item, ii) => (
-        <li key={ii}>{item.label && <b className="font-black text-slate-900">{item.label} </b>}{item.body}</li>
+        <li key={ii}>{item.label && <b className="font-black text-slate-900 dark:text-slate-100">{item.label} </b>}{item.body}</li>
       ))}
     </ul>
   )
@@ -146,9 +146,9 @@ function FlowPage({ eyebrow, title, subtitle, children }: { eyebrow: string; tit
   return (
     <div className="flex h-full flex-col p-6">
       <header className="shrink-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary-500">{eyebrow}</p>
-        {title && <h3 className="mt-1 text-lg font-black leading-snug text-slate-900">{title}</h3>}
-        {subtitle && <p className="mt-1 text-xs font-semibold text-slate-500">{subtitle}</p>}
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-primary-500 dark:text-primary-400">{eyebrow}</p>
+        {title && <h3 className="mt-1 text-lg font-black leading-snug text-slate-900 dark:text-slate-100">{title}</h3>}
+        {subtitle && <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">{subtitle}</p>}
       </header>
       <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">{children}</div>
     </div>
@@ -242,7 +242,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
             title={gi === 0 ? (bookTitle ?? title) : undefined}
             subtitle={gi === 0 && bookAuthor ? `${t('by')} ${bookAuthor}` : undefined}
           >
-            <p className="text-[13px] leading-6 text-slate-600">{group.join(' ')}</p>
+            <p className="text-[13px] leading-6 text-slate-600 dark:text-slate-300">{group.join(' ')}</p>
           </FlowPage>
         ),
       }))
@@ -254,10 +254,10 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
         id: `divider-${si}`, numbered: false, toc: `${String(n).padStart(2, '0')} · ${section.heading}`,
         render: (
           <div className="flex h-full flex-col items-center justify-center gap-5 p-10 text-center">
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-primary-500">{t('Chapter')}</p>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-primary-500 dark:text-primary-400">{t('Chapter')}</p>
             <p className="text-7xl font-black text-slate-100">{String(n).padStart(2, '0')}</p>
             <div>
-              <h2 className="text-2xl font-black leading-tight text-slate-900">{section.heading}</h2>
+              <h2 className="text-2xl font-black leading-tight text-slate-900 dark:text-slate-100">{section.heading}</h2>
             </div>
           </div>
         ),
@@ -295,8 +295,8 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
           <FlowPage eyebrow={t('Keep these ideas')} title={gi === 0 ? t('Key Takeaways') : undefined}>
             <ul className="space-y-2.5">
               {group.map((item, ii) => (
-                <li key={ii} className="flex gap-2.5 text-[13px] leading-5 text-slate-600">
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                <li key={ii} className="flex gap-2.5 text-[13px] leading-5 text-slate-600 dark:text-slate-300">
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>{item}</span>
                 </li>
               ))}
@@ -314,9 +314,9 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
           <FlowPage eyebrow={t('Glossary')} title={gi === 0 ? t('Terms worth remembering') : undefined}>
             <div className="space-y-3">
               {group.map((item, ii) => (
-                <div key={ii} className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                  <p className="text-xs font-black text-slate-900">{item.term}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600">{item.body}</p>
+                <div key={ii} className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 ring-1 ring-slate-100 dark:ring-slate-800">
+                  <p className="text-xs font-black text-slate-900 dark:text-slate-100">{item.term}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{item.body}</p>
                 </div>
               ))}
             </div>
@@ -337,8 +337,8 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
             <FlowPage eyebrow={t('Reflect')} title={gi === 0 ? t('Questions to sit with') : undefined}>
               <ol className="space-y-3">
                 {group.map((q, ii) => (
-                  <li key={ii} className="text-[13px] leading-6 text-slate-600">
-                    <span className="font-black text-slate-900">{startIndex + ii + 1}.</span> {q}
+                  <li key={ii} className="text-[13px] leading-6 text-slate-600 dark:text-slate-300">
+                    <span className="font-black text-slate-900 dark:text-slate-100">{startIndex + ii + 1}.</span> {q}
                   </li>
                 ))}
               </ol>
@@ -360,7 +360,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
                 onClick={() => onAnswer(q.id, oi)}
                 className={cn(
                   'rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-semibold transition',
-                  answers[q.id] === oi ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-slate-200 bg-white hover:border-primary-300',
+                  answers[q.id] === oi ? 'border-primary-600 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 hover:border-primary-300 dark:hover:border-primary-700',
                 )}
               >
                 {option}
@@ -375,12 +375,12 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
       id: 'complete', numbered: false, toc: t('Finish'),
       render: (
         <div className="flex h-full flex-col items-center justify-center gap-5 p-8 text-center">
-          <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+          <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-100 dark:ring-emerald-500/30">
             <Check className="h-6 w-6" />
           </span>
           <div>
-            <h3 className="text-xl font-black text-slate-900">{completed ? t('Lesson completed') : t('You reached the end')}</h3>
-            <p className="mx-auto mt-2 max-w-[28ch] text-[13px] leading-6 text-slate-500">{title}</p>
+            <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{completed ? t('Lesson completed') : t('You reached the end')}</h3>
+            <p className="mx-auto mt-2 max-w-[28ch] text-[13px] leading-6 text-slate-500 dark:text-slate-400">{title}</p>
           </div>
           <div className="w-full max-w-[240px]">
             <Button
@@ -394,7 +394,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
             </Button>
           </div>
           {bookHref && (
-            <Link to={bookHref} className="text-xs font-bold text-primary-700">{t('View in Bookstore')} →</Link>
+            <Link to={bookHref} className="text-xs font-bold text-primary-700 dark:text-primary-300">{t('View in Bookstore')} →</Link>
           )}
         </div>
       ),
@@ -425,7 +425,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
         <button
           type="button"
           onClick={() => setTocOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-black text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-primary-700"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-black text-slate-600 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 transition hover:text-primary-700 dark:hover:text-primary-300"
         >
           <List className="h-3.5 w-3.5" /> {t('Contents')}
         </button>
@@ -436,16 +436,16 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
       {tocOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => setTocOpen(false)}>
           <div
-            className="max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl"
+            className="max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white dark:bg-gray-900 p-5 shadow-2xl sm:rounded-3xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900">{t('Contents')}</h3>
-              <button type="button" onClick={() => setTocOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100">
+              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{t('Contents')}</h3>
+              <button type="button" onClick={() => setTocOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-3 divide-y divide-slate-100">
+            <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
               {toc.map(entry => (
                 <button
                   key={entry.index}
@@ -453,7 +453,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
                   onClick={() => { setPageIndex(entry.index); setTocOpen(false) }}
                   className={cn(
                     'flex w-full items-center justify-between gap-3 py-3 text-left text-sm font-semibold transition',
-                    entry.index === clampedIndex ? 'text-primary-700' : 'text-slate-700 hover:text-primary-700',
+                    entry.index === clampedIndex ? 'text-primary-700 dark:text-primary-300' : 'text-slate-700 dark:text-slate-200 hover:text-primary-700 dark:hover:text-primary-300',
                   )}
                 >
                   <span className="flex items-center gap-2 truncate"><BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-300" />{entry.label}</span>

@@ -236,11 +236,11 @@ function statusLabel(status?: PremiumStatus) {
 
 function paymentStatusClass(status: PremiumPaymentStatus) {
   const colors: Record<PremiumPaymentStatus, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    REQUIRES_REVIEW: 'bg-orange-100 text-orange-800',
-    VERIFIED: 'bg-emerald-100 text-emerald-800',
-    REJECTED: 'bg-red-100 text-red-800',
-    REFUNDED: 'bg-gray-100 text-gray-700',
+    PENDING: 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300',
+    REQUIRES_REVIEW: 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300',
+    VERIFIED: 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+    REJECTED: 'bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300',
+    REFUNDED: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
   }
   return colors[status]
 }
@@ -874,7 +874,7 @@ export function Subscription() {
   }, [location.hash, pageLoading])
 
   return (
-    <div className="premium-i18n min-h-screen bg-slate-50 pt-[104px] text-slate-950">
+    <div className="premium-i18n min-h-screen bg-slate-50 dark:bg-gray-950 pt-[104px] text-slate-950 dark:text-slate-100">
       <section className="fixed inset-x-0 top-0 z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,95,240,0.35),transparent_35%),linear-gradient(135deg,#0f1f35_0%,#162d4a_58%,#1e3a5f_100%)]" />
         <div className="relative mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-4">
@@ -937,7 +937,7 @@ export function Subscription() {
                       type="button"
                       disabled={busyPlanId === subscription.plan.id}
                       onClick={() => void startSubscription(subscription.plan!)}
-                      className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-red-700 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-5 py-3 text-sm font-black text-red-700 dark:text-red-300 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 dark:hover:bg-red-500/10 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     >
                       <RefreshCw className={cn('h-4 w-4', busyPlanId === subscription.plan.id && 'animate-spin')} />
                       {busyPlanId === subscription.plan.id
@@ -950,7 +950,7 @@ export function Subscription() {
               {!isPaidPremium && (
                 <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
-                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40">
+                    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40 dark:ring-amber-500/40">
                       <Crown className="h-5 w-5 text-amber-300" />
                     </span>
                     <div>
@@ -991,19 +991,19 @@ export function Subscription() {
            ) : (
              <>
           {isAwaitingApproval && (
-            <section className="flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <section className="flex flex-col gap-3 rounded-2xl border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300">
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <div>
                   <p className="text-sm font-black text-sky-950">Awaiting admin approval</p>
-                  <p className="mt-1 text-xs leading-5 text-sky-800">
+                  <p className="mt-1 text-xs leading-5 text-sky-800 dark:text-sky-300">
                     Your Free membership request and profile information are being checked. No payment is required.
                   </p>
                 </div>
               </div>
-              <span className="w-fit rounded-full bg-white px-3 py-1.5 text-xs font-bold text-sky-800 shadow-sm">
+              <span className="w-fit rounded-full bg-white dark:bg-gray-900 px-3 py-1.5 text-xs font-bold text-sky-800 dark:text-sky-300 shadow-sm">
                 Request submitted
               </span>
             </section>
@@ -1031,13 +1031,13 @@ export function Subscription() {
           />
 
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <section className="rounded-3xl bg-white p-5 shadow-card">
+            <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Today</p>
-                  <h2 className="mt-1 text-xl font-black text-gray-950">Daily mentor</h2>
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Today</p>
+                  <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Daily mentor</h2>
                 </div>
-                <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
+                <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-3 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">
                   {formatDate(todaysMotivation.publish_date, language)}
                 </span>
               </div>
@@ -1073,11 +1073,11 @@ export function Subscription() {
               </div>
             </section>
 
-            <section className="rounded-3xl bg-white p-5 shadow-card">
+            <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Access</p>
-                  <h2 className="mt-1 text-xl font-black text-gray-950">Premium modules</h2>
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Access</p>
+                  <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Premium modules</h2>
                 </div>
                 {!isPremiumActive && <Lock className="h-5 w-5 text-gray-300" />}
               </div>
@@ -1085,13 +1085,13 @@ export function Subscription() {
                 {featureModules.map(module => {
                   const Icon = module.icon
                   return (
-                    <div key={module.title} className="flex gap-3 rounded-2xl border border-gray-100 p-3">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+                    <div key={module.title} className="flex gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900">{module.title}</p>
-                        <p className="mt-0.5 text-xs leading-5 text-gray-500">{module.detail}</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{module.title}</p>
+                        <p className="mt-0.5 text-xs leading-5 text-gray-500 dark:text-gray-400">{module.detail}</p>
                       </div>
                     </div>
                   )
@@ -1105,10 +1105,10 @@ export function Subscription() {
           <section id="plans" className="scroll-mt-24">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Plans</p>
-                <h2 className="mt-1 text-xl font-black text-gray-950">{isMemberActive ? 'Upgrade your plan' : 'Choose your access'}</h2>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Plans</p>
+                <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{isMemberActive ? 'Upgrade your plan' : 'Choose your access'}</h2>
               </div>
-              <p className="hidden text-sm text-gray-500 sm:block">Manual activation supports Lao payment workflows.</p>
+              <p className="hidden text-sm text-gray-500 dark:text-gray-400 sm:block">Manual activation supports Lao payment workflows.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1123,9 +1123,9 @@ export function Subscription() {
                 return (
                   <Card key={plan.slug} className={cn(
                     'relative border-2',
-                    isPremium ? 'border-primary-200' : 'border-gray-100',
-                    isYearly && 'border-amber-300',
-                    isCurrent && 'border-primary-700',
+                    isPremium ? 'border-primary-200 dark:border-primary-800' : 'border-gray-100 dark:border-gray-800',
+                    isYearly && 'border-amber-300 dark:border-amber-500/40',
+                    isCurrent && 'border-primary-700 dark:border-primary-400',
                   )}>
                     {isYearly && !isCurrent && (
                       <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
@@ -1135,29 +1135,29 @@ export function Subscription() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          {isPremium ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-primary-600" />}
-                          <h3 className="text-lg font-black text-gray-950">{plan.name}</h3>
+                          {isPremium ? <Crown className="h-5 w-5 text-amber-500" /> : <ShieldCheck className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
+                          <h3 className="text-lg font-black text-gray-950 dark:text-gray-100">{plan.name}</h3>
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-gray-500">{plan.description}</p>
+                        <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{plan.description}</p>
                       </div>
                       {isCurrent && (
-                        <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">Current</span>
+                        <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-3 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">Current</span>
                       )}
                     </div>
 
                     <div className="mt-5 flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-gray-950">{formatPrice(plan.price_lak, currency)}</span>
+                      <span className="text-3xl font-black text-gray-950 dark:text-gray-100">{formatPrice(plan.price_lak, currency)}</span>
                       <span className="text-sm font-semibold text-gray-400">/{plan.interval}</span>
                     </div>
                     {yearlySavings > 0 && (
-                      <p className="mt-1.5 text-xs font-bold text-emerald-600">
+                      <p className="mt-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                         {`Save ${formatPrice(yearlySavings, currency)} — 2 months free`}
                       </p>
                     )}
 
                     <div className="mt-5 space-y-2">
                       {plan.features.map(feature => (
-                        <div key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                        <div key={feature} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
                           <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
                           <span>{feature}</span>
                         </div>
@@ -1197,13 +1197,13 @@ export function Subscription() {
           </section>
 
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <section className="rounded-3xl bg-white p-5 shadow-card">
+            <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Subscription</p>
-                  <h2 className="mt-1 text-xl font-black text-gray-950">Membership control</h2>
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Subscription</p>
+                  <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Membership control</h2>
                 </div>
-                <ReceiptText className="h-5 w-5 text-primary-600" />
+                <ReceiptText className="h-5 w-5 text-primary-600 dark:text-primary-400" />
               </div>
 
               <div className="mt-5 space-y-3">
@@ -1221,7 +1221,7 @@ export function Subscription() {
                 onClick={() => setConfirmCancelOpen(true)}
                 loading={busyPlanId === subscription?.plan_id}
                 disabled={!subscription || subscription.status === 'CANCELLED' || subscription.status === 'EXPIRED'}
-                className="mt-5 border-red-200 text-red-600 hover:bg-red-50"
+                className="mt-5 border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
               >
                 Cancel subscription
               </Button>
@@ -1248,28 +1248,28 @@ export function Subscription() {
                   </div>
                 }
               >
-                <p className="text-sm leading-6 text-slate-600">
-                  You'll lose access to <span className="font-bold text-slate-900">{planName}</span> immediately
+                <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  You'll lose access to <span className="font-bold text-slate-900 dark:text-slate-100">{planName}</span> immediately
                   {isPaidPremium ? ' — this cannot be undone, and any remaining time on your current billing period will not be refunded.' : '.'}
                   {' '}You can subscribe again at any time.
                 </p>
               </Modal>
             </section>
 
-            <section className="rounded-3xl bg-white p-5 shadow-card">
+            <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Billing</p>
-                  <h2 className="mt-1 text-xl font-black text-gray-950">Payment history</h2>
+                  <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Billing</p>
+                  <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Payment history</h2>
                 </div>
-                <ReceiptText className="h-5 w-5 text-primary-600" />
+                <ReceiptText className="h-5 w-5 text-primary-600 dark:text-primary-400" />
               </div>
 
               <div className="mt-5 space-y-3">
                 {(payments ?? []).length > 0 ? payments!.map(payment => (
-                  <div key={payment.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 p-3">
+                  <div key={payment.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-gray-900">{payment.plan?.name ?? 'Premium'}</p>
+                      <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{payment.plan?.name ?? 'Premium'}</p>
                       <p className="mt-0.5 text-xs text-gray-400">{formatDate(payment.created_at, language)} · {formatPrice(payment.amount_lak, currency)}</p>
                     </div>
                     <span className={cn('flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', paymentStatusClass(payment.status))}>
@@ -1277,9 +1277,9 @@ export function Subscription() {
                     </span>
                   </div>
                 )) : (
-                  <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-center">
+                  <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
                     <ReceiptText className="mx-auto h-8 w-8 text-gray-300" />
-                    <p className="mt-2 text-sm font-semibold text-gray-700">No Premium payments yet</p>
+                    <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-200">No Premium payments yet</p>
                     <p className="mt-1 text-xs text-gray-400">Start Premium to create your first subscription payment.</p>
                   </div>
                 )}
@@ -1331,10 +1331,10 @@ export function Subscription() {
       >
         {qrPreview ? (
           <div className="flex flex-col items-center py-2 text-center" data-no-premium-translate>
-            <div className="w-full rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200 sm:p-5">
+            <div className="w-full rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-3 ring-1 ring-slate-200 dark:ring-slate-700 sm:p-5">
               <img src={qrPreview.url} alt={qrPreview.label} className="mx-auto max-h-[58vh] w-full object-contain" />
             </div>
-            <p className="mt-3 text-xs font-semibold text-slate-500">
+            <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
               {language === 'lo' ? 'ສະແກນ QR ນີ້ເພື່ອຊຳລະ ຫຼື ບັນທຶກຮູບໄວ້ໃນເຄື່ອງ.' : 'Scan this QR to pay, or save the image to your device.'}
             </p>
           </div>
@@ -1359,7 +1359,7 @@ export function Subscription() {
               </p>
             </div>
           </div>
-          <p className="text-sm font-semibold leading-6 text-slate-600">
+          <p className="text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">
             {language === 'lo'
               ? 'ສະແກນ QR ຫຼື ໂອນເຂົ້າບັນຊີດ້ານລຸ່ມ, ແລ້ວອັບໂຫຼດຫຼັກຖານເພື່ອໃຫ້ແອັດມິນກວດສອບ.'
               : 'Scan the QR code or transfer to the account below, then upload your payment proof for admin verification.'}
@@ -1367,8 +1367,8 @@ export function Subscription() {
           {(paymentAccounts ?? []).length > 0 ? (
             <div className="space-y-3">
               {paymentAccounts!.map(account => (
-                <div key={account.id} className="rounded-2xl border border-slate-200 p-4">
-                  <p className="text-sm font-black text-slate-900">{account.label}</p>
+                <div key={account.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100">{account.label}</p>
                   {account.qr_image_url && (
                     <button
                       type="button"
@@ -1379,25 +1379,25 @@ export function Subscription() {
                       <img
                         src={account.qr_image_url}
                         alt={account.label}
-                        className="h-48 w-48 rounded-xl object-contain ring-1 ring-slate-100 transition duration-200 group-hover/qr:scale-[1.02] group-hover/qr:brightness-95"
+                        className="h-48 w-48 rounded-xl object-contain ring-1 ring-slate-100 dark:ring-slate-800 transition duration-200 group-hover/qr:scale-[1.02] group-hover/qr:brightness-95"
                       />
                       <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-950/90 text-white shadow-lg transition group-hover/qr:scale-110">
                         <ZoomIn className="h-4 w-4" />
                       </span>
                     </button>
                   )}
-                  <div className="mt-3 space-y-1 text-xs text-slate-500">
-                    {account.bank_name && <p>{language === 'lo' ? 'ທະນາຄານ' : 'Bank'}: <span className="font-bold text-slate-800">{account.bank_name}</span></p>}
-                    {account.account_name && <p>{language === 'lo' ? 'ຊື່ບັນຊີ' : 'Account name'}: <span className="font-bold text-slate-800">{account.account_name}</span></p>}
+                  <div className="mt-3 space-y-1 text-xs text-slate-500 dark:text-slate-400">
+                    {account.bank_name && <p>{language === 'lo' ? 'ທະນາຄານ' : 'Bank'}: <span className="font-bold text-slate-800 dark:text-slate-100">{account.bank_name}</span></p>}
+                    {account.account_name && <p>{language === 'lo' ? 'ຊື່ບັນຊີ' : 'Account name'}: <span className="font-bold text-slate-800 dark:text-slate-100">{account.account_name}</span></p>}
                     {account.account_number && (
                       <div className="flex items-center gap-2">
-                        <p className="min-w-0 flex-1 break-all">{language === 'lo' ? 'ເລກບັນຊີ' : 'Account number'}: <span className="font-bold text-slate-800">{account.account_number}</span></p>
+                        <p className="min-w-0 flex-1 break-all">{language === 'lo' ? 'ເລກບັນຊີ' : 'Account number'}: <span className="font-bold text-slate-800 dark:text-slate-100">{account.account_number}</span></p>
                         <button
                           type="button"
                           onClick={() => void copyAccountNumber(account.account_number!)}
                           aria-label={language === 'lo' ? 'ສຳເນົາເລກບັນຊີ' : 'Copy account number'}
                           title={language === 'lo' ? 'ສຳເນົາ' : 'Copy'}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700 ring-1 ring-primary-100 transition hover:bg-primary-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 ring-1 ring-primary-100 dark:ring-primary-800 transition hover:bg-primary-100 dark:hover:bg-primary-900/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -1405,13 +1405,13 @@ export function Subscription() {
                     )}
                   </div>
                   {account.instructions && (
-                    <p className="mt-2 text-xs leading-5 text-slate-500">{account.instructions}</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{account.instructions}</p>
                   )}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">{language === 'lo' ? 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າວິທີຊຳລະ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.' : 'No payment method has been configured yet. Please contact support.'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າວິທີຊຳລະ. ກະລຸນາຕິດຕໍ່ຝ່າຍຊ່ວຍເຫຼືອ.' : 'No payment method has been configured yet. Please contact support.'}</p>
           )}
         </div>
         )}
@@ -1508,17 +1508,17 @@ function MemberDashboard({
 
       <section
         data-no-premium-translate
-        className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-slate-900/5 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+        className="group overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-card ring-1 ring-slate-900/5 dark:ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
       >
         <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">
               {language === 'lo' ? 'ສູນການຮຽນຮູ້' : 'Learning Hub'}
             </p>
-            <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+            <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 dark:text-slate-100 sm:text-4xl">
               {language === 'lo' ? 'ສ້າງທັກສະທີ່ພາຊີວິດທ່ານກ້າວໜ້າ.' : 'Build skills that move your life forward.'}
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
+            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {language === 'lo'
                 ? 'ບົດຮຽນທີ່ນຳໄປໃຊ້ໄດ້ຈິງດ້ານການເງິນ, AI, ພາສາອັງກິດ, ການເຮັດວຽກຢ່າງມີຜົນ, ອາຊີບ, ທຶນການສຶກສາ ແລະ ທຸລະກິດ—ພ້ອມທັງຄວາມທ້າທາຍປະຈຳອາທິດ ແລະ ນິໄສປະຈຳວັນ.'
                 : 'Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.'}
@@ -1566,11 +1566,11 @@ function MemberDashboard({
       <PlayLearnArcade profileId={profileId} onStartRoleplay={onStartRoleplay} />
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-3xl bg-white p-5 shadow-card">
+        <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{language === 'lo' ? 'ມື້ນີ້' : 'Today'}</p>
-              <h2 className="mt-1 text-xl font-black text-gray-950">{language === 'lo' ? 'Mentor ປະຈຳວັນ' : 'Daily mentor'}</h2>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{language === 'lo' ? 'ມື້ນີ້' : 'Today'}</p>
+              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{language === 'lo' ? 'Mentor ປະຈຳວັນ' : 'Daily mentor'}</h2>
             </div>
             <div className="flex items-start gap-2 text-right">
               <button
@@ -1578,22 +1578,22 @@ function MemberDashboard({
                 onClick={() => setHistoryOpen(true)}
                 aria-label={language === 'lo' ? 'ເບິ່ງປະຫວັດຄວາມຄືບໜ້າ' : 'View progress history'}
                 title={language === 'lo' ? 'ປະຫວັດຄວາມຄືບໜ້າ' : 'Progress history'}
-                className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 text-primary-700 ring-1 ring-slate-200 transition duration-200 hover:-translate-y-0.5 hover:bg-primary-50 hover:text-primary-900 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800/50 text-primary-700 dark:text-primary-300 ring-1 ring-slate-200 dark:ring-slate-700 transition duration-200 hover:-translate-y-0.5 hover:bg-primary-50 dark:hover:bg-primary-900/40 hover:text-primary-900 dark:hover:text-primary-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               >
                 <History className="h-4 w-4" />
               </button>
               <div>
               {motivation.source === 'personalized' && (
-                <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">
+                <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-500/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700 dark:text-violet-300">
                   <Sparkles className="h-3 w-3" />
                   Made for you
                 </span>
               )}
               <br className={motivation.source === 'personalized' ? '' : 'hidden'} />
-              <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
+              <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-3 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">
                 {formatDate(motivation.publish_date, language)}
               </span>
-              <p className="mt-2 text-[11px] font-black text-slate-500">{completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
+              <p className="mt-2 text-[11px] font-black text-slate-500 dark:text-slate-400">{completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
               </div>
             </div>
           </div>
@@ -1616,26 +1616,26 @@ function MemberDashboard({
                   className={cn(
                     'group relative min-h-40 rounded-2xl border p-4 text-left transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
                     completed
-                      ? 'border-emerald-200 bg-emerald-50/70 shadow-sm'
+                      ? 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/70 dark:bg-emerald-500/10 shadow-sm'
                       : selected
-                        ? 'border-primary-400 bg-primary-50 shadow-md shadow-primary-900/10 -translate-y-0.5'
-                        : 'border-slate-200 bg-slate-50 hover:-translate-y-0.5 hover:border-primary-300 hover:bg-white hover:shadow-md',
+                        ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/40 shadow-md shadow-primary-900/10 -translate-y-0.5'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:-translate-y-0.5 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-white dark:hover:bg-gray-900 hover:shadow-md',
                   )}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className={cn('flex items-center gap-2 text-xs font-black uppercase tracking-wide', completed ? 'text-emerald-700' : 'text-primary-800')}>
+                    <span className={cn('flex items-center gap-2 text-xs font-black uppercase tracking-wide', completed ? 'text-emerald-700 dark:text-emerald-300' : 'text-primary-800 dark:text-primary-300')}>
                       {item.icon}
                       {item.label}
                     </span>
                     <span className={cn(
                       'flex h-6 w-6 items-center justify-center rounded-full transition',
-                      completed ? 'bg-emerald-600 text-white' : 'bg-white text-slate-300 ring-1 ring-slate-200 group-hover:text-primary-600',
+                      completed ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-gray-900 text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700 group-hover:text-primary-600 dark:group-hover:text-primary-400',
                     )}>
                       {completed ? <CheckCircle2 className="h-4 w-4" /> : <ArrowRight className="h-3.5 w-3.5" />}
                     </span>
                   </div>
-                  <p className="mt-4 text-sm font-semibold leading-6 text-slate-700">{item.text}</p>
-                  {completed && <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-emerald-800">“{completionResponses[item.kind]}”</p>}
+                  <p className="mt-4 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">{item.text}</p>
+                  {completed && <p className="mt-3 line-clamp-2 text-xs font-semibold leading-5 text-emerald-800 dark:text-emerald-300">“{completionResponses[item.kind]}”</p>}
                 </button>
               )
             })}
@@ -1649,7 +1649,7 @@ function MemberDashboard({
           >
             {selectedItem && (
               <div>
-                <p className="mb-3 text-sm font-semibold leading-6 text-slate-600">{selectedItem.text}</p>
+                <p className="mb-3 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{selectedItem.text}</p>
                 <textarea
                   autoFocus
                   rows={5}
@@ -1657,7 +1657,7 @@ function MemberDashboard({
                   value={dailyDrafts[selectedItem.kind] ?? ''}
                   onChange={event => setDailyDrafts(current => ({ ...current, [selectedItem.kind]: event.target.value }))}
                   placeholder={selectedItem.prompt}
-                  className="min-h-36 w-full resize-none rounded-xl border border-primary-200 bg-white px-4 py-3 text-base font-semibold leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                  className="min-h-36 w-full resize-none rounded-xl border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-900 px-4 py-3 text-base font-semibold leading-6 text-slate-800 dark:text-slate-100 outline-none transition placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 dark:focus:ring-primary-800"
                 />
                 <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-xs font-semibold text-slate-400">{(dailyDrafts[selectedItem.kind] ?? '').length}/1200</span>
@@ -1701,30 +1701,30 @@ function MemberDashboard({
                 <div className="flex min-h-44 items-center justify-center"><LoadingSpinner /></div>
               ) : historyItems.length === 0 ? (
                 <div className="py-10 text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-primary-700"><History className="h-5 w-5" /></span>
-                  <p className="mt-4 text-sm font-black text-slate-900">{language === 'lo' ? 'ຍັງບໍ່ມີປະຫວັດ' : 'No progress yet'}</p>
-                  <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-slate-500">{language === 'lo' ? 'ຄຳຕອບຂອງທ່ານຈະປາກົດຢູ່ນີ້ຫຼັງຈາກເຮັດກິດຈະກຳທຳອິດ.' : 'Your replies will appear here after you complete your first activity.'}</p>
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300"><History className="h-5 w-5" /></span>
+                  <p className="mt-4 text-sm font-black text-slate-900 dark:text-slate-100">{language === 'lo' ? 'ຍັງບໍ່ມີປະຫວັດ' : 'No progress yet'}</p>
+                  <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ຄຳຕອບຂອງທ່ານຈະປາກົດຢູ່ນີ້ຫຼັງຈາກເຮັດກິດຈະກຳທຳອິດ.' : 'Your replies will appear here after you complete your first activity.'}</p>
                 </div>
               ) : (
-                <ol className="relative ml-2 border-l border-slate-200 pl-5">
+                <ol className="relative ml-2 border-l border-slate-200 dark:border-slate-700 pl-5">
                   {historyItems.map((entry, entryIndex) => (
                     <li key={entry.id} className={cn('relative', entryIndex > 0 && 'mt-6')}>
-                      <span className={cn('absolute -left-[29px] top-1.5 h-4 w-4 rounded-full border-4 border-white', entry.completedCount === 3 ? 'bg-emerald-500' : 'bg-primary-500')} />
+                      <span className={cn('absolute -left-[29px] top-1.5 h-4 w-4 rounded-full border-4 border-white dark:border-gray-800', entry.completedCount === 3 ? 'bg-emerald-500' : 'bg-primary-500')} />
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-black text-slate-900">{entry.content ? formatDate(entry.content.publish_date, language) : (language === 'lo' ? 'ກິດຈະກຳ Mentor' : 'Mentor activity')}</p>
-                          <p className="mt-0.5 text-xs font-semibold text-slate-500">{entry.completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{entry.content ? formatDate(entry.content.publish_date, language) : (language === 'lo' ? 'ກິດຈະກຳ Mentor' : 'Mentor activity')}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{entry.completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
                         </div>
-                        {entry.completedCount === 3 && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />}
+                        {entry.completedCount === 3 && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
                       </div>
                       <div className="mt-3 space-y-2">
                         {dailyItems.map(item => {
                           const reply = entry.responses[item.kind]?.trim()
                           if (!reply) return null
                           return (
-                            <div key={item.kind} className="rounded-xl bg-slate-50 px-3.5 py-3 ring-1 ring-slate-100">
-                              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-primary-700">{item.icon}{item.label}</div>
-                              <p className="mt-1.5 text-sm font-semibold leading-5 text-slate-700">“{reply}”</p>
+                            <div key={item.kind} className="rounded-xl bg-slate-50 dark:bg-slate-800/50 px-3.5 py-3 ring-1 ring-slate-100 dark:ring-slate-800">
+                              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">{item.icon}{item.label}</div>
+                              <p className="mt-1.5 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">“{reply}”</p>
                             </div>
                           )
                         })}
@@ -1736,29 +1736,29 @@ function MemberDashboard({
             </div>
           </Modal>
 
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
-            <p className="hidden text-xs font-semibold text-slate-500 sm:block">
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800 pt-5">
+            <p className="hidden text-xs font-semibold text-slate-500 dark:text-slate-400 sm:block">
               {completedCount === 3 ? 'Daily ritual complete. Great work!' : 'Open each activity and leave a reply.'}
             </p>
             <button
               type="button"
               onClick={onOpenCoach}
-              className="group relative isolate ml-auto inline-flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-700 via-violet-600 to-fuchsia-600 px-5 py-3.5 text-sm font-black text-white shadow-[0_12px_35px_rgba(109,40,217,0.38)] ring-1 ring-white/20 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_45px_rgba(109,40,217,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 sm:w-auto"
+              className="group relative isolate ml-auto inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-amber-400 px-5 py-3.5 text-sm font-black text-[#071426] shadow-[0_10px_28px_-6px_rgba(245,158,11,0.55)] ring-1 ring-amber-300 transition duration-300 hover:-translate-y-0.5 hover:bg-amber-300 hover:shadow-[0_16px_36px_-6px_rgba(245,158,11,0.7)] active:translate-y-0 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 sm:w-auto"
             >
-              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <span className="absolute -right-3 -top-3 h-10 w-10 rounded-full bg-amber-300/40 blur-lg animate-pulse" />
-              <Sparkles className="relative h-4 w-4 text-amber-200 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-125" />
-              <span className="relative">Open AI Coach</span>
-              <Brain className="relative h-4 w-4 text-white/90" />
+              {/* Soft pulsing halo: draws the eye with a solid color, no gradient. */}
+              <span aria-hidden className="pointer-events-none absolute -inset-1 -z-10 rounded-[1.15rem] border-2 border-amber-400/50 motion-safe:animate-pulse" />
+              <Sparkles className="h-4 w-4 transition-transform duration-500 group-hover:rotate-[20deg] group-hover:scale-125" />
+              <span>Open AI Coach</span>
+              <Brain className="h-4 w-4 opacity-80" />
             </button>
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-card">
+        <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary-600">Community</p>
-              <h2 className="mt-1 text-xl font-black text-gray-950">Top performers</h2>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Community</p>
+              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Top performers</h2>
             </div>
             <Trophy className="h-5 w-5 text-amber-500" />
           </div>
@@ -1768,12 +1768,12 @@ function MemberDashboard({
                 key={`${performer.rank}-${performer.display_name}`}
                 className={cn(
                   'flex items-center gap-3 rounded-2xl border p-3',
-                  performer.is_current_user ? 'border-primary-200 bg-primary-50/60' : 'border-gray-100',
+                  performer.is_current_user ? 'border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/40' : 'border-gray-100 dark:border-gray-800',
                 )}
               >
                 <div className={cn(
                   'flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black',
-                  performer.rank <= 3 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600',
+                  performer.rank <= 3 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
                 )}>
                   #{performer.rank}
                 </div>
@@ -1784,14 +1784,14 @@ function MemberDashboard({
                     className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
                   />
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-sm font-black text-primary-700">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/60 text-sm font-black text-primary-700 dark:text-primary-300">
                     {performer.display_name.slice(0, 1).toUpperCase()}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-gray-900">
+                  <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
                     {performer.display_name}
-                    {performer.is_current_user && <span className="ml-1.5 text-[10px] font-black uppercase text-primary-600">You</span>}
+                    {performer.is_current_user && <span className="ml-1.5 text-[10px] font-black uppercase text-primary-600 dark:text-primary-400">You</span>}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-400">
                     {performer.xp.toLocaleString()} XP · {formatStreak(performer.streak)}
@@ -1799,9 +1799,9 @@ function MemberDashboard({
                 </div>
               </div>
             )) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
                 <Trophy className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-bold text-slate-500">Complete today’s activities to join the leaderboard.</p>
+                <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">Complete today’s activities to join the leaderboard.</p>
               </div>
             )}
           </div>
@@ -1812,13 +1812,13 @@ function MemberDashboard({
         <MemberListSection
           eyebrow="Events"
           title="Upcoming member events"
-          icon={<CalendarCheck className="h-5 w-5 text-primary-600" />}
+          icon={<CalendarCheck className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={events}
         />
         <MemberListSection
           eyebrow="Communities"
           title="Premium communities"
-          icon={<Users className="h-5 w-5 text-primary-600" />}
+          icon={<Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={communities}
         />
       </div>
@@ -1838,24 +1838,24 @@ function MemberListSection({
   items: Array<{ id: string; title: string; detail: string; time_label?: string | null; action_url?: string | null }>
 }) {
   return (
-    <section className="rounded-3xl bg-white p-5 shadow-card">
+    <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{eyebrow}</p>
-          <h2 className="mt-1 text-xl font-black text-gray-950">{title}</h2>
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{eyebrow}</p>
+          <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{title}</h2>
         </div>
         {icon}
       </div>
       <div className="mt-5 grid gap-3">
         {items.map(item => (
-          <div key={item.id} className="rounded-2xl border border-gray-100 p-4">
+          <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-gray-950">{item.title}</p>
-                <p className="mt-1 text-xs leading-5 text-gray-500">{item.detail}</p>
+                <p className="text-sm font-black text-gray-950 dark:text-gray-100">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
               </div>
               {item.time_label && (
-                <span className="flex-shrink-0 rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold text-primary-700">
+                <span className="flex-shrink-0 rounded-full bg-primary-50 dark:bg-primary-900/40 px-2.5 py-1 text-[11px] font-bold text-primary-700 dark:text-primary-300">
                   {item.time_label}
                 </span>
               )}
@@ -1893,21 +1893,21 @@ function LearningHubStat({ label, value, icon }: { label: string; value: string;
 
 function DailyItem({ icon, label, text }: { icon: React.ReactNode; label: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-      <div className="mb-3 flex items-center gap-2 text-primary-700">
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+      <div className="mb-3 flex items-center gap-2 text-primary-700 dark:text-primary-300">
         {icon}
         <p className="text-xs font-bold uppercase tracking-wide">{label}</p>
       </div>
-      <p className="text-sm leading-6 text-gray-700">{text}</p>
+      <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">{text}</p>
     </div>
   )
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-3 last:border-b-0 last:pb-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-right text-sm font-bold text-gray-900">{value}</span>
+    <div className="flex items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-3 last:border-b-0 last:pb-0">
+      <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="text-right text-sm font-bold text-gray-900 dark:text-gray-100">{value}</span>
     </div>
   )
 }
@@ -1927,17 +1927,17 @@ function PaymentPanel({
 }) {
   const amount = payment ? formatPrice(payment.amount_lak, 'LAK') : 'Pending'
   return (
-    <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+    <section className="rounded-3xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex gap-3">
-          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">
             {status === 'PAYMENT_REVIEW' ? <Clock className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
           </div>
           <div>
             <p className="text-sm font-black text-amber-950">
               {status === 'PAYMENT_REVIEW' ? 'Payment proof is under review' : 'Manual transfer required'}
             </p>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-amber-800">
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-amber-800 dark:text-amber-300">
               Transfer {amount} for Bitdoin Premium, then upload the payment proof here. This is separate from bookstore payment review.
             </p>
           </div>
@@ -1949,7 +1949,7 @@ function PaymentPanel({
             icon={<QrCode className="h-4 w-4" />}
             onClick={onViewQr}
             disabled={status === 'PAYMENT_REVIEW'}
-            className="border-amber-300 text-amber-800 hover:bg-amber-100"
+            className="border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/15"
           >
             View QR
           </Button>

@@ -79,10 +79,10 @@ const iconMap = {
   timer: Timer, briefcase: BriefcaseBusiness, 'graduation-cap': GraduationCap, lightbulb: Lightbulb,
 }
 const accents: Record<string, string> = {
-  violet: 'bg-violet-50 text-violet-700', emerald: 'bg-emerald-50 text-emerald-700',
-  blue: 'bg-blue-50 text-blue-700', amber: 'bg-amber-50 text-amber-700',
-  rose: 'bg-rose-50 text-rose-700', cyan: 'bg-cyan-50 text-cyan-700',
-  indigo: 'bg-indigo-50 text-indigo-700', orange: 'bg-orange-50 text-orange-700',
+  violet: 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300', emerald: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+  blue: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300', amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  rose: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300', cyan: 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
+  indigo: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300', orange: 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300',
 }
 
 export function localize(language: 'lo' | 'en', en: string, lo: string) {
@@ -223,18 +223,18 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hi
   usePremiumTranslation()
   return (
     <PremiumGate requireSubscription={requireSubscription}>
-      <div className="premium-i18n min-h-screen bg-[#f7f8fb] text-slate-950">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+      <div className="premium-i18n min-h-screen bg-[#f7f8fb] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
-            <button onClick={() => navigate(backTo)} className="grid h-10 w-10 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100" aria-label="Go back">
+            <button onClick={() => navigate(backTo)} className="grid h-10 w-10 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary-600">{eyebrow}</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">{eyebrow}</p>
               <h1 className="truncate text-lg font-black">{title}</h1>
             </div>
             {!hideSwitchPlatform && (
-              <Link to="/" className="hidden rounded-full border border-slate-200 px-3 py-2 text-xs font-black text-slate-500 hover:bg-slate-50 sm:block">
+              <Link to="/" className="hidden rounded-full border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 sm:block">
                 Switch platform
               </Link>
             )}
@@ -342,7 +342,7 @@ export function LearningHub() {
   return (
     <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
-        <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
+        <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 dark:ring-1 dark:ring-white/10 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
           <div className="relative max-w-2xl">
             <div className="absolute -right-36 -top-44 h-80 w-80 rounded-full border-[52px] border-primary-700/30" />
             <p className="text-xs font-black uppercase tracking-[0.24em] text-primary-300">
@@ -352,7 +352,7 @@ export function LearningHub() {
               {localize(language, 'Learn something you can use today.', 'ຮຽນສິ່ງທີ່ນຳໄປໃຊ້ໄດ້ມື້ນີ້.')}
             </h2>
             {continueLesson && (
-              <Link to={`/academy/lesson/${continueLesson.slug}`} className="relative mt-7 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-primary-950 transition hover:translate-x-1">
+              <Link to={`/academy/lesson/${continueLesson.slug}`} className="relative mt-7 inline-flex items-center gap-2 rounded-full bg-white dark:bg-gray-900 px-5 py-3 text-sm font-black text-primary-950 dark:text-primary-300 transition hover:translate-x-1">
                 {inProgress ? localize(language, 'Continue lesson', 'ຮຽນຕໍ່') : localize(language, 'Start first lesson', 'ເລີ່ມບົດຮຽນທຳອິດ')}
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -361,8 +361,8 @@ export function LearningHub() {
         </section>
 
         {!access.isLoading && !isPremium && (
-          <section className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 px-5 py-4 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-amber-900">
+          <section className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
               {localize(
                 language,
                 'Free plan: 1 lesson unlocked per path. Subscribe to unlock a new lesson every active day.',
@@ -375,7 +375,7 @@ export function LearningHub() {
           </section>
         )}
 
-        <section className="grid grid-cols-3 border-b border-slate-200 py-6">
+        <section className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-700 py-6">
           <Metric value={String(completed)} label={localize(language, 'Lessons done', 'ບົດຮຽນສຳເລັດ')} />
           <Metric value={String(lessons.data?.length ?? '—')} label={localize(language, 'Available', 'ບົດຮຽນທັງໝົດ')} />
           <Metric value={`${completed * 20}`} label="XP" />
@@ -384,10 +384,10 @@ export function LearningHub() {
         <section className="py-10">
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{localize(language, 'Explore', 'ສຳຫຼວດ')}</p>
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{localize(language, 'Explore', 'ສຳຫຼວດ')}</p>
               <h2 className="mt-2 text-2xl font-black">{localize(language, 'Choose a direction', 'ເລືອກທິດທາງ')}</h2>
             </div>
-            {(categories.isLoading || lessons.isLoading) && <Loader2 className="h-5 w-5 animate-spin text-primary-600" />}
+            {(categories.isLoading || lessons.isLoading) && <Loader2 className="h-5 w-5 animate-spin text-primary-600 dark:text-primary-400" />}
           </div>
           <div className="mt-7 grid gap-x-8 md:grid-cols-2">
             <DirectionLink
@@ -410,23 +410,23 @@ export function LearningHub() {
               const Icon = iconMap[category.icon as keyof typeof iconMap] ?? BookOpen
               const lessonCount = lessons.data?.filter(item => item.category_id === category.id).length ?? 0
               return (
-                <Link key={category.id} to={`/academy/learn/${category.slug}`} className="group flex items-center gap-4 border-t border-slate-200 py-5">
+                <Link key={category.id} to={`/academy/learn/${category.slug}`} className="group flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 py-5">
                   <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[category.accent] ?? accents.indigo)}>
                     <Icon className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-black">{localize(language, category.name_en, category.name_lo)}</h3>
-                    <p className="mt-1 line-clamp-1 text-sm text-slate-500">{localize(language, category.description_en, category.description_lo)}</p>
+                    <p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{localize(language, category.description_en, category.description_lo)}</p>
                   </div>
                   <span className="text-xs font-bold text-slate-400">{lessonCount}</span>
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600" />
+                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
                 </Link>
               )
             })}
           </div>
         </section>
 
-        <nav className="grid gap-3 border-t border-slate-200 py-8 sm:grid-cols-3">
+        <nav className="grid gap-3 border-t border-slate-200 dark:border-slate-700 py-8 sm:grid-cols-3">
           <WorkspaceLink to="/academy/challenges" icon={Target} title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} />
           <WorkspaceLink to="/academy/habits" icon={ListChecks} title={localize(language, 'Habit tracker', 'ຕິດຕາມນິໄສ')} />
           <WorkspaceLink to="/academy/progress" icon={Trophy} title={localize(language, 'My progress', 'ຄວາມຄືບໜ້າ')} />
@@ -440,11 +440,11 @@ function DirectionLink({ to, icon: Icon, accent, title, description, count }: {
   to: string; icon: typeof Sparkles; accent: keyof typeof accents; title: string; description: string; count?: number
 }) {
   return (
-    <Link to={to} className="group flex items-center gap-4 border-t border-slate-200 py-5">
+    <Link to={to} className="group flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 py-5">
       <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[accent])}><Icon className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1"><h3 className="font-black">{title}</h3><p className="mt-1 line-clamp-1 text-sm text-slate-500">{description}</p></div>
+      <div className="min-w-0 flex-1"><h3 className="font-black">{title}</h3><p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{description}</p></div>
       {typeof count === 'number' && <span className="text-xs font-bold text-slate-400">{count}</span>}
-      <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600" />
+      <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
     </Link>
   )
 }
@@ -548,8 +548,8 @@ export function PromptLibraryPage() {
           </div>
         </section>
 
-        <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100" />
-        <a href={'https://youmind.com/gpt-image-2-prompts/explore?search=' + encodeURIComponent(search)} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-black text-violet-700 hover:underline">
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-500/30" />
+        <a href={'https://youmind.com/gpt-image-2-prompts/explore?search=' + encodeURIComponent(search)} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-black text-violet-700 dark:text-violet-300 hover:underline">
           {localize(language, search ? 'Search the full 16,000+ attributed image-prompt catalog ↗' : 'Browse the full 16,000+ attributed image-prompt catalog ↗', search ? 'ຄົ້ນຫາໃນຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗' : 'ເບິ່ງຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗')}
         </a>
 
@@ -559,9 +559,9 @@ export function PromptLibraryPage() {
             const [en, lo] = PROMPT_TYPE_LABELS[type]
             const active = typeFilter === type
             return (
-              <button key={type} type="button" onClick={() => selectType(type)} className={cn('flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition', active ? 'bg-violet-950 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200 hover:text-violet-700 hover:ring-violet-200')}>
+              <button key={type} type="button" onClick={() => selectType(type)} className={cn('flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black uppercase tracking-wide transition', active ? 'bg-violet-950 text-white' : 'bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700 hover:text-violet-700 dark:hover:text-violet-300 hover:ring-violet-200 dark:hover:ring-violet-500/30')}>
                 <Icon className="h-3.5 w-3.5" />{localize(language, en, lo)}
-                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px]', active ? 'bg-white/20' : 'bg-slate-100')}>{typeCounts[type]}</span>
+                <span className={cn('rounded-full px-1.5 py-0.5 text-[10px]', active ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800')}>{typeCounts[type]}</span>
               </button>
             )
           })}
@@ -569,36 +569,36 @@ export function PromptLibraryPage() {
 
         {subCategories.length > 1 && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={() => setCategoryFilter(null)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', !categoryFilter ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-700')}>{localize(language, 'All categories', 'ທຸກໝວດໝູ່')}</button>
+            <button type="button" onClick={() => setCategoryFilter(null)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', !categoryFilter ? 'bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 hover:text-violet-700 dark:hover:text-violet-300')}>{localize(language, 'All categories', 'ທຸກໝວດໝູ່')}</button>
             {subCategories.map(([category, count]) => (
-              <button key={category} type="button" onClick={() => setCategoryFilter(category)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', categoryFilter === category ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-700')}>{category} · {count}</button>
+              <button key={category} type="button" onClick={() => setCategoryFilter(category)} className={cn('rounded-full px-3 py-1.5 text-[11px] font-bold transition', categoryFilter === category ? 'bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 hover:text-violet-700 dark:hover:text-violet-300')}>{category} · {count}</button>
             ))}
           </div>
         )}
 
         {prompts.isLoading ? <LoadingSpinner /> : prompts.isError ? (
-          <div className="mt-6 rounded-3xl bg-red-50 p-6 text-center ring-1 ring-red-100">
-            <p className="font-black text-red-900">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງຄຳສັ່ງໄດ້')}</p>
-            <p className="mt-2 text-sm text-red-700">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຄັງຄຳສັ່ງ.')}</p>
+          <div className="mt-6 rounded-3xl bg-red-50 dark:bg-red-500/10 p-6 text-center ring-1 ring-red-100 dark:ring-red-500/30">
+            <p className="font-black text-red-900 dark:text-red-300">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງຄຳສັ່ງໄດ້')}</p>
+            <p className="mt-2 text-sm text-red-700 dark:text-red-300">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຄັງຄຳສັ່ງ.')}</p>
             <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => void prompts.refetch()}>{localize(language, 'Retry', 'ລອງໃໝ່')}</Button>
           </div>
         ) : visible.length === 0 ? (
-          <div className="mt-6 rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-100">
+          <div className="mt-6 rounded-3xl bg-white dark:bg-gray-900 p-8 text-center shadow-sm ring-1 ring-slate-100 dark:ring-slate-800">
             <p className="font-black">{localize(language, isFiltered ? 'No prompts match your filters.' : 'No prompts are available yet.', isFiltered ? 'ບໍ່ພົບຄຳສັ່ງທີ່ກົງກັບການກັ່ນຕອງ.' : 'ຍັງບໍ່ມີຄຳສັ່ງ.')}</p>
             {isFiltered && <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => { setSearch(''); selectType('all') }}>{localize(language, 'Clear filters', 'ລ້າງການກັ່ນຕອງ')}</Button>}
           </div>
         ) : (
           <div className="mt-6 grid gap-4">
             {visible.map(prompt => (
-              <article key={prompt.id} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
-                {prompt.preview_url && <img src={prompt.preview_url} alt={localize(language, prompt.title_en, prompt.title_lo)} loading="lazy" className="mb-5 max-h-[32rem] w-full rounded-2xl bg-slate-100 object-contain" />}
-                <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3><span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700">{prompt.category}</span></div>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, prompt.description_en, prompt.description_lo)}</p>
+              <article key={prompt.id} className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800">
+                {prompt.preview_url && <img src={prompt.preview_url} alt={localize(language, prompt.title_en, prompt.title_lo)} loading="lazy" className="mb-5 max-h-[32rem] w-full rounded-2xl bg-slate-100 dark:bg-slate-800 object-contain" />}
+                <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3><span className="rounded-full bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700 dark:text-violet-300">{prompt.category}</span></div>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{localize(language, prompt.description_en, prompt.description_lo)}</p>
                 <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{localize(language, prompt.prompt_en, prompt.prompt_lo)}</pre>
-                {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນລັບ')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
+                {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນລັບ')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາຄຳສັ່ງ')}</Button>
-                  {prompt.source_name && <a href={prompt.source_url ?? undefined} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-400 hover:text-violet-700">{prompt.source_name} · {prompt.source_license}</a>}
+                  {prompt.source_name && <a href={prompt.source_url ?? undefined} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-400 hover:text-violet-700 dark:hover:text-violet-300">{prompt.source_name} · {prompt.source_license}</a>}
                 </div>
               </article>
             ))}
@@ -610,13 +610,13 @@ export function PromptLibraryPage() {
 }
 
 function Metric({ value, label }: { value: string; label: string }) {
-  return <div className="text-center"><p className="text-2xl font-black sm:text-3xl">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p></div>
+  return <div className="text-center"><p className="text-2xl font-black sm:text-3xl">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p></div>
 }
 
 function WorkspaceLink({ to, icon: Icon, title }: { to: string; icon: typeof Target; title: string }) {
   return (
-    <Link to={to} className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100 transition hover:-translate-y-0.5 hover:shadow-md">
-      <Icon className="h-5 w-5 text-primary-600" /><span className="flex-1 text-sm font-black">{title}</span><ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-primary-600" />
+    <Link to={to} className="group flex items-center gap-3 rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 transition hover:-translate-y-0.5 hover:shadow-md">
+      <Icon className="h-5 w-5 text-primary-600 dark:text-primary-400" /><span className="flex-1 text-sm font-black">{title}</span><ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
     </Link>
   )
 }
@@ -650,11 +650,11 @@ export function LearningCategoryPage() {
   return (
     <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')} requireSubscription={false}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
-        <p className="max-w-2xl text-lg leading-8 text-slate-600">{category && localize(language, category.description_en, category.description_lo)}</p>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600">{localize(language, 'One new lesson unlocks each day you’re active', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້ທີ່ທ່ານໃຊ້ງານ')}</p>
+        <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">{category && localize(language, category.description_en, category.description_lo)}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{localize(language, 'One new lesson unlocks each day you’re active', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້ທີ່ທ່ານໃຊ້ງານ')}</p>
         {tierLocked && (
-          <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 px-5 py-4 ring-1 ring-amber-200 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-amber-900">
+          <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
               {localize(
                 language,
                 'You’ve reached the free lesson for this path. Subscribe to keep unlocking new lessons every active day.',
@@ -666,7 +666,7 @@ export function LearningCategoryPage() {
             </Link>
           </div>
         )}
-        <div className="mt-10 border-t border-slate-200">
+        <div className="mt-10 border-t border-slate-200 dark:border-slate-700">
           {ordered.map((lesson, index) => {
             const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
             const locked = index >= unlockedCount
@@ -675,22 +675,22 @@ export function LearningCategoryPage() {
             const content = (
               <>
                 {lesson.book?.cover_image_url && !locked ? (
-                  <span className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded-md bg-slate-200 shadow-sm">
+                  <span className="relative h-14 w-10 flex-shrink-0 overflow-hidden rounded-md bg-slate-200 dark:bg-slate-700 shadow-sm">
                     <img src={lesson.book.cover_image_url} alt="" className="h-full w-full object-cover" />
                     {itemProgress?.completed_at && (
                       <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-white"><Check className="h-2.5 w-2.5" /></span>
                     )}
                   </span>
                 ) : (
-                  <span className={cn('grid h-10 w-10 place-items-center rounded-full text-sm font-black', locked ? 'bg-slate-100 text-slate-400 ring-1 ring-slate-200' : itemProgress?.completed_at ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-slate-500 ring-1 ring-slate-200')}>
+                  <span className={cn('grid h-10 w-10 place-items-center rounded-full text-sm font-black', locked ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700' : itemProgress?.completed_at ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700')}>
                     {locked ? <LockKeyhole className="h-4 w-4" /> : itemProgress?.completed_at ? <Check className="h-4 w-4" /> : index + 1}
                   </span>
                 )}
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className={cn('text-lg font-black', locked ? 'text-slate-400' : 'group-hover:text-primary-700')}>{localize(language, lesson.title_en, lesson.title_lo)}</h2>
+                    <h2 className={cn('text-lg font-black', locked ? 'text-slate-400' : 'group-hover:text-primary-700 dark:group-hover:text-primary-300')}>{localize(language, lesson.title_en, lesson.title_lo)}</h2>
                     {isToday && !locked && (
-                      <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary-700">{localize(language, 'Today', 'ມື້ນີ້')}</span>
+                      <span className="rounded-full bg-primary-100 dark:bg-primary-900/60 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary-700 dark:text-primary-300">{localize(language, 'Today', 'ມື້ນີ້')}</span>
                     )}
                   </div>
                   {locked ? (
@@ -698,7 +698,7 @@ export function LearningCategoryPage() {
                       {tierLocked ? (
                         <>
                           {localize(language, 'Premium lesson', 'ບົດຮຽນສະມາຊິກ')}
-                          <Link to="/academy/subscription#plans" className="font-black text-amber-700 hover:underline">
+                          <Link to="/academy/subscription#plans" className="font-black text-amber-700 dark:text-amber-300 hover:underline">
                             {localize(language, 'Subscribe to unlock', 'ສະໝັກເພື່ອປົດລັອກ')}
                           </Link>
                         </>
@@ -710,7 +710,7 @@ export function LearningCategoryPage() {
                     </p>
                   ) : (
                     <>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">{localize(language, lesson.summary_en, lesson.summary_lo)}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{localize(language, lesson.summary_en, lesson.summary_lo)}</p>
                       <p className="mt-3 text-xs font-bold uppercase tracking-wide text-slate-400">{lesson.estimated_minutes} min · {lesson.difficulty.toLowerCase()}</p>
                     </>
                   )}
@@ -719,9 +719,9 @@ export function LearningCategoryPage() {
               </>
             )
             return locked ? (
-              <div key={lesson.id} className="grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 py-6 opacity-70">{content}</div>
+              <div key={lesson.id} className="grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 dark:border-slate-700 py-6 opacity-70">{content}</div>
             ) : (
-              <Link key={lesson.id} to={`/academy/lesson/${lesson.slug}`} className="group grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 py-6">{content}</Link>
+              <Link key={lesson.id} to={`/academy/lesson/${lesson.slug}`} className="group grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 dark:border-slate-700 py-6">{content}</Link>
             )
           })}
           {!lessons.isLoading && ordered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ບົດຮຽນໃໝ່ກຳລັງກະກຽມ.')} />}
@@ -822,13 +822,13 @@ export function LessonReaderPage() {
   return (
     <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={`/academy/learn/${lesson.category?.slug ?? ''}`}>
       <article className="mx-auto max-w-3xl px-4 py-10 pb-28">
-        <header className="border-b border-slate-200 pb-10">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{lesson.lesson_type.replace('_', ' ')}</p>
+        <header className="border-b border-slate-200 dark:border-slate-700 pb-10">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{lesson.lesson_type.replace('_', ' ')}</p>
           <h2 className="mt-4 text-4xl font-black leading-tight sm:text-5xl">{localize(language, lesson.title_en, lesson.title_lo)}</h2>
-          <p className="mt-5 text-lg leading-8 text-slate-600">{localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}</p>
+          <p className="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">{localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}</p>
           {lesson.book && (
-            <Link to={`/bookstore/books/${lesson.book.id}`} className="mt-7 flex items-center gap-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100 transition hover:ring-primary-200">
-              <span className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200 shadow-sm">
+            <Link to={`/bookstore/books/${lesson.book.id}`} className="mt-7 flex items-center gap-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-100 dark:ring-slate-800 transition hover:ring-primary-200 dark:hover:ring-primary-800">
+              <span className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-700 shadow-sm">
                 {lesson.book.cover_image_url ? (
                   <img src={lesson.book.cover_image_url} alt={lesson.book.title} className="h-full w-full object-cover" />
                 ) : (
@@ -836,40 +836,40 @@ export function LessonReaderPage() {
                 )}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary-600">{localize(language, 'Source book', 'ປຶ້ມຕົ້ນສະບັບ')}</p>
-                <p className="mt-1 truncate font-black text-slate-900">{lesson.book.title}</p>
-                {lesson.book.author && <p className="mt-0.5 truncate text-sm text-slate-500">{lesson.book.author}</p>}
-                <p className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary-700">{localize(language, 'View in Bookstore', 'ເບິ່ງໃນຮ້ານປຶ້ມ')} <ArrowRight className="h-3.5 w-3.5" /></p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary-600 dark:text-primary-400">{localize(language, 'Source book', 'ປຶ້ມຕົ້ນສະບັບ')}</p>
+                <p className="mt-1 truncate font-black text-slate-900 dark:text-slate-100">{lesson.book.title}</p>
+                {lesson.book.author && <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{lesson.book.author}</p>}
+                <p className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary-700 dark:text-primary-300">{localize(language, 'View in Bookstore', 'ເບິ່ງໃນຮ້ານປຶ້ມ')} <ArrowRight className="h-3.5 w-3.5" /></p>
               </div>
             </Link>
           )}
         </header>
         <div className="space-y-12 py-10">
           {sections.map((section, index) => (
-            <section key={`${section.heading}-${index}`} className="border-t border-slate-200 pt-8 first:border-t-0 first:pt-0">
-              <p className="text-xs font-black text-primary-500">0{index + 1}</p>
+            <section key={`${section.heading}-${index}`} className="border-t border-slate-200 dark:border-slate-700 pt-8 first:border-t-0 first:pt-0">
+              <p className="text-xs font-black text-primary-500 dark:text-primary-400">0{index + 1}</p>
               <h3 className="mt-2 text-2xl font-black">{section.heading}</h3>
               {section.blocks?.length ? section.blocks.map((block, bIndex) => {
-                if (block.type === 'p') return <p key={bIndex} className="mt-4 text-base leading-8 text-slate-600">{block.text}</p>
+                if (block.type === 'p') return <p key={bIndex} className="mt-4 text-base leading-8 text-slate-600 dark:text-slate-300">{block.text}</p>
                 if (block.type === 'h4') return <h4 key={bIndex} className="mt-6 text-base font-black">{block.text}</h4>
                 if (block.type === 'term') return (
-                  <div key={bIndex} className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
-                    <p className="text-sm font-black text-slate-900">{block.term}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{block.body}</p>
+                  <div key={bIndex} className="mt-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-100 dark:ring-slate-800">
+                    <p className="text-sm font-black text-slate-900 dark:text-slate-100">{block.term}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{block.body}</p>
                   </div>
                 )
                 return (
-                  <ul key={bIndex} className="mt-4 list-disc space-y-2 pl-5 text-base leading-7 text-slate-600">
+                  <ul key={bIndex} className="mt-4 list-disc space-y-2 pl-5 text-base leading-7 text-slate-600 dark:text-slate-300">
                     {block.items.map((item, iIndex) => (
-                      <li key={iIndex}>{item.label && <b className="font-black text-slate-900">{item.label} </b>}{item.body}</li>
+                      <li key={iIndex}>{item.label && <b className="font-black text-slate-900 dark:text-slate-100">{item.label} </b>}{item.body}</li>
                     ))}
                   </ul>
                 )
-              }) : section.body && <p className="mt-4 text-base leading-8 text-slate-600">{section.body}</p>}
+              }) : section.body && <p className="mt-4 text-base leading-8 text-slate-600 dark:text-slate-300">{section.body}</p>}
               {section.oneline && (
-                <div className="mt-6 border-l-2 border-primary-600 pl-4">
-                  <p className="text-sm leading-7 text-slate-600">
-                    <span className="font-black text-slate-900">{localize(language, 'In one line. ', 'ໂດຍສະຫຼຸບ. ')}</span>
+                <div className="mt-6 border-l-2 border-primary-600 dark:border-primary-400 pl-4">
+                  <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
+                    <span className="font-black text-slate-900 dark:text-slate-100">{localize(language, 'In one line. ', 'ໂດຍສະຫຼຸບ. ')}</span>
                     {section.oneline}
                   </p>
                 </div>
@@ -877,10 +877,10 @@ export function LessonReaderPage() {
             </section>
           ))}
         </div>
-        <section className="border-y border-slate-200 py-8">
+        <section className="border-y border-slate-200 dark:border-slate-700 py-8">
           <h3 className="text-lg font-black">{localize(language, 'Keep these ideas', 'ຈື່ແນວຄິດເຫຼົ່ານີ້')}</h3>
           <ul className="mt-5 space-y-3">
-            {takeaways.map(item => <li key={item} className="flex gap-3 text-sm leading-6 text-slate-600"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />{item}</li>)}
+            {takeaways.map(item => <li key={item} className="flex gap-3 text-sm leading-6 text-slate-600 dark:text-slate-300"><Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />{item}</li>)}
           </ul>
         </section>
         {!!glossary.length && (
@@ -888,25 +888,25 @@ export function LessonReaderPage() {
             <h3 className="text-lg font-black">{localize(language, 'Terms worth remembering', 'ຄຳສັບຄວນຈື່')}</h3>
             <div className="mt-5 space-y-3">
               {glossary.map(item => (
-                <div key={item.term} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
-                  <p className="text-sm font-black text-slate-900">{item.term}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p>
+                <div key={item.term} className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-100 dark:ring-slate-800">
+                  <p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.term}</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.body}</p>
                 </div>
               ))}
             </div>
           </section>
         )}
         {!!reflectionQuestions.length && (
-          <section className="border-t border-slate-200 py-10">
+          <section className="border-t border-slate-200 dark:border-slate-700 py-10">
             <h3 className="text-lg font-black">{localize(language, 'Questions to sit with', 'ຄຳຖາມໃຫ້ຄິດຕໍ່')}</h3>
             <ul className="mt-5 space-y-3">
-              {reflectionQuestions.map(item => <li key={item} className="text-sm leading-7 text-slate-600">{item}</li>)}
+              {reflectionQuestions.map(item => <li key={item} className="text-sm leading-7 text-slate-600 dark:text-slate-300">{item}</li>)}
             </ul>
           </section>
         )}
         {!!questions.data?.length && (
           <section className="py-10">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{localize(language, 'Quick check', 'ກວດຄວາມເຂົ້າໃຈ')}</p>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{localize(language, 'Quick check', 'ກວດຄວາມເຂົ້າໃຈ')}</p>
             {questions.data.map((question, qIndex) => {
               const options = language === 'lo' ? question.options_lo : question.options_en
               return (
@@ -915,7 +915,7 @@ export function LessonReaderPage() {
                   <div className="mt-3 grid gap-2">
                     {options.map((option, index) => (
                       <button key={option} onClick={() => setAnswers(old => ({ ...old, [question.id]: index }))}
-                        className={cn('rounded-xl border px-4 py-3 text-left text-sm font-semibold transition', answers[question.id] === index ? 'border-primary-600 bg-primary-50 text-primary-900' : 'border-slate-200 bg-white hover:border-primary-300')}>
+                        className={cn('rounded-xl border px-4 py-3 text-left text-sm font-semibold transition', answers[question.id] === index ? 'border-primary-600 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 hover:border-primary-300 dark:hover:border-primary-700')}>
                         {option}
                       </button>
                     ))}
@@ -981,16 +981,16 @@ export function WeeklyChallengesPage() {
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         {challenge.isLoading ? <LoadingSpinner /> : data ? (
           <>
-            <div className="flex items-center gap-2 text-sm font-bold text-amber-600"><Flame className="h-5 w-5" /> {data.points} XP</div>
+            <div className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400"><Flame className="h-5 w-5" /> {data.points} XP</div>
             <h2 className="mt-4 text-4xl font-black">{localize(language, data.title_en, data.title_lo)}</h2>
-            <p className="mt-4 text-lg leading-8 text-slate-600">{localize(language, data.description_en, data.description_lo)}</p>
-            <div className="mt-8 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-primary-600 transition-all" style={{ width: `${steps.length ? (progress.data?.completed_steps.length ?? 0) / steps.length * 100 : 0}%` }} /></div>
-            <div className="mt-8 border-t border-slate-200">
+            <p className="mt-4 text-lg leading-8 text-slate-600 dark:text-slate-300">{localize(language, data.description_en, data.description_lo)}</p>
+            <div className="mt-8 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-primary-600 transition-all" style={{ width: `${steps.length ? (progress.data?.completed_steps.length ?? 0) / steps.length * 100 : 0}%` }} /></div>
+            <div className="mt-8 border-t border-slate-200 dark:border-slate-700">
               {steps.map((step, index) => {
                 const done = progress.data?.completed_steps.includes(index)
                 return (
-                  <button key={step} disabled={toggle.isPending} onClick={() => toggle.mutate(index)} className="flex w-full items-center gap-4 border-b border-slate-200 py-5 text-left">
-                    <span className={cn('grid h-8 w-8 place-items-center rounded-full border-2', done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300')}>
+                  <button key={step} disabled={toggle.isPending} onClick={() => toggle.mutate(index)} className="flex w-full items-center gap-4 border-b border-slate-200 dark:border-slate-700 py-5 text-left">
+                    <span className={cn('grid h-8 w-8 place-items-center rounded-full border-2', done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600')}>
                       {done && <Check className="h-4 w-4" />}
                     </span>
                     <span className={cn('font-bold', done && 'text-slate-400 line-through')}>{step}</span>
@@ -1062,23 +1062,23 @@ export function HabitTrackerPage() {
   return (
     <LearningShell title={localize(language, 'Habit tracker', 'ຕິດຕາມນິໄສ')} eyebrow={localize(language, 'Today', 'ມື້ນີ້')}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
-        <div className="flex items-end justify-between border-b border-slate-200 pb-8">
-          <div><p className="text-5xl font-black">{doneCount}/{habits.data?.length ?? 0}</p><p className="mt-2 text-sm font-bold text-slate-500">{localize(language, 'completed today', 'ສຳເລັດມື້ນີ້')}</p></div>
+        <div className="flex items-end justify-between border-b border-slate-200 dark:border-slate-700 pb-8">
+          <div><p className="text-5xl font-black">{doneCount}/{habits.data?.length ?? 0}</p><p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">{localize(language, 'completed today', 'ສຳເລັດມື້ນີ້')}</p></div>
           <CircleDollarSign className="h-12 w-12 text-primary-200" />
         </div>
         <div className="mt-8 flex gap-2">
           <input value={name} onChange={event => setName(event.target.value)} onKeyDown={event => event.key === 'Enter' && name.trim() && add.mutate()}
             maxLength={80} placeholder={localize(language, 'Add a small daily habit…', 'ເພີ່ມນິໄສນ້ອຍໆ…')}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-primary-500" />
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm outline-none focus:border-primary-500" />
           <Button disabled={!name.trim() || (habits.data?.length ?? 0) >= 5} loading={add.isPending} onClick={() => add.mutate()} icon={<Plus className="h-4 w-4" />}>{localize(language, 'Add', 'ເພີ່ມ')}</Button>
         </div>
         <p className="mt-2 text-xs text-slate-400">{localize(language, 'Up to five active habits.', 'ສູງສຸດຫ້ານິໄສ.')}</p>
-        <div className="mt-8 border-t border-slate-200">
+        <div className="mt-8 border-t border-slate-200 dark:border-slate-700">
           {(habits.data ?? []).map(habit => {
             const done = checkins.data?.some(item => item.habit_id === habit.id)
             return (
-              <div key={habit.id} className="group flex items-center gap-4 border-b border-slate-200 py-5">
-                <button onClick={() => toggle.mutate(habit.id)} className={cn('grid h-10 w-10 place-items-center rounded-full border-2 transition', done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 hover:border-primary-500')}>
+              <div key={habit.id} className="group flex items-center gap-4 border-b border-slate-200 dark:border-slate-700 py-5">
+                <button onClick={() => toggle.mutate(habit.id)} className={cn('grid h-10 w-10 place-items-center rounded-full border-2 transition', done ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary-500')}>
                   {done && <Check className="h-5 w-5" />}
                 </button>
                 <div className="flex-1"><p className={cn('font-black', done && 'text-slate-400 line-through')}>{habit.name}</p><p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">{habit.frequency.toLowerCase()}</p></div>
@@ -1106,7 +1106,7 @@ export function LearningProgressPage() {
   return (
     <LearningShell title={localize(language, 'My progress', 'ຄວາມຄືບໜ້າ')} eyebrow={localize(language, 'Learning record', 'ບັນທຶກການຮຽນ')}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
-        <div className="grid grid-cols-3 border-y border-slate-200 py-7">
+        <div className="grid grid-cols-3 border-y border-slate-200 dark:border-slate-700 py-7">
           <Metric value={String(completed.length)} label={localize(language, 'Completed', 'ສຳເລັດ')} />
           <Metric value={`${completed.length * 20}`} label="XP" />
           <Metric value={`${average}%`} label={localize(language, 'Quiz average', 'ຄະແນນສະເລ່ຍ')} />
@@ -1116,7 +1116,7 @@ export function LearningProgressPage() {
           {byCategory.map(({ category, done, total }) => (
             <div key={category.id}>
               <div className="flex justify-between text-sm"><span className="font-black">{localize(language, category.name_en, category.name_lo)}</span><span className="font-bold text-slate-400">{done}/{total}</span></div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-primary-600" style={{ width: `${done / total * 100}%` }} /></div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full rounded-full bg-primary-600" style={{ width: `${done / total * 100}%` }} /></div>
             </div>
           ))}
         </div>
@@ -1126,5 +1126,5 @@ export function LearningProgressPage() {
 }
 
 function Empty({ text }: { text: string }) {
-  return <div className="py-16 text-center"><LockKeyhole className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-500">{text}</p></div>
+  return <div className="py-16 text-center"><LockKeyhole className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">{text}</p></div>
 }

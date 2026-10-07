@@ -332,7 +332,7 @@ export function BookDetail() {
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
                   Bitdoin Academy
                 </p>
-                <h2 className="mt-1 text-sm font-black text-gray-950">
+                <h2 className="mt-1 text-sm font-black text-gray-950 dark:text-gray-100">
                   {language === 'lo' ? 'ອ່ານສະຫຼຸບປຶ້ມນີ້' : 'Read this book summary'}
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">

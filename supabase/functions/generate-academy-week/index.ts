@@ -189,7 +189,12 @@ async function processNextQueuedTask() {
 
   const { count: unfinished } = await admin.from('premium_weekly_content_tasks').select('id', { count: 'exact', head: true })
     .eq('run_id', task.run_id).in('status', ['PENDING', 'PROCESSING'])
-  if ((unfinished ?? 0) === 0) {
+  const { count: paused } = await admin.from('premium_weekly_content_tasks').select('id', { count: 'exact', head: true })
+    .eq('run_id', task.run_id).eq('status', 'PAUSED')
+  if ((unfinished ?? 0) === 0 && (paused ?? 0) > 0) {
+    // Only admin-paused steps remain: wait for someone to start them again.
+    await admin.from('premium_weekly_content_runs').update({ status: 'PAUSED' }).eq('id', task.run_id).eq('status', 'GENERATING')
+  } else if ((unfinished ?? 0) === 0) {
     const { data: run } = await admin.from('premium_weekly_content_runs').select('week_start').eq('id', task.run_id).single()
     if (run) {
       const inspection = await inspectExistingWeek(admin, run.week_start)
@@ -212,7 +217,7 @@ serve(async req => {
 
   let weekStart = nextMonday()
   try {
-    const body = await req.json().catch(() => ({})) as { action?: string; runId?: string; categoryId?: string; batchIndex?: number; lessonDay?: number }
+    const body = await req.json().catch(() => ({})) as { action?: string; runId?: string; taskKey?: string; categoryId?: string; batchIndex?: number; lessonDay?: number }
     const action = body.action ?? 'initialize'
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     if (action === 'process') {
@@ -280,7 +285,8 @@ serve(async req => {
         ...(progress.counts.prompt_library >= 7 ? ['prompt_library'] : []),
         ...progress.completedLessonCategoryIds.map(id => `lesson-${id}`),
       ])
-      await admin.from('premium_weekly_content_tasks').upsert(tasks.map(task => ({ ...task, status: completedKeys.has(task.task_key) ? 'DONE' : 'PENDING', attempts: 0, available_at: new Date().toISOString(), error_message: null })), { onConflict: 'run_id,task_key' })
+      // sort_order fixes the processing order; the worker runs one step at a time.
+      await admin.from('premium_weekly_content_tasks').upsert(tasks.map((task, index) => ({ ...task, sort_order: index + 1, status: completedKeys.has(task.task_key) ? 'DONE' : 'PENDING', attempts: 0, available_at: new Date().toISOString(), error_message: null })), { onConflict: 'run_id,task_key' })
       EdgeRuntime.waitUntil(processNextQueuedTask().catch(console.error))
       return json(req, { runId: run.id, weekStart, categories, queued: true, resumed: Boolean(existing) }, 202)
     }
@@ -290,8 +296,34 @@ serve(async req => {
     if (!run) return json(req, { error: 'Generation run not found.' }, 404)
     if (action === 'cancel') {
       await admin.from('premium_weekly_content_runs').update({ status: 'CANCELLED', completed_at: new Date().toISOString() }).eq('id', run.id)
-      await admin.from('premium_weekly_content_tasks').update({ status: 'CANCELLED', lease_expires_at: null }).eq('run_id', run.id).in('status', ['PENDING', 'PROCESSING'])
+      await admin.from('premium_weekly_content_tasks').update({ status: 'CANCELLED', lease_expires_at: null }).eq('run_id', run.id).in('status', ['PENDING', 'PROCESSING', 'PAUSED'])
       return json(req, { status: 'CANCELLED' })
+    }
+
+    // Pause / start one step (taskKey) or every remaining step (no taskKey).
+    // A step that is already being written cannot be interrupted mid-request;
+    // it finishes and is saved, so only queued steps can be paused.
+    if (action === 'pause' || action === 'resume') {
+      if (isWorker) return json(req, { error: 'Administrator access is required.' }, 403)
+      if (run.status === 'READY') return json(req, { error: 'This week is already complete.' }, 409)
+      let tasksQuery = admin.from('premium_weekly_content_tasks').update(
+        action === 'pause'
+          ? { status: 'PAUSED', updated_at: new Date().toISOString() }
+          : { status: 'PENDING', attempts: 0, available_at: new Date().toISOString(), error_message: null, lease_expires_at: null, updated_at: new Date().toISOString() },
+      ).eq('run_id', run.id).in('status', action === 'pause' ? ['PENDING'] : ['PAUSED', 'FAILED', 'CANCELLED'])
+      if (body.taskKey) tasksQuery = tasksQuery.eq('task_key', body.taskKey)
+      const { data: changed, error: changeError } = await tasksQuery.select('task_key')
+      if (changeError) throw changeError
+      if (body.taskKey && !changed?.length) {
+        return json(req, { error: action === 'pause' ? 'Only a queued step can be paused. A running step will finish and save first.' : 'This step cannot be started right now.' }, 409)
+      }
+
+      const { count: active } = await admin.from('premium_weekly_content_tasks').select('id', { count: 'exact', head: true })
+        .eq('run_id', run.id).in('status', ['PENDING', 'PROCESSING'])
+      const nextStatus = (active ?? 0) > 0 ? 'GENERATING' : 'PAUSED'
+      await admin.from('premium_weekly_content_runs').update({ status: nextStatus, completed_at: null, error_message: null }).eq('id', run.id)
+      if (nextStatus === 'GENERATING') EdgeRuntime.waitUntil(processNextQueuedTask().catch(console.error))
+      return json(req, { status: nextStatus, changed: changed?.length ?? 0 })
     }
     if (run.status !== 'GENERATING') return json(req, { error: `This generation run is ${run.status.toLowerCase()}.` }, 409)
     const counts = { ...(run.content_counts as Record<string, number> ?? {}) }

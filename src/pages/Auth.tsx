@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { publicAsset } from '@/lib/assets'
 import { resolvePostLoginDestination, sanitizeAuthReturnPath } from '@/lib/authRedirect'
-import { useApplyTheme, useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 
 type Method = 'email' | 'phone'
 type EmailStep = 'signin' | 'signup'
@@ -25,7 +25,6 @@ export function Auth() {
   const { error: showError, success } = useToast()
   const theme = useTheme(state => state.theme)
   const toggleTheme = useTheme(state => state.toggleTheme)
-  useApplyTheme()
 
   const from = sanitizeAuthReturnPath((location.state as { from?: string })?.from)
 

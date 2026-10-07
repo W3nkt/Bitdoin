@@ -131,7 +131,7 @@ function PageFace({ page }: { page?: FlipBookPage }) {
     <div
       className={cn(
         'absolute inset-0 overflow-hidden rounded-[1.25rem] shadow-book',
-        page.paper === 'cover' ? 'bg-primary-950' : 'bg-[#fffdf8] ring-1 ring-black/5',
+        page.paper === 'cover' ? 'bg-primary-950' : 'bg-[#fffdf8] dark:bg-gray-900 ring-1 ring-black/5 dark:ring-white/10',
       )}
     >
       {page.content}
@@ -147,7 +147,7 @@ function PageFace({ page }: { page?: FlipBookPage }) {
 
 function PageCounter({ page, totalPages }: { page?: FlipBookPage; totalPages: number }) {
   if (!page?.pageNumber) return <span className="text-xs font-bold text-slate-400">&nbsp;</span>
-  return <span className="text-xs font-bold text-slate-500">{page.pageNumber} / {totalPages}</span>
+  return <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{page.pageNumber} / {totalPages}</span>
 }
 
 function NavButton({ dir, onClick, disabled }: { dir: 'prev' | 'next'; onClick: () => void; disabled: boolean }) {
@@ -158,7 +158,7 @@ function NavButton({ dir, onClick, disabled }: { dir: 'prev' | 'next'; onClick: 
       onClick={onClick}
       disabled={disabled}
       aria-label={dir === 'prev' ? 'Previous page' : 'Next page'}
-      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 transition active:scale-95 disabled:opacity-30"
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white dark:bg-gray-900 text-slate-700 dark:text-slate-200 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 transition active:scale-95 disabled:opacity-30"
     >
       <Icon className="h-5 w-5" />
     </button>
@@ -173,7 +173,7 @@ function NavEdge({ dir, onClick, disabled }: { dir: 'prev' | 'next'; onClick: ()
       onClick={onClick}
       disabled={disabled}
       aria-label={dir === 'prev' ? 'Previous page' : 'Next page'}
-      className="absolute top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-slate-700 shadow-md ring-1 ring-slate-200 backdrop-blur transition hover:bg-white active:scale-95 disabled:opacity-0 sm:grid"
+      className="absolute top-1/2 z-10 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/90 dark:bg-gray-900/90 text-slate-700 dark:text-slate-200 shadow-md ring-1 ring-slate-200 dark:ring-slate-700 backdrop-blur transition hover:bg-white dark:hover:bg-gray-900 active:scale-95 disabled:opacity-0 sm:grid"
       style={dir === 'prev' ? { right: 'calc(100% + 14px)' } : { left: 'calc(100% + 14px)' }}
     >
       <Icon className="h-5 w-5" />

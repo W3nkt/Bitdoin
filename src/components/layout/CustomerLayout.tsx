@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
-import { useApplyTheme, useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 import { BittyAssistant } from '@/components/bitty/BittyAssistant'
 
 interface CustomerLayoutProps {
@@ -24,7 +24,6 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const navigate = useNavigate()
   const theme = useTheme(state => state.theme)
   const toggleTheme = useTheme(state => state.toggleTheme)
-  useApplyTheme()
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')

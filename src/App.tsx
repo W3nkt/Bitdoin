@@ -11,6 +11,7 @@ import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedirect'
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { useSeoMeta } from '@/hooks/useSeoMeta'
+import { isThemedPath, useApplyTheme } from '@/lib/theme'
 import '@/i18n'
 
 // Customer pages
@@ -103,6 +104,12 @@ function PlatformTitle() {
   return null
 }
 
+function ThemeController() {
+  const { pathname } = useLocation()
+  useApplyTheme(isThemedPath(pathname))
+  return null
+}
+
 function GoogleAnalyticsTracker() {
   useGoogleAnalytics()
   return null
@@ -132,6 +139,7 @@ export function App() {
             <CartProvider>
               <ToastProvider>
                 <PlatformTitle />
+                <ThemeController />
                 <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
                 <Suspense fallback={<PageLoader />}>

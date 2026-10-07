@@ -54,3 +54,12 @@ verify_jwt = false
 # Bitty serves guests too; signed-in users are identified inside the function.
 [functions.bitty-chat]
 verify_jwt = false
+
+# Called by Telegram, which cannot send a Supabase JWT; the function checks
+# Telegram's X-Telegram-Bot-Api-Secret-Token header instead.
+[functions.telegram-webhook]
+verify_jwt = false
+
+# Called by pg_cron every 15 minutes; idempotent (one reminder per member per day).
+[functions.telegram-daily-reminder]
+verify_jwt = false

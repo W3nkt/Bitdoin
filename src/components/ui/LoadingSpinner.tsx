@@ -4,7 +4,7 @@ import { publicAsset } from '@/lib/assets'
 export function LoadingSpinner({ className }: { className?: string }) {
   return (
     <div className={cn('flex items-center justify-center py-16', className)}>
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 dark:border-primary-800 border-t-primary-700" />
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-700 dark:border-gray-700 dark:border-t-primary-400" />
     </div>
   )
 }
@@ -13,11 +13,11 @@ export function PageLoader() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-white dark:bg-gray-900">
       <div className="flex flex-col items-center gap-4">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-200 dark:border-primary-800 border-t-primary-700" />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary-200 border-t-primary-700 dark:border-gray-700 dark:border-t-primary-400" />
         <img
           src={publicAsset('icons/Bitdoin-Logo.png')}
           alt="Bitdoin"
-          className="h-12 w-28 object-contain"
+          className="h-12 w-28 object-contain dark:brightness-0 dark:invert"
         />
       </div>
     </div>

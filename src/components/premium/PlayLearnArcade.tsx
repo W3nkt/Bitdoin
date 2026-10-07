@@ -473,32 +473,32 @@ export function PlayLearnArcade({
   const currentQuestion = brainQuestions[questionIndex]
 
   return (
-    <section className="premium-i18n overflow-hidden rounded-3xl bg-white shadow-card">
+    <section className="premium-i18n overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-card">
       <div className="px-5 pb-4 pt-5 sm:px-6">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-wide text-emerald-600">Practice arcade</p>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-primary-950">Play & Learn</h2>
-            <p className="mt-1 text-xs font-semibold text-slate-500">Short activities. Real learning.</p>
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Practice arcade</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-primary-950 dark:text-primary-300">Play & Learn</h2>
+            <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Short activities. Real learning.</p>
           </div>
           <div className="hidden items-center gap-2 text-right sm:flex">
-            <Target className="h-5 w-5 text-emerald-600" />
+            <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             <div>
-              <p className="text-xs font-black text-slate-800">{activeDays} active {activeDays === 1 ? 'day' : 'days'}</p>
+              <p className="text-xs font-black text-slate-800 dark:text-slate-100">{activeDays} active {activeDays === 1 ? 'day' : 'days'}</p>
               <p className="text-[10px] font-semibold text-slate-400">Keep building mastery</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-slate-50/80 px-4 py-4 sm:px-6">
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 sm:px-4">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+      <div className="bg-slate-50/80 dark:bg-slate-800/50 px-4 py-4 sm:px-6">
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 py-3 sm:px-4">
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
             <Target className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-black text-slate-800">Weekly mastery</p>
-            <p className="mt-0.5 text-[10px] font-bold text-emerald-600">{Math.min(activeDays, 7)} of 7 days</p>
+            <p className="text-xs font-black text-slate-800 dark:text-slate-100">Weekly mastery</p>
+            <p className="mt-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{Math.min(activeDays, 7)} of 7 days</p>
           </div>
           <div className="flex gap-1.5" aria-label={`${Math.min(activeDays, 7)} active learning days this week`}>
             {WEEK_DAYS.map(day => {
@@ -508,7 +508,7 @@ export function PlayLearnArcade({
                   <span className="text-[8px] font-black text-slate-400">{day.label}</span>
                   <span className={cn(
                     'flex h-4 w-4 items-center justify-center rounded-full border',
-                    active ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 bg-white',
+                    active ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900',
                   )}>
                     {active && <Check className="h-2.5 w-2.5" />}
                   </span>
@@ -592,12 +592,12 @@ export function PlayLearnArcade({
         ) : currentQuestion ? (
           <div>
             <div className="mb-5 flex items-center justify-between gap-3">
-              <span className="text-xs font-black text-emerald-700">{language === 'lo' ? `ຄຳຖາມທີ ${questionIndex + 1} ຈາກ ${brainQuestions.length}` : `Question ${questionIndex + 1} of ${brainQuestions.length}`}</span>
-              <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
+              <span className="text-xs font-black text-emerald-700 dark:text-emerald-300">{language === 'lo' ? `ຄຳຖາມທີ ${questionIndex + 1} ຈາກ ${brainQuestions.length}` : `Question ${questionIndex + 1} of ${brainQuestions.length}`}</span>
+              <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                 <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${((questionIndex + 1) / brainQuestions.length) * 100}%` }} />
               </div>
             </div>
-            <p className="text-lg font-black leading-7 text-primary-950">{currentQuestion.prompt}</p>
+            <p className="text-lg font-black leading-7 text-primary-950 dark:text-primary-300">{currentQuestion.prompt}</p>
             <div className="mt-5 grid gap-2">
               {currentQuestion.options.map(option => {
                 const isSelected = selectedAnswer === option
@@ -610,10 +610,10 @@ export function PlayLearnArcade({
                     onClick={() => setSelectedAnswer(option)}
                     className={cn(
                       'flex min-h-12 items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-bold transition',
-                      showExplanation && isAnswer && 'border-emerald-500 bg-emerald-50 text-emerald-900',
-                      showExplanation && isSelected && !isAnswer && 'border-red-300 bg-red-50 text-red-800',
-                      !showExplanation && isSelected && 'border-primary-500 bg-primary-50 text-primary-950 ring-2 ring-primary-100',
-                      !showExplanation && !isSelected && 'border-slate-200 bg-white text-slate-700 hover:border-primary-300',
+                      showExplanation && isAnswer && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-900 dark:text-emerald-300',
+                      showExplanation && isSelected && !isAnswer && 'border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 text-red-800 dark:text-red-300',
+                      !showExplanation && isSelected && 'border-primary-500 bg-primary-50 dark:bg-primary-900/40 text-primary-950 dark:text-primary-300 ring-2 ring-primary-100 dark:ring-primary-800',
+                      !showExplanation && !isSelected && 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 text-slate-700 dark:text-slate-200 hover:border-primary-300 dark:hover:border-primary-700',
                     )}
                   >
                     {option}
@@ -624,7 +624,7 @@ export function PlayLearnArcade({
               })}
             </div>
             {showExplanation && (
-              <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">{currentQuestion.explanation}</p>
+              <p className="mt-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 text-sm font-semibold leading-6 text-slate-600 dark:text-slate-300">{currentQuestion.explanation}</p>
             )}
             <button
               type="button"
@@ -664,8 +664,8 @@ export function PlayLearnArcade({
         ) : (
           <div>
             <div className="mb-4 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-600">Match each English word with its Lao meaning.</p>
-              <span className="whitespace-nowrap text-xs font-black text-emerald-700">{matchedWords.length}/{dailyWordPairs.length}</span>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Match each English word with its Lao meaning.</p>
+              <span className="whitespace-nowrap text-xs font-black text-emerald-700 dark:text-emerald-300">{matchedWords.length}/{dailyWordPairs.length}</span>
             </div>
             <div className="grid grid-cols-2 gap-2" data-no-premium-translate>
               {shuffledWords.map(card => {
@@ -680,10 +680,10 @@ export function PlayLearnArcade({
                     onClick={() => void selectWord(card.id, card.side)}
                     className={cn(
                       'min-h-16 rounded-2xl border px-3 py-3 text-sm font-black transition',
-                      matched && 'border-emerald-200 bg-emerald-50 text-emerald-700 opacity-60',
-                      selected && !matched && 'border-primary-500 bg-primary-50 text-primary-950 ring-2 ring-primary-100',
-                      !selected && !matched && 'border-slate-200 bg-white text-slate-700 hover:border-primary-300',
-                      wrong && 'border-red-300 bg-red-50 text-red-700',
+                      matched && 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 opacity-60',
+                      selected && !matched && 'border-primary-500 bg-primary-50 dark:bg-primary-900/40 text-primary-950 dark:text-primary-300 ring-2 ring-primary-100 dark:ring-primary-800',
+                      !selected && !matched && 'border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 text-slate-700 dark:text-slate-200 hover:border-primary-300 dark:hover:border-primary-700',
+                      wrong && 'border-red-300 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300',
                     )}
                   >
                     {matched && <CheckCircle2 className="mx-auto mb-1 h-4 w-4" />}
@@ -732,30 +732,30 @@ function ActivityTile({
       type="button"
       onClick={onClick}
       className={cn(
-        'group min-w-0 rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:p-4',
+        'group min-w-0 rounded-3xl border p-3 text-left transition hover:-translate-y-0.5 hover:bg-white dark:hover:bg-gray-900 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:p-4',
         accent === 'violet'
-          ? 'border-violet-200 bg-violet-50/60 focus-visible:ring-violet-500'
-          : 'border-emerald-200 bg-emerald-50/60 focus-visible:ring-emerald-500',
+          ? 'border-violet-200 dark:border-violet-500/30 bg-violet-50/60 dark:bg-violet-500/10 focus-visible:ring-violet-500'
+          : 'border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10 focus-visible:ring-emerald-500',
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <span className={cn(
           'flex h-10 w-10 items-center justify-center rounded-2xl sm:h-11 sm:w-11',
-          accent === 'violet' ? 'bg-violet-100 text-violet-700' : 'bg-emerald-100 text-emerald-700',
+          accent === 'violet' ? 'bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300' : 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
         )}>
           {icon}
         </span>
-        {completed && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
+        {completed && <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
       </div>
-      <h3 className="mt-3 text-sm font-black leading-5 text-primary-950 sm:mt-4 sm:text-base">{title}</h3>
-      <p className="mt-1 min-h-[60px] text-[11px] font-semibold leading-[18px] text-slate-500 sm:min-h-10 sm:text-xs sm:leading-5">{description}</p>
-      <div className="mt-3 flex flex-col items-start gap-1 text-[10px] font-bold text-slate-500 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:text-[11px]">
+      <h3 className="mt-3 text-sm font-black leading-5 text-primary-950 dark:text-primary-300 sm:mt-4 sm:text-base">{title}</h3>
+      <p className="mt-1 min-h-[60px] text-[11px] font-semibold leading-[18px] text-slate-500 dark:text-slate-400 sm:min-h-10 sm:text-xs sm:leading-5">{description}</p>
+      <div className="mt-3 flex flex-col items-start gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:text-[11px]">
         <span className="inline-flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" /> {duration}</span>
         <span className="inline-flex items-center gap-1"><Zap className="h-3.5 w-3.5" /> {stat}</span>
       </div>
       <span className={cn(
-        'mt-4 flex w-full items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-black transition',
-        accent === 'violet' ? 'border-violet-300 text-violet-700 group-hover:bg-violet-700 group-hover:text-white' : 'border-emerald-300 text-emerald-700 group-hover:bg-emerald-700 group-hover:text-white',
+        'mt-4 flex w-full items-center justify-center gap-2 rounded-xl border bg-white dark:bg-gray-900 px-4 py-2.5 text-xs font-black transition',
+        accent === 'violet' ? 'border-violet-300 dark:border-violet-500/40 text-violet-700 dark:text-violet-300 group-hover:bg-violet-700 group-hover:text-white' : 'border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-300 group-hover:bg-emerald-700 group-hover:text-white',
       )}>
         {completed ? 'Play again' : 'Play'} <ArrowRight className="h-3.5 w-3.5" />
       </span>
@@ -782,11 +782,11 @@ function ActivityResult({
 }) {
   return (
     <div className="py-3 text-center">
-      <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-2xl font-black text-emerald-700">{score}</span>
-      <h3 className="mt-5 text-xl font-black text-primary-950">{title}</h3>
-      <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500">{detail}</p>
+      <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-2xl font-black text-emerald-700 dark:text-emerald-300">{score}</span>
+      <h3 className="mt-5 text-xl font-black text-primary-950 dark:text-primary-300">{title}</h3>
+      <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500 dark:text-slate-400">{detail}</p>
       <div className="mt-6 grid gap-2 sm:grid-cols-2">
-        <button type="button" onClick={onReplay} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+        <button type="button" onClick={onReplay} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-black text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50">
           <RotateCcw className="h-4 w-4" /> {replayLabel}
         </button>
         <button type="button" onClick={onClose} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary-950 px-4 py-3 text-sm font-black text-white hover:bg-primary-800">

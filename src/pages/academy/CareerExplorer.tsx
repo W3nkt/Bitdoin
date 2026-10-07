@@ -131,20 +131,20 @@ export function CareerExplorer() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f6f2] text-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-900/10 bg-[#f5f6f2]/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#f5f6f2] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-900/10 dark:border-white/10 bg-[#f5f6f2]/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
           <button type="button" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-full hover:bg-slate-900/5" aria-label="Back to Academy">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700">Bitdoin Academy</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Bitdoin Academy</p>
             <h1 className="truncate text-base font-black sm:text-lg">{lo ? 'ສຳຫຼວດອາຊີບ' : 'Career Explorer'}</h1>
           </div>
           {profile ? (
             <PremiumProfileMenu variant="light" />
           ) : (
-            <button onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 px-3 py-2 text-xs font-black">
+            <button onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 dark:border-white/10 px-3 py-2 text-xs font-black">
               {lo ? 'EN' : 'ລາວ'}
             </button>
           )}
@@ -153,7 +153,7 @@ export function CareerExplorer() {
 
       <main className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
         <section className="relative -mx-4 overflow-hidden bg-[#092c25] px-4 py-12 text-white sm:mx-0 sm:mt-6 sm:rounded-[2rem] sm:px-10 sm:py-14">
-          <div className="pointer-events-none absolute -right-12 -top-24 h-72 w-72 rounded-full border-[46px] border-emerald-300/10 motion-safe:animate-[spin_28s_linear_infinite]" />
+          <div className="pointer-events-none absolute -right-12 -top-24 h-72 w-72 rounded-full border-[46px] border-emerald-300/10 dark:border-emerald-500/40 motion-safe:animate-[spin_28s_linear_infinite]" />
           <div className="relative max-w-3xl motion-safe:animate-fade-in">
             <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
               <Sparkles className="h-4 w-4" /> {lo ? 'ເລືອກອະນາຄົດດ້ວຍຂໍ້ມູນ' : 'Choose with evidence'}
@@ -167,9 +167,9 @@ export function CareerExplorer() {
           </div>
         </section>
 
-        <section className="relative z-10 -mt-5 border-b border-slate-900/10 bg-white px-4 py-4 shadow-[0_14px_40px_-24px_rgba(15,23,42,0.45)] sm:mx-8 sm:rounded-2xl sm:border">
+        <section className="relative z-10 -mt-5 border-b border-slate-900/10 dark:border-white/10 bg-white dark:bg-gray-900 px-4 py-4 shadow-[0_14px_40px_-24px_rgba(15,23,42,0.45)] sm:mx-8 sm:rounded-2xl sm:border">
           <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto_auto]">
-            <label className="flex h-12 items-center gap-3 rounded-xl bg-slate-100 px-4">
+            <label className="flex h-12 items-center gap-3 rounded-xl bg-slate-100 dark:bg-slate-800 px-4">
               <Search className="h-4 w-4 text-slate-400" />
               <input value={query} onChange={event => setQuery(event.target.value)} placeholder={lo ? 'ຄົ້ນຫາວຽກ, ສາຂາຮຽນ ຫຼື ທັກສະ' : 'Search a job, major, or skill'} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
               {query && <button onClick={() => setQuery('')} aria-label="Clear search"><X className="h-4 w-4 text-slate-400" /></button>}
@@ -183,12 +183,12 @@ export function CareerExplorer() {
           <section>
             <div className="mb-3 flex items-end justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">{lo ? 'ອາຊີບທີ່ພົບ' : 'Career matches'}</p>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">{lo ? 'ອາຊີບທີ່ພົບ' : 'Career matches'}</p>
                 <h2 className="mt-1 text-2xl font-black">{filtered.length} {lo ? 'ເສັ້ນທາງ' : 'paths to explore'}</h2>
               </div>
-              <p className="hidden text-xs text-slate-500 sm:block">{lo ? 'ເລືອກເພື່ອເບິ່ງລາຍລະອຽດ' : 'Select one for details'}</p>
+              <p className="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">{lo ? 'ເລືອກເພື່ອເບິ່ງລາຍລະອຽດ' : 'Select one for details'}</p>
             </div>
-            <div className="divide-y divide-slate-900/10 border-y border-slate-900/10">
+            <div className="divide-y divide-slate-900/10 dark:divide-white/10 border-y border-slate-900/10 dark:border-white/10">
               {filtered.map(career => {
                 const locked = isLocked(career)
                 return (
@@ -197,7 +197,7 @@ export function CareerExplorer() {
                     if (window.matchMedia('(max-width: 1023px)').matches) setMobileDetailOpen(true)
                   }} className={cn(
                     'group grid w-full grid-cols-[1fr_auto] items-center gap-4 px-1 py-5 text-left transition hover:px-3',
-                    selected?.id === career.id && 'bg-white px-3',
+                    selected?.id === career.id && 'bg-white dark:bg-gray-900 px-3',
                     locked && 'opacity-70',
                   )}>
                     <div>
@@ -205,21 +205,21 @@ export function CareerExplorer() {
                         <h3 className="font-black">{lo ? careerPathsLo[career.id]?.title ?? career.title : career.title}</h3>
                         <DemandBadge demand={career.demand} lo={lo} />
                         {locked && (
-                          <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                          <span className="flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-800 dark:text-amber-300">
                             <Lock className="h-3 w-3" /> {text.lockedBadge}
                           </span>
                         )}
                       </div>
-                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">{lo ? careerPathsLo[career.id]?.summary ?? career.summary : career.summary}</p>
+                      <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500 dark:text-slate-400">{lo ? careerPathsLo[career.id]?.summary ?? career.summary : career.summary}</p>
                       <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-400">
                         <GraduationCap className="h-3.5 w-3.5" /> {lo ? careerPathsLo[career.id]?.majors[0] ?? career.majors[0] : career.majors[0]}
                       </p>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-700" />
+                    <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-700 dark:group-hover:text-emerald-300" />
                   </button>
                 )
               })}
-              {!filtered.length && <div className="py-16 text-center text-sm text-slate-500">{text.empty}</div>}
+              {!filtered.length && <div className="py-16 text-center text-sm text-slate-500 dark:text-slate-400">{text.empty}</div>}
             </div>
           </section>
 
@@ -259,7 +259,7 @@ function CareerDetailSheet({ open, onClose, career, language, locked }: { open: 
   return (
     <div className="fixed inset-0 z-50 flex items-end lg:hidden" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white shadow-2xl motion-safe:animate-slide-up">
+      <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white dark:bg-gray-900 shadow-2xl motion-safe:animate-slide-up">
         <div className="sticky top-0 z-10 flex justify-center bg-slate-950 pb-1 pt-3">
           <div className="h-1 w-10 rounded-full bg-white/30" />
         </div>
@@ -278,7 +278,7 @@ function CareerDetailSheet({ open, onClose, career, language, locked }: { open: 
 
 function FilterSelect({ value, onChange, label, options, lo }: { value: string; onChange: (value: string) => void; label: string; options: readonly string[]; lo: boolean }) {
   return (
-    <label className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-slate-200 bg-white px-4">
+    <label className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-4">
       <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span>
       <select value={value} onChange={event => onChange(event.target.value)} className="h-12 min-w-0 bg-transparent text-sm font-bold outline-none">
         {options.map(option => <option key={option} value={option}>{lo ? laoLabels[option] ?? option : option}</option>)}
@@ -288,7 +288,7 @@ function FilterSelect({ value, onChange, label, options, lo }: { value: string; 
 }
 
 function DemandBadge({ demand, lo }: { demand: CareerPath['demand']; lo: boolean }) {
-  return <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide', demand === 'High' ? 'bg-emerald-100 text-emerald-800' : demand === 'Growing' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600')}>{lo ? laoLabels[demand] : demand}</span>
+  return <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide', demand === 'High' ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300' : demand === 'Growing' ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300')}>{lo ? laoLabels[demand] : demand}</span>
 }
 
 function CareerDetail({ career, language, locked }: { career: CareerPath; language: 'lo' | 'en'; locked: boolean }) {
@@ -301,7 +301,7 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
   const skills = lo ? localized?.skills ?? career.skills : career.skills
   const pathway = lo ? localized?.pathway ?? career.pathway : career.pathway
   return (
-    <aside key={career.id} className="self-start overflow-hidden bg-white shadow-[0_20px_70px_-40px_rgba(15,23,42,0.45)] motion-safe:animate-fade-in lg:sticky lg:top-24 lg:rounded-[1.75rem]">
+    <aside key={career.id} className="self-start overflow-hidden bg-white dark:bg-gray-900 shadow-[0_20px_70px_-40px_rgba(15,23,42,0.45)] motion-safe:animate-fade-in lg:sticky lg:top-24 lg:rounded-[1.75rem]">
       <div className="bg-slate-950 px-6 py-7 text-white sm:px-8">
         <div className="flex items-start justify-between gap-5">
           <div>
@@ -324,19 +324,19 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
       ) : (
       <div className="space-y-8 px-6 py-7 sm:px-8">
         <DetailSection icon={GraduationCap} title={text.majors}>
-          <div className="flex flex-wrap gap-2">{majors.map(major => <span key={major} className="rounded-full bg-[#edf2e9] px-3 py-2 text-xs font-bold text-slate-700">{major}</span>)}</div>
+          <div className="flex flex-wrap gap-2">{majors.map(major => <span key={major} className="rounded-full bg-[#edf2e9] dark:bg-emerald-500/10 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200">{major}</span>)}</div>
         </DetailSection>
         <DetailSection icon={Target} title={text.skills}>
-          <ul className="grid gap-2 sm:grid-cols-2">{skills.map(skill => <li key={skill} className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{skill}</li>)}</ul>
+          <ul className="grid gap-2 sm:grid-cols-2">{skills.map(skill => <li key={skill} className="flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />{skill}</li>)}</ul>
         </DetailSection>
         <DetailSection icon={GraduationCap} title={text.certificates}>
-          <div className="divide-y divide-slate-100 border-y border-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800 border-y border-slate-100 dark:border-slate-800">
             {career.skills.map((skill, index) => (
               <div key={skill} className="py-3">
                 <p className="text-sm font-black">{skills[index] ?? skill}</p>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
                   {certificatesForSkill(skill).map(certificate => (
-                    <a key={`${skill}-${certificate.name}`} href={certificate.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline">
+                    <a key={`${skill}-${certificate.name}`} href={certificate.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline">
                       {certificate.name} <span className="font-medium text-slate-400">· {certificate.provider}</span><ExternalLink className="h-3 w-3" />
                     </a>
                   ))}
@@ -347,19 +347,19 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
           <p className="mt-3 text-[11px] leading-4 text-slate-400">{text.certificateNote}</p>
         </DetailSection>
         <DetailSection icon={BookOpen} title={text.pathway}>
-          <ol className="relative ml-2 border-l border-emerald-200">
+          <ol className="relative ml-2 border-l border-emerald-200 dark:border-emerald-500/30">
             {pathway.map((step, index) => <li key={step} className="relative pb-4 pl-6 last:pb-0"><span className="absolute -left-3 grid h-6 w-6 place-items-center rounded-full bg-emerald-700 text-[10px] font-black text-white">{index + 1}</span><p className="pt-0.5 text-sm font-semibold leading-5">{step}</p></li>)}
           </ol>
         </DetailSection>
         <DetailSection icon={CircleDollarSign} title={text.salary}>
-          <div className="divide-y divide-slate-100 border-y border-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800 border-y border-slate-100 dark:border-slate-800">
             {[
               [lo ? laoLabels.Laos : 'Laos', salaryByCareer[career.id]?.laos],
               [lo ? laoLabels.Asia : 'Asia', salaryByCareer[career.id]?.asia],
               [lo ? laoLabels.Global : 'Global', salaryByCareer[career.id]?.global],
             ].map(([market, salary]) => (
               <div key={market} className="flex items-center justify-between gap-4 py-3 text-sm">
-                <span className="font-bold text-slate-500">{market}</span>
+                <span className="font-bold text-slate-500 dark:text-slate-400">{market}</span>
                 <span className="text-right font-black">{salary}</span>
               </div>
             ))}
@@ -367,11 +367,11 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
           <p className="mt-3 text-[11px] leading-4 text-slate-400">{text.salaryNote}</p>
         </DetailSection>
         <DetailSection icon={BriefcaseBusiness} title={text.organizations}>
-          <div className="divide-y divide-slate-100 border-y border-slate-100">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800 border-y border-slate-100 dark:border-slate-800">
             {(organizationsByCareer[career.id] ?? []).map(organization => (
               <a key={organization.name} href={organization.url} target="_blank" rel="noreferrer" className="group flex items-center justify-between gap-4 py-3">
-                <span><span className="block text-sm font-black group-hover:text-emerald-700">{organization.name}</span><span className="text-[11px] text-slate-400">{lo ? laoLabels[organization.type] ?? organization.type : organization.type}</span></span>
-                <ExternalLink className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-emerald-700" />
+                <span><span className="block text-sm font-black group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{organization.name}</span><span className="text-[11px] text-slate-400">{lo ? laoLabels[organization.type] ?? organization.type : organization.type}</span></span>
+                <ExternalLink className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300" />
               </a>
             ))}
           </div>
@@ -379,15 +379,15 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
         <DetailSection icon={Search} title={text.openings}>
           <div className="flex flex-wrap gap-2">
             {jobSearchPlatforms.map(platform => (
-              <a key={platform.name} href={platform.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-2 text-xs font-bold transition hover:border-emerald-600 hover:text-emerald-700">
+              <a key={platform.name} href={platform.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold transition hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300">
                 {platform.name}<ExternalLink className="h-3 w-3" />
               </a>
             ))}
           </div>
         </DetailSection>
         <DetailSection icon={Globe2} title={text.signal}>
-          <div className="flex items-end justify-between gap-4 border-y border-slate-100 py-4">
-            <div><p className="text-3xl font-black">{career.openingsSignal.toLocaleString()}+</p><p className="mt-1 text-xs text-slate-500">{text.opportunities}</p></div>
+          <div className="flex items-end justify-between gap-4 border-y border-slate-100 dark:border-slate-800 py-4">
+            <div><p className="text-3xl font-black">{career.openingsSignal.toLocaleString()}+</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{text.opportunities}</p></div>
             <DemandBadge demand={career.demand} lo={lo} />
           </div>
           <p className="mt-3 text-[11px] leading-4 text-slate-400">{text.signalNote}</p>
@@ -402,7 +402,7 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
 }
 
 function DetailSection({ icon: Icon, title, children }: { icon: typeof Target; title: string; children: React.ReactNode }) {
-  return <section><h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500"><Icon className="h-4 w-4 text-emerald-700" />{title}</h3>{children}</section>
+  return <section><h3 className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400"><Icon className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />{title}</h3>{children}</section>
 }
 
 function CareerPaywall({ text }: { text: (typeof copy)['en'] }) {
@@ -411,7 +411,7 @@ function CareerPaywall({ text }: { text: (typeof copy)['en'] }) {
       <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-300 text-slate-950"><Lock className="h-6 w-6" /></span>
       <h3 className="mt-4 text-lg font-black">{text.lockedTitle}</h3>
       <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-emerald-50/80">{text.lockedBody}</p>
-      <Link to="/academy/subscription#plans" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200">
+      <Link to="/academy/subscription#plans" className="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-200 dark:hover:bg-emerald-500/25">
         {text.lockedCta} <ArrowRight className="h-4 w-4" />
       </Link>
     </div>

@@ -262,9 +262,9 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
   return (
     <div className="premium-i18n fixed inset-0 z-50 flex items-end justify-center md:items-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-3xl">
+      <div className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white dark:bg-gray-900 shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-3xl">
         {/* Progress bar */}
-        <div className="h-1.5 w-full bg-gray-100">
+        <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
           <div
             className="h-full bg-primary-700 transition-all duration-300"
             style={{ width: `${((step + 1) / total) * 100}%` }}
@@ -272,13 +272,13 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
         </div>
 
         <div className="flex items-center justify-between px-5 pt-4">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary-600">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">
             <Sparkles className="h-4 w-4 text-amber-500" />
             Getting to know you
           </div>
           <button
             onClick={handleClose}
-            className="text-xs font-semibold text-gray-400 hover:text-gray-600"
+            className="text-xs font-semibold text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             Close
           </button>
@@ -286,21 +286,21 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
 
         <div className="flex-1 overflow-y-auto px-5 py-6">
           {isIntro && (
-            <div className="mb-5 rounded-2xl bg-primary-50 p-4 text-sm leading-6 text-primary-900">
+            <div className="mb-5 rounded-2xl bg-primary-50 dark:bg-primary-900/40 p-4 text-sm leading-6 text-primary-900 dark:text-primary-300">
               👋 Hi! I'm Bitdoin. Before I become your mentor, I'd like to get to know you. It only takes a minute.
             </div>
           )}
 
           <div key={question.id} className="animate-slide-up">
             <p className="text-2xl">{question.emoji}</p>
-            <h3 className="mt-2 text-xl font-black text-gray-950">{question.prompt}</h3>
+            <h3 className="mt-2 text-xl font-black text-gray-950 dark:text-gray-100">{question.prompt}</h3>
             {question.helper && <p className="mt-1 text-xs text-gray-400">{question.helper}</p>}
 
             <div className="mt-5">
               {(question.type === 'text') && (
                 isWhatsAppQuestion ? (
                   <div className="flex w-full items-center gap-2 sm:gap-3" onPaste={handleWhatsAppPaste}>
-                    <span className="flex h-12 flex-shrink-0 items-center rounded-xl border-2 border-gray-200 bg-gray-50 px-3 text-sm font-black tabular-nums text-gray-700 sm:px-4">
+                    <span className="flex h-12 flex-shrink-0 items-center rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 text-sm font-black tabular-nums text-gray-700 dark:text-gray-200 sm:px-4">
                       +85620
                     </span>
                     <div className="grid min-w-0 flex-1 grid-cols-8 gap-1.5 sm:gap-2">
@@ -319,7 +319,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
                           onChange={event => setWhatsAppDigit(index, event.target.value)}
                           onKeyDown={event => handleWhatsAppKeyDown(index, event)}
                           onFocus={event => event.currentTarget.select()}
-                          className="h-12 min-w-0 rounded-xl border-2 border-gray-200 text-center text-base font-black tabular-nums text-gray-900 outline-none transition-colors focus:border-primary-500 focus:bg-primary-50"
+                          className="h-12 min-w-0 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-center text-base font-black tabular-nums text-gray-900 dark:text-gray-100 outline-none transition-colors focus:border-primary-500 focus:bg-primary-50 dark:focus:bg-primary-900/40"
                         />
                       ))}
                     </div>
@@ -332,7 +332,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     placeholder={question.placeholder}
-                    className="w-full rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 focus:border-primary-500 focus:outline-none"
+                    className="w-full rounded-2xl border-2 border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:outline-none"
                   />
                 )
               )}
@@ -344,7 +344,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
                   onChange={e => setDraft(e.target.value)}
                   placeholder={question.placeholder}
                   rows={3}
-                  className="w-full resize-none rounded-2xl border-2 border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 focus:border-primary-500 focus:outline-none"
+                  className="w-full resize-none rounded-2xl border-2 border-gray-200 dark:border-gray-700 px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:outline-none"
                 />
               )}
 
@@ -358,8 +358,8 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
                       className={cn(
                         'rounded-2xl border-2 px-4 py-3 text-left text-sm font-semibold transition-colors',
                         currentValue === option
-                          ? 'border-primary-700 bg-primary-50 text-primary-900'
-                          : 'border-gray-200 text-gray-700 hover:border-primary-300',
+                          ? 'border-primary-700 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-primary-300 dark:hover:border-primary-700',
                       )}
                     >
                       {option}
@@ -378,8 +378,8 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
                       className={cn(
                         'flex h-12 flex-1 items-center justify-center rounded-2xl border-2 text-base font-black transition-colors',
                         currentValue === value
-                          ? 'border-primary-700 bg-primary-50 text-primary-900'
-                          : 'border-gray-200 text-gray-700 hover:border-primary-300',
+                          ? 'border-primary-700 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300'
+                          : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:border-primary-300 dark:hover:border-primary-700',
                       )}
                     >
                       {value}
@@ -391,7 +391,7 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-4">
+        <div className="flex items-center justify-between gap-3 border-t border-gray-100 dark:border-gray-800 px-5 py-4">
           <Button
             type="button"
             variant="ghost"

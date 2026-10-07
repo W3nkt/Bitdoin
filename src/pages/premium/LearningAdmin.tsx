@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BookOpen, CalendarRange, ExternalLink, FileEdit, Plus, Save, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, CalendarRange, ExternalLink, FileEdit, Plus, Save, Search, Trash2, X, Moon, Sun } from 'lucide-react'
+import { useTheme } from '@/lib/theme'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
@@ -53,6 +54,8 @@ const toSlug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+
 const lines = (value: string) => value.split('\n').map(item => item.trim()).filter(Boolean)
 
 export function PremiumLearningAdmin() {
+  const theme = useTheme(state => state.theme)
+  const toggleTheme = useTheme(state => state.toggleTheme)
   const navigate = useNavigate()
   const qc = useQueryClient()
   const toast = useToast()
@@ -172,22 +175,31 @@ export function PremiumLearningAdmin() {
 
   const filteredLessons = (lessons.data ?? []).filter(item => `${item.title_en} ${item.title_lo} ${item.category?.name_en}`.toLowerCase().includes(search.toLowerCase()))
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-950">
+    <div className="min-h-screen bg-slate-100 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950 text-white">
         <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4">
           <button onClick={() => navigate('/academy-admin')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p><h1 className="text-xl font-black">Learning content</h1></div>
           <a href="/academy/learn" target="_blank" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Member view <ExternalLink className="h-4 w-4" /></a>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-slate-200 transition-colors hover:bg-white/15 hover:text-white dark:text-amber-300"
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </button>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-slate-700 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex gap-2">
               <Tab active={tab === 'lessons'} onClick={() => setTab('lessons')} icon={BookOpen}>Lessons & opportunities</Tab>
               <Tab active={tab === 'challenges'} onClick={() => setTab('challenges')} icon={CalendarRange}>Weekly challenges</Tab>
             </div>
-            <p className="mt-4 text-sm text-slate-500">{tab === 'lessons' ? 'Publish bilingual lessons, summaries, scholarships, career guides, and business ideas.' : 'Schedule one clear member challenge at a time.'}</p>
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{tab === 'lessons' ? 'Publish bilingual lessons, summaries, scholarships, career guides, and business ideas.' : 'Schedule one clear member challenge at a time.'}</p>
           </div>
           <Button onClick={() => tab === 'lessons'
             ? setLessonDraft({ ...blankLesson, category_id: categories.data?.[0]?.id ?? '' })
@@ -197,23 +209,23 @@ export function PremiumLearningAdmin() {
 
         {tab === 'lessons' ? (
           <>
-            <label className="mt-6 flex max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white px-4">
+            <label className="mt-6 flex max-w-md items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-4">
               <Search className="h-4 w-4 text-slate-400" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search content…" className="w-full py-3 text-sm outline-none" />
             </label>
-            <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <div className="mt-6 overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700">
               {filteredLessons.map(item => (
-                <div key={item.id} className="grid gap-3 border-b border-slate-100 p-5 last:border-0 sm:grid-cols-[1fr_auto] sm:items-center">
+                <div key={item.id} className="grid gap-3 border-b border-slate-100 dark:border-slate-800 p-5 last:border-0 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="truncate font-black">{item.title_en}</h2>
                       <Badge tone={item.status === 'PUBLISHED' ? 'green' : 'gray'}>{item.status}</Badge>
                       <Badge>{item.lesson_type.replace('_', ' ')}</Badge>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">{item.category?.name_en} · {item.estimated_minutes} min · {item.title_lo}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.category?.name_en} · {item.estimated_minutes} min · {item.title_lo}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => editLesson(item)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:border-primary-300 hover:text-primary-700"><FileEdit className="h-4 w-4" /></button>
-                    <button onClick={() => deleteLesson(item.id)} className="rounded-lg border border-slate-200 p-2 text-slate-400 hover:border-red-200 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => editLesson(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-700 dark:hover:text-primary-300"><FileEdit className="h-4 w-4" /></button>
+                    <button onClick={() => deleteLesson(item.id)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-400 hover:border-red-200 dark:hover:border-red-500/30 hover:text-red-600 dark:hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               ))}
@@ -222,10 +234,10 @@ export function PremiumLearningAdmin() {
         ) : (
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {(challenges.data ?? []).map(item => (
-              <button key={item.id} onClick={() => editChallenge(item)} className="rounded-2xl bg-white p-5 text-left shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md">
+              <button key={item.id} onClick={() => editChallenge(item)} className="rounded-2xl bg-white dark:bg-gray-900 p-5 text-left shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className="flex items-center justify-between"><Badge tone={item.is_active ? 'green' : 'gray'}>{item.is_active ? 'ACTIVE' : 'INACTIVE'}</Badge><FileEdit className="h-4 w-4 text-slate-400" /></div>
                 <h2 className="mt-4 text-xl font-black">{item.title_en}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">{item.description_en}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{item.description_en}</p>
                 <p className="mt-4 text-xs font-black uppercase tracking-wide text-slate-400">{item.starts_on} → {item.ends_on} · {item.points} XP</p>
               </button>
             ))}
@@ -247,15 +259,15 @@ export function PremiumLearningAdmin() {
 
             <div className="grid gap-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-600">Sections ({lessonDraft.sections.length})</p>
-                <button type="button" onClick={addSection} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-primary-700 hover:border-primary-300"><Plus className="h-3.5 w-3.5" /> Add section</button>
+                <p className="text-xs font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">Sections ({lessonDraft.sections.length})</p>
+                <button type="button" onClick={addSection} className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-xs font-bold text-primary-700 dark:text-primary-300 hover:border-primary-300 dark:hover:border-primary-700"><Plus className="h-3.5 w-3.5" /> Add section</button>
               </div>
               {lessonDraft.sections.map((section, index) => (
-                <div key={index} className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-2">
+                <div key={index} className="grid gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:grid-cols-2">
                   <div className="flex items-center justify-between sm:col-span-2">
                     <p className="text-xs font-black text-slate-400">Section {index + 1}</p>
                     {lessonDraft.sections.length > 1 && (
-                      <button type="button" onClick={() => removeSection(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><X className="h-3.5 w-3.5" /></button>
+                      <button type="button" onClick={() => removeSection(index)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"><X className="h-3.5 w-3.5" /></button>
                     )}
                   </div>
                   <Field label="English heading"><input value={section.heading_en} onChange={e => updateSection(index, { heading_en: e.target.value })} /></Field>
@@ -302,11 +314,11 @@ export function PremiumLearningAdmin() {
 }
 
 function Tab({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: typeof BookOpen; children: React.ReactNode }) {
-  return <button onClick={onClick} className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black', active ? 'bg-slate-950 text-white' : 'bg-white text-slate-500 ring-1 ring-slate-200')}><Icon className="h-4 w-4" />{children}</button>
+  return <button onClick={onClick} className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black', active ? 'bg-slate-950 text-white dark:bg-primary-600' : 'bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700')}><Icon className="h-4 w-4" />{children}</button>
 }
 function Badge({ children, tone = 'blue' }: { children: React.ReactNode; tone?: 'blue' | 'green' | 'gray' }) {
-  return <span className={cn('rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide', tone === 'green' ? 'bg-emerald-100 text-emerald-700' : tone === 'gray' ? 'bg-slate-100 text-slate-600' : 'bg-primary-50 text-primary-700')}>{children}</span>
+  return <span className={cn('rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide', tone === 'green' ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : tone === 'gray' ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300')}>{children}</span>
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="grid gap-1.5 text-xs font-black text-slate-600 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-200 [&_input]:px-3 [&_input]:py-2.5 [&_input]:text-sm [&_input]:font-medium [&_input]:outline-none [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-200 [&_select]:px-3 [&_select]:py-2.5 [&_select]:text-sm [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-200 [&_textarea]:px-3 [&_textarea]:py-2.5 [&_textarea]:text-sm [&_textarea]:font-medium [&_textarea]:outline-none">{label}{children}</label>
+  return <label className="grid gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300 [&_input]:rounded-lg [&_input]:border [&_input]:border-slate-200 dark:[&_input]:border-slate-700 [&_input]:px-3 [&_input]:py-2.5 [&_input]:text-sm [&_input]:font-medium [&_input]:outline-none [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-200 dark:[&_select]:border-slate-700 [&_select]:px-3 [&_select]:py-2.5 [&_select]:text-sm [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-200 dark:[&_textarea]:border-slate-700 [&_textarea]:px-3 [&_textarea]:py-2.5 [&_textarea]:text-sm [&_textarea]:font-medium [&_textarea]:outline-none">{label}{children}</label>
 }

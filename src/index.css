@@ -25,6 +25,18 @@
     border-color: theme('colors.gray.800');
   }
 
+  /* Inputs with no background class would get the browser's grey dark-mode
+     fill; let them take the surface they sit on instead. */
+  .dark input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  .dark textarea,
+  .dark select {
+    background-color: transparent;
+  }
+
+  .dark select option {
+    background-color: theme('colors.gray.900');
+  }
+
   :lang(lo) {
     font-family: 'Noto Sans Lao', sans-serif;
     line-height: 1.8;

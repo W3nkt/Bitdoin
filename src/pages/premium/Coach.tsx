@@ -102,15 +102,15 @@ function MentorMarkdown({ children }: { children: string }) {
         h2: props => <h2 className="mb-1.5 mt-3 text-lg font-black leading-7 first:mt-0" {...props} />,
         h3: props => <h3 className="mb-1.5 mt-2.5 text-base font-extrabold leading-6 first:mt-0" {...props} />,
         p: props => <p className="my-1.5 leading-6 first:mt-0 last:mb-0" {...props} />,
-        strong: props => <strong className="font-black text-gray-950" {...props} />,
-        em: props => <em className="italic text-gray-700" {...props} />,
+        strong: props => <strong className="font-black text-gray-950 dark:text-gray-100" {...props} />,
+        em: props => <em className="italic text-gray-700 dark:text-gray-200" {...props} />,
         u: props => <u className="decoration-primary-400 decoration-2 underline-offset-2" {...props} />,
-        ul: props => <ul className="my-2 list-disc space-y-0.5 pl-6 marker:text-primary-500" {...props} />,
-        ol: props => <ol className="my-2 list-decimal space-y-0.5 pl-6 marker:font-bold marker:text-primary-700" {...props} />,
+        ul: props => <ul className="my-2 list-disc space-y-0.5 pl-6 marker:text-primary-500 dark:marker:text-primary-400" {...props} />,
+        ol: props => <ol className="my-2 list-decimal space-y-0.5 pl-6 marker:font-bold marker:text-primary-700 dark:marker:text-primary-300" {...props} />,
         li: props => <li className="pl-1 leading-6 [&>p]:my-0" {...props} />,
-        blockquote: props => <blockquote className="my-2 border-l-4 border-amber-400 bg-amber-50 px-4 py-2 italic text-gray-700" {...props} />,
-        hr: props => <hr className="my-3 border-black/10" {...props} />,
-        a: props => <a className="font-bold text-primary-600 underline decoration-primary-300 underline-offset-2 hover:text-primary-800" target="_blank" rel="noreferrer" {...props} />,
+        blockquote: props => <blockquote className="my-2 border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-500/10 px-4 py-2 italic text-gray-700 dark:text-gray-200" {...props} />,
+        hr: props => <hr className="my-3 border-black/10 dark:border-white/10" {...props} />,
+        a: props => <a className="font-bold text-primary-600 dark:text-primary-400 underline decoration-primary-300 underline-offset-2 hover:text-primary-800 dark:hover:text-primary-300" target="_blank" rel="noreferrer" {...props} />,
         code: ({ children, className }) => {
           const value = String(children).replace(/\n$/, '')
           const isUrl = !className && /^https?:\/\/[^\s]+$/i.test(value)
@@ -119,20 +119,20 @@ function MentorMarkdown({ children }: { children: string }) {
               href={value}
               target="_blank"
               rel="noopener noreferrer"
-              className="break-all rounded bg-primary-50 px-1.5 py-0.5 font-mono text-[0.9em] font-bold text-primary-700 underline decoration-primary-300 underline-offset-2 transition hover:bg-primary-100 hover:text-primary-900"
+              className="break-all rounded bg-primary-50 dark:bg-primary-900/40 px-1.5 py-0.5 font-mono text-[0.9em] font-bold text-primary-700 dark:text-primary-300 underline decoration-primary-300 underline-offset-2 transition hover:bg-primary-100 dark:hover:bg-primary-900/60 hover:text-primary-900 dark:hover:text-primary-300"
             >
               {value}
             </a>
           ) : (
-            <code className={cn('rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[0.9em] text-primary-800', className)}>
+            <code className={cn('rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 font-mono text-[0.9em] text-primary-800 dark:text-primary-300', className)}>
               {children}
             </code>
           )
         },
         pre: props => <pre className="my-4 overflow-x-auto rounded-2xl bg-primary-950 p-4 text-xs leading-6 text-primary-50 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit" {...props} />,
         table: props => <div className="my-4 overflow-x-auto"><table className="w-full border-collapse text-left text-xs" {...props} /></div>,
-        th: props => <th className="border-b-2 border-gray-300 px-3 py-2 font-black" {...props} />,
-        td: props => <td className="border-b border-gray-200 px-3 py-2 align-top" {...props} />,
+        th: props => <th className="border-b-2 border-gray-300 dark:border-gray-600 px-3 py-2 font-black" {...props} />,
+        td: props => <td className="border-b border-gray-200 dark:border-gray-700 px-3 py-2 align-top" {...props} />,
       }}
     >
       {makeYouTubeRecommendationsSearchable(children)}
@@ -335,22 +335,22 @@ export function PremiumCoach() {
   if (!profile) return <Navigate to="/auth" replace />
 
   return (
-    <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] pt-16 text-gray-950">
-      <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 bg-white/90 px-4 backdrop-blur md:px-8">
+    <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
+      <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between">
           <Link
             to="/academy/home"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-gray-100 hover:text-gray-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-950 dark:hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Back to Premium"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600">Ready to coach</p></div></div>
+          <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Ready to coach</p></div></div>
           <div className="flex items-center gap-2">
             {access.data ? (
               <Crown className="h-5 w-5 text-amber-500" />
             ) : (
-              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-[11px] font-black text-amber-900 transition hover:bg-amber-200">
+              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25">
                 <Crown className="h-3.5 w-3.5" /> Upgrade
               </Link>
             )}
@@ -363,7 +363,7 @@ export function PremiumCoach() {
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
-          className="fixed left-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white text-gray-600 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
+          className="fixed left-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 dark:hover:text-primary-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
           aria-label="Open chat history"
         >
           <History className="h-5 w-5" />
@@ -371,13 +371,13 @@ export function PremiumCoach() {
       )}
 
       {historyOpen && <button type="button" className="fixed inset-0 top-16 z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
-      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-72 flex-col border-r border-black/5 bg-white transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-72 flex-col border-r border-black/5 dark:border-white/10 bg-white dark:bg-gray-900 transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex items-center justify-between px-4 pb-3 pt-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Your mentor</p>
             <h2 className="mt-1 text-lg font-black">Chat history</h2>
           </div>
-          <button type="button" onClick={() => setHistoryOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 lg:hidden" aria-label="Close chat history"><X className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setHistoryOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden" aria-label="Close chat history"><X className="h-4 w-4" /></button>
         </div>
         <div className="px-3 pb-3">
           <button type="button" onClick={startNewChat} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-primary-800"><Plus className="h-4 w-4" /> New chat</button>
@@ -385,8 +385,8 @@ export function PremiumCoach() {
         <nav className="scrollbar-hide flex-1 space-y-1 overflow-y-auto px-2 pb-5" aria-label="Previous mentor chats">
           {conversations.data?.length === 0 && <p className="px-4 py-8 text-center text-xs leading-5 text-gray-400">Your previous conversations will appear here.</p>}
           {conversations.data?.map(conversation => (
-            <button key={conversation.id} type="button" onClick={() => openConversation(conversation.id)} className={`group flex w-full gap-3 rounded-2xl px-3 py-3 text-left transition ${conversation.id === conversationId ? 'bg-primary-50 text-primary-950' : 'text-gray-700 hover:bg-gray-50'}`}>
-              <MessageSquare className={`mt-0.5 h-4 w-4 flex-shrink-0 ${conversation.id === conversationId ? 'text-primary-600' : 'text-gray-300 group-hover:text-gray-500'}`} />
+            <button key={conversation.id} type="button" onClick={() => openConversation(conversation.id)} className={`group flex w-full gap-3 rounded-2xl px-3 py-3 text-left transition ${conversation.id === conversationId ? 'bg-primary-50 dark:bg-primary-900/40 text-primary-950 dark:text-primary-100' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+              <MessageSquare className={`mt-0.5 h-4 w-4 flex-shrink-0 ${conversation.id === conversationId ? 'text-primary-600 dark:text-primary-400' : 'text-gray-300 group-hover:text-gray-500 dark:group-hover:text-gray-400'}`} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold">{conversation.title}</span>
                 <time dateTime={conversation.updated_at} className="mt-1 block text-[11px] font-medium text-gray-400">{formatTimestamp(conversation.updated_at)}</time>
@@ -403,22 +403,22 @@ export function PremiumCoach() {
             <div className="animate-slide-up py-10 text-center md:py-20">
               <Sparkles className="mx-auto h-7 w-7 text-amber-500" />
               <h1 className="mt-5 text-3xl font-black tracking-tight">{roleplayMission ? 'Ready for your role-play mission?' : careerAssessment ? `Assessing ${careerAssessment.title}` : 'What should we work on today?'}</h1>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">
                 {roleplayMission ? 'Send the prepared prompt below to begin. Complete your first exchange to earn 20 XP.' : 'I’ll use your goals and coaching preferences to give you practical, personal guidance.'}
               </p>
               <div className="mx-auto mt-8 grid max-w-lg gap-2 sm:grid-cols-3">{STARTERS.map(starter => {
                 const prompt = starter[language]
-                return <button key={starter.en} onClick={() => void send(undefined, prompt)} className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm">{prompt}</button>
+                return <button key={starter.en} onClick={() => void send(undefined, prompt)} className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm">{prompt}</button>
               })}</div>
             </div>
           )}
-          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white' : 'rounded-bl-md bg-white text-gray-800 shadow-sm'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at)}</time></div></div>)}
-          {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
+          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white dark:bg-primary-700' : 'rounded-bl-md bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none dark:ring-1 dark:ring-white/10'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at)}</time></div></div>)}
+          {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white dark:bg-gray-900 px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
           <div ref={endRef} />
         </div>
-        <div className="sticky bottom-0 bg-[#f5f6f1] pb-4 pt-5">
-          {error && <p className="mb-2 text-center text-xs font-semibold text-red-600">{error}</p>}
-          <form onSubmit={send} className="flex items-end gap-2 rounded-3xl border border-black/10 bg-white p-2 shadow-lg shadow-black/5">
+        <div className="sticky bottom-0 bg-[#f5f6f1] dark:bg-gray-950 pb-4 pt-5">
+          {error && <p className="mb-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}
+          <form onSubmit={send} className="flex items-end gap-2 rounded-3xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 p-2 shadow-lg shadow-black/5">
             <textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() } }} rows={1} maxLength={4000} placeholder="Ask your mentor…" className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none" aria-label="Message your mentor" />
             <button type="submit" disabled={!draft.trim() || sending} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary-900 text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Send message"><Send className="h-4 w-4" /></button>
           </form>

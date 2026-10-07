@@ -22,6 +22,7 @@ jobs:
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || vars.VITE_SUPABASE_ANON_KEY }}
       VITE_ADMIN_WHATSAPP: ${{ vars.VITE_ADMIN_WHATSAPP || '+8562095324510' }}
       VITE_ADMIN_MESSENGER: ${{ vars.VITE_ADMIN_MESSENGER || 'm.me/620472337804971' }}
+      VITE_TELEGRAM_BOT_USERNAME: ${{ secrets.VITE_TELEGRAM_BOT_USERNAME || vars.VITE_TELEGRAM_BOT_USERNAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

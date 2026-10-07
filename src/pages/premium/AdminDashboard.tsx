@@ -30,8 +30,15 @@ import {
   Users,
   WandSparkles,
   XCircle,
+  Moon,
+  Sun,
+  Maximize2,
+  Minimize2,
+  Pause,
+  Play,
 } from 'lucide-react'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
+import { useTheme } from '@/lib/theme'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -138,7 +145,7 @@ interface DailyMotivation {
 interface WeeklyContentRun {
   id: string
   week_start: string
-  status: 'GENERATING' | 'READY' | 'FAILED' | 'CANCELLED'
+  status: 'GENERATING' | 'PAUSED' | 'READY' | 'FAILED' | 'CANCELLED'
   content_counts: Record<string, number>
   error_message?: string | null
   started_at: string
@@ -149,11 +156,68 @@ interface WeeklyContentRun {
 type GenerationStep = {
   id: string
   label: string
-  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+  status: 'queued' | 'running' | 'paused' | 'done' | 'failed' | 'cancelled'
   detail?: string
-  categoryId?: string
-  action?: string
-  batchIndex?: number
+}
+
+interface MemberWhatsAppDraft {
+  outcome: 'APPROVED' | 'DECLINED'
+  message: string
+  memberName: string
+  recipient: string | null
+}
+
+// wa.me needs international digits; accept Lao local formats typed by an admin.
+function whatsAppDigits(raw: string) {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('020') && digits.length === 11) return `856${digits.slice(1)}`
+  if (digits.startsWith('20') && digits.length === 10) return `856${digits}`
+  return digits
+}
+
+interface WeeklyContentTask {
+  task_key: string
+  status: 'PENDING' | 'PROCESSING' | 'PAUSED' | 'DONE' | 'FAILED' | 'CANCELLED'
+  error_message: string | null
+  sort_order: number
+}
+
+const TASK_STATUS: Record<WeeklyContentTask['status'], GenerationStep['status']> = {
+  PENDING: 'queued', PROCESSING: 'running', PAUSED: 'paused', DONE: 'done', FAILED: 'failed', CANCELLED: 'cancelled',
+}
+
+function generationStepLabel(taskKey: string, categoryNames: Map<string, string>) {
+  const batch = taskKey.match(/^(brain_sprint|word_match)-(\d+)$/)
+  if (batch) {
+    return batch[1] === 'brain_sprint'
+      ? `Daily Brain Sprint · Batch ${Number(batch[2]) + 1}/5`
+      : `Word Match · Batch ${Number(batch[2]) + 1}/3`
+  }
+  if (taskKey === 'daily_mentor') return 'Daily Mentor'
+  if (taskKey === 'roleplay_missions') return 'AI role-play missions'
+  if (taskKey === 'prompt_library') return 'AI Prompt Library'
+  if (taskKey.startsWith('lesson-')) return `Learning Hub · ${categoryNames.get(taskKey.slice('lesson-'.length)) ?? 'Lesson'}`
+  return taskKey
+}
+
+// The generate-academy-week function owns the queue; the page only sends
+// commands (check, initialize, pause, resume, cancel) and reads task state.
+async function invokeContentForge(body: Record<string, unknown>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('The generation service did not respond. Please try again.')), 60_000)
+  })
+  const { data, error: invokeError } = await Promise.race([
+    supabase.functions.invoke('generate-academy-week', { body }),
+    timeout,
+  ]).finally(() => { if (timeoutId) clearTimeout(timeoutId) })
+  if (data?.error) throw new Error(data.error)
+  if (invokeError instanceof FunctionsHttpError) {
+    const responseBody = await invokeError.context.json().catch(() => null)
+    throw new Error(responseBody?.error ?? invokeError.message)
+  }
+  if (invokeError) throw new Error(invokeError.message ?? 'The generation service could not be reached.')
+  return data
 }
 
 interface PremiumMemberEvent {
@@ -226,18 +290,18 @@ function statusLabel(status: SubscriptionStatus) {
 }
 
 function subscriptionStatusClass(status: SubscriptionStatus) {
-  if (status === 'ACTIVE') return 'bg-emerald-100 text-emerald-800'
-  if (status === 'PAYMENT_REVIEW') return 'bg-orange-100 text-orange-800'
-  if (status === 'PENDING_APPROVAL' || status === 'PENDING_PAYMENT') return 'bg-yellow-100 text-yellow-800'
-  if (status === 'CANCELLED' || status === 'EXPIRED') return 'bg-gray-100 text-gray-700'
-  return 'bg-primary-100 text-primary-800'
+  if (status === 'ACTIVE') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+  if (status === 'PAYMENT_REVIEW') return 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300'
+  if (status === 'PENDING_APPROVAL' || status === 'PENDING_PAYMENT') return 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300'
+  if (status === 'CANCELLED' || status === 'EXPIRED') return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+  return 'bg-primary-100 dark:bg-primary-900/60 text-primary-800 dark:text-primary-300'
 }
 
 function paymentStatusClass(status: PaymentStatus) {
-  if (status === 'VERIFIED') return 'bg-emerald-100 text-emerald-800'
-  if (status === 'REQUIRES_REVIEW') return 'bg-orange-100 text-orange-800'
-  if (status === 'REJECTED') return 'bg-red-100 text-red-800'
-  return 'bg-yellow-100 text-yellow-800'
+  if (status === 'VERIFIED') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
+  if (status === 'REQUIRES_REVIEW') return 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300'
+  if (status === 'REJECTED') return 'bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300'
+  return 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300'
 }
 
 function nextAcademyWeekStart() {
@@ -259,6 +323,8 @@ export function PremiumAdminDashboard() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { language, setLanguage, currency } = useLanguage()
+  const theme = useTheme(state => state.theme)
+  const toggleTheme = useTheme(state => state.toggleTheme)
   const { profile, signOut } = useAuth()
   const { success, error } = useToast()
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -270,17 +336,19 @@ export function PremiumAdminDashboard() {
   const [loadingProofId, setLoadingProofId] = useState<string | null>(null)
   const [selectedSubscription, setSelectedSubscription] = useState<PremiumSubscription | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  // Drafted approval/decline message the admin reviews and sends via WhatsApp.
+  const [whatsAppDraft, setWhatsAppDraft] = useState<MemberWhatsAppDraft | null>(null)
   const [editingPlan, setEditingPlan] = useState<PlanFormState | null>(null)
   const [motivationForm, setMotivationForm] = useState<MotivationFormState | null>(null)
   const [editingEvent, setEditingEvent] = useState<MemberContentFormState | null>(null)
   const [editingCommunity, setEditingCommunity] = useState<MemberContentFormState | null>(null)
   const [editingHighlight, setEditingHighlight] = useState<PerformanceFormState | null>(null)
   const [savingMotivation, setSavingMotivation] = useState(false)
-  const [generatingWeek, setGeneratingWeek] = useState(false)
   const [generationOpen, setGenerationOpen] = useState(false)
-  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([])
-  const generationRunId = useRef<string | null>(null)
-  const cancelGenerationRequested = useRef(false)
+  // Shown while the week is being checked/initialized, before tasks exist.
+  const [forgeStarting, setForgeStarting] = useState<string | null>(null)
+  // Task key (or 'all' / 'cancel') whose command is in flight.
+  const [forgeBusy, setForgeBusy] = useState<string | null>(null)
   const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
 
@@ -405,8 +473,62 @@ export function PremiumAdminDashboard() {
       if (runError) throw runError
       return data as WeeklyContentRun | null
     },
-    refetchInterval: query => query.state.data?.status === 'GENERATING' && !weeklyRunIsStale(query.state.data) ? 5000 : false,
+    refetchInterval: query => query.state.data?.status === 'GENERATING' && !weeklyRunIsStale(query.state.data) ? 4000 : false,
   })
+
+  const forgeRunActive = weeklyRun?.status === 'GENERATING' || weeklyRun?.status === 'PAUSED'
+
+  const { data: forgeTasks } = useQuery({
+    queryKey: ['premium-admin', 'weekly-content-tasks', weeklyRun?.id],
+    enabled: Boolean(weeklyRun?.id),
+    queryFn: async () => {
+      const { data, error: tasksError } = await supabase
+        .from('premium_weekly_content_tasks')
+        .select('task_key,status,error_message,sort_order')
+        .eq('run_id', weeklyRun!.id)
+        .order('sort_order')
+      if (tasksError) throw tasksError
+      return data as WeeklyContentTask[]
+    },
+    refetchInterval: weeklyRun?.status === 'GENERATING' ? 4000 : false,
+  })
+
+  const { data: forgeCategoryNames } = useQuery({
+    queryKey: ['premium-admin', 'learning-category-names'],
+    enabled: Boolean(forgeTasks?.length),
+    queryFn: async () => {
+      const { data, error: categoriesError } = await supabase.from('premium_learning_categories').select('id,name_en')
+      if (categoriesError) throw categoriesError
+      return new Map((data ?? []).map(category => [category.id as string, category.name_en as string]))
+    },
+    staleTime: 10 * 60_000,
+  })
+
+  const generationSteps: GenerationStep[] = (forgeTasks ?? []).map(task => {
+    const status = TASK_STATUS[task.status]
+    return {
+      id: task.task_key,
+      label: generationStepLabel(task.task_key, forgeCategoryNames ?? new Map()),
+      status,
+      detail: task.error_message ?? (status === 'done' ? 'Saved and ready' : status === 'running' ? 'Researching and writing…' : status === 'paused' ? 'Paused · will be skipped until started' : undefined),
+    }
+  })
+  const forgeDoneCount = generationSteps.filter(step => step.status === 'done').length
+
+  // Announce when a run the admin was watching finishes in the background.
+  const lastRunStatus = useRef<WeeklyContentRun['status'] | undefined>(undefined)
+  useEffect(() => {
+    const previous = lastRunStatus.current
+    lastRunStatus.current = weeklyRun?.status
+    if (previous !== 'GENERATING' && previous !== 'PAUSED') return
+    if (weeklyRun?.status === 'READY') {
+      void invalidateAdminPremium()
+      success(`Next week is ready: ${Object.values(weeklyRun.content_counts ?? {}).reduce((sum, count) => sum + Number(count), 0)} content items generated.`)
+    } else if (weeklyRun?.status === 'FAILED') {
+      error(weeklyRun.error_message ?? 'Weekly generation failed after automatic retries.')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeklyRun?.status])
 
   useEffect(() => {
     if (!weeklyRun || !weeklyRunIsStale(weeklyRun) || staleRecoveryRunId.current === weeklyRun.id) return
@@ -514,92 +636,61 @@ export function PremiumAdminDashboard() {
     ])
   }
 
+  async function refreshForge() {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] }),
+      qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-tasks'] }),
+    ])
+  }
+
   async function generateNextAcademyWeek() {
     setGenerationOpen(true)
-    setGeneratingWeek(true)
-    setGenerationSteps([{ id: 'check', label: 'Checking next week’s existing content', status: 'running' }])
-    cancelGenerationRequested.current = false
-    generationRunId.current = null
+    setForgeStarting('Checking next week’s existing content')
     try {
-      const invoke = async (body: Record<string, unknown>) => {
-        let timeoutId: ReturnType<typeof setTimeout> | undefined
-        const timeout = new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('This step timed out after 5 minutes. Completed steps were saved; click Continue generation to resume.')), 5 * 60_000)
-        })
-        const { data, error: invokeError } = await Promise.race([
-          supabase.functions.invoke('generate-academy-week', { body }),
-          timeout,
-        ]).finally(() => { if (timeoutId) clearTimeout(timeoutId) })
-        if (data?.error) throw new Error(data.error)
-        if (invokeError instanceof FunctionsHttpError) {
-          const responseBody = await invokeError.context.json().catch(() => null)
-          throw new Error(responseBody?.error ?? invokeError.message)
-        }
-        if (invokeError) throw new Error(invokeError.message ?? 'The generation service could not be reached.')
-        return data
-      }
-      const existing = await invoke({ action: 'check' })
+      const existing = await invokeContentForge({ action: 'check' })
       if (existing.exists) {
-        setGenerationSteps([{ id: 'check', label: 'Next week’s content already exists', status: 'done', detail: `${Object.values(existing.counts as Record<string, number>).reduce((sum, count) => sum + count, 0)} items are ready` }])
         success(`Content for the week beginning ${existing.weekStart} already exists. Nothing was generated.`)
         return
       }
-      setGenerationSteps([{ id: 'initialize', label: 'Preparing next week', status: 'running' }])
-      const initialized = await invoke({ action: 'initialize' })
-      generationRunId.current = initialized.runId
-      const steps: GenerationStep[] = [
-        ...Array.from({ length: 5 }, (_, index) => ({ id: `brain_sprint-${index}`, label: `Daily Brain Sprint · Batch ${index + 1}/5`, status: 'queued' as const })),
-        ...Array.from({ length: 3 }, (_, index) => ({ id: `word_match-${index}`, label: `Word Match · Batch ${index + 1}/3`, status: 'queued' as const })),
-        { id: 'daily_mentor', label: 'Daily Mentor', status: 'queued' as const },
-        { id: 'roleplay_missions', label: 'AI role-play missions', status: 'queued' as const },
-        { id: 'prompt_library', label: 'AI Prompt Library', status: 'queued' as const },
-        ...(initialized.categories as Array<{ id: string; name_en: string }>).map((category, index) => ({
-          id: `lesson-${category.id}`, label: `Learning Hub · ${category.name_en}`, status: 'queued' as const,
-          detail: `Lesson ${index + 1} of ${initialized.categories.length}`,
-        })),
-      ]
-      setGenerationSteps(steps)
-
-      // The backend owns generation. This loop only observes durable task state;
-      // closing the tab does not stop or lose the job.
-      for (let poll = 0; poll < 360 && !cancelGenerationRequested.current; poll += 1) {
-        const [{ data: tasks, error: tasksError }, { data: runState, error: runStateError }] = await Promise.all([
-          supabase.from('premium_weekly_content_tasks').select('task_key,status,error_message').eq('run_id', initialized.runId),
-          supabase.from('premium_weekly_content_runs').select('status,error_message,content_counts').eq('id', initialized.runId).single(),
-        ])
-        if (tasksError) throw tasksError
-        if (runStateError) throw runStateError
-        const taskByKey = new Map((tasks ?? []).map(task => [task.task_key, task]))
-        setGenerationSteps(current => current.map(step => {
-          const task = taskByKey.get(step.id)
-          if (!task) return step
-          const status = task.status === 'DONE' ? 'done' : task.status === 'PROCESSING' ? 'running' : task.status === 'FAILED' ? 'failed' : task.status === 'CANCELLED' ? 'cancelled' : 'queued'
-          return { ...step, status, detail: task.error_message ?? (status === 'done' ? 'Saved and ready' : status === 'running' ? 'Researching and writing…' : step.detail) }
-        }))
-        if (runState.status === 'READY') {
-          await invalidateAdminPremium()
-          success(`Next week is ready: ${Object.values((runState.content_counts ?? {}) as Record<string, number>).reduce((sum, count) => sum + Number(count), 0)} content items generated.`)
-          return
-        }
-        if (runState.status === 'FAILED') throw new Error(runState.error_message ?? 'Weekly generation failed after automatic retries.')
-        if (runState.status === 'CANCELLED') return
-        await new Promise(resolve => setTimeout(resolve, 5000))
-      }
-      if (!cancelGenerationRequested.current) success('Generation is continuing safely in the background. You may close this page and return later.')
+      setForgeStarting('Preparing next week')
+      // The backend queues every step and runs them one at a time in order;
+      // it keeps going if this window is minimized or the page is closed.
+      await invokeContentForge({ action: 'initialize' })
     } catch (err) {
       console.error(err)
-      await qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] })
-      if (!cancelGenerationRequested.current) error(err instanceof Error ? err.message : 'Could not generate next week’s Academy content.')
+      error(err instanceof Error ? err.message : 'Could not generate next week’s Academy content.')
     } finally {
-      setGeneratingWeek(false)
+      setForgeStarting(null)
+      await refreshForge()
     }
   }
 
-  async function cancelWeeklyGeneration() {
-    cancelGenerationRequested.current = true
-    setGenerationSteps(current => current.map(item => item.status === 'queued' ? { ...item, status: 'cancelled', detail: 'Cancelled' } : item))
-    if (generationRunId.current) {
-      await supabase.functions.invoke('generate-academy-week', { body: { action: 'cancel', runId: generationRunId.current } }).catch(() => undefined)
+  async function controlForge(action: 'pause' | 'resume' | 'cancel', taskKey?: string) {
+    if (!weeklyRun) return
+    setForgeBusy(taskKey ?? (action === 'cancel' ? 'cancel' : 'all'))
+    try {
+      await invokeContentForge({ action, runId: weeklyRun.id, ...(taskKey ? { taskKey } : {}) })
+    } catch (err) {
+      error(err instanceof Error ? err.message : 'Could not update content generation.')
+    } finally {
+      await refreshForge()
+      setForgeBusy(null)
+    }
+  }
+
+  // Draft the member's WhatsApp message. Sending is manual: the admin checks
+  // the draft, then opens WhatsApp with it filled in. Never undoes the review.
+  async function draftMemberWhatsApp(subscriptionId: string) {
+    try {
+      const { data, error: draftError } = await supabase.functions.invoke('notify-member-whatsapp', {
+        body: { subscription_id: subscriptionId },
+      })
+      if (draftError) throw draftError
+      if (data?.error) throw new Error(data.error)
+      setWhatsAppDraft(data as MemberWhatsAppDraft)
+    } catch (err) {
+      console.error(err)
+      error('The review was saved, but the WhatsApp message could not be drafted.')
     }
   }
 
@@ -615,6 +706,7 @@ export function PremiumAdminDashboard() {
 
       await invalidateAdminPremium()
       success('Subscription approved and activity access enabled.')
+      void draftMemberWhatsApp(subscriptionId)
     } catch (err) {
       console.error(err)
       error('Could not approve this subscription.')
@@ -625,7 +717,8 @@ export function PremiumAdminDashboard() {
 
   async function rejectSubscription() {
     if (!rejectingRequest) return
-    setReviewingSubscriptionId(rejectingRequest.subscriptionId)
+    const subscriptionId = rejectingRequest.subscriptionId
+    setReviewingSubscriptionId(subscriptionId)
     try {
       const { error: rejectionError } = await supabase.rpc('review_premium_subscription_request', {
         p_subscription_id: rejectingRequest.subscriptionId,
@@ -638,6 +731,7 @@ export function PremiumAdminDashboard() {
       setRejectReason('')
       await invalidateAdminPremium()
       success('Subscription request rejected.')
+      void draftMemberWhatsApp(subscriptionId)
     } catch (err) {
       console.error(err)
       error('Could not reject this subscription.')
@@ -873,7 +967,7 @@ export function PremiumAdminDashboard() {
   const selectedResponses = selectedOnboarding?.responses ?? {}
 
   return (
-    <div className="premium-i18n min-h-screen bg-slate-50 text-slate-950">
+    <div className="premium-i18n min-h-screen bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="border-b border-primary-800 bg-primary-900 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
           <PwenLogoLockup
@@ -881,84 +975,95 @@ export function PremiumAdminDashboard() {
             subTextClassName="text-primary-200"
             markClassName="rounded-xl bg-white/10 p-1"
           />
-          <div ref={profileMenuRef} className="relative">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setProfileMenuOpen(open => !open)}
-              aria-haspopup="menu"
-              aria-expanded={profileMenuOpen}
-              aria-label="Open admin profile menu"
-              className="flex items-center gap-2 rounded-full bg-white/10 p-1.5 pr-3 text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-primary-100 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 dark:text-amber-300"
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-400 font-black text-primary-950 ring-2 ring-white/20">
-                {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  profile?.name?.charAt(0).toUpperCase() ?? 'A'
-                )}
-              </span>
-              <span className="hidden max-w-32 truncate text-sm font-bold sm:block">{profile?.name ?? 'Admin'}</span>
-              <ChevronDown className={cn('h-4 w-4 transition-transform', profileMenuOpen && 'rotate-180')} />
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
-
-            {profileMenuOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 text-slate-900 shadow-2xl"
+            <div ref={profileMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen(open => !open)}
+                aria-haspopup="menu"
+                aria-expanded={profileMenuOpen}
+                aria-label="Open admin profile menu"
+                className="flex items-center gap-2 rounded-full bg-white/10 p-1.5 pr-3 text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
               >
-                <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 font-black text-amber-800">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      profile?.name?.charAt(0).toUpperCase() ?? 'A'
-                    )}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black">{profile?.name ?? 'Admin'}</span>
-                    <span className="block truncate text-xs text-slate-500">{profile?.email ?? profile?.role}</span>
-                  </span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-400 font-black text-primary-950 ring-2 ring-white/20">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    profile?.name?.charAt(0).toUpperCase() ?? 'A'
+                  )}
+                </span>
+                <span className="hidden max-w-32 truncate text-sm font-bold sm:block">{profile?.name ?? 'Admin'}</span>
+                <ChevronDown className={cn('h-4 w-4 transition-transform', profileMenuOpen && 'rotate-180')} />
+              </button>
+
+              {profileMenuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 p-2 text-slate-900 dark:text-slate-100 shadow-2xl"
+                >
+                  <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 px-3 py-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 dark:bg-amber-500/15 font-black text-amber-800 dark:text-amber-300">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        profile?.name?.charAt(0).toUpperCase() ?? 'A'
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black">{profile?.name ?? 'Admin'}</span>
+                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{profile?.email ?? profile?.role}</span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setProfileMenuOpen(false); setProfileSettingsOpen(true) }}
+                    className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Settings className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    Profile settings
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => navigate('/admin')}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Store className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    Switch to Bookstore Admin
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Languages className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    <span className="flex-1">Language</span>
+                    <span className="text-xs font-black text-primary-700 dark:text-primary-300">{language === 'lo' ? 'ລາວ' : 'English'}</span>
+                  </button>
+                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleSignOut}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => { setProfileMenuOpen(false); setProfileSettingsOpen(true) }}
-                  className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
-                >
-                  <Settings className="h-4 w-4 text-slate-500" />
-                  Profile settings
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => navigate('/admin')}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
-                >
-                  <Store className="h-4 w-4 text-slate-500" />
-                  Switch to Bookstore Admin
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100"
-                >
-                  <Languages className="h-4 w-4 text-slate-500" />
-                  <span className="flex-1">Language</span>
-                  <span className="text-xs font-black text-primary-700">{language === 'lo' ? 'ລາວ' : 'English'}</span>
-                </button>
-                <div className="my-1 border-t border-slate-100" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleSignOut}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
@@ -988,7 +1093,7 @@ export function PremiumAdminDashboard() {
                 type="button"
                 icon={<MessageSquareText className="h-4 w-4" />}
                 onClick={() => openMotivationEditor(todayMotivation)}
-                className="bg-white text-primary-900 hover:bg-primary-50"
+                className="bg-white dark:bg-gray-900 text-primary-900 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/40"
               >
                 Edit Daily Mentor
               </Button>
@@ -1044,7 +1149,7 @@ export function PremiumAdminDashboard() {
             <Stat label="Daily posts" value={motivations?.length ?? 0} icon={<CalendarCheck className="h-5 w-5" />} color="purple" />
           </section>
 
-          <WeeklyContentForge run={weeklyRun} generating={generatingWeek} onGenerate={generateNextAcademyWeek} />
+          <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
 
           <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
             <Panel
@@ -1056,11 +1161,11 @@ export function PremiumAdminDashboard() {
             >
               <div className="space-y-3">
                 {reviewQueue.length > 0 ? reviewQueue.map(payment => (
-                  <div key={payment.id} className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4">
+                  <div key={payment.id} className="rounded-2xl border border-orange-100 dark:border-orange-500/30 bg-orange-50/60 dark:bg-orange-500/10 p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-gray-950">{payment.user?.name ?? 'Unknown user'}</p>
-                        <p className="mt-1 text-xs text-gray-500">
+                        <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{payment.user?.name ?? 'Unknown user'}</p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {payment.plan?.name ?? 'Premium'} · {formatPrice(payment.amount_lak, currency)} · {formatDate(payment.created_at, language)}
                         </p>
                       </div>
@@ -1111,15 +1216,15 @@ export function PremiumAdminDashboard() {
             >
               <div className="space-y-3">
                 {(plans ?? []).map(plan => (
-                  <div key={plan.id} className="rounded-2xl border border-gray-100 p-4">
+                  <div key={plan.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          {plan.price_lak > 0 ? <Crown className="h-4 w-4 text-amber-500" /> : <ShieldCheck className="h-4 w-4 text-primary-600" />}
-                          <p className="text-sm font-black text-gray-950">{plan.name}</p>
+                          {plan.price_lak > 0 ? <Crown className="h-4 w-4 text-amber-500" /> : <ShieldCheck className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
+                          <p className="text-sm font-black text-gray-950 dark:text-gray-100">{plan.name}</p>
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-gray-500">{plan.description}</p>
-                        <p className="mt-3 text-lg font-black text-gray-950">{formatPrice(plan.price_lak, currency)} <span className="text-xs font-semibold text-gray-400">/{plan.interval}</span></p>
+                        <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{plan.description}</p>
+                        <p className="mt-3 text-lg font-black text-gray-950 dark:text-gray-100">{formatPrice(plan.price_lak, currency)} <span className="text-xs font-semibold text-gray-400">/{plan.interval}</span></p>
                       </div>
                       <Button type="button" size="sm" variant="outline" icon={<Edit3 className="h-4 w-4" />} onClick={() => openPlanEditor(plan)}>
                         Edit
@@ -1141,9 +1246,9 @@ export function PremiumAdminDashboard() {
              >
                <div className="space-y-5">
                  {(subscriptionsQueryError || paymentsQueryError || onboardingResponsesQueryError) && (
-                   <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4">
-                     <p className="text-sm font-black text-red-900">Could not load subscription requests</p>
-                     <p className="mt-1 text-xs leading-5 text-red-700">
+                   <div role="alert" className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-4">
+                     <p className="text-sm font-black text-red-900 dark:text-red-300">Could not load subscription requests</p>
+                     <p className="mt-1 text-xs leading-5 text-red-700 dark:text-red-300">
                        Refresh this page. If the problem continues, verify the Premium migrations and your Admin role.
                      </p>
                    </div>
@@ -1152,10 +1257,10 @@ export function PremiumAdminDashboard() {
                  <div>
                    <div className="mb-3 flex items-center justify-between gap-3">
                      <div>
-                       <p className="text-sm font-black text-gray-950">Requests to review</p>
-                       <p className="mt-0.5 text-xs text-gray-500">Approve only after checking the uploaded payment proof.</p>
+                       <p className="text-sm font-black text-gray-950 dark:text-gray-100">Requests to review</p>
+                       <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Approve only after checking the uploaded payment proof.</p>
                      </div>
-                     <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-black text-orange-800">
+                     <span className="rounded-full bg-orange-100 dark:bg-orange-500/15 px-2.5 py-1 text-xs font-black text-orange-800 dark:text-orange-300">
                        {subscriptionRequests.length}
                      </span>
                    </div>
@@ -1181,7 +1286,7 @@ export function PremiumAdminDashboard() {
                                  setSelectedSubscription(subscription)
                                }
                              }}
-                             className="cursor-pointer rounded-2xl border border-orange-200 bg-orange-50/60 p-4 transition hover:border-orange-300 hover:bg-orange-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                             className="cursor-pointer rounded-2xl border border-orange-200 dark:border-orange-500/30 bg-orange-50/60 dark:bg-orange-500/10 p-4 transition hover:border-orange-300 dark:hover:border-orange-500/40 hover:bg-orange-50 dark:hover:bg-orange-500/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                            >
                              <div className="flex flex-col gap-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1191,8 +1296,8 @@ export function PremiumAdminDashboard() {
                                       avatarUrl={subscription.user?.avatar_url}
                                     />
                                     <div className="min-w-0">
-                                      <p className="truncate text-sm font-black text-gray-950">{subscription.user?.name ?? 'Unknown user'}</p>
-                                      <p className="mt-1 text-xs font-semibold text-gray-500">
+                                      <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{subscription.user?.name ?? 'Unknown user'}</p>
+                                      <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
                                         {subscription.plan?.name ?? 'Premium'} · Requested {formatDate(subscription.created_at, language)}
                                       </p>
                                     </div>
@@ -1209,7 +1314,7 @@ export function PremiumAdminDashboard() {
                                  </div>
                                </div>
 
-                               <div className="border-t border-orange-200 pt-3">
+                               <div className="border-t border-orange-200 dark:border-orange-500/30 pt-3">
                                  {payment?.receipt_image_url ? (
                                    <div className="grid grid-cols-3 gap-2">
                                      <Button
@@ -1259,7 +1364,7 @@ export function PremiumAdminDashboard() {
                                    </div>
                                  ) : isFreeRequest ? (
                                    <div className="flex items-center justify-between gap-3">
-                                     <span className="text-xs font-semibold text-primary-700">Free plan · No payment required</span>
+                                     <span className="text-xs font-semibold text-primary-700 dark:text-primary-300">Free plan · No payment required</span>
                                      <div className="flex gap-2">
                                        <Button
                                          type="button"
@@ -1292,7 +1397,7 @@ export function PremiumAdminDashboard() {
                                      </div>
                                    </div>
                                  ) : (
-                                   <span className="text-xs font-semibold text-amber-700">Waiting for payment proof</span>
+                                   <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Waiting for payment proof</span>
                                  )}
                                </div>
                              </div>
@@ -1301,23 +1406,23 @@ export function PremiumAdminDashboard() {
                        })}
                      </div>
                    ) : (
-                     <div className="rounded-2xl border border-dashed border-gray-200 py-6">
+                     <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 py-6">
                        <EmptyMessage icon={<ShieldCheck className="h-8 w-8" />} title="No subscription requests" detail="New paid requests and uploaded proofs will appear here." />
                      </div>
                    )}
                  </div>
 
                  <div>
-                   <p className="mb-3 text-sm font-black text-gray-950">All subscriptions</p>
-                   <div className="overflow-hidden rounded-2xl border border-gray-100">
+                   <p className="mb-3 text-sm font-black text-gray-950 dark:text-gray-100">All subscriptions</p>
+                   <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800">
                      {(subscriptions ?? []).length > 0 ? (
-                       <div className="divide-y divide-gray-100">
+                       <div className="divide-y divide-gray-100 dark:divide-gray-800">
                          {subscriptions!.map(subscription => (
                            <button
                              type="button"
                              key={subscription.id}
                              onClick={() => setSelectedSubscription(subscription)}
-                             className="grid w-full gap-3 p-4 text-left transition hover:bg-gray-50 focus:outline-none focus-visible:bg-primary-50 md:grid-cols-[1fr_auto] md:items-center"
+                             className="grid w-full gap-3 p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:outline-none focus-visible:bg-primary-50 dark:focus-visible:bg-primary-900/40 md:grid-cols-[1fr_auto] md:items-center"
                            >
                               <div className="flex min-w-0 items-center gap-3">
                                 <MemberAvatar
@@ -1325,8 +1430,8 @@ export function PremiumAdminDashboard() {
                                   avatarUrl={subscription.user?.avatar_url}
                                 />
                                 <div className="min-w-0">
-                                  <p className="truncate text-sm font-black text-gray-950">{subscription.user?.name ?? 'Unknown user'}</p>
-                                  <p className="mt-1 text-xs text-gray-500">
+                                  <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{subscription.user?.name ?? 'Unknown user'}</p>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                     {subscription.plan?.name ?? 'Plan'} · Ends {subscription.ends_at ? formatDate(subscription.ends_at, language) : 'manual'}
                                   </p>
                                 </div>
@@ -1416,64 +1521,207 @@ export function PremiumAdminDashboard() {
         </main>
       )}
 
+      {/* Closing never stops generation: the backend keeps running the queue
+          and the floating progress pill below takes over. */}
       <Modal
         open={generationOpen}
-        onClose={() => { if (!generatingWeek) setGenerationOpen(false) }}
+        onClose={() => setGenerationOpen(false)}
         title="Academy Content Forge"
         size="lg"
         footer={
-          generatingWeek ? (
-            <Button type="button" variant="danger" onClick={() => void cancelWeeklyGeneration()} disabled={cancelGenerationRequested.current}>
-              {cancelGenerationRequested.current ? 'Stopping after current step…' : 'Cancel generation'}
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              {weeklyRun?.status !== 'READY' && generationSteps.some(step => step.status === 'failed' || step.status === 'cancelled') && (
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            {forgeRunActive || forgeStarting ? (
+              <Button type="button" variant="ghost" onClick={() => setGenerationOpen(false)}>
+                <Minimize2 className="mr-2 h-4 w-4" /> Minimize
+              </Button>
+            ) : <span />}
+            <div className="flex flex-wrap justify-end gap-2">
+              {weeklyRun?.status === 'GENERATING' && (
+                <Button type="button" variant="outline" onClick={() => void controlForge('pause')} loading={forgeBusy === 'all'} disabled={!!forgeBusy}>
+                  <Pause className="mr-2 h-4 w-4" /> Pause all
+                </Button>
+              )}
+              {weeklyRun?.status === 'PAUSED' && (
+                <Button type="button" onClick={() => void controlForge('resume')} loading={forgeBusy === 'all'} disabled={!!forgeBusy}>
+                  <Play className="mr-2 h-4 w-4" /> Start all
+                </Button>
+              )}
+              {forgeRunActive && (
+                <Button type="button" variant="danger" onClick={() => void controlForge('cancel')} loading={forgeBusy === 'cancel'} disabled={!!forgeBusy}>
+                  Cancel generation
+                </Button>
+              )}
+              {!forgeRunActive && !forgeStarting && weeklyRun && weeklyRun.status !== 'READY' && generationSteps.some(step => step.status === 'failed' || step.status === 'cancelled') && (
                 <Button type="button" onClick={() => void generateNextAcademyWeek()}>
                   <Sparkles className="mr-2 h-4 w-4" /> Continue generation
                 </Button>
               )}
-              <Button type="button" variant="outline" onClick={() => setGenerationOpen(false)}>Close</Button>
+              {!forgeRunActive && !forgeStarting && (
+                <Button type="button" variant="outline" onClick={() => setGenerationOpen(false)}>Close</Button>
+              )}
             </div>
-          )
+          </div>
         }
       >
         <div className="overflow-hidden rounded-3xl bg-[#110b24] p-5 text-white">
           <div className="flex items-center gap-3 border-b border-white/10 pb-4">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 text-[#160b2d]">
-              <WandSparkles className={cn('h-5 w-5', generatingWeek && !cancelGenerationRequested.current && 'motion-safe:animate-pulse')} />
+              <WandSparkles className={cn('h-5 w-5', (weeklyRun?.status === 'GENERATING' || forgeStarting) && 'motion-safe:animate-pulse')} />
             </span>
-            <div>
-              <p className="font-black">{generatingWeek ? 'Creating next week' : weeklyRun?.status === 'READY' ? 'Next week is ready' : cancelGenerationRequested.current ? 'Generation stopped' : 'Generation finished'}</p>
-              <p className="mt-0.5 text-xs text-violet-200/70">Each completed step is saved immediately.</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-black">
+                {forgeStarting ? 'Getting ready'
+                  : weeklyRun?.status === 'GENERATING' ? 'Creating next week'
+                  : weeklyRun?.status === 'PAUSED' ? 'Generation paused'
+                  : weeklyRun?.status === 'READY' ? 'Next week is ready'
+                  : weeklyRun?.status === 'CANCELLED' ? 'Generation stopped'
+                  : 'Generation finished'}
+              </p>
+              <p className="mt-0.5 text-xs text-violet-200/70">One step at a time, in order. Each completed step is saved immediately.</p>
             </div>
+            {generationSteps.length > 0 && (
+              <span className="shrink-0 text-xs font-black text-violet-200">{forgeDoneCount}/{generationSteps.length}</span>
+            )}
           </div>
 
           <div className="mt-4 max-h-[52vh] space-y-1 overflow-y-auto pr-1">
-            {generationSteps.map((step, index) => (
-              <div key={step.id} className="grid grid-cols-[28px_1fr_auto] items-center gap-3 rounded-xl px-2 py-3">
-                <span className={cn(
-                  'grid h-7 w-7 place-items-center rounded-full text-xs font-black',
-                  step.status === 'done' && 'bg-emerald-400 text-emerald-950',
-                  step.status === 'running' && 'bg-amber-300 text-amber-950',
-                  step.status === 'failed' && 'bg-red-400 text-red-950',
-                  step.status === 'cancelled' && 'bg-white/10 text-violet-300',
-                  step.status === 'queued' && 'border border-white/15 text-violet-300',
-                )}>
-                  {step.status === 'done' ? <CheckCircle2 className="h-4 w-4" /> : step.status === 'running' ? <Sparkles className="h-4 w-4 motion-safe:animate-spin" /> : step.status === 'failed' ? <XCircle className="h-4 w-4" /> : index + 1}
-                </span>
-                <div className="min-w-0">
-                  <p className={cn('truncate text-sm font-bold', (step.status === 'queued' || step.status === 'cancelled') && 'text-violet-300')}>{step.label}</p>
-                  {step.detail && <p className={cn('mt-0.5 truncate text-xs', step.status === 'failed' ? 'text-red-300' : 'text-violet-300/65')}>{step.detail}</p>}
-                </div>
-                <span className={cn(
-                  'text-[10px] font-black uppercase tracking-wider',
-                  step.status === 'done' ? 'text-emerald-300' : step.status === 'running' ? 'text-amber-300' : step.status === 'failed' ? 'text-red-300' : 'text-violet-400',
-                )}>{step.status}</span>
+            {forgeStarting ? (
+              <div className="grid grid-cols-[28px_1fr] items-center gap-3 rounded-xl px-2 py-3">
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-amber-300 text-amber-950"><Sparkles className="h-4 w-4 motion-safe:animate-spin" /></span>
+                <p className="text-sm font-bold">{forgeStarting}</p>
               </div>
-            ))}
+            ) : generationSteps.length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-violet-300">No generation steps yet.</p>
+            ) : generationSteps.map((step, index) => {
+              const canPause = forgeRunActive && step.status === 'queued'
+              const canStart = weeklyRun?.status !== 'READY' && (step.status === 'paused' || step.status === 'failed' || step.status === 'cancelled')
+              return (
+                <div key={step.id} className="grid grid-cols-[28px_1fr_auto_auto] items-center gap-3 rounded-xl px-2 py-3">
+                  <span className={cn(
+                    'grid h-7 w-7 place-items-center rounded-full text-xs font-black',
+                    step.status === 'done' && 'bg-emerald-400 text-emerald-950',
+                    step.status === 'running' && 'bg-amber-300 text-amber-950',
+                    step.status === 'failed' && 'bg-red-400 text-red-950',
+                    step.status === 'paused' && 'bg-sky-300/20 text-sky-200',
+                    step.status === 'cancelled' && 'bg-white/10 text-violet-300',
+                    step.status === 'queued' && 'border border-white/15 text-violet-300',
+                  )}>
+                    {step.status === 'done' ? <CheckCircle2 className="h-4 w-4" />
+                      : step.status === 'running' ? <Sparkles className="h-4 w-4 motion-safe:animate-spin" />
+                      : step.status === 'failed' ? <XCircle className="h-4 w-4" />
+                      : step.status === 'paused' ? <Pause className="h-3.5 w-3.5" />
+                      : index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className={cn('truncate text-sm font-bold', (step.status === 'queued' || step.status === 'cancelled' || step.status === 'paused') && 'text-violet-300')}>{step.label}</p>
+                    {step.detail && <p className={cn('mt-0.5 truncate text-xs', step.status === 'failed' ? 'text-red-300' : 'text-violet-300/65')}>{step.detail}</p>}
+                  </div>
+                  <span className={cn(
+                    'text-[10px] font-black uppercase tracking-wider',
+                    step.status === 'done' ? 'text-emerald-300' : step.status === 'running' ? 'text-amber-300' : step.status === 'failed' ? 'text-red-300' : step.status === 'paused' ? 'text-sky-300' : 'text-violet-400',
+                  )}>{step.status}</span>
+                  <span className="flex w-[74px] justify-end">
+                    {canPause && (
+                      <ForgeStepButton label="Pause" icon={<Pause className="h-3.5 w-3.5" />} busy={forgeBusy === step.id} disabled={!!forgeBusy} onClick={() => void controlForge('pause', step.id)} />
+                    )}
+                    {canStart && (
+                      <ForgeStepButton label={step.status === 'paused' ? 'Start' : 'Retry'} icon={<Play className="h-3.5 w-3.5" />} busy={forgeBusy === step.id} disabled={!!forgeBusy} onClick={() => void controlForge('resume', step.id)} primary />
+                    )}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </div>
+      </Modal>
+
+      {/* Minimized forge: keeps progress visible while the queue runs. */}
+      {!generationOpen && (forgeRunActive || forgeStarting) && (
+        <button
+          type="button"
+          onClick={() => setGenerationOpen(true)}
+          className="fixed bottom-5 right-5 z-40 flex w-[min(20rem,calc(100vw-2.5rem))] items-center gap-3 rounded-2xl border border-white/10 bg-[#110b24] p-3 text-left text-white shadow-[0_18px_50px_-12px_rgba(67,33,132,0.7)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          aria-label="Open Academy Content Forge progress"
+        >
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 text-[#160b2d]">
+            {weeklyRun?.status === 'PAUSED' ? <Pause className="h-4 w-4" /> : <WandSparkles className="h-4 w-4 motion-safe:animate-pulse" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center justify-between gap-2 text-xs font-black">
+              <span className="truncate">{forgeStarting ? 'Getting ready…' : weeklyRun?.status === 'PAUSED' ? 'Generation paused' : 'Creating next week'}</span>
+              {generationSteps.length > 0 && <span className="shrink-0 text-violet-200">{forgeDoneCount}/{generationSteps.length}</span>}
+            </span>
+            <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/10">
+              <span
+                className="block h-full rounded-full bg-gradient-to-r from-amber-300 to-fuchsia-500 transition-[width] duration-500"
+                style={{ width: `${generationSteps.length ? Math.round((forgeDoneCount / generationSteps.length) * 100) : 5}%` }}
+              />
+            </span>
+            <span className="mt-1.5 block truncate text-[11px] text-violet-200/70">
+              {generationSteps.find(step => step.status === 'running')?.label ?? 'Tap to view steps'}
+            </span>
+          </span>
+          <Maximize2 className="h-4 w-4 shrink-0 text-violet-200" />
+        </button>
+      )}
+
+      <Modal
+        open={!!whatsAppDraft}
+        onClose={() => setWhatsAppDraft(null)}
+        title={whatsAppDraft?.outcome === 'DECLINED' ? 'Tell the member: request declined' : 'Tell the member: membership approved'}
+        footer={
+          <div className="flex w-full justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setWhatsAppDraft(null)}>Skip</Button>
+            <a
+              href={whatsAppDraft && whatsAppDigits(whatsAppDraft.recipient ?? '').length >= 10
+                ? `https://wa.me/${whatsAppDigits(whatsAppDraft.recipient ?? '')}?text=${encodeURIComponent(whatsAppDraft.message)}`
+                : undefined}
+              target="_blank"
+              rel="noreferrer"
+              aria-disabled={!whatsAppDraft || whatsAppDigits(whatsAppDraft.recipient ?? '').length < 10}
+              onClick={event => {
+                if (!whatsAppDraft || whatsAppDigits(whatsAppDraft.recipient ?? '').length < 10) {
+                  event.preventDefault()
+                  return
+                }
+                setWhatsAppDraft(null)
+              }}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#1ebe5a] aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            >
+              <MessageSquareText className="h-4 w-4" /> Open WhatsApp
+            </a>
+          </div>
+        }
+      >
+        {whatsAppDraft && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Check the drafted message, edit it if needed, then open WhatsApp and press Send.
+            </p>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">WhatsApp number · {whatsAppDraft.memberName}</span>
+              <input
+                value={whatsAppDraft.recipient ?? ''}
+                onChange={event => setWhatsAppDraft({ ...whatsAppDraft, recipient: event.target.value })}
+                placeholder="020 XXXX XXXX"
+                inputMode="tel"
+                className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm focus:border-primary-500 focus:outline-none"
+              />
+              {!whatsAppDraft.recipient && (
+                <span className="mt-1 block text-xs font-semibold text-amber-700 dark:text-amber-300">No WhatsApp number on file. Type the member's number to continue.</span>
+              )}
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Message</span>
+              <textarea
+                value={whatsAppDraft.message}
+                onChange={event => setWhatsAppDraft({ ...whatsAppDraft, message: event.target.value })}
+                rows={9}
+                className="mt-1 w-full resize-y rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm leading-6 focus:border-primary-500 focus:outline-none"
+              />
+            </label>
+          </div>
+        )}
       </Modal>
 
       <Modal
@@ -1495,7 +1743,7 @@ export function PremiumAdminDashboard() {
                   <img src={selectedSubscription.user.cover_image_url} alt="" className="h-full w-full object-cover opacity-80" />
                 )}
               </div>
-              <div className="absolute left-4 top-14 z-20 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-primary-100 text-2xl font-black text-primary-800 shadow-lg">
+              <div className="absolute left-4 top-14 z-20 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-white dark:border-gray-800 bg-primary-100 dark:bg-primary-900/60 text-2xl font-black text-primary-800 dark:text-primary-300 shadow-lg">
                 {selectedSubscription.user?.avatar_url ? (
                   <img src={selectedSubscription.user.avatar_url} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -1606,25 +1854,25 @@ export function PremiumAdminDashboard() {
       >
         {proofPreview && (
           <div>
-            <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-2xl bg-slate-50 p-4 text-sm ring-1 ring-slate-100">
+            <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 text-sm ring-1 ring-slate-100 dark:ring-slate-800">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ຜູ້ສະໝັກສະມາຊິກ' : 'Subscriber'}</p>
-                <p className="mt-0.5 truncate font-black text-slate-950">{proofPreview.userName}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ຜູ້ສະໝັກສະມາຊິກ' : 'Subscriber'}</p>
+                <p className="mt-0.5 truncate font-black text-slate-950 dark:text-slate-100">{proofPreview.userName}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ຈຳນວນເງິນ' : 'Amount'}</p>
-                <p className="mt-0.5 font-black text-slate-950">{formatPrice(proofPreview.amountLak, currency)}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ຈຳນວນເງິນ' : 'Amount'}</p>
+                <p className="mt-0.5 font-black text-slate-950 dark:text-slate-100">{formatPrice(proofPreview.amountLak, currency)}</p>
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ແຜນສະມາຊິກ' : 'Plan'}</p>
-                <p className="mt-0.5 truncate font-bold text-slate-800">{proofPreview.planName}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ແຜນສະມາຊິກ' : 'Plan'}</p>
+                <p className="mt-0.5 truncate font-bold text-slate-800 dark:text-slate-100">{proofPreview.planName}</p>
               </div>
               <div className="text-right">
-                <p className="text-xs font-semibold text-slate-500">{language === 'lo' ? 'ວັນທີສົ່ງ' : 'Submitted'}</p>
-                <p className="mt-0.5 font-bold text-slate-800">{formatDate(proofPreview.createdAt, language)}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ວັນທີສົ່ງ' : 'Submitted'}</p>
+                <p className="mt-0.5 font-bold text-slate-800 dark:text-slate-100">{formatDate(proofPreview.createdAt, language)}</p>
               </div>
             </div>
-            <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 p-2 ring-1 ring-slate-200 sm:p-4">
+            <div className="flex min-h-64 items-center justify-center overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800 p-2 ring-1 ring-slate-200 dark:ring-slate-700 sm:p-4">
               <img
                 src={proofPreview.url}
                 alt={language === 'lo' ? `ຫຼັກຖານການຊຳລະຈາກ ${proofPreview.userName}` : `Payment proof from ${proofPreview.userName}`}
@@ -1656,11 +1904,11 @@ export function PremiumAdminDashboard() {
           </>
         }
       >
-        <p className="mb-4 text-sm text-gray-600" data-no-premium-translate>
+        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300" data-no-premium-translate>
           {language === 'lo' ? (
-            <>ການປະຕິເສດຄຳຂໍຂອງ <span className="font-bold text-gray-950">{rejectingRequest?.userName}</span> ຈະເຮັດໃຫ້ບໍ່ສາມາດເຂົ້າໃຊ້ກິດຈະກຳ Premium ໄດ້.</>
+            <>ການປະຕິເສດຄຳຂໍຂອງ <span className="font-bold text-gray-950 dark:text-gray-100">{rejectingRequest?.userName}</span> ຈະເຮັດໃຫ້ບໍ່ສາມາດເຂົ້າໃຊ້ກິດຈະກຳ Premium ໄດ້.</>
           ) : (
-            <>Rejecting the request for <span className="font-bold text-gray-950">{rejectingRequest?.userName}</span> will prevent access to Premium activities.</>
+            <>Rejecting the request for <span className="font-bold text-gray-950 dark:text-gray-100">{rejectingRequest?.userName}</span> will prevent access to Premium activities.</>
           )}
         </p>
         <Textarea
@@ -1690,12 +1938,12 @@ export function PremiumAdminDashboard() {
             <Input label="Interval" value={editingPlan.interval} onChange={event => setEditingPlan({ ...editingPlan, interval: event.target.value })} />
             <Textarea label="Description" rows={3} value={editingPlan.description} onChange={event => setEditingPlan({ ...editingPlan, description: event.target.value })} />
             <Textarea label="Features" rows={6} value={editingPlan.features} onChange={event => setEditingPlan({ ...editingPlan, features: event.target.value })} />
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
               <input
                 type="checkbox"
                 checked={editingPlan.is_active}
                 onChange={event => setEditingPlan({ ...editingPlan, is_active: event.target.checked })}
-                className="h-4 w-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
+                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-700 dark:text-primary-300 focus:ring-primary-500"
               />
               Active plan
             </label>
@@ -1733,17 +1981,17 @@ export function PremiumAdminDashboard() {
 
 function Stat({ label, value, icon, color }: { label: string; value: ReactNode; icon: ReactNode; color: 'blue' | 'amber' | 'green' | 'purple' }) {
   const colors = {
-    blue: 'bg-primary-50 text-primary-700',
-    amber: 'bg-amber-50 text-amber-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    purple: 'bg-indigo-50 text-indigo-700',
+    blue: 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300',
+    amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    green: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    purple: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
   }
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-gray-950">{value}</p>
+          <p className="mt-2 text-2xl font-black text-gray-950 dark:text-gray-100">{value}</p>
         </div>
         <div className={cn('rounded-2xl p-3', colors[color])}>{icon}</div>
       </div>
@@ -1755,17 +2003,20 @@ function WeeklyContentForge({
   run,
   generating,
   onGenerate,
+  onOpenProgress,
 }: {
   run?: WeeklyContentRun | null
   generating: boolean
   onGenerate: () => void
+  onOpenProgress: () => void
 }) {
   const ready = run?.status === 'READY'
   const stale = weeklyRunIsStale(run)
+  const paused = run?.status === 'PAUSED'
   const working = generating || (run?.status === 'GENERATING' && !stale)
   const counts = run?.content_counts ?? {}
   const hasSavedProgress = Object.values(counts).some(count => Number(count) > 0)
-  const canContinue = !ready && (hasSavedProgress || run?.status === 'CANCELLED' || run?.status === 'FAILED' || stale)
+  const canContinue = !ready && !paused && (hasSavedProgress || run?.status === 'CANCELLED' || run?.status === 'FAILED' || stale)
   const streams = [
     { key: 'brain_sprint', label: 'Brain Sprint', icon: <BrainCircuit className="h-4 w-4" />, fallback: 35 },
     { key: 'word_match', label: 'Word Match', icon: <Gamepad2 className="h-4 w-4" />, fallback: 42 },
@@ -1803,7 +2054,7 @@ function WeeklyContentForge({
           </div>
 
           {run?.status === 'FAILED' && (
-            <p role="alert" className="mt-5 rounded-xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-xs font-semibold text-red-100">
+            <p role="alert" className="mt-5 rounded-xl border border-red-300/20 dark:border-red-500/40 bg-red-400/10 px-4 py-3 text-xs font-semibold text-red-100">
               Last attempt failed: {run.error_message ?? 'Unknown generation error. You can safely try again.'}
             </p>
           )}
@@ -1817,19 +2068,19 @@ function WeeklyContentForge({
             )} />
             <button
               type="button"
-              onClick={onGenerate}
-              disabled={working || ready}
-              className="group relative flex h-36 w-36 flex-col items-center justify-center overflow-hidden rounded-full border border-white/25 bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 p-4 text-center text-[#160b2d] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_50px_rgba(168,85,247,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/70 disabled:cursor-not-allowed disabled:grayscale-[0.15] disabled:hover:translate-y-0 disabled:hover:scale-100 motion-reduce:transition-none"
+              onClick={working || paused ? onOpenProgress : onGenerate}
+              disabled={ready}
+              className="group relative flex h-36 w-36 flex-col items-center justify-center overflow-hidden rounded-full border border-white/25 bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 p-4 text-center text-[#160b2d] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_50px_rgba(168,85,247,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/70 dark:focus-visible:ring-amber-500/30 disabled:cursor-not-allowed disabled:grayscale-[0.15] disabled:hover:translate-y-0 disabled:hover:scale-100 motion-reduce:transition-none"
             >
-              <span className="absolute inset-x-0 top-0 h-1/2 -translate-x-full skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/55 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              {working ? <Sparkles className="h-8 w-8 motion-safe:animate-spin" /> : ready ? <CheckCircle2 className="h-8 w-8" /> : <WandSparkles className="h-8 w-8 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />}
+              <span className="absolute inset-x-0 top-0 h-1/2 -translate-x-full skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/55 dark:via-gray-900/55 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              {working ? <Sparkles className="h-8 w-8 motion-safe:animate-spin" /> : paused ? <Pause className="h-8 w-8" /> : ready ? <CheckCircle2 className="h-8 w-8" /> : <WandSparkles className="h-8 w-8 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />}
               <span className="mt-2 text-xs font-black uppercase tracking-[0.12em]">
-                {working ? 'Creating…' : ready ? 'Week ready' : canContinue ? 'Continue' : 'Forge week'}
+                {working ? 'View progress' : paused ? 'Paused' : ready ? 'Week ready' : canContinue ? 'Continue' : 'Forge week'}
               </span>
             </button>
           </div>
           <p className="mt-5 text-center text-xs font-semibold text-violet-200/70">
-            {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'This can take a few minutes. Every completed step is saved.' : canContinue ? 'Continue from the first unfinished step—saved content will not be regenerated.' : 'Generate on any day · existing weeks are checked first'}
+            {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'Runs in the background one step at a time. Tap to view or pause steps.' : paused ? 'Some steps are paused. Tap to start them again.' : canContinue ? 'Continue from the first unfinished step—saved content will not be regenerated.' : 'Generate on any day · existing weeks are checked first'}
           </p>
         </div>
       </div>
@@ -1837,14 +2088,38 @@ function WeeklyContentForge({
   )
 }
 
+function ForgeStepButton({ label, icon, onClick, busy, disabled, primary = false }: {
+  label: string
+  icon: ReactNode
+  onClick: () => void
+  busy: boolean
+  disabled: boolean
+  primary?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[11px] font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-50',
+        primary ? 'bg-amber-300 text-amber-950 hover:bg-amber-200' : 'bg-white/10 text-violet-100 hover:bg-white/20',
+      )}
+    >
+      {busy ? <Sparkles className="h-3.5 w-3.5 motion-safe:animate-spin" /> : icon}
+      {label}
+    </button>
+  )
+}
+
 function MemberDetailSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
     <section>
-      <div className="mb-3 flex items-center gap-2 text-primary-600">
+      <div className="mb-3 flex items-center gap-2 text-primary-600 dark:text-primary-400">
         {icon}
-        <h3 className="text-sm font-black text-gray-950">{title}</h3>
+        <h3 className="text-sm font-black text-gray-950 dark:text-gray-100">{title}</h3>
       </div>
-      <div className="divide-y divide-gray-100 border-y border-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-gray-800 border-y border-gray-100 dark:border-gray-800">
         {children}
       </div>
     </section>
@@ -1854,18 +2129,18 @@ function MemberDetailSection({ icon, title, children }: { icon: ReactNode; title
 function MemberDetail({ label, value, icon }: { label: string; value?: string | null; icon?: ReactNode }) {
   return (
     <div className="grid gap-1 py-2.5 sm:grid-cols-[150px_1fr] sm:gap-4">
-      <p className="flex items-center gap-2 text-xs font-bold text-gray-500">
+      <p className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-gray-400">
         {icon}
         {label}
       </p>
-      <p className="break-words text-sm font-semibold text-gray-900">{value || 'Not provided'}</p>
+      <p className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{value || 'Not provided'}</p>
     </div>
   )
 }
 
 function MemberAvatar({ name, avatarUrl }: { name?: string | null; avatarUrl?: string | null }) {
   return (
-    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-primary-100 text-sm font-black text-primary-800 shadow-sm">
+    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white dark:border-gray-800 bg-primary-100 dark:bg-primary-900/60 text-sm font-black text-primary-800 dark:text-primary-300 shadow-sm">
       {avatarUrl ? (
         <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
       ) : (
@@ -1896,11 +2171,11 @@ function MemberContentPanel({
   onCreate: () => void
 }) {
   return (
-    <section className="rounded-3xl bg-white p-5 shadow-card">
+    <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{eyebrow}</p>
-          <h2 className="mt-1 text-lg font-black text-gray-950">{title}</h2>
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{eyebrow}</p>
+          <h2 className="mt-1 text-lg font-black text-gray-950 dark:text-gray-100">{title}</h2>
         </div>
         <Button type="button" size="sm" variant="outline" icon={<Edit3 className="h-4 w-4" />} onClick={onCreate}>
           {action}
@@ -1908,16 +2183,16 @@ function MemberContentPanel({
       </div>
       <div className="space-y-3">
         {items.length > 0 ? items.map(item => (
-          <div key={item.id} className="rounded-2xl border border-gray-100 p-4">
+          <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-gray-950">{item.title}</p>
-                <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500">{item.detail}</p>
+                <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{item.title}</p>
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">{item.meta}</span>
+                  <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:text-gray-300">{item.meta}</span>
                   <span className={cn(
                     'rounded-full px-2 py-0.5 text-[11px] font-bold',
-                    item.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
+                    item.isActive ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
                   )}>
                     {item.isActive ? 'Active' : 'Hidden'}
                   </span>
@@ -1959,12 +2234,12 @@ function MemberContentForm({
 
 function ActiveToggle({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
       <input
         type="checkbox"
         checked={checked}
         onChange={event => onChange(event.target.checked)}
-        className="h-4 w-4 rounded border-gray-300 text-primary-700 focus:ring-primary-500"
+        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-700 dark:text-primary-300 focus:ring-primary-500"
       />
       Active
     </label>
@@ -1987,13 +2262,13 @@ function Panel({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-6 rounded-3xl bg-white p-5 shadow-card">
+    <section id={id} className="scroll-mt-6 rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{eyebrow}</p>
-          <h2 className="mt-1 text-xl font-black text-gray-950">{title}</h2>
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{eyebrow}</p>
+          <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{title}</h2>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700">
+        <div className="flex items-center gap-2 rounded-full bg-primary-50 dark:bg-primary-900/40 px-3 py-1.5 text-xs font-bold text-primary-700 dark:text-primary-300">
           {icon}
           <span>{action}</span>
         </div>
@@ -2005,9 +2280,9 @@ function Panel({
 
 function EmptyMessage({ icon, title, detail }: { icon: ReactNode; title: string; detail: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-gray-200 p-8 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-300">{icon}</div>
-      <p className="mt-3 text-sm font-bold text-gray-800">{title}</p>
+    <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-300">{icon}</div>
+      <p className="mt-3 text-sm font-bold text-gray-800 dark:text-gray-100">{title}</p>
       <p className="mt-1 text-xs leading-5 text-gray-400">{detail}</p>
     </div>
   )
@@ -2015,9 +2290,9 @@ function EmptyMessage({ icon, title, detail }: { icon: ReactNode; title: string;
 
 function DailyRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-primary-600">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-gray-700">{value}</p>
+    <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+      <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">{value}</p>
     </div>
   )
 }

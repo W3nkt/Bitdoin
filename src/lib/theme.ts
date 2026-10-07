@@ -1,14 +1,20 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 
-// Dark mode is currently rolled out to the Bookstore only. The preference is
-// global, but only layouts that call useApplyTheme() put `.dark` on <html>;
-// every other platform keeps rendering light.
+// Dark mode covers the sections listed in isThemedPath(); everywhere else
+// (platform selector, landing, the public bookstore price-entry page) stays
+// light. <ThemeController> in App.tsx applies it from the current route.
 //
-// The key and the system-preference fallback are mirrored in the inline script
-// in index.html that applies the theme before React loads (avoids a flash).
+// The key, the system-preference fallback and the path rule are mirrored in
+// the inline script in index.html that applies the theme before React loads
+// (avoids a flash). Keep them in sync.
 
 export type Theme = 'light' | 'dark'
+
+/** Sections that support dark mode. Exact segments, so `/bookstore-pricing` is not one. */
+export function isThemedPath(pathname: string) {
+  return /^\/(bookstore|admin|academy|academy-admin)(\/|$)/.test(pathname) || pathname === '/auth'
+}
 
 const THEME_KEY = 'bitdoin_theme'
 
@@ -73,32 +79,26 @@ export function useChartTheme() {
   }
 }
 
-/** Applies the current theme to <html> while the calling layout is mounted. */
-export function useApplyTheme() {
+/** Puts the current theme on <html> while `enabled`; light otherwise. */
+export function useApplyTheme(enabled = true) {
   const theme = useTheme(state => state.theme)
   const explicit = useTheme(state => state.explicit)
 
   // Follow live OS theme changes until the customer chooses one themselves.
   useEffect(() => {
-    if (explicit) return
+    if (explicit || !enabled) return
     const query = window.matchMedia?.('(prefers-color-scheme: dark)')
     if (!query) return
     const onChange = (e: MediaQueryListEvent) => useTheme.setState({ theme: e.matches ? 'dark' : 'light' })
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
-  }, [explicit])
+  }, [explicit, enabled])
 
   useEffect(() => {
+    const dark = enabled && theme === 'dark'
     const root = document.documentElement
-    root.classList.toggle('dark', theme === 'dark')
-    root.style.colorScheme = theme
-    const meta = document.querySelector('meta[name="theme-color"]')
-    const previousColor = meta?.getAttribute('content')
-    meta?.setAttribute('content', theme === 'dark' ? '#111827' : '#1e3a5f')
-    return () => {
-      root.classList.remove('dark')
-      root.style.colorScheme = ''
-      if (meta && previousColor) meta.setAttribute('content', previousColor)
-    }
-  }, [theme])
+    root.classList.toggle('dark', dark)
+    root.style.colorScheme = dark ? 'dark' : ''
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#111827' : '#1e3a5f')
+  }, [theme, enabled])
 }
