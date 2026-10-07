@@ -298,12 +298,12 @@ export function Checkout() {
 
   return (
     <div className="max-w-lg mx-auto space-y-5 pb-8">
-      <h1 className="text-lg font-bold text-gray-900">{t('checkout.title')}</h1>
+      <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('checkout.title')}</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* Delivery */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">{t('checkout.deliveryInfo')}</h2>
+        <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.deliveryInfo')}</h2>
           <Input
             label={t('checkout.fullName')}
             required
@@ -318,7 +318,7 @@ export function Checkout() {
             maxLength={8}
             placeholder="2xxx, 5xx, 7xx, 9xx"
             leftIcon={(
-              <span className="-ml-3 flex h-full items-center rounded-l-lg border-r border-primary-200 bg-primary-50 px-3 text-sm font-bold text-primary-800">
+              <span className="-ml-3 flex h-full items-center rounded-l-lg border-r border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/40 px-3 text-sm font-bold text-primary-800 dark:text-primary-300">
                 {PHONE_PREFIX}-
               </span>
             )}
@@ -332,7 +332,7 @@ export function Checkout() {
           />
 
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
               {t('checkout.logisticsProvider')}<span className="text-red-500 ml-0.5">*</span>
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -341,17 +341,17 @@ export function Checkout() {
                   key={option.value}
                   className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                     selectedLogistics === option.value
-                      ? 'border-primary-400 bg-primary-50 text-primary-900'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300'
+                      : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <input
                     type="radio"
                     value={option.value}
                     {...register('logistics_provider')}
-                    className="h-4 w-4 shrink-0 text-primary-700"
+                    className="h-4 w-4 shrink-0 text-primary-700 dark:text-primary-300"
                   />
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-white">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
                     {option.logo ? (
                       <img
                         src={option.logo}
@@ -359,7 +359,7 @@ export function Checkout() {
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <Bus className="h-6 w-6 text-primary-700" aria-hidden="true" />
+                      <Bus className="h-6 w-6 text-primary-700 dark:text-primary-300" aria-hidden="true" />
                     )}
                   </span>
                   <span className="min-w-0 font-medium leading-snug">
@@ -369,7 +369,7 @@ export function Checkout() {
               ))}
             </div>
             {errors.logistics_provider?.message && (
-              <p className="text-xs text-red-600">{errors.logistics_provider.message}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{errors.logistics_provider.message}</p>
             )}
           </div>
 
@@ -409,17 +409,17 @@ export function Checkout() {
         </section>
 
         {/* Order summary */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
-          <h2 className="text-sm font-semibold text-gray-700">{t('checkout.orderSummary')}</h2>
+        <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.orderSummary')}</h2>
           {items.map(item => (
             <div key={`${item.book_id}-${item.bookstore_id}`} className="flex justify-between text-sm">
-              <span className="text-gray-600 line-clamp-1 flex-1">{item.book?.title} × {item.quantity}</span>
+              <span className="text-gray-600 dark:text-gray-300 line-clamp-1 flex-1">{item.book?.title} × {item.quantity}</span>
               <span className="font-medium ml-4">{formatPrice((item.unit_price ?? 0) * item.quantity, currency)}</span>
             </div>
           ))}
           <div className="border-t pt-2 flex justify-between text-sm font-semibold">
             <span>{t('checkout.total')}</span>
-            <span className="text-primary-700">{formatPrice(subtotal(), currency)}</span>
+            <span className="text-primary-700 dark:text-primary-300">{formatPrice(subtotal(), currency)}</span>
           </div>
           <p className="text-xs text-gray-400">{t('cart.deliveryFeeNote')}</p>
         </section>
@@ -444,22 +444,22 @@ export function Checkout() {
 
         {paymentStep === 2 && (
           <div className="space-y-5">
-            <div className="rounded-2xl bg-primary-50 px-4 py-3 text-center">
-              <p className="text-xs text-primary-500">{t('checkout.total')}</p>
-              <p className="mt-1 text-2xl font-bold text-primary-800">
+            <div className="rounded-2xl bg-primary-50 dark:bg-primary-900/40 px-4 py-3 text-center">
+              <p className="text-xs text-primary-500 dark:text-primary-400">{t('checkout.total')}</p>
+              <p className="mt-1 text-2xl font-bold text-primary-800 dark:text-primary-300">
                 {formatPrice(subtotal(), currency)}
               </p>
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">{t('checkout.paymentMethod')}</h3>
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.paymentMethod')}</h3>
               {paymentOptions.map(option => (
                 <label
                   key={option.value}
                   className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${
                     selectedPaymentMethod === option.value
-                      ? 'border-primary-400 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/40'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   <input
@@ -468,9 +468,9 @@ export function Checkout() {
                     value={option.value}
                     checked={selectedPaymentMethod === option.value}
                     onChange={() => setSelectedPaymentMethod(option.value)}
-                    className="text-primary-700"
+                    className="text-primary-700 dark:text-primary-300"
                   />
-                  <span className="text-sm font-medium text-gray-800">{option.label}</span>
+                  <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{option.label}</span>
                 </label>
               ))}
             </div>
@@ -489,17 +489,17 @@ export function Checkout() {
         {paymentStep === 3 && !placedOrder && !paymentLoadError && (
           <div className="py-8 text-center">
             {loadingPlacedOrder && <LoadingSpinner />}
-            <p className="mt-3 text-sm text-gray-500">{t('checkout.loadingPayment')}</p>
-            <p className="mt-1 font-mono text-sm font-semibold text-primary-700">
+            <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('checkout.loadingPayment')}</p>
+            <p className="mt-1 font-mono text-sm font-semibold text-primary-700 dark:text-primary-300">
               {placedAccess?.order_number}
             </p>
           </div>
         )}
         {paymentStep === 3 && !placedOrder && paymentLoadError && placedAccess && (
           <div className="space-y-4 py-5 text-center">
-            <p className="text-sm font-semibold text-gray-800">{t('checkout.orderSaved')}</p>
-            <p className="text-xs text-gray-500">{paymentLoadError}</p>
-            <p className="font-mono text-sm font-bold text-primary-700">{placedAccess.order_number}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('checkout.orderSaved')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{paymentLoadError}</p>
+            <p className="font-mono text-sm font-bold text-primary-700 dark:text-primary-300">{placedAccess.order_number}</p>
             <Button
               type="button"
               fullWidth
@@ -516,7 +516,7 @@ export function Checkout() {
               <button
                 type="button"
                 onClick={backToPaymentMethod}
-                className="flex items-center gap-1 text-sm font-medium text-primary-700 hover:text-primary-800"
+                className="flex items-center gap-1 text-sm font-medium text-primary-700 dark:text-primary-300 hover:text-primary-800 dark:hover:text-primary-300"
               >
                 <ArrowLeft className="h-4 w-4" />
                 {t('checkout.changePaymentMethod')}
@@ -552,12 +552,12 @@ function CheckoutSteps({ current }: { current: 2 | 3 }) {
         return (
           <div key={step.number} className="min-w-0 text-center">
             <div className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-              active || complete ? 'bg-primary-700 text-white' : 'bg-gray-100 text-gray-400'
+              active || complete ? 'bg-primary-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
             }`}>
               {step.number}
             </div>
             <p className={`mt-1 truncate text-[10px] font-semibold ${
-              active ? 'text-primary-700' : complete ? 'text-gray-600' : 'text-gray-400'
+              active ? 'text-primary-700 dark:text-primary-300' : complete ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400'
             }`}>
               {step.label}
             </p>

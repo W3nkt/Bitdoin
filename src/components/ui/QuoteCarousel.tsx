@@ -49,19 +49,19 @@ function QuoteCard({ q, lang }: { q: QuoteRow; lang: string }) {
   const isLao = lang === 'lo'
   const displayText = isLao && q.text_lo ? q.text_lo : q.text
   return (
-    <figure className="flex min-h-[130px] flex-col rounded-xl border-l-[3px] border-green-400 bg-white px-5 py-4 shadow-sm">
+    <figure className="flex min-h-[130px] flex-col rounded-xl border-l-[3px] border-green-400 bg-white dark:bg-gray-900 px-5 py-4 shadow-sm">
       {q.category === 'special' && (
-        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-700">
+        <span className="mb-2 inline-flex w-fit items-center rounded-full bg-green-100 dark:bg-green-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-700 dark:text-green-300">
           ✦ {t('quotes.specialDay')}
         </span>
       )}
       <blockquote className={cn(
-        'flex-1 font-semibold leading-relaxed text-slate-800',
+        'flex-1 font-semibold leading-relaxed text-slate-800 dark:text-slate-100',
         isLao ? 'text-base' : 'text-sm italic',
       )}>
         {displayText}
       </blockquote>
-      <figcaption className="mt-3 text-xs font-semibold text-slate-500">
+      <figcaption className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
         — {q.author ?? 'Unknown'}
         {q.source && <span className="ml-1 font-normal text-slate-400">· {q.source}</span>}
       </figcaption>
@@ -134,7 +134,7 @@ export function QuoteCarousel({ className, slot = 0, targetCount = 6, autoPlayMs
       onMouseLeave={() => setPaused(false)}
     >
       {/* Sliding viewport */}
-      <div className="relative overflow-hidden rounded-2xl border border-green-100 bg-[#f0fdf4]">
+      <div className="relative overflow-hidden rounded-2xl border border-green-100 dark:border-green-500/30 bg-[#f0fdf4] dark:bg-green-500/10">
 
         {/* Track */}
         <div
@@ -157,7 +157,7 @@ export function QuoteCarousel({ className, slot = 0, targetCount = 6, autoPlayMs
                 onClick={() => { goTo(i); resetTimer() }}
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-300 focus:outline-none',
-                  i === idx ? 'w-6 bg-green-500' : 'w-1.5 bg-green-200 hover:bg-green-300',
+                  i === idx ? 'w-6 bg-green-500' : 'w-1.5 bg-green-200 dark:bg-green-500/25 hover:bg-green-300',
                 )}
               />
             ))}
@@ -180,14 +180,14 @@ export function QuoteCarousel({ className, slot = 0, targetCount = 6, autoPlayMs
           <button
             onClick={() => { prev(); resetTimer() }}
             aria-label="Previous"
-            className="absolute -left-3 top-1/2 z-10 flex h-8 w-8 -translate-y-5 items-center justify-center rounded-full bg-white shadow-md text-slate-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-green-600 focus:opacity-100 focus:outline-none"
+            className="absolute -left-3 top-1/2 z-10 flex h-8 w-8 -translate-y-5 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-md text-slate-500 dark:text-slate-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-green-600 dark:hover:text-green-400 focus:opacity-100 focus:outline-none"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => { next(); resetTimer() }}
             aria-label="Next"
-            className="absolute -right-3 top-1/2 z-10 flex h-8 w-8 -translate-y-5 items-center justify-center rounded-full bg-white shadow-md text-slate-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-green-600 focus:opacity-100 focus:outline-none"
+            className="absolute -right-3 top-1/2 z-10 flex h-8 w-8 -translate-y-5 items-center justify-center rounded-full bg-white dark:bg-gray-900 shadow-md text-slate-500 dark:text-slate-400 opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:text-green-600 dark:hover:text-green-400 focus:opacity-100 focus:outline-none"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

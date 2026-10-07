@@ -19,26 +19,26 @@ export default function Contacts() {
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">{t('nav.contacts')}</h1>
 
-      <p className="text-sm text-gray-600 mb-4">{t('contacts.intro')}</p>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{t('contacts.intro')}</p>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <a href={waHref} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">
-          <WhatsAppIcon className="h-6 w-6 text-green-600" />
+        <a href={waHref} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <WhatsAppIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
           <span className="text-sm">WhatsApp</span>
         </a>
 
-        <a href={messengerHref} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">
-          <MessengerIcon className="h-6 w-6" />
+        <a href={messengerHref} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <MessengerIcon className="h-6 w-6 text-blue-500 dark:text-blue-400" />
           <span className="text-sm">Messenger</span>
         </a>
 
-        <a href={phoneHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">
-          <IPhoneIcon className="h-6 w-6 text-gray-700" />
+        <a href={phoneHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <IPhoneIcon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
           <span className="text-sm">{waNumber}</span>
         </a>
 
-        <a href={emailHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50">
-          <GmailIcon className="h-6 w-6" />
+        <a href={emailHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <GmailIcon className="h-6 w-6 text-red-500 dark:text-red-400" />
           <span className="text-sm">{email}</span>
         </a>
       </div>

@@ -25,21 +25,21 @@ const TYPE_ICONS: Record<KnowledgePostType, React.ElementType> = {
 }
 
 const COLOR_MAP: Record<string, string> = {
-  amber:  'bg-amber-100 text-amber-800 border-amber-200',
-  blue:   'bg-blue-100 text-blue-800 border-blue-200',
-  purple: 'bg-purple-100 text-purple-800 border-purple-200',
-  green:  'bg-green-100 text-green-800 border-green-200',
-  indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  teal:   'bg-teal-100 text-teal-800 border-teal-200',
-  rose:   'bg-rose-100 text-rose-800 border-rose-200',
+  amber:  'bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30',
+  blue:   'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30',
+  purple: 'bg-purple-100 dark:bg-purple-500/15 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-500/30',
+  green:  'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 border-green-200 dark:border-green-500/30',
+  indigo: 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30',
+  teal:   'bg-teal-100 dark:bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-500/30',
+  rose:   'bg-rose-100 dark:bg-rose-500/15 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-500/30',
 }
 
 const TYPE_COLOR: Record<KnowledgePostType, string> = {
-  article:   'bg-blue-50 text-blue-700 border-blue-200',
-  quote:     'bg-amber-50 text-amber-700 border-amber-200',
-  tip:       'bg-green-50 text-green-700 border-green-200',
-  blog:      'bg-purple-50 text-purple-700 border-purple-200',
-  biography: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  article:   'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30',
+  quote:     'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30',
+  tip:       'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300 border-green-200 dark:border-green-500/30',
+  blog:      'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/30',
+  biography: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30',
 }
 
 const SIDEBAR_TYPES: { key: string; tKey: string; icon: React.ElementType }[] = [
@@ -177,7 +177,7 @@ export function Knowledge() {
           <div className="mb-5 flex gap-2">
             <button
               onClick={() => setMobileFilterOpen(true)}
-              className="lg:hidden flex h-10 flex-shrink-0 items-center gap-1.5 rounded border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 transition-colors"
+              className="lg:hidden flex h-10 flex-shrink-0 items-center gap-1.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
               <SlidersHorizontal className="h-4 w-4" />
               <span className="text-xs font-medium">{t('knowledge.filterLabel')}</span>
@@ -189,12 +189,12 @@ export function Knowledge() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder={t('knowledge.searchPlaceholder')}
-                className="h-10 w-full rounded border border-slate-200 bg-white pl-9 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none"
+                className="h-10 w-full rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 pl-9 pr-9 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none"
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -204,12 +204,12 @@ export function Knowledge() {
 
           {/* Result count when filtering */}
           {isFiltering && (
-            <p className="mb-4 text-xs text-gray-500">
+            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
               {filtered.length} {filtered.length === 1 ? t('knowledge.result') : t('knowledge.results')}
               {' '}
               <button
                 onClick={() => { setSelectedCategory('all'); setSelectedType('all'); setSearch('') }}
-                className="ml-1 text-primary-600 hover:underline"
+                className="ml-1 text-primary-600 dark:text-primary-400 hover:underline"
               >
                 {t('knowledge.clearFilters')}
               </button>
@@ -219,7 +219,7 @@ export function Knowledge() {
           {/* Featured Spotlight */}
           {!isFiltering && featured.length > 0 && (
             <section className="mb-8">
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800">
+              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-100">
                 <Sparkles className="h-4 w-4 text-amber-500" />
                 {t('knowledge.featured')}
               </h2>
@@ -244,7 +244,7 @@ export function Knowledge() {
           ) : (
             <>
               {isFiltering && (
-                <h2 className="mb-4 text-sm font-bold text-gray-700">
+                <h2 className="mb-4 text-sm font-bold text-gray-700 dark:text-gray-200">
                   {t(SIDEBAR_TYPES.find(s => s.key === selectedType)?.tKey ?? 'knowledge.allTypes')}
                   {selectedCategory !== 'all' && categories.find(c => c.id === selectedCategory)
                     ? ` · ${language === 'lo'
@@ -302,7 +302,7 @@ function KnowledgeSidebar({
               className={cn(
                 'flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-xs font-medium transition-colors',
                 selectedType === key
-                  ? 'bg-white text-[#30343a] font-semibold'
+                  ? 'bg-white dark:bg-gray-900 text-[#30343a] font-semibold'
                   : 'text-white/80 hover:bg-white/10 hover:text-white',
               )}
             >
@@ -416,8 +416,8 @@ function BiographyCard({ post, featured: isFeatured }: { post: KnowledgePost; fe
     <Link
       to={`/bookstore/knowledge/${post.id}`}
       className={cn(
-        'group flex flex-col overflow-hidden rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-lg',
-        isFeatured ? 'border-indigo-200' : 'border-gray-100 hover:border-indigo-200',
+        'group flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-gray-900 transition-all hover:-translate-y-0.5 hover:shadow-lg',
+        isFeatured ? 'border-indigo-200 dark:border-indigo-500/30' : 'border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-500/30',
       )}
     >
       {/* Gradient header */}
@@ -435,18 +435,18 @@ function BiographyCard({ post, featured: isFeatured }: { post: KnowledgePost; fe
 
       <div className="flex flex-1 flex-col px-4 pb-4 pt-8">
         {/* Name */}
-        <h3 className="text-center text-sm font-black text-gray-900 group-hover:text-indigo-700 transition-colors">
+        <h3 className="text-center text-sm font-black text-gray-900 dark:text-gray-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors">
           {personName}
         </h3>
 
         {/* Company + industry chips */}
         {profile && (
           <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
               <Building2 className="h-2.5 w-2.5" />
               {profile.company.split(' · ')[0]}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
               <TrendingUp className="h-2.5 w-2.5" />
               {profile.netWorth}
             </span>
@@ -455,13 +455,13 @@ function BiographyCard({ post, featured: isFeatured }: { post: KnowledgePost; fe
 
         {/* Excerpt */}
         {excerpt && (
-          <p className="mt-3 flex-1 text-xs leading-relaxed text-gray-500 line-clamp-2">
+          <p className="mt-3 flex-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2">
             {excerpt}
           </p>
         )}
 
         {/* Footer */}
-        <div className="mt-3 flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-50 pt-3">
+        <div className="mt-3 flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-50 dark:border-gray-800 pt-3">
           <span className="font-medium text-indigo-400">
             {language === 'lo' ? 'ຊີວະປະຫວັດ' : 'Biography'}
           </span>
@@ -514,8 +514,8 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
         className={cn(
           'group relative flex flex-col justify-between rounded-2xl border p-6 transition-all hover:-translate-y-0.5 hover:shadow-md',
           isFeatured
-            ? 'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50'
-            : 'border-gray-100 bg-white hover:border-amber-200',
+            ? 'border-amber-200 dark:border-amber-500/30 bg-gradient-to-br from-amber-50 dark:from-amber-500/10 to-orange-50 dark:to-orange-500/10'
+            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-amber-200 dark:hover:border-amber-500/30',
         )}
       >
         {post.category && (
@@ -525,12 +525,12 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
         )}
         <blockquote className="relative">
           <span className="absolute -left-1 -top-2 text-5xl leading-none text-amber-300 select-none">"</span>
-          <p className="pl-5 text-sm font-medium italic leading-relaxed text-gray-700 line-clamp-4">
+          <p className="pl-5 text-sm font-medium italic leading-relaxed text-gray-700 dark:text-gray-200 line-clamp-4">
             {content}
           </p>
           <span className="absolute -bottom-4 right-0 text-5xl leading-none text-amber-300 select-none">"</span>
         </blockquote>
-        <p className="mt-6 text-xs font-semibold text-gray-500">— {post.author}</p>
+        <p className="mt-6 text-xs font-semibold text-gray-500 dark:text-gray-400">— {post.author}</p>
       </Link>
     )
   }
@@ -539,8 +539,8 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
     <Link
       to={`/bookstore/knowledge/${post.id}`}
       className={cn(
-        'group flex flex-col rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md',
-        isFeatured ? 'border-primary-200' : 'border-gray-100 hover:border-primary-200',
+        'group flex flex-col rounded-2xl border bg-white dark:bg-gray-900 transition-all hover:-translate-y-0.5 hover:shadow-md',
+        isFeatured ? 'border-primary-200 dark:border-primary-800' : 'border-gray-100 dark:border-gray-800 hover:border-primary-200 dark:hover:border-primary-800',
       )}
     >
       {/* Accent top bar — colour varies by type */}
@@ -564,20 +564,20 @@ function PostCard({ post, featured: isFeatured }: PostCardProps) {
             </span>
           )}
           {post.is_featured && (
-            <span className="rounded-full bg-amber-100 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+            <span className="rounded-full bg-amber-100 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
               ⭐ {t('knowledge.featured')}
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="mb-2 text-sm font-bold leading-snug text-gray-800 line-clamp-2 group-hover:text-primary-700 transition-colors">
+        <h3 className="mb-2 text-sm font-bold leading-snug text-gray-800 dark:text-gray-100 line-clamp-2 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
           {title}
         </h3>
 
         {/* Excerpt */}
         {excerpt && (
-          <p className="mb-4 flex-1 text-xs leading-relaxed text-gray-500 line-clamp-3">
+          <p className="mb-4 flex-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-3">
             {excerpt}
           </p>
         )}

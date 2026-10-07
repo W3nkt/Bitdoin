@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Mail, Phone, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Eye, EyeOff, Moon, Sun } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { publicAsset } from '@/lib/assets'
 import { resolvePostLoginDestination, sanitizeAuthReturnPath } from '@/lib/authRedirect'
+import { useApplyTheme, useTheme } from '@/lib/theme'
 
 type Method = 'email' | 'phone'
 type EmailStep = 'signin' | 'signup'
@@ -22,6 +23,9 @@ export function Auth() {
   const location = useLocation()
   const { profile, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook } = useAuth()
   const { error: showError, success } = useToast()
+  const theme = useTheme(state => state.theme)
+  const toggleTheme = useTheme(state => state.toggleTheme)
+  useApplyTheme()
 
   const from = sanitizeAuthReturnPath((location.state as { from?: string })?.from)
 
@@ -94,37 +98,48 @@ export function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
       <div className="w-full max-w-sm">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="mb-5 inline-flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-semibold text-gray-500 transition-colors hover:bg-white hover:text-primary-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t('common.back')}
-        </button>
+        <div className="mb-5 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-semibold text-gray-500 dark:text-gray-400 transition-colors hover:bg-white dark:hover:bg-gray-900 hover:text-primary-700 dark:hover:text-primary-300"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('common.back')}
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-white dark:text-amber-300 dark:hover:bg-gray-900"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
 
         {/* Logo */}
         <div className="text-center mb-8">
           <img
             src={publicAsset('icons/Bitdoin-Logo.png')}
             alt={t('appName')}
-            className="mx-auto mb-3 h-24 w-48 object-contain"
+            className="mx-auto mb-3 h-24 w-48 object-contain dark:brightness-0 dark:invert"
           />
-          <h1 className="text-2xl font-bold text-primary-700">{t('appName')}</h1>
+          <h1 className="text-2xl font-bold text-primary-700 dark:text-primary-300">{t('appName')}</h1>
           <p className="text-sm text-gray-400 mt-1">{t('auth.signIn')} / {t('auth.signUp')}</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-6 space-y-5">
 
           {/* Method tabs */}
           {PHONE_OTP_ENABLED && (
-            <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
+            <div className="flex gap-1 rounded-xl bg-gray-100 dark:bg-gray-800 p-1">
               <button
                 onClick={() => setMethod('email')}
                 className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-                  method === 'email' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
+                  method === 'email' ? 'bg-white dark:bg-gray-900 shadow-sm text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 <Mail className="h-3.5 w-3.5" />
@@ -133,7 +148,7 @@ export function Auth() {
               <button
                 onClick={() => setMethod('phone')}
                 className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
-                  method === 'phone' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'
+                  method === 'phone' ? 'bg-white dark:bg-gray-900 shadow-sm text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 <Phone className="h-3.5 w-3.5" />
@@ -146,13 +161,13 @@ export function Auth() {
           {method === 'email' && (
             <>
               {/* Sign in / Sign up sub-tabs */}
-              <div className="flex border-b border-gray-100">
+              <div className="flex border-b border-gray-100 dark:border-gray-800">
                 <button
                   onClick={() => setEmailStep('signin')}
                   className={`pb-2 px-1 mr-5 text-sm font-semibold transition-colors border-b-2 ${
                     emailStep === 'signin'
-                      ? 'border-primary-700 text-primary-700'
-                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                      ? 'border-primary-700 dark:border-primary-400 text-primary-700 dark:text-primary-300'
+                      : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   {t('auth.signIn')}
@@ -161,8 +176,8 @@ export function Auth() {
                   onClick={() => setEmailStep('signup')}
                   className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${
                     emailStep === 'signup'
-                      ? 'border-primary-700 text-primary-700'
-                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                      ? 'border-primary-700 dark:border-primary-400 text-primary-700 dark:text-primary-300'
+                      : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   {t('auth.signUp')}
@@ -193,7 +208,7 @@ export function Auth() {
                     <button
                       type="button"
                       onClick={() => setShowPw(v => !v)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                       {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -235,7 +250,7 @@ export function Auth() {
                     <button
                       type="button"
                       onClick={() => setShowPw(v => !v)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                       {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -248,10 +263,10 @@ export function Auth() {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
+                  <div className="w-full border-t border-gray-200 dark:border-gray-700" />
                 </div>
                 <div className="relative flex justify-center text-xs text-gray-400">
-                  <span className="bg-white px-3">{t('auth.or')}</span>
+                  <span className="bg-white dark:bg-gray-900 px-3">{t('auth.or')}</span>
                 </div>
               </div>
 
@@ -260,7 +275,7 @@ export function Auth() {
                   type="button"
                   onClick={() => signInWithGoogle(from)}
                   aria-label={t('auth.continueWithGoogle')}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <img
                     src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -273,7 +288,7 @@ export function Auth() {
                   type="button"
                   onClick={() => signInWithFacebook(from)}
                   aria-label={t('auth.continueWithFacebook')}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white transition-colors hover:bg-gray-50"
+                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <img
                     src={publicAsset('icons/Facebook-Logosu.png')}
@@ -289,7 +304,7 @@ export function Auth() {
           {PHONE_OTP_ENABLED && method === 'phone' && (
             phoneStep === 'phone' ? (
               <form onSubmit={handleSendOtp} className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-700">{t('auth.signInWithPhone')}</h2>
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('auth.signInWithPhone')}</h2>
                 <Input
                   label={t('auth.phone')}
                   type="tel"
@@ -304,8 +319,8 @@ export function Auth() {
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-700">{t('auth.otp')}</h2>
-                <p className="text-xs text-gray-500">{t('auth.codeSentTo', { phone })}</p>
+                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('auth.otp')}</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('auth.codeSentTo', { phone })}</p>
                 <Input
                   label={t('auth.otp')}
                   type="text"
@@ -322,7 +337,7 @@ export function Auth() {
                 <button
                   type="button"
                   onClick={() => { setPhoneStep('phone'); setOtp('') }}
-                  className="w-full text-xs text-gray-400 hover:text-gray-600"
+                  className="w-full text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   {t('common.back')}
                 </button>

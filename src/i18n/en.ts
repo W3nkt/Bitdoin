@@ -415,6 +415,22 @@ const en = {
     optional: 'Optional',
   },
 
+  // ── Form validation (replaces the browser's own bubbles) ──────────────────────
+  validation: {
+    required: 'Please fill out this field.',
+    selectRequired: 'Please choose an option.',
+    checkRequired: 'Please tick this box to continue.',
+    email: 'Please enter a valid email address, e.g. name@example.com.',
+    url: 'Please enter a valid link.',
+    tooShort: 'Please enter at least {{min}} characters (you have {{count}}).',
+    tooLong: 'Please enter no more than {{max}} characters.',
+    pattern: 'Please use the format shown in this field.',
+    rangeUnderflow: 'Please enter {{min}} or more.',
+    rangeOverflow: 'Please enter {{max}} or less.',
+    number: 'Please enter a valid number.',
+    invalid: 'Please check this field.',
+  },
+
   // ── Admin ──────────────────────────────────────────────────────────────────────
   admin: {
     dashboard: 'Dashboard',

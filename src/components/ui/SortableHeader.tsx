@@ -32,7 +32,7 @@ export function SortableHeader<Key extends string>({
       // The inset shadow draws the divider instead of `border-b`: collapsed table
       // borders are unreliable on a sticky <thead>, a box-shadow always paints.
       className={cn(
-        'bg-gray-50 px-4 py-3 shadow-[inset_0_-1px_0_0_#f3f4f6]',
+        'bg-gray-50 dark:bg-gray-800/50 px-4 py-3 shadow-[inset_0_-1px_0_0_#f3f4f6]',
         className,
       )}
       aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
@@ -41,8 +41,8 @@ export function SortableHeader<Key extends string>({
         type="button"
         onClick={() => onSort(sortValue)}
         className={cn(
-          'flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-primary-700',
-          active ? 'text-primary-700' : 'text-gray-500',
+          'flex w-full items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-colors hover:text-primary-700 dark:hover:text-primary-300',
+          active ? 'text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400',
           align === 'right' ? 'justify-end text-right' : 'justify-start text-left',
         )}
         aria-label={`Sort by ${label}`}

@@ -9,12 +9,20 @@
   }
 
   body {
-    @apply text-gray-900 antialiased bg-gray-50;
+    @apply text-gray-900 antialiased bg-gray-50 dark:bg-gray-950 dark:text-gray-100;
     font-family: 'Inter', 'Noto Sans Thai', 'Noto Sans Lao', sans-serif;
   }
 
   * {
     box-sizing: border-box;
+  }
+
+  /* Bare `border` / `divide-y` classes default to gray-200, which glows on a
+     dark page. Utilities with an explicit color still win (later layer). */
+  .dark *,
+  .dark ::before,
+  .dark ::after {
+    border-color: theme('colors.gray.800');
   }
 
   :lang(lo) {
@@ -60,6 +68,10 @@
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .glass {
+    background: rgba(17, 24, 39, 0.85);
   }
 
   .glass-dark {
@@ -182,4 +194,82 @@
   .cart-bump {
     animation: none;
   }
+}
+
+/* ── Form validation tip (src/lib/formValidation.ts) ── */
+[data-invalid='true']:not([type='radio']):not([type='checkbox']) {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
+}
+
+label:has(input[data-invalid='true']) {
+  border-color: #ef4444 !important;
+}
+
+.form-error-tip {
+  position: absolute;
+  z-index: 10000;
+  display: flex;
+  max-width: min(320px, calc(100vw - 16px));
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  box-shadow: 0 10px 25px -8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  animation: form-error-tip-in 0.18s ease-out;
+}
+
+.form-error-tip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: var(--arrow-left, 18px);
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid #fecaca;
+  border-left: 1px solid #fecaca;
+  background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.form-error-tip__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.dark .form-error-tip {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: #1f1315;
+  color: #fca5a5;
+}
+
+.dark .form-error-tip::before {
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+@keyframes form-error-tip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-error-tip { animation: none; }
 }

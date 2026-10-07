@@ -19,7 +19,7 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
         onClick={() => onChange(page - 1)}
         className={cn(
           'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-          page <= 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600 active:bg-gray-200',
+          page <= 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700',
         )}
         aria-label="Previous page"
       >
@@ -34,7 +34,7 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
             'h-10 w-10 rounded-xl text-sm font-medium transition-colors',
             p === page
               ? 'bg-primary-700 text-white'
-              : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200',
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700',
           )}
         >
           {p}
@@ -46,7 +46,7 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
         onClick={() => onChange(page + 1)}
         className={cn(
           'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-          page >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100 text-gray-600 active:bg-gray-200',
+          page >= totalPages ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-700',
         )}
         aria-label="Next page"
       >

@@ -150,7 +150,7 @@ export function Catalog() {
   const hasFilters = !!(filters.query || filters.category_id || filters.language || sort === 'featured')
 
   return (
-    <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
+    <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white dark:bg-gray-900 lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
       <BrowseSidebar
         categories={categories}
         activeCategoryId={filters.category_id}
@@ -167,13 +167,13 @@ export function Catalog() {
       />
 
       <div className="min-w-0 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end">
+        <div className="mb-5 flex flex-col gap-3 border-b border-slate-200 dark:border-slate-700 pb-4 md:flex-row md:items-end">
           <div className="min-w-0 flex-1">
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-accent-600">{t('catalog.title')}</p>
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-accent-600 dark:text-accent-400">{t('catalog.title')}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden flex h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 flex-shrink-0"
+                className="lg:hidden flex h-11 items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex-shrink-0"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="text-xs font-medium">{t('catalog.filter', 'Filter')}</span>
@@ -187,12 +187,12 @@ export function Catalog() {
                   value={filters.query ?? ''}
                   onChange={e => applyFilters({ query: e.target.value })}
                   placeholder={t('home.searchPlaceholder')}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 pl-9 pr-10 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
                 />
                 {filters.query && (
                   <button
                     onClick={() => applyFilters({ query: '' })}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-slate-200"
                     aria-label={t('catalog.clearSearch')}
                   >
                     <X className="h-4 w-4" />
@@ -206,7 +206,7 @@ export function Catalog() {
             {hasFilters && (
               <button
                 onClick={clearFilters}
-                className="h-10 px-3 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900"
+                className="h-10 px-3 text-xs font-semibold text-slate-500 dark:text-slate-400 transition-colors hover:text-slate-900 dark:hover:text-slate-100"
               >
                 {t('catalog.clearFilters')}
               </button>
@@ -214,7 +214,7 @@ export function Catalog() {
             <select
               value={sort}
               onChange={e => setSort(parseSort(e.target.value))}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
+              className="h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 text-sm text-slate-600 dark:text-slate-300 focus:border-accent-500 focus:outline-none"
             >
               <option value="best">{t('sidebar.bestSeller')}</option>
               <option value="newest">{t('catalog.sortOptions.newest')}</option>
@@ -225,7 +225,7 @@ export function Catalog() {
         </div>
 
         {data && (
-          <p className="mb-4 text-xs text-slate-500">
+          <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">
             {t('catalog.showing').replace('{{count}}', String(data.count))}
           </p>
         )}

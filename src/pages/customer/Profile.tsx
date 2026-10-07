@@ -189,8 +189,8 @@ export function Profile() {
   if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <User className="h-16 w-16 text-gray-300" />
-        <p className="text-gray-500">{t('auth.signIn')}</p>
+        <User className="h-16 w-16 text-gray-300 dark:text-gray-600" />
+        <p className="text-gray-500 dark:text-gray-400">{t('auth.signIn')}</p>
         <Button onClick={() => navigate('/auth')}>{t('nav.signIn')}</Button>
       </div>
     )
@@ -264,7 +264,7 @@ export function Profile() {
             htmlFor="profile-avatar-upload"
             aria-disabled={uploadingImage !== null}
             className={cn(
-              'absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white text-primary-700 shadow-lg transition-transform hover:scale-105',
+              'absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white dark:bg-gray-900 text-primary-700 dark:text-primary-300 shadow-lg transition-transform hover:scale-105',
               uploadingImage && 'pointer-events-none opacity-70',
             )}
           >
@@ -325,29 +325,29 @@ export function Profile() {
             <Package className="h-5 w-5 text-white" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-gray-800">{t('orders.title')}</p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('orders.title')}</p>
             <p className="text-xs text-gray-400">{t('orders.manageAll')}</p>
           </div>
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300" />
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" />
         </Card>
 
         <Card padding>
-          <h3 className="mb-3 text-sm font-semibold text-gray-700">{t('profile.preferences')}</h3>
+          <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('profile.preferences')}</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-blue-50 p-1.5">
-                  <Globe className="h-3.5 w-3.5 text-blue-600" />
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-500/10 p-1.5">
+                  <Globe className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <span className="text-sm text-gray-700">{t('book.language')}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-200">{t('book.language')}</span>
               </div>
-              <div className="flex overflow-hidden rounded-xl border border-gray-200">
+              <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                 {(['lo', 'en'] as const).map(lang => (
                   <button
                     key={lang}
                     onClick={() => setLanguage(lang)}
                     className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                      language === lang ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-50'
+                      language === lang ? 'bg-primary-700 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}
                   >
                     {lang === 'lo' ? t('sidebar.lao') : t('sidebar.english')}
@@ -358,18 +358,18 @@ export function Profile() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-green-50 p-1.5">
-                  <DollarSign className="h-3.5 w-3.5 text-green-600" />
+                <div className="rounded-lg bg-green-50 dark:bg-green-500/10 p-1.5">
+                  <DollarSign className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
                 </div>
-                <span className="text-sm text-gray-700">{t('profile.currency')}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-200">{t('profile.currency')}</span>
               </div>
-              <div className="flex overflow-hidden rounded-xl border border-gray-200">
+              <div className="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                 {(['LAK', 'USD'] as const).map(cur => (
                   <button
                     key={cur}
                     onClick={() => setCurrency(cur)}
                     className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                      currency === cur ? 'bg-primary-700 text-white' : 'text-gray-600 hover:bg-gray-50'
+                      currency === cur ? 'bg-primary-700 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}
                   >
                     {cur}
@@ -385,7 +385,7 @@ export function Profile() {
           fullWidth
           icon={<LogOut className="h-4 w-4" />}
           onClick={handleSignOut}
-          className="border-red-200 text-red-600 hover:bg-red-50"
+          className="border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
         >
           {t('nav.signOut')}
         </Button>
@@ -416,7 +416,7 @@ export function Profile() {
       >
         {avatarCropSrc && (
           <div className="space-y-3">
-            <p className="text-xs leading-5 text-gray-500">{t('profile.cropPhotoHint')}</p>
+            <p className="text-xs leading-5 text-gray-500 dark:text-gray-400">{t('profile.cropPhotoHint')}</p>
             <div className="flex justify-center overflow-hidden rounded-2xl bg-gray-950/95 p-2">
               <ReactCrop
                 crop={avatarCrop}

@@ -63,7 +63,7 @@ export function StorageImage({ src, alt, className, bucket }: StorageImageProps)
 
   if (broken) {
     return (
-      <div className={`flex items-center justify-center bg-gray-100 text-gray-400 text-xs ${className ?? ''}`}>
+      <div className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800 text-gray-400 text-xs ${className ?? ''}`}>
         {alt}
       </div>
     )

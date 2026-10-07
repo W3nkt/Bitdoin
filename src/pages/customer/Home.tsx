@@ -87,7 +87,7 @@ export function Home() {
   }
 
   return (
-    <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
+    <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white dark:bg-gray-900 lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
       <BrowseSidebar
         categories={categories}
         onSelectCategory={categoryId => navigate(categoryId ? `/bookstore/books?category=${categoryId}` : '/bookstore/books')}
@@ -105,12 +105,12 @@ export function Home() {
 
         {/* ── Hero / Search ── */}
         <section className="mb-7">
-          <div className="rounded-2xl bg-[#fff3ee] p-4 sm:p-5">
-            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-600">{t('tagline')}</p>
-            <h1 className="max-w-2xl text-xl font-extrabold leading-tight text-slate-900 sm:text-2xl">
+          <div className="rounded-2xl bg-[#fff3ee] dark:bg-accent-500/10 p-4 sm:p-5">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-600 dark:text-accent-400">{t('tagline')}</p>
+            <h1 className="max-w-2xl text-xl font-extrabold leading-tight text-slate-900 dark:text-slate-100 sm:text-2xl">
               {t('home.hero')}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">{t('home.heroSub')}</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{t('home.heroSub')}</p>
 
             <form onSubmit={handleSearch} className="mt-5 flex gap-2">
               <div className="relative min-w-0 flex-1">
@@ -119,7 +119,7 @@ export function Home() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder={t('home.searchPlaceholder')}
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 pl-9 pr-3 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
                 />
               </div>
               <button
@@ -133,7 +133,7 @@ export function Home() {
         </section>
 
         {/* ── Entity clarification strip ── */}
-        <p className="mb-6 -mt-2 rounded-xl bg-slate-50 px-4 py-2.5 text-center text-xs text-slate-500">
+        <p className="mb-6 -mt-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-center text-xs text-slate-500 dark:text-slate-400">
           Bitdoin.store is a bookstore, not a cryptocurrency platform. We help readers find and order physical
           books; we do not offer Bitcoin trading, crypto wallets, tokens, or investment services.
         </p>
@@ -155,7 +155,7 @@ export function Home() {
         {/* ── Trending books ── */}
         <section className="mt-9">
           <SectionHeader
-            icon={<TrendingUp className="h-4 w-4 text-primary-700" />}
+            icon={<TrendingUp className="h-4 w-4 text-primary-700 dark:text-primary-300" />}
             title={t('home.trending')}
             onViewAll={() => navigate('/bookstore/books')}
           />
@@ -181,14 +181,14 @@ function SectionHeader({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="mb-4 flex items-center justify-between border-b border-slate-200 pb-2">
+    <div className="mb-4 flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
       <div className="flex items-center gap-2">
         {icon}
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900">{title}</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-900 dark:text-slate-100">{title}</h2>
       </div>
       <button
         onClick={onViewAll}
-        className="flex items-center gap-1 text-xs font-semibold text-primary-700 transition-colors hover:text-primary-800"
+        className="flex items-center gap-1 text-xs font-semibold text-primary-700 dark:text-primary-300 transition-colors hover:text-primary-800 dark:hover:text-primary-300"
       >
         {t('home.viewAll')}
         <ArrowRight className="h-3.5 w-3.5" />
@@ -203,7 +203,7 @@ function BookGrid({ books, onAddToCart }: { books: Book[]; onAddToCart: (b: Book
   if (books.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-14 text-slate-400">
-        <Search className="h-8 w-8 text-slate-300" />
+        <Search className="h-8 w-8 text-slate-300 dark:text-slate-600" />
         <p className="text-sm">{t('home.emptyBooks')}</p>
       </div>
     )

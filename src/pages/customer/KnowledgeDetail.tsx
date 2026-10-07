@@ -23,12 +23,12 @@ const TYPE_ICONS: Record<KnowledgePostType, React.ElementType> = {
 }
 
 const COLOR_MAP: Record<string, string> = {
-  amber:  'bg-amber-100 text-amber-800 border-amber-200',
-  blue:   'bg-blue-100 text-blue-800 border-blue-200',
-  purple: 'bg-purple-100 text-purple-800 border-purple-200',
-  green:  'bg-green-100 text-green-800 border-green-200',
-  indigo: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  teal:   'bg-teal-100 text-teal-800 border-teal-200',
+  amber:  'bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30',
+  blue:   'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-500/30',
+  purple: 'bg-purple-100 dark:bg-purple-500/15 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-500/30',
+  green:  'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300 border-green-200 dark:border-green-500/30',
+  indigo: 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-500/30',
+  teal:   'bg-teal-100 dark:bg-teal-500/15 text-teal-800 dark:text-teal-300 border-teal-200 dark:border-teal-500/30',
 }
 
 function estimateReadTime(text: string): number {
@@ -39,7 +39,7 @@ function renderInline(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*)/)
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>
+      return <strong key={i} className="font-semibold text-gray-900 dark:text-gray-100">{part.slice(2, -2)}</strong>
     }
     return <span key={i}>{part}</span>
   })
@@ -49,20 +49,20 @@ function RenderedContent({ text, dark }: { text: string; dark?: boolean }) {
   // Normalise Windows \r\n → \n so the split always works regardless of DB line endings
   const blocks = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split(/\n\n+/)
   return (
-    <div className={cn('prose prose-sm max-w-none space-y-4 leading-relaxed', dark ? 'text-gray-200' : 'text-gray-700')}>
+    <div className={cn('prose prose-sm max-w-none space-y-4 leading-relaxed', dark ? 'text-gray-200 dark:text-gray-700' : 'text-gray-700 dark:text-gray-200')}>
       {blocks.map((block, i) => {
         const trimmed = block.trim()
         if (!trimmed) return null
         if (trimmed.startsWith('## ')) {
           return (
-            <h2 key={i} className={cn('mt-6 text-lg font-bold', dark ? 'text-white' : 'text-gray-900')}>
+            <h2 key={i} className={cn('mt-6 text-lg font-bold', dark ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>
               {trimmed.slice(3)}
             </h2>
           )
         }
         if (trimmed.startsWith('# ')) {
           return (
-            <h1 key={i} className={cn('mt-6 text-xl font-bold', dark ? 'text-white' : 'text-gray-900')}>
+            <h1 key={i} className={cn('mt-6 text-xl font-bold', dark ? 'text-white' : 'text-gray-900 dark:text-gray-100')}>
               {trimmed.slice(2)}
             </h1>
           )
@@ -156,7 +156,7 @@ function NavArrowButton({ post, direction }: { post: KnowledgePost | null; direc
       to={`/bookstore/knowledge/${post.id}`}
       aria-label={`${label}: ${title}`}
       title={title}
-      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm hover:border-primary-300 hover:text-primary-600 transition-colors"
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-400 shadow-sm hover:border-primary-300 dark:hover:border-primary-700 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
     >
       <Icon className="h-4 w-4" />
     </Link>
@@ -172,7 +172,7 @@ function DetailNavHeader({ post }: { post: KnowledgePost }) {
       <NavArrowButton post={previous} direction="prev" />
       <Link
         to="/bookstore/knowledge"
-        className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-primary-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {t('knowledge.backToHub')}
@@ -282,7 +282,7 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
       </div>
 
       {/* ── Meta info row ──────────────────────────────────────────────── */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-gray-100 bg-white px-4 py-3 text-xs text-gray-400 shadow-sm">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 text-xs text-gray-400 shadow-sm">
         <span className="flex items-center gap-1">
           <User className="h-3 w-3" />
           {post.author}
@@ -297,7 +297,7 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
             {post.views + 1} {t('knowledge.views')}
           </span>
         )}
-        <span className="ml-auto text-gray-300">
+        <span className="ml-auto text-gray-300 dark:text-gray-600">
           {new Date(post.created_at).toLocaleDateString(language === 'lo' ? 'lo-LA' : 'en-GB', {
             year: 'numeric', month: 'long', day: 'numeric',
           })}
@@ -305,13 +305,13 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
       </div>
 
       {/* ── Article Content ────────────────────────────────────────────── */}
-      <div className="mt-5 rounded-2xl border border-gray-100 bg-white px-6 py-7 shadow-sm sm:px-8">
+      <div className="mt-5 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-7 shadow-sm sm:px-8">
         <RenderedContent text={content} />
       </div>
 
       {/* ── Timeline / Roadmap ────────────────────────────────────────── */}
       {profile && profile.timeline.length > 0 && (
-        <section className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-br from-slate-900 to-slate-800 px-6 py-7 shadow-sm">
+        <section className="mt-6 overflow-hidden rounded-2xl border border-indigo-100 dark:border-indigo-500/30 bg-gradient-to-br from-slate-900 to-slate-800 px-6 py-7 shadow-sm">
           <div className="mb-6 flex items-center gap-3">
             <Star className="h-5 w-5 text-indigo-400" />
             <h2 className="text-base font-black text-white tracking-tight">
@@ -396,10 +396,10 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
 
       {/* ── Tags ──────────────────────────────────────────────────────── */}
       {post.tags.length > 0 && (
-        <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+        <div className="mt-5 flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 shadow-sm">
           <Tag className="h-3.5 w-3.5 text-gray-400" />
           {post.tags.map(tag => (
-            <span key={tag} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-500">
+            <span key={tag} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-xs text-gray-500 dark:text-gray-400">
               #{tag}
             </span>
           ))}
@@ -434,7 +434,7 @@ function RelatedBios({ currentId, categoryId }: { currentId: string; categoryId:
 
   return (
     <section className="mt-8">
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800 dark:text-gray-100">
         <User className="h-4 w-4 text-indigo-500" />
         {language === 'lo' ? 'ຊີວະປະຫວັດທີ່ກ່ຽວຂ້ອງ' : 'More Biographies'}
       </h2>
@@ -449,11 +449,11 @@ function RelatedBios({ currentId, categoryId }: { currentId: string; categoryId:
             <Link
               key={r.id}
               to={`/bookstore/knowledge/${r.id}`}
-              className="group flex items-center gap-3 overflow-hidden rounded-xl border border-gray-100 bg-white p-3 hover:border-indigo-200 hover:shadow-md transition-all"
+              className="group flex items-center gap-3 overflow-hidden rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 hover:border-indigo-200 dark:hover:border-indigo-500/30 hover:shadow-md transition-all"
             >
               <BioAvatar profile={profile} personName={name} size="sm" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800 group-hover:text-indigo-700 transition-colors truncate">
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors truncate">
                   {name}
                 </p>
                 {profile && (
@@ -462,7 +462,7 @@ function RelatedBios({ currentId, categoryId }: { currentId: string; categoryId:
                   </p>
                 )}
               </div>
-              <ArrowLeft className="ml-auto h-3.5 w-3.5 flex-shrink-0 rotate-180 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+              <ArrowLeft className="ml-auto h-3.5 w-3.5 flex-shrink-0 rotate-180 text-gray-300 dark:text-gray-600 group-hover:text-indigo-400 transition-colors" />
             </Link>
           )
         })}
@@ -503,7 +503,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
     <div className="mx-auto max-w-2xl pb-12">
       <DetailNavHeader post={post} />
 
-      <article className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+      <article className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
         <div className={cn(
           'h-2 w-full',
           post.type === 'tip'   ? 'bg-green-400'  :
@@ -514,7 +514,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
 
         <div className="p-6 sm:p-8">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs font-medium text-gray-600 dark:text-gray-300">
               <TypeIcon className="h-3 w-3" />
               {t(`knowledge.${post.type}s` as `knowledge.${typeof post.type}s`)}
             </span>
@@ -526,7 +526,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
           </div>
 
           <h1 className={cn(
-            'mb-4 font-bold leading-tight text-gray-900',
+            'mb-4 font-bold leading-tight text-gray-900 dark:text-gray-100',
             isQuote ? 'text-2xl italic' : 'text-2xl sm:text-3xl',
           )}>
             {isQuote && <span className="mr-1 text-amber-400">"</span>}
@@ -534,7 +534,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
             {isQuote && <span className="ml-1 text-amber-400">"</span>}
           </h1>
 
-          <div className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-100 pb-6 text-xs text-gray-400">
+          <div className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-100 dark:border-gray-800 pb-6 text-xs text-gray-400">
             <span className="flex items-center gap-1"><User className="h-3 w-3" />{post.author}</span>
             {!isQuote && (
               <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{readTime} {t('knowledge.minRead')}</span>
@@ -542,7 +542,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
             {post.views > 0 && (
               <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{post.views + 1} {t('knowledge.views')}</span>
             )}
-            <span className="text-gray-300">
+            <span className="text-gray-300 dark:text-gray-600">
               {new Date(post.created_at).toLocaleDateString(language === 'lo' ? 'lo-LA' : 'en-GB', {
                 year: 'numeric', month: 'long', day: 'numeric',
               })}
@@ -550,19 +550,19 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
           </div>
 
           {isQuote ? (
-            <div className="rounded-xl bg-amber-50 border border-amber-100 p-6 text-center">
-              <p className="text-lg italic leading-9 text-gray-700 font-medium">{content}</p>
-              <p className="mt-4 text-sm font-semibold text-amber-700">— {post.author}</p>
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/30 p-6 text-center">
+              <p className="text-lg italic leading-9 text-gray-700 dark:text-gray-200 font-medium">{content}</p>
+              <p className="mt-4 text-sm font-semibold text-amber-700 dark:text-amber-300">— {post.author}</p>
             </div>
           ) : (
             <RenderedContent text={content} />
           )}
 
           {post.tags.length > 0 && (
-            <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-6">
+            <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-gray-100 dark:border-gray-800 pt-6">
               <Tag className="h-3.5 w-3.5 text-gray-400" />
               {post.tags.map(tag => (
-                <span key={tag} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-500">
+                <span key={tag} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                   #{tag}
                 </span>
               ))}
@@ -573,7 +573,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
 
       {related.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-4 text-base font-bold text-gray-800">{t('knowledge.relatedPosts')}</h2>
+          <h2 className="mb-4 text-base font-bold text-gray-800 dark:text-gray-100">{t('knowledge.relatedPosts')}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {related.map(r => {
               const rTitle = language === 'lo' && r.title_lo ? r.title_lo : r.title_en
@@ -582,13 +582,13 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
                 <Link
                   key={r.id}
                   to={`/bookstore/knowledge/${r.id}`}
-                  className="rounded-xl border border-gray-100 bg-white p-4 hover:border-primary-200 hover:shadow-sm transition-all"
+                  className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-sm transition-all"
                 >
                   <span className="flex items-center gap-1 text-[10px] text-gray-400 mb-1">
                     <RIcon className="h-2.5 w-2.5" />
                     {t(`knowledge.${r.type}s` as `knowledge.${typeof r.type}s`)}
                   </span>
-                  <p className="text-sm font-semibold text-gray-700 line-clamp-2">{rTitle}</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 line-clamp-2">{rTitle}</p>
                   <p className="mt-1 text-[10px] text-gray-400">{r.author}</p>
                 </Link>
               )
@@ -638,7 +638,7 @@ export function KnowledgeDetail() {
     return (
       <div className="py-24 text-center text-gray-400">
         <p>Post not found.</p>
-        <Link to="/bookstore/knowledge" className="mt-4 inline-block text-sm text-primary-600 hover:underline">
+        <Link to="/bookstore/knowledge" className="mt-4 inline-block text-sm text-primary-600 dark:text-primary-400 hover:underline">
           Back to Knowledge Hub
         </Link>
       </div>

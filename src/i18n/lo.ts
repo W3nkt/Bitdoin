@@ -405,6 +405,22 @@ const lo: Translations = {
     optional: 'ຖ້າມີ',
   },
 
+  // ── Form validation (replaces the browser's own bubbles) ──────────────────────
+  validation: {
+    required: 'ກະລຸນາປ້ອນຂໍ້ມູນໃສ່ຊ່ອງນີ້.',
+    selectRequired: 'ກະລຸນາເລືອກໜຶ່ງຕົວເລືອກ.',
+    checkRequired: 'ກະລຸນາໝາຍຕິກໃສ່ຊ່ອງນີ້ເພື່ອດຳເນີນການຕໍ່.',
+    email: 'ກະລຸນາປ້ອນອີເມວໃຫ້ຖືກຕ້ອງ, ເຊັ່ນ: name@example.com.',
+    url: 'ກະລຸນາປ້ອນລິ້ງໃຫ້ຖືກຕ້ອງ.',
+    tooShort: 'ກະລຸນາປ້ອນຢ່າງໜ້ອຍ {{min}} ຕົວອັກສອນ (ຕອນນີ້ມີ {{count}}).',
+    tooLong: 'ກະລຸນາປ້ອນບໍ່ເກີນ {{max}} ຕົວອັກສອນ.',
+    pattern: 'ກະລຸນາປ້ອນຕາມຮູບແບບທີ່ສະແດງໃນຊ່ອງນີ້.',
+    rangeUnderflow: 'ກະລຸນາປ້ອນ {{min}} ຫຼື ຫຼາຍກວ່າ.',
+    rangeOverflow: 'ກະລຸນາປ້ອນ {{max}} ຫຼື ໜ້ອຍກວ່າ.',
+    number: 'ກະລຸນາປ້ອນຕົວເລກໃຫ້ຖືກຕ້ອງ.',
+    invalid: 'ກະລຸນາກວດສອບຊ່ອງນີ້ອີກຄັ້ງ.',
+  },
+
   admin: {
     dashboard: 'ໜ້າຫຼັກ',
     books: 'ໜັງສື',

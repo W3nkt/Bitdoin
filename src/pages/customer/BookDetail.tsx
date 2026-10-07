@@ -233,20 +233,20 @@ export function BookDetail() {
 
         {/* Price + action card */}
         {book.prices && book.prices.length > 0 && (
-          <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
             {/* Price row */}
-            <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                   {t('book.priceFrom')}
                 </p>
-                <p className="text-2xl font-black text-primary-700 leading-tight mt-0.5">
+                <p className="text-2xl font-black text-primary-700 dark:text-primary-300 leading-tight mt-0.5">
                   {selectedPrice ? formatPrice(selectedPrice.final_price, currency) : '—'}
                 </p>
                 {selectedPrice && (
                   <p className={cn(
                     'mt-0.5 flex items-center gap-1 text-xs font-semibold',
-                    selectedPrice.availability === 'AVAILABLE' ? 'text-green-600' :
+                    selectedPrice.availability === 'AVAILABLE' ? 'text-green-600 dark:text-green-400' :
                     selectedPrice.availability === 'LOW_STOCK'  ? 'text-amber-500' : 'text-red-500',
                   )}>
                     {selectedPrice.availability === 'AVAILABLE' && <CheckCircle className="h-3 w-3" />}
@@ -257,16 +257,16 @@ export function BookDetail() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-shrink-0">
                 <button
                   onClick={handleAddToCart}
                   disabled={!isAvailable}
-                  className="flex h-11 items-center gap-2 rounded-xl border-2 border-primary-700 px-4 text-sm font-bold text-primary-700 hover:bg-primary-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex h-11 items-center gap-2 rounded-xl border-2 border-primary-700 dark:border-primary-400 px-4 text-sm font-bold text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/40 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ShoppingCart className="h-4 w-4 flex-shrink-0" />
                   <span className="hidden sm:inline">{t('book.addToCart')}</span>
                 </button>
-                <CtaButton onActivate={handleBuyNow} disabled={!isAvailable}>
+                <CtaButton onActivate={handleBuyNow} disabled={!isAvailable} className="flex-1 sm:flex-none">
                   {t('book.buyNow')}
                 </CtaButton>
               </div>
@@ -274,7 +274,7 @@ export function BookDetail() {
 
             {/* Divider — store comparison is admin-only; customers just get the best price */}
             {isAdmin && book.prices.length > 1 && (
-              <div className="border-t border-gray-100 px-4 py-3">
+              <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3">
                 <p className="mb-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Store className="h-3 w-3" />
                   {t('book.compareStores')}
@@ -287,20 +287,20 @@ export function BookDetail() {
                       className={cn(
                         'w-full flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
                         selectedPriceIdx === idx
-                          ? 'border-primary-600 bg-primary-50'
-                          : 'border-gray-100 bg-gray-50 hover:border-gray-200 active:bg-gray-100',
+                          ? 'border-primary-600 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40'
+                          : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800',
                       )}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={cn(
                           'h-2.5 w-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-1 transition-colors',
-                          selectedPriceIdx === idx ? 'bg-primary-600 ring-primary-300' : 'bg-gray-300 ring-gray-200',
+                          selectedPriceIdx === idx ? 'bg-primary-600 ring-primary-300' : 'bg-gray-300 dark:bg-gray-600 ring-gray-200 dark:ring-gray-700',
                         )} />
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{price.bookstore?.name}</p>
+                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{price.bookstore?.name}</p>
                           <p className={cn(
                             'text-xs mt-0.5 flex items-center gap-1 font-medium',
-                            price.availability === 'AVAILABLE' ? 'text-green-600' :
+                            price.availability === 'AVAILABLE' ? 'text-green-600 dark:text-green-400' :
                             price.availability === 'LOW_STOCK'  ? 'text-amber-500' : 'text-red-500',
                           )}>
                             {price.availability === 'AVAILABLE' && <CheckCircle className="h-2.5 w-2.5" />}
@@ -310,7 +310,7 @@ export function BookDetail() {
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0 ml-3">
-                        <p className="text-sm font-bold text-primary-700">
+                        <p className="text-sm font-bold text-primary-700 dark:text-primary-300">
                           {formatPrice(price.final_price, currency)}
                         </p>
                       </div>
@@ -323,19 +323,19 @@ export function BookDetail() {
         )}
 
         {readingSummary && (
-          <div className="overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-amber-50 shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-500/30 bg-gradient-to-br from-violet-50 dark:from-violet-500/10 via-white dark:via-gray-900 to-amber-50 dark:to-amber-500/10 shadow-sm">
             <div className="flex items-center gap-4 p-4 sm:p-5">
               <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-violet-700 text-white shadow-sm">
                 <GraduationCap className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
                   Bitdoin Academy
                 </p>
                 <h2 className="mt-1 text-sm font-black text-gray-950">
                   {language === 'lo' ? 'ອ່ານສະຫຼຸບປຶ້ມນີ້' : 'Read this book summary'}
                 </h2>
-                <p className="mt-1 text-xs leading-5 text-gray-500">
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
                   {readingSummary.estimated_minutes} {language === 'lo'
                     ? 'ນາທີ · ແນວຄິດສຳຄັນ ແລະ ບົດຮຽນນຳໃຊ້'
                     : 'min · Key ideas and practical takeaways'}
@@ -353,7 +353,7 @@ export function BookDetail() {
               </button>
             </div>
             {!readingSummary.has_access && (
-              <p className="border-t border-violet-100 bg-white/60 px-4 py-2 text-center text-[11px] font-semibold text-violet-700">
+              <p className="border-t border-violet-100 dark:border-violet-500/30 bg-white/60 dark:bg-gray-900/60 px-4 py-2 text-center text-[11px] font-semibold text-violet-700 dark:text-violet-300">
                 {language === 'lo'
                   ? 'ສະໝັກ Academy ເພື່ອປົດລັອກສະຫຼຸບ ແລະ ບົດຮຽນທັງໝົດ'
                   : 'Subscribe to Academy to unlock summaries and the full learning library'}
@@ -374,21 +374,21 @@ export function BookDetail() {
 
         {/* Description */}
         {book.description && (
-          <div className="rounded-2xl bg-white border border-gray-100 px-4 py-4">
-            <h2 className="text-sm font-bold text-gray-900 mb-2">{t('book.description')}</h2>
+          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-4 py-4">
+            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">{t('book.description')}</h2>
             <div
               className={cn(
-                'text-sm text-gray-600 leading-relaxed',
+                'text-sm text-gray-600 dark:text-gray-300 leading-relaxed',
                 '[&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline',
                 '[&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5',
                 '[&_p]:mb-2 [&_div]:mb-1',
-                '[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-200 [&_blockquote]:pl-3 [&_blockquote]:italic',
-                '[&_h1]:mb-1.5 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-gray-900',
-                '[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900',
-                '[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-gray-900',
-                '[&_h4]:mb-1 [&_h4]:mt-2 [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-gray-900',
-                '[&_h5]:mb-1 [&_h5]:mt-2 [&_h5]:text-sm [&_h5]:font-bold [&_h5]:text-gray-900',
-                '[&_h6]:mb-1 [&_h6]:mt-2 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:text-gray-900',
+                '[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-200 dark:[&_blockquote]:border-gray-700 [&_blockquote]:pl-3 [&_blockquote]:italic',
+                '[&_h1]:mb-1.5 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-gray-100',
+                '[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-gray-100',
+                '[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-gray-900 dark:[&_h3]:text-gray-100',
+                '[&_h4]:mb-1 [&_h4]:mt-2 [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-gray-900 dark:[&_h4]:text-gray-100',
+                '[&_h5]:mb-1 [&_h5]:mt-2 [&_h5]:text-sm [&_h5]:font-bold [&_h5]:text-gray-900 dark:[&_h5]:text-gray-100',
+                '[&_h6]:mb-1 [&_h6]:mt-2 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:text-gray-900 dark:[&_h6]:text-gray-100',
               )}
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(book.description) }}
             />
@@ -397,20 +397,20 @@ export function BookDetail() {
 
         {/* Single-store price note (when only 1 store) — store name is admin-only */}
         {book.prices && book.prices.length === 1 && (
-          <div className="rounded-2xl bg-white border border-gray-100 px-4 py-4">
+          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-4 py-4">
             {isAdmin && (
               <>
                 <div className="flex items-center gap-2 mb-2">
-                  <Store className="h-4 w-4 text-primary-700 flex-shrink-0" />
-                  <h2 className="text-sm font-bold text-gray-900">{t('book.compareStores')}</h2>
+                  <Store className="h-4 w-4 text-primary-700 dark:text-primary-300 flex-shrink-0" />
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.compareStores')}</h2>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700 font-medium">{book.prices[0].bookstore?.name}</span>
-                  <span className="font-bold text-primary-700">{formatPrice(book.prices[0].final_price, currency)}</span>
+                  <span className="text-gray-700 dark:text-gray-200 font-medium">{book.prices[0].bookstore?.name}</span>
+                  <span className="font-bold text-primary-700 dark:text-primary-300">{formatPrice(book.prices[0].final_price, currency)}</span>
                 </div>
               </>
             )}
-            <p className={cn('text-center text-xs text-gray-400 bg-gray-50 rounded-xl py-2', isAdmin && 'mt-2.5')}>
+            <p className={cn('text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl py-2', isAdmin && 'mt-2.5')}>
               {t('cart.deliveryFeeNote')}
             </p>
           </div>
@@ -419,7 +419,7 @@ export function BookDetail() {
         {/* Related books — horizontal scroll */}
         {relatedBooks && relatedBooks.length > 0 && (
           <div>
-            <h2 className="text-sm font-bold text-gray-900 mb-3">{t('book.relatedBooks')}</h2>
+            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">{t('book.relatedBooks')}</h2>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
               {relatedBooks.map(b => (
                 <div key={b.id} className="flex-shrink-0 w-28 sm:w-32">
@@ -436,9 +436,9 @@ export function BookDetail() {
 
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-white border border-gray-100 px-2 py-2.5 text-center">
+    <div className="min-w-0 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-2 py-2.5 text-center">
       <p className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">{label}</p>
-      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate" title={value}>{value}</p>
+      <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mt-0.5 truncate" title={value}>{value}</p>
     </div>
   )
 }

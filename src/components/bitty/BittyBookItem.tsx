@@ -67,7 +67,7 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
 
   return (
     <li className="flex gap-2 py-2.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-3">
-      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 text-primary-700 sm:h-8 sm:w-8" aria-hidden="true">
+      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 sm:h-8 sm:w-8" aria-hidden="true">
         <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </span>
 
@@ -75,22 +75,22 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
         <Link
           to={detailsUrl}
           onClick={onOpenDetails}
-          className="text-[13px] font-semibold leading-snug text-gray-900 sm:text-sm hover:text-primary-700 hover:underline"
+          className="text-[13px] font-semibold leading-snug text-gray-900 dark:text-gray-100 sm:text-sm hover:text-primary-700 dark:hover:text-primary-300 hover:underline"
         >
           {book.title}
         </Link>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500 sm:text-xs">
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-gray-500 dark:text-gray-400 sm:text-xs">
           {book.author && <span className="truncate">{book.author}</span>}
-          <span className="font-bold text-primary-700">
+          <span className="font-bold text-primary-700 dark:text-primary-300">
             {book.price != null ? formatPrice(book.price, currency) : t('bitty.noPrice')}
           </span>
           {!book.available && (
-            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
+            <span className="rounded-full bg-red-50 dark:bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-600 dark:text-red-400">
               {t('bitty.outOfStock')}
             </span>
           )}
         </p>
-        {book.reason && <p className="mt-1 text-[11px] leading-relaxed text-gray-600 sm:text-xs">{book.reason}</p>}
+        {book.reason && <p className="mt-1 text-[11px] leading-relaxed text-gray-600 dark:text-gray-300 sm:text-xs">{book.reason}</p>}
 
         <div className="mt-1.5 flex flex-wrap gap-1.5 sm:mt-2">
           {book.available && (
@@ -107,7 +107,7 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
           <Link
             to={detailsUrl}
             onClick={onOpenDetails}
-            className="rounded-lg border border-primary-700 px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs text-primary-700 transition-colors hover:bg-primary-50"
+            className="rounded-lg border border-primary-700 dark:border-primary-400 px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs text-primary-700 dark:text-primary-300 transition-colors hover:bg-primary-50 dark:hover:bg-primary-900/40"
           >
             {t('bitty.details')}
           </Link>

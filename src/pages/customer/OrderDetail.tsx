@@ -126,12 +126,12 @@ export function OrderDetail() {
 
   return (
     <div className="space-y-4 pb-8 max-w-lg mx-auto">
-      <button onClick={() => navigate('/bookstore/orders')} className="flex items-center gap-2 text-sm text-gray-500">
+      <button onClick={() => navigate('/bookstore/orders')} className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
         <ChevronLeft className="h-4 w-4" /> {t('orders.title')}
       </button>
 
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
         <p className="text-xs text-gray-400 font-mono">{t('orders.orderNumber')}{order.order_number}</p>
         <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(order.created_at, language)}</p>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -145,42 +145,42 @@ export function OrderDetail() {
       </div>
 
       {/* Items */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-700">{t('orders.items')}</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('orders.items')}</h3>
         {order.items?.map(item => (
           <div key={item.id} className="flex items-center gap-3">
-            <div className="w-10 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+            <div className="w-10 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
               {item.book?.cover_image_url && (
                 <img src={item.book.cover_image_url} alt={item.book.title} className="w-full h-full object-cover" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 line-clamp-1">{item.book?.title}</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100 line-clamp-1">{item.book?.title}</p>
               <p className="text-xs text-gray-400">{item.bookstore?.name} · {t('cart.qty')} {item.quantity}</p>
             </div>
-            <p className="text-sm font-semibold text-gray-800 flex-shrink-0">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 flex-shrink-0">
               {formatPrice(item.final_price * item.quantity, currency)}
             </p>
           </div>
         ))}
         <div className="border-t pt-2 flex justify-between text-sm font-bold">
           <span>{t('checkout.total')}</span>
-          <span className="text-primary-700">{formatPrice(order.total_amount, currency)}</span>
+          <span className="text-primary-700 dark:text-primary-300">{formatPrice(order.total_amount, currency)}</span>
         </div>
         <p className="text-xs text-gray-400">{t('cart.deliveryFeeNote')}</p>
       </div>
 
       {/* Delivery info */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
-        <h3 className="text-sm font-semibold text-gray-700">{t('checkout.deliveryInfo')}</h3>
-        <p className="text-sm text-gray-600">{order.customer_name}</p>
-        <p className="text-sm text-gray-600">{order.customer_phone}</p>
-        <p className="text-sm text-gray-600 whitespace-pre-line">{order.delivery_address}</p>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-2">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.deliveryInfo')}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{order.customer_name}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">{order.customer_phone}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{order.delivery_address}</p>
         {delivery && (
-          <div className="mt-3 rounded-xl bg-gray-50 p-3 space-y-1">
-            <p className="text-xs font-medium text-gray-700">{t('orders.courier')}: {delivery.courier}</p>
+          <div className="mt-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 space-y-1">
+            <p className="text-xs font-medium text-gray-700 dark:text-gray-200">{t('orders.courier')}: {delivery.courier}</p>
             {delivery.tracking_number && (
-              <p className="text-xs text-gray-500">{t('orders.trackingNumber')}: {delivery.tracking_number}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('orders.trackingNumber')}: {delivery.tracking_number}</p>
             )}
           </div>
         )}
@@ -188,15 +188,15 @@ export function OrderDetail() {
 
       {/* ── Payment section ── */}
       {payment && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-4">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-700">{t('checkout.paymentMethod')}</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.paymentMethod')}</h3>
             <span className="text-xs text-gray-400">{t(`checkout.paymentMethods.${payment.method}`)}</span>
           </div>
 
           {/* STATE 1 — COD, nothing to do */}
           {isCOD && (
-            <div className="rounded-xl bg-blue-50 p-3 flex items-center gap-2 text-sm text-blue-700">
+            <div className="rounded-xl bg-blue-50 dark:bg-blue-500/10 p-3 flex items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
               <CreditCard className="h-4 w-4 flex-shrink-0" />
               <span>{t('cart.deliveryFeeNote')}</span>
             </div>
@@ -205,11 +205,11 @@ export function OrderDetail() {
           {/* STATE 2 — VERIFIED → show full receipt */}
           {isVerified && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-green-50 p-3 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <div className="rounded-xl bg-green-50 dark:bg-green-500/10 p-3 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-green-700">{t('payment.verified')}</p>
-                  <p className="text-xs text-green-600">{t('orders.receiptReady')}</p>
+                  <p className="text-sm font-semibold text-green-700 dark:text-green-300">{t('payment.verified')}</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">{t('orders.receiptReady')}</p>
                 </div>
               </div>
               <Receipt order={order} payment={payment} language={language} currency={currency} />
@@ -219,20 +219,20 @@ export function OrderDetail() {
           {/* STATE 3 — UNDER REVIEW */}
           {isUnderReview && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-orange-50 border border-orange-100 p-3 flex items-center gap-2">
+              <div className="rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/30 p-3 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-orange-500 flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-orange-700">{t('orders.underReview')}</p>
-                  <p className="text-xs text-orange-600">{t('payment.requiresReview')}</p>
+                  <p className="text-sm font-semibold text-orange-700 dark:text-orange-300">{t('orders.underReview')}</p>
+                  <p className="text-xs text-orange-600 dark:text-orange-400">{t('payment.requiresReview')}</p>
                 </div>
               </div>
               {payment.receipt_image_url && (
-                <div className="rounded-xl overflow-hidden border border-gray-100">
+                <div className="rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800">
                   <StorageImage
                     src={payment.receipt_image_url}
                     bucket="receipts"
                     alt="Payment receipt"
-                    className="w-full max-h-56 object-contain bg-gray-50"
+                    className="w-full max-h-56 object-contain bg-gray-50 dark:bg-gray-800/50"
                   />
                 </div>
               )}
@@ -242,10 +242,10 @@ export function OrderDetail() {
           {/* STATE 4 — REJECTED → show reason + re-upload */}
           {isRejected && (
             <div className="space-y-3">
-              <div className="rounded-xl bg-red-50 border border-red-100 p-3 flex items-start gap-2">
+              <div className="rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/30 p-3 flex items-start gap-2">
                 <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-red-700">{t('payment.rejected')}</p>
+                  <p className="text-sm font-semibold text-red-700 dark:text-red-300">{t('payment.rejected')}</p>
                   {payment.rejection_reason && (
                     <p className="text-xs text-red-500 mt-0.5">{t('payment.rejectionReason')}: {payment.rejection_reason}</p>
                   )}
@@ -324,7 +324,7 @@ function PaymentInstructions({
         <button
           type="button"
           onClick={() => { setLightboxUrl(url); setLightboxLabel(label) }}
-          className="group relative w-48 h-48 rounded-xl border-2 border-gray-200 bg-white p-1 hover:border-primary-400 transition-colors cursor-zoom-in"
+          className="group relative w-48 h-48 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-1 hover:border-primary-400 transition-colors cursor-zoom-in"
           title="Tap to enlarge"
         >
           <img
@@ -363,7 +363,7 @@ function PaymentInstructions({
             <img
               src={lightboxUrl}
               alt={lightboxLabel}
-              className="w-full max-w-xs rounded-xl border border-gray-100"
+              className="w-full max-w-xs rounded-xl border border-gray-100 dark:border-gray-800"
             />
             <p className="text-xs text-gray-400 text-center">{t('payment.qrInstructions')}</p>
           </div>
@@ -375,43 +375,43 @@ function PaymentInstructions({
         <div className="space-y-3">
           {relevantAccounts.length > 0 ? (
             relevantAccounts.map(acc => (
-              <div key={acc.id} className="rounded-xl bg-gray-50 p-4 space-y-3">
+              <div key={acc.id} className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Smartphone className="h-4 w-4 text-primary-600" />
-                  <p className="text-sm font-semibold text-gray-700">{acc.label}</p>
+                  <Smartphone className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{acc.label}</p>
                 </div>
-                <p className="text-xs text-gray-500">{t('payment.qrInstructions')}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('payment.qrInstructions')}</p>
                 {acc.qr_image_url
                   ? <QrImage url={acc.qr_image_url} label={acc.label} />
                   : (
-                    <div className="w-36 h-36 bg-white border-2 border-dashed border-gray-200 rounded-xl mx-auto flex items-center justify-center">
+                    <div className="w-36 h-36 bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl mx-auto flex items-center justify-center">
                       <span className="text-xs text-gray-400 text-center px-2">{t('payment.qrCode')}</span>
                     </div>
                   )}
                 {acc.bank_name && <InfoRow label={t('payment.bankName')} value={acc.bank_name} />}
                 {acc.account_name && <InfoRow label={t('payment.accountName')} value={acc.account_name} />}
                 {acc.instructions && (
-                  <p className="text-xs text-primary-600 bg-primary-50 rounded-lg px-3 py-2">{acc.instructions}</p>
+                  <p className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/40 rounded-lg px-3 py-2">{acc.instructions}</p>
                 )}
-                <div className="bg-white rounded-xl px-4 py-2.5 text-center border border-gray-100">
+                <div className="bg-white dark:bg-gray-900 rounded-xl px-4 py-2.5 text-center border border-gray-100 dark:border-gray-800">
                   <p className="text-xs text-gray-400 mb-0.5">{t('payment.amount')}</p>
-                  <p className="text-xl font-bold text-primary-700">{formatPrice(order.total_amount, currency)}</p>
+                  <p className="text-xl font-bold text-primary-700 dark:text-primary-300">{formatPrice(order.total_amount, currency)}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="rounded-xl bg-gray-50 p-4 space-y-3">
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4 space-y-3">
               <div className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4 text-primary-600" />
-                <p className="text-sm font-semibold text-gray-700">{t('payment.qrTitle')}</p>
+                <Smartphone className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('payment.qrTitle')}</p>
               </div>
-              <p className="text-xs text-gray-500">{t('payment.qrInstructions')}</p>
-              <div className="w-36 h-36 bg-white border-2 border-dashed border-gray-200 rounded-xl mx-auto flex items-center justify-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('payment.qrInstructions')}</p>
+              <div className="w-36 h-36 bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl mx-auto flex items-center justify-center">
                 <span className="text-xs text-gray-400 text-center px-2">{t('payment.qrCode')}</span>
               </div>
-              <div className="bg-white rounded-xl px-4 py-2.5 text-center border border-gray-100">
+              <div className="bg-white dark:bg-gray-900 rounded-xl px-4 py-2.5 text-center border border-gray-100 dark:border-gray-800">
                 <p className="text-xs text-gray-400 mb-0.5">{t('payment.amount')}</p>
-                <p className="text-xl font-bold text-primary-700">{formatPrice(order.total_amount, currency)}</p>
+                <p className="text-xl font-bold text-primary-700 dark:text-primary-300">{formatPrice(order.total_amount, currency)}</p>
               </div>
             </div>
           )}
@@ -423,27 +423,27 @@ function PaymentInstructions({
         <div className="space-y-3">
           {relevantAccounts.length > 0 ? (
             relevantAccounts.map(acc => (
-              <div key={acc.id} className="rounded-xl bg-gray-50 p-4 space-y-2">
+              <div key={acc.id} className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4 space-y-2">
                 <div className="flex items-center gap-2 mb-1">
-                  <CreditCard className="h-4 w-4 text-primary-600" />
-                  <p className="text-sm font-semibold text-gray-700">{acc.label}</p>
+                  <CreditCard className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{acc.label}</p>
                 </div>
                 <InfoRow label={t('payment.bankName')} value={acc.bank_name} />
                 {acc.account_name && <InfoRow label={t('payment.accountName')} value={acc.account_name} />}
                 {acc.account_number && <InfoRow label={t('payment.accountNumber')} value={acc.account_number} mono />}
                 {acc.qr_image_url && <QrImage url={acc.qr_image_url} label={acc.label} />}
                 {acc.instructions && (
-                  <p className="text-xs text-primary-600 bg-primary-50 rounded-lg px-3 py-2">{acc.instructions}</p>
+                  <p className="text-xs text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/40 rounded-lg px-3 py-2">{acc.instructions}</p>
                 )}
-                <div className="bg-white rounded-xl px-4 py-2.5 text-center border border-gray-100 mt-2">
+                <div className="bg-white dark:bg-gray-900 rounded-xl px-4 py-2.5 text-center border border-gray-100 dark:border-gray-800 mt-2">
                   <p className="text-xs text-gray-400 mb-0.5">{t('payment.amount')}</p>
-                  <p className="text-xl font-bold text-primary-700">{formatPrice(order.total_amount, currency)}</p>
+                  <p className="text-xl font-bold text-primary-700 dark:text-primary-300">{formatPrice(order.total_amount, currency)}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="rounded-xl bg-orange-50 border border-orange-100 p-3">
-              <p className="text-xs text-orange-600">Bank transfer details not yet configured. Please contact support.</p>
+            <div className="rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/30 p-3">
+              <p className="text-xs text-orange-600 dark:text-orange-400">Bank transfer details not yet configured. Please contact support.</p>
             </div>
           )}
         </div>
@@ -456,7 +456,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
   return (
     <div className="flex justify-between items-center text-xs gap-2">
       <span className="text-gray-400 flex-shrink-0">{label}</span>
-      <span className={`text-gray-700 font-medium text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className={`text-gray-700 dark:text-gray-200 font-medium text-right ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }

@@ -61,11 +61,11 @@ export function TrackOrder() {
   return (
     <div className="mx-auto max-w-lg space-y-5 pb-10">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">{t('tracking.title')}</h1>
-        <p className="mt-1 text-sm text-gray-500">{t('tracking.subtitle')}</p>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('tracking.title')}</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('tracking.subtitle')}</p>
       </div>
 
-      <form onSubmit={handleTrack} className="space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-card">
+      <form onSubmit={handleTrack} className="space-y-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-card">
         <Input
           label={t('tracking.orderCode')}
           value={orderNumber}
@@ -89,22 +89,22 @@ export function TrackOrder() {
       </form>
 
       {searched && !order && (
-        <div className="rounded-2xl border border-gray-100 bg-white px-5 py-10 text-center">
-          <PackageSearch className="mx-auto h-12 w-12 text-gray-300" />
-          <p className="mt-3 text-sm font-semibold text-gray-700">{t('tracking.notFound')}</p>
+        <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-5 py-10 text-center">
+          <PackageSearch className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
+          <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('tracking.notFound')}</p>
           <p className="mt-1 text-xs text-gray-400">{t('tracking.checkDetails')}</p>
         </div>
       )}
 
       {order && (
         <div className="space-y-4 animate-fade-in">
-          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-card">
+          <section className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-card">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="font-mono text-sm font-bold text-gray-900">{order.order_number}</p>
+                <p className="font-mono text-sm font-bold text-gray-900 dark:text-gray-100">{order.order_number}</p>
                 <p className="mt-1 text-xs text-gray-400">{formatDateTime(order.created_at, language)}</p>
               </div>
-              <p className="shrink-0 text-base font-bold text-primary-700">
+              <p className="shrink-0 text-base font-bold text-primary-700 dark:text-primary-300">
                 {formatPrice(order.total_amount, currency)}
               </p>
             </div>
@@ -118,32 +118,32 @@ export function TrackOrder() {
             </div>
           </section>
 
-          <section className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-700">{t('orders.items')}</h2>
+          <section className="space-y-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('orders.items')}</h2>
             {order.items?.map(item => (
               <div key={item.id} className="flex items-center gap-3">
-                <div className="h-14 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                <div className="h-14 w-11 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
                   {item.book?.cover_image_url && (
                     <img src={item.book.cover_image_url} alt={item.book.title} className="h-full w-full object-cover" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 text-sm font-medium text-gray-800">{item.book?.title}</p>
+                  <p className="line-clamp-1 text-sm font-medium text-gray-800 dark:text-gray-100">{item.book?.title}</p>
                   <p className="text-xs text-gray-400">{item.bookstore?.name} · {t('cart.qty')} {item.quantity}</p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-gray-800">
+                <p className="shrink-0 text-sm font-semibold text-gray-800 dark:text-gray-100">
                   {formatPrice(item.final_price * item.quantity, currency)}
                 </p>
               </div>
             ))}
           </section>
 
-          <section className="rounded-2xl border border-gray-100 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-700">{t('tracking.delivery')}</h2>
-            <p className="mt-2 text-sm text-gray-600">{order.customer_name}</p>
-            <p className="text-sm text-gray-600 whitespace-pre-line">{order.delivery_address}</p>
+          <section className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('tracking.delivery')}</h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{order.customer_name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{order.delivery_address}</p>
             {order.deliveries?.[0] && (
-              <div className="mt-3 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+              <div className="mt-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 text-xs text-gray-600 dark:text-gray-300">
                 <p>{t('orders.courier')}: {order.deliveries[0].courier}</p>
                 {order.deliveries[0].tracking_number && (
                   <p className="mt-1 font-mono">{t('orders.trackingNumber')}: {order.deliveries[0].tracking_number}</p>

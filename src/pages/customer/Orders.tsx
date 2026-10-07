@@ -49,16 +49,16 @@ export function Orders() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold text-gray-900">{t('orders.title')}</h1>
+      <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('orders.title')}</h1>
 
       {orders.map(order => (
         <button
           key={order.id}
           onClick={() => navigate(`/bookstore/orders/${order.id}`)}
-          className="group w-full overflow-hidden rounded-2xl border border-gray-100 bg-white text-left transition-all hover:border-primary-200 hover:shadow-sm"
+          className="group w-full overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-left transition-all hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-sm"
         >
           <div className="flex min-h-36 items-stretch">
-            <div className="relative w-24 flex-shrink-0 bg-gray-100 sm:w-28">
+            <div className="relative w-24 flex-shrink-0 bg-gray-100 dark:bg-gray-800 sm:w-28">
               {order.items?.[0]?.book?.cover_image_url ? (
                 <img
                   src={order.items[0].book.cover_image_url}
@@ -67,7 +67,7 @@ export function Orders() {
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Package className="h-8 w-8 text-gray-300" />
+                  <Package className="h-8 w-8 text-gray-300 dark:text-gray-600" />
                 </div>
               )}
               {(order.items?.length ?? 0) > 1 && (
@@ -91,17 +91,17 @@ export function Orders() {
               </div>
 
               {order.items?.[0]?.book?.title && (
-                <p className="mt-3 line-clamp-1 text-sm font-semibold text-gray-800">
+                <p className="mt-3 line-clamp-1 text-sm font-semibold text-gray-800 dark:text-gray-100">
                   {order.items[0].book.title}
                 </p>
               )}
             </div>
 
             <div className="flex flex-shrink-0 flex-col items-end justify-center gap-2 py-4 pl-1 pr-4 text-right">
-              <p className="text-sm font-bold text-primary-700 sm:text-base">
+              <p className="text-sm font-bold text-primary-700 dark:text-primary-300 sm:text-base">
                 {formatPrice(order.total_amount, currency)}
               </p>
-              <ChevronRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500" />
+              <ChevronRight className="h-4 w-4 text-gray-300 dark:text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500 dark:group-hover:text-primary-400" />
             </div>
           </div>
         </button>

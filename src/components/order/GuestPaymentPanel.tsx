@@ -95,14 +95,14 @@ export function GuestPaymentPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-primary-50 px-4 py-3">
-        <p className="text-xs font-medium text-primary-500">{t('tracking.saveCode')}</p>
+      <div className="rounded-2xl bg-primary-50 dark:bg-primary-900/40 px-4 py-3">
+        <p className="text-xs font-medium text-primary-500 dark:text-primary-400">{t('tracking.saveCode')}</p>
         <div className="mt-1 flex items-center justify-between gap-3">
-          <p className="truncate font-mono text-lg font-bold text-primary-800">{order.order_number}</p>
+          <p className="truncate font-mono text-lg font-bold text-primary-800 dark:text-primary-300">{order.order_number}</p>
           <button
             type="button"
             onClick={copyOrderCode}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm transition-colors hover:bg-primary-100"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-gray-900 text-primary-700 dark:text-primary-300 shadow-sm transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/60"
             aria-label={t('tracking.copyCode')}
           >
             <Copy className="h-4 w-4" />
@@ -113,7 +113,7 @@ export function GuestPaymentPanel({
       {payment.verification_status === 'VERIFIED' && (
         <StatusMessage
           icon={<CheckCircle className="h-5 w-5" />}
-          className="bg-green-50 text-green-700"
+          className="bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300"
           title={t('payment.verified')}
           detail={t('orders.receiptReady')}
         />
@@ -122,7 +122,7 @@ export function GuestPaymentPanel({
       {payment.verification_status === 'REQUIRES_REVIEW' && (
         <StatusMessage
           icon={<Clock className="h-5 w-5" />}
-          className="bg-orange-50 text-orange-700"
+          className="bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300"
           title={t('orders.underReview')}
           detail={t('payment.requiresReview')}
         />
@@ -131,7 +131,7 @@ export function GuestPaymentPanel({
       {payment.verification_status === 'REJECTED' && (
         <StatusMessage
           icon={<XCircle className="h-5 w-5" />}
-          className="bg-red-50 text-red-700"
+          className="bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300"
           title={t('payment.rejected')}
           detail={payment.rejection_reason || t('payment.uploadNew')}
         />
@@ -140,22 +140,22 @@ export function GuestPaymentPanel({
       {isCOD ? (
         <StatusMessage
           icon={<CreditCard className="h-5 w-5" />}
-          className="bg-blue-50 text-blue-700"
+          className="bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300"
           title={t('checkout.paymentMethods.CASH_ON_DELIVERY')}
           detail={t('tracking.codNote')}
         />
       ) : payment.verification_status !== 'VERIFIED' && (
         <>
           <div>
-            <h3 className="text-sm font-semibold text-gray-800">{t('payment.payNow')}</h3>
-            <p className="mt-1 text-xs text-gray-500">{t('payment.payThenUpload')}</p>
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('payment.payNow')}</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('payment.payThenUpload')}</p>
           </div>
           {loadingAccounts ? (
-            <div className="rounded-2xl bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">
+            <div className="rounded-2xl bg-gray-50 dark:bg-gray-800/50 px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
               {t('common.loading')}
             </div>
           ) : accountsError ? (
-            <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+            <p className="rounded-xl bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
               {accountsError instanceof Error ? accountsError.message : t('common.error')}
             </p>
           ) : (
@@ -174,12 +174,12 @@ export function GuestPaymentPanel({
           src={payment.receipt_image_url}
           bucket="receipts"
           alt={t('payment.receipt')}
-          className="max-h-56 w-full rounded-2xl border border-gray-100 bg-gray-50 object-contain"
+          className="max-h-56 w-full rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 object-contain"
         />
       )}
 
       {canUpload && (
-        <div className="rounded-2xl border-2 border-dashed border-primary-200 bg-primary-50/60 p-4">
+        <div className="rounded-2xl border-2 border-dashed border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/40 p-4">
           <input
             ref={inputRef}
             type="file"
@@ -188,9 +188,9 @@ export function GuestPaymentPanel({
             onChange={handleUpload}
           />
           <div className="mb-3 text-center">
-            <ImageUp className="mx-auto h-8 w-8 text-primary-500" />
-            <p className="mt-2 text-sm font-semibold text-primary-800">{t('payment.submitProof')}</p>
-            <p className="mt-1 text-xs text-primary-600">{t('payment.submitProofNote')}</p>
+            <ImageUp className="mx-auto h-8 w-8 text-primary-500 dark:text-primary-400" />
+            <p className="mt-2 text-sm font-semibold text-primary-800 dark:text-primary-300">{t('payment.submitProof')}</p>
+            <p className="mt-1 text-xs text-primary-600 dark:text-primary-400">{t('payment.submitProofNote')}</p>
           </div>
           <Button
             type="button"
@@ -251,12 +251,12 @@ export function PaymentInstructions({
   return (
     <div className="space-y-3">
       {relevantAccounts.map(account => (
-        <div key={account.id} className="space-y-3 rounded-2xl border-2 border-primary-100 bg-white p-4 shadow-sm">
+        <div key={account.id} className="space-y-3 rounded-2xl border-2 border-primary-100 dark:border-primary-800 bg-white dark:bg-gray-900 p-4 shadow-sm">
           <div className="flex items-center gap-2">
             {method === 'QR_PAYMENT'
-              ? <Smartphone className="h-4 w-4 text-primary-600" />
-              : <CreditCard className="h-4 w-4 text-primary-600" />}
-            <p className="text-sm font-semibold text-gray-800">{account.label}</p>
+              ? <Smartphone className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+              : <CreditCard className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{account.label}</p>
           </div>
           {account.qr_image_url && (
             <div className="space-y-2">
@@ -264,13 +264,13 @@ export function PaymentInstructions({
                 <img
                   src={account.qr_image_url}
                   alt={account.label}
-                  className="mx-auto h-64 w-64 max-w-full rounded-2xl border-2 border-gray-200 bg-white object-contain p-2 shadow-sm"
+                  className="mx-auto h-64 w-64 max-w-full rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 object-contain p-2 shadow-sm"
                 />
               </a>
               <button
                 type="button"
                 onClick={() => downloadImage(account.qr_image_url!, `${account.label}-qr.png`)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-100"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/40 px-3 py-2 text-xs font-medium text-primary-700 dark:text-primary-300 transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/60"
               >
                 <Download className="h-3.5 w-3.5" />
                 {t('payment.downloadQr')}
@@ -280,20 +280,20 @@ export function PaymentInstructions({
           {account.bank_name && <InfoRow label={t('payment.bankName')} value={account.bank_name} />}
           {account.account_name && <InfoRow label={t('payment.accountName')} value={account.account_name} />}
           {account.account_number && method !== 'QR_PAYMENT' && (
-            <div className="rounded-xl border-2 border-primary-300 bg-primary-50 p-3">
+            <div className="rounded-xl border-2 border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/40 p-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-primary-600">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">
                     {t('payment.transferTo')}
                   </p>
-                  <p className="mt-0.5 break-all font-mono text-lg font-bold text-primary-900">
+                  <p className="mt-0.5 break-all font-mono text-lg font-bold text-primary-900 dark:text-primary-300">
                     {account.account_number}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => copyValue(account.account_number!)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-primary-700 shadow-sm transition-colors hover:bg-primary-100"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-gray-900 text-primary-700 dark:text-primary-300 shadow-sm transition-colors hover:bg-primary-100 dark:hover:bg-primary-900/60"
                   aria-label={t('common.copy')}
                 >
                   <Copy className="h-4 w-4" />
@@ -301,15 +301,15 @@ export function PaymentInstructions({
               </div>
             </div>
           )}
-          {account.instructions && <p className="rounded-xl bg-primary-50 px-3 py-2 text-xs text-primary-700">{account.instructions}</p>}
-          <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
-            <p className="text-xs font-semibold text-emerald-700">{t('payment.amount')}</p>
-            <p className="text-2xl font-bold text-emerald-800">{formatPrice(amount, currency)}</p>
+          {account.instructions && <p className="rounded-xl bg-primary-50 dark:bg-primary-900/40 px-3 py-2 text-xs text-primary-700 dark:text-primary-300">{account.instructions}</p>}
+          <div className="rounded-xl border-2 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-center">
+            <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{t('payment.amount')}</p>
+            <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-300">{formatPrice(amount, currency)}</p>
           </div>
         </div>
       ))}
       {relevantAccounts.length === 0 && (
-        <p className="rounded-xl bg-orange-50 px-3 py-2 text-xs text-orange-700">
+        <p className="rounded-xl bg-orange-50 dark:bg-orange-500/10 px-3 py-2 text-xs text-orange-700 dark:text-orange-300">
           {t('payment.accountUnavailable')}
         </p>
       )}
@@ -343,7 +343,7 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string;
   return (
     <div className="flex items-start justify-between gap-4 text-xs">
       <span className="shrink-0 text-gray-400">{label}</span>
-      <span className={`break-all text-right font-medium text-gray-700 ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className={`break-all text-right font-medium text-gray-700 dark:text-gray-200 ${mono ? 'font-mono' : ''}`}>{value}</span>
     </div>
   )
 }

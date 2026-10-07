@@ -156,7 +156,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
       }}
       className={cn(
         closing ? 'bitty-panel-exit' : entering && 'bitty-panel-enter',
-        'fixed inset-x-3 bottom-[4.5rem] z-50 flex h-[min(520px,72dvh)] flex-col overflow-hidden rounded-2xl border border-primary-200 bg-white shadow-[0_24px_60px_-12px_rgba(15,31,53,0.45)] ring-4 ring-primary-700/10 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[min(640px,calc(100vh-3rem))] sm:w-[400px]',
+        'fixed inset-x-3 bottom-[4.5rem] z-50 flex h-[min(520px,72dvh)] flex-col overflow-hidden rounded-2xl border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-900 shadow-[0_24px_60px_-12px_rgba(15,31,53,0.45)] ring-4 ring-primary-700/10 dark:ring-primary-400/10 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[min(640px,calc(100vh-3rem))] sm:w-[400px]',
       )}
     >
       <header className="bitty-header relative flex items-center gap-2 overflow-hidden bg-primary-700 px-3 py-2 text-white sm:gap-3 sm:px-4 sm:py-3">
@@ -183,7 +183,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
         </button>
       </header>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-primary-100 via-[#eceeff] to-accent-100/80 px-2.5 py-3 sm:px-3 sm:py-4" aria-live="polite">
+      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-gradient-to-b from-primary-100 dark:from-primary-900/60 via-[#eceeff] dark:via-gray-900 to-accent-100/80 dark:to-accent-500/10 px-2.5 py-3 sm:px-3 sm:py-4" aria-live="polite">
         {messages.map((message, index) => {
           if (message.role === 'user') {
             return (
@@ -207,36 +207,36 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
 
           return (
             <div key={message.id} className="bitty-msg flex items-start gap-2" style={cascade(index)}>
-              <BittyAvatar className="mt-0.5 h-6 w-6 ring-1 ring-gray-200 sm:h-7 sm:w-7" />
+              <BittyAvatar className="mt-0.5 h-6 w-6 ring-1 ring-gray-200 dark:ring-gray-700 sm:h-7 sm:w-7" />
               <div className="min-w-0 max-w-[85%] space-y-2">
                 {text && (
                   <p className={cn(
                     'whitespace-pre-wrap rounded-2xl rounded-bl-md px-3 py-1.5 text-[13px] shadow-sm sm:px-3.5 sm:py-2 sm:text-sm',
-                    message.error ? 'border border-red-200 bg-red-50 text-red-700' : 'bg-white text-gray-800 ring-1 ring-primary-100',
+                    message.error ? 'border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300' : 'bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 ring-1 ring-primary-100 dark:ring-primary-800',
                   )}>
                     {text}
                   </p>
                 )}
                 {message.error && !busy && message.id === last?.id && (
-                  <button type="button" onClick={retry} className="text-xs font-semibold text-primary-700 hover:underline">
+                  <button type="button" onClick={retry} className="text-xs font-semibold text-primary-700 dark:text-primary-300 hover:underline">
                     {t('bitty.retry')}
                   </button>
                 )}
                 {!!message.books?.length && (
-                  <ul className="divide-y divide-primary-50 rounded-2xl rounded-bl-md bg-white px-3 py-2.5 shadow-sm ring-1 ring-primary-100 sm:px-3.5 sm:py-3">
+                  <ul className="divide-y divide-primary-50 rounded-2xl rounded-bl-md bg-white dark:bg-gray-900 px-3 py-2.5 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800 sm:px-3.5 sm:py-3">
                     {message.books.map(book => (
                       <BittyBookItem key={book.id} book={book} onOpenDetails={handleOpenDetails} />
                     ))}
                   </ul>
                 )}
                 {typing && (
-                  <div role="status" className="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-primary-100">
+                  <div role="status" className="inline-flex items-center gap-2 rounded-2xl rounded-bl-md bg-white dark:bg-gray-900 px-3.5 py-2.5 shadow-sm ring-1 ring-primary-100 dark:ring-primary-800">
                     <span className="flex gap-1" aria-hidden="true">
                       {[0, 150, 300].map(delay => (
                         <span key={delay} className="h-2 w-2 animate-bounce rounded-full bg-primary-400" style={{ animationDelay: `${delay}ms` }} />
                       ))}
                     </span>
-                    <span className="text-[11px] text-gray-500 sm:text-xs">{t('bitty.typing')}…</span>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400 sm:text-xs">{t('bitty.typing')}…</span>
                   </div>
                 )}
               </div>
@@ -251,7 +251,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
                 key={option}
                 type="button"
                 onClick={() => send(option)}
-                className="rounded-full border border-primary-300 bg-white px-2.5 py-1 text-[11px] font-semibold sm:px-3 sm:py-1.5 sm:text-xs text-primary-700 shadow-sm transition-colors hover:border-primary-700 hover:bg-primary-700 hover:text-white"
+                className="rounded-full border border-primary-300 dark:border-primary-700 bg-white dark:bg-gray-900 px-2.5 py-1 text-[11px] font-semibold sm:px-3 sm:py-1.5 sm:text-xs text-primary-700 dark:text-primary-300 shadow-sm transition-colors hover:border-primary-700 dark:hover:border-primary-400 hover:bg-primary-700 hover:text-white"
               >
                 {option}
               </button>
@@ -260,7 +260,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
               <button
                 type="button"
                 onClick={() => send(t('bitty.skip'))}
-                className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-gray-500 sm:px-3 sm:py-1.5 sm:text-xs transition-colors hover:bg-gray-100"
+                className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-gray-500 dark:text-gray-400 sm:px-3 sm:py-1.5 sm:text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
               >
                 {t('bitty.skip')}
               </button>
@@ -271,7 +271,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
 
       <form
         onSubmit={e => { e.preventDefault(); send(input) }}
-        className="border-t border-primary-100 bg-white px-2.5 pb-2 pt-2 sm:px-3 sm:pb-3 sm:pt-3"
+        className="border-t border-primary-100 dark:border-primary-800 bg-white dark:bg-gray-900 px-2.5 pb-2 pt-2 sm:px-3 sm:pb-3 sm:pt-3"
       >
         <div className="flex items-center gap-2">
           <input
@@ -280,7 +280,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
             onChange={e => setInput(e.target.value)}
             placeholder={t('bitty.placeholder')}
             maxLength={1000}
-            className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 text-base sm:px-3.5 sm:py-2.5 outline-none transition-colors focus:border-primary-500 focus:bg-white sm:text-sm"
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 text-base sm:px-3.5 sm:py-2.5 outline-none transition-colors focus:border-primary-500 focus:bg-white dark:focus:bg-gray-900 sm:text-sm"
           />
           <button
             type="submit"

@@ -25,7 +25,7 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
 
   return (
     <div className={cn(
-      'group flex flex-col border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5',
+      'group flex flex-col border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5',
       compact ? 'rounded-xl p-2' : 'rounded-2xl p-3',
       className,
     )}>
@@ -33,7 +33,7 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
         <div
           ref={coverRef}
           className={cn(
-            'relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 transition-all duration-300',
+            'relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-slate-100 dark:from-slate-800 to-slate-200 dark:to-slate-700 transition-all duration-300',
             compact ? 'rounded-lg' : 'rounded-xl',
           )}
         >
@@ -69,14 +69,14 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
         </div>
 
         <div className={cn('flex flex-1 flex-col', compact ? 'mt-2' : 'mt-2.5')}>
-          <h3 className={cn('line-clamp-2 flex-1 font-semibold leading-snug text-gray-900', compact ? 'text-xs' : 'text-sm')}>
+          <h3 className={cn('line-clamp-2 flex-1 font-semibold leading-snug text-gray-900 dark:text-gray-100', compact ? 'text-xs' : 'text-sm')}>
             {book.title}
           </h3>
           {book.author && (
-            <p className={cn('mt-0.5 truncate text-gray-500', compact ? 'text-[11px]' : 'text-xs')}>{book.author}</p>
+            <p className={cn('mt-0.5 truncate text-gray-500 dark:text-gray-400', compact ? 'text-[11px]' : 'text-xs')}>{book.author}</p>
           )}
           {lowestPrice !== undefined && (
-            <p className={cn('font-bold text-primary-700', compact ? 'mt-1 text-xs' : 'mt-1.5 text-sm')}>
+            <p className={cn('font-bold text-primary-700 dark:text-primary-300', compact ? 'mt-1 text-xs' : 'mt-1.5 text-sm')}>
               {formatPrice(lowestPrice, currency)}
             </p>
           )}

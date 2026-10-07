@@ -124,21 +124,21 @@ export function Faq() {
         }}
       />
 
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-600">{isLao ? 'ຊ່ວຍເຫຼືອ' : 'Support'}</p>
-      <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">{isLao ? 'ຄຳຖາມທີ່ພົບເລື້ອຍ' : 'Frequently asked questions'}</h1>
-      <p className="mt-3 text-sm text-slate-600">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-accent-600 dark:text-accent-400">{isLao ? 'ຊ່ວຍເຫຼືອ' : 'Support'}</p>
+      <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 sm:text-3xl">{isLao ? 'ຄຳຖາມທີ່ພົບເລື້ອຍ' : 'Frequently asked questions'}</h1>
+      <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
         {isLao ? 'ບໍ່ພົບຄຳຕອບທີ່ຕ້ອງການ? ' : <>Can&apos;t find your answer? </>}
-        <Link to="/bookstore/contacts" className="font-semibold text-primary-700 hover:underline">
+        <Link to="/bookstore/contacts" className="font-semibold text-primary-700 dark:text-primary-300 hover:underline">
           {isLao ? 'ຕິດຕໍ່ Bitdoin.store' : 'Contact Bitdoin.store'}
         </Link>
         .
       </p>
 
-      <dl className="mt-6 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white">
+      <dl className="mt-6 divide-y divide-slate-100 dark:divide-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900">
         {faqItems.map(item => (
           <div key={item.q} className="p-4 sm:p-5">
-            <dt className="text-sm font-bold text-slate-900">{item.q}</dt>
-            <dd className="mt-1.5 text-sm leading-6 text-slate-600">{item.a}</dd>
+            <dt className="text-sm font-bold text-slate-900 dark:text-slate-100">{item.q}</dt>
+            <dd className="mt-1.5 text-sm leading-6 text-slate-600 dark:text-slate-300">{item.a}</dd>
           </div>
         ))}
       </dl>

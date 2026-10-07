@@ -97,7 +97,7 @@ export function CtaButton({ onActivate, disabled, children, icon, className }: C
         'transition-[transform,box-shadow,background-position] duration-300 ease-out',
         'hover:-translate-y-0.5 hover:scale-[1.04] hover:bg-right hover:shadow-xl hover:shadow-accent-500/45',
         'active:translate-y-0 active:scale-95',
-        'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent-300',
+        'focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent-300 dark:focus-visible:ring-accent-500/40',
         'disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:scale-100',
         celebrating && 'buy-now-pop',
         className,

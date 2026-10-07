@@ -84,25 +84,25 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         className={cn(
-        'relative flex max-h-[calc(100vh-2.5rem)] w-full flex-col bg-white shadow-xl animate-slide-up',
+        'relative flex max-h-[calc(100vh-2.5rem)] w-full flex-col bg-white dark:bg-gray-900 shadow-xl animate-slide-up',
         // Mobile: full width, rounded top corners, no max-height limit issues
         'rounded-t-2xl md:max-h-[85vh] md:rounded-2xl',
         sizes[size],
       )}>
         {/* Drag indicator on mobile */}
         <div className="flex shrink-0 justify-center pt-3 pb-0 md:hidden">
-          <div className="h-1 w-10 rounded-full bg-gray-300" />
+          <div className="h-1 w-10 rounded-full bg-gray-300 dark:bg-gray-600" />
         </div>
 
         {title && (
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 id={titleId} className="text-base font-semibold text-gray-900">{title}</h2>
+          <div className="flex shrink-0 items-center justify-between border-b border-gray-100 dark:border-gray-800 px-5 py-4">
+            <h2 id={titleId} className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
             <button
               onClick={onClose}
               aria-label="Close dialog"
-              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              <X className="h-5 w-5 text-gray-500" />
+              <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         )}
@@ -110,7 +110,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
           {children}
         </div>
         {footer && (
-          <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 px-5 py-4">
+          <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 dark:border-gray-800 px-5 py-4">
             {footer}
           </div>
         )}

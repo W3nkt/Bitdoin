@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap } from 'lucide-react'
+import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap, Moon, Sun } from 'lucide-react'
 import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useCart } from '@/context/CartContext'
@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
+import { useApplyTheme, useTheme } from '@/lib/theme'
 import { BittyAssistant } from '@/components/bitty/BittyAssistant'
 
 interface CustomerLayoutProps {
@@ -21,6 +22,9 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { profile } = useAuth()
   const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
+  const theme = useTheme(state => state.theme)
+  const toggleTheme = useTheme(state => state.toggleTheme)
+  useApplyTheme()
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -61,10 +65,10 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const emailHref = `mailto:${email}`
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-30 glass border-b border-white/60 shadow-sm">
+      <header className="sticky top-0 z-30 glass border-b border-white/60 dark:border-gray-800/60 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center gap-3">
 
           {/* Logo */}
@@ -72,15 +76,15 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             <img
               src={publicAsset('icons/Bitdoin-Logo.png')}
               alt={t('appName')}
-              className="h-10 w-28 object-contain object-left md:h-12 md:w-32"
+              className="h-10 w-28 object-contain object-left md:h-12 md:w-32 dark:brightness-0 dark:invert"
             />
-            <span className="hidden border-l border-gray-200 pl-2 text-[10px] font-black uppercase tracking-wider text-orange-600 xl:block">Bookstore</span>
+            <span className="hidden border-l border-gray-200 dark:border-gray-700 pl-2 text-[10px] font-black uppercase tracking-wider text-orange-600 dark:text-orange-400 xl:block">Bookstore</span>
           </Link>
 
           {/* Search bar — md+ only */}
           <button
             onClick={openSearch}
-            className="hidden md:flex h-10 w-48 flex-none items-center gap-2.5 rounded-2xl border border-gray-200 bg-gray-100/80 px-3.5 text-sm text-gray-400 transition-all hover:border-primary-300 hover:bg-white lg:w-72 xl:w-80"
+            className="hidden md:flex h-10 w-48 flex-none items-center gap-2.5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-100/80 dark:bg-gray-800/80 px-3.5 text-sm text-gray-400 transition-all hover:border-primary-300 dark:hover:border-primary-700 hover:bg-white dark:hover:bg-gray-900 lg:w-72 xl:w-80"
           >
             <Search className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
             <span className="truncate text-xs">{t('home.searchPlaceholder')}</span>
@@ -100,7 +104,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                     'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
                     isActive
                       ? 'bg-primary-700 text-white'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-primary-800',
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-primary-800 dark:hover:text-primary-300',
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -125,17 +129,28 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             <Tooltip label="Switch to Bitdoin Academy" className="inline-flex md:hidden lg:inline-flex">
               <Link
                 to="/academy"
-                className="mr-1 flex items-center gap-1.5 px-2 py-2 text-xs font-black text-amber-600 transition hover:text-orange-600 active:scale-95"
+                className="mr-1 flex items-center gap-1.5 px-2 py-2 text-xs font-black text-amber-600 dark:text-amber-400 transition hover:text-orange-600 dark:hover:text-orange-400 active:scale-95"
               >
                 <GraduationCap className="h-4 w-4" /> Academy
               </Link>
+            </Tooltip>
+
+            {/* Light / dark theme toggle */}
+            <Tooltip label={theme === 'dark' ? 'Light mode' : 'Dark mode'}>
+              <button
+                onClick={toggleTheme}
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 dark:text-amber-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
             </Tooltip>
 
             {/* Language toggle */}
             <Tooltip label="Switch language">
               <button
                 onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-lg hover:bg-gray-100 transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-xl text-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 aria-label="Switch language"
               >
                 <LanguageFlag target={language === 'lo' ? 'en' : 'lo'} />
@@ -151,7 +166,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       </main>
 
       {/* ── Footer ── */}
-      <footer data-bitty-avoid className="bg-primary-900 text-white">
+      <footer data-bitty-avoid className="bg-primary-900 dark:bg-gray-900 dark:border-t dark:border-gray-800 text-white">
         <div className="max-w-6xl mx-auto px-4 pt-8 pb-24 md:pb-8">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             {/* Brand */}
@@ -178,7 +193,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 {[
                   { href: waHref, label: 'WhatsApp', external: true, icon: <WhatsAppIcon className="h-5 w-5 text-green-400" /> },
                   { href: messengerHref, label: 'Messenger', external: true, icon: <MessengerIcon className="h-5 w-5 text-blue-400" /> },
-                  { href: phoneHref, label: waNumber, external: false, icon: <IPhoneIcon className="h-5 w-5 text-gray-300" /> },
+                  { href: phoneHref, label: waNumber, external: false, icon: <IPhoneIcon className="h-5 w-5 text-gray-300 dark:text-gray-600" /> },
                   { href: emailHref, label: email, external: false, icon: <GmailIcon className="h-5 w-5 text-red-400" /> },
                 ].map(({ href, label, external, icon }) => (
                   <Tooltip key={href} label={label}>
@@ -206,7 +221,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeSearch} />
           {/* Modal */}
-          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+          <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-2xl">
             <form onSubmit={submitSearch} className="flex items-center gap-3 p-4">
               <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />
               <input
@@ -214,13 +229,13 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={t('home.searchPlaceholder')}
-                className="min-w-0 flex-1 bg-transparent text-base text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base text-gray-800 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   aria-label="Clear"
                 >
                   <X className="h-4 w-4" />
@@ -239,7 +254,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       )}
 
       {/* ── Mobile bottom tab bar — hidden on md+ ── */}
-      <nav data-bitty-avoid className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-200">
+      <nav data-bitty-avoid className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
         <div className="flex items-stretch h-14">
           {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
             <NavLink
@@ -249,7 +264,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               end={end}
               className={({ isActive }) => cn(
                 'min-w-0 flex-1 flex flex-col items-center justify-center gap-0.5 py-1 transition-colors',
-                isActive ? 'text-primary-700' : 'text-gray-400 active:text-gray-600',
+                isActive ? 'text-primary-700 dark:text-primary-300' : 'text-gray-400 active:text-gray-600 dark:active:text-gray-300',
               )}
             >
               <div className="relative" data-cart-target={to === '/bookstore/cart' ? '' : undefined}>
@@ -274,7 +289,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 function LanguageFlag({ target }: { target: 'lo' | 'en' }) {
   if (target === 'lo') {
     return (
-      <span className="relative block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 bg-[#002868] shadow-sm" aria-hidden="true">
+      <span className="relative block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-700 bg-[#002868] shadow-sm" aria-hidden="true">
         <span className="absolute inset-x-0 top-0 h-1/4 bg-[#ce1126]" />
         <span className="absolute inset-x-0 bottom-0 h-1/4 bg-[#ce1126]" />
         <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -282,7 +297,7 @@ function LanguageFlag({ target }: { target: 'lo' | 'en' }) {
     )
   }
   return (
-    <svg viewBox="0 0 30 20" preserveAspectRatio="none" className="block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 shadow-sm" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 30 20" preserveAspectRatio="none" className="block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-700 shadow-sm" aria-hidden="true" focusable="false">
       <rect width="30" height="20" fill="#fff" />
       {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={(i * 20) / 13} width="30" height={20 / 13} fill="#b22234" />)}
       <rect width="12" height={(7 * 20) / 13} fill="#3c3b6e" />
