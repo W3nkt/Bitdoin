@@ -91,7 +91,7 @@ export function Home() {
       <BrowseSidebar
         categories={categories}
         onSelectCategory={categoryId => navigate(categoryId ? `/bookstore/books?category=${categoryId}` : '/bookstore/books')}
-        onSelectQuickLink={() => navigate('/bookstore/books')}
+        onSelectQuickLink={value => navigate(`/bookstore/books?sort=${value}`)}
         className="lg:sticky lg:top-16"
       />
 

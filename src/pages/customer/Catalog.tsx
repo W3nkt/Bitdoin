@@ -13,6 +13,12 @@ import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
 
 const PAGE_SIZE = 18
+const SORTS = ['newest', 'title', 'best', 'featured'] as const
+type Sort = typeof SORTS[number]
+
+function parseSort(value: string | null): Sort {
+  return SORTS.includes(value as Sort) ? value as Sort : 'best'
+}
 
 export function Catalog() {
   const { t } = useTranslation()
@@ -27,7 +33,10 @@ export function Catalog() {
     category_id: searchParams.get('category') ?? '',
     language: searchParams.get('language') ?? '',
   })
-  const [sort, setSort] = useState('newest')
+  // An explicit ?sort= means a quick link / sort option was chosen; without
+  // it the catalog is "All Books" in the default (best seller) order.
+  const explicitSort = searchParams.has('sort') ? parseSort(searchParams.get('sort')) : null
+  const sort = explicitSort ?? 'best'
 
   useEffect(() => {
     setFilters(prev => ({
@@ -99,7 +108,7 @@ export function Catalog() {
     },
   })
 
-  function applyFilters(updated: Partial<SearchFilters>) {
+  function applyFilters(updated: Partial<SearchFilters>, nextSort: Sort | null = explicitSort) {
     const next = { ...filters, ...updated }
     setFilters(next)
     setPage(1)
@@ -107,7 +116,12 @@ export function Catalog() {
     if (next.query) params.set('q', next.query)
     if (next.category_id) params.set('category', next.category_id)
     if (next.language) params.set('language', next.language)
+    if (nextSort) params.set('sort', nextSort)
     setSearchParams(params)
+  }
+
+  function setSort(nextSort: Sort) {
+    applyFilters({}, nextSort)
   }
 
   function clearFilters() {
@@ -133,15 +147,16 @@ export function Catalog() {
     success(book.title)
   }
 
-  const hasFilters = !!(filters.query || filters.category_id || filters.language)
+  const hasFilters = !!(filters.query || filters.category_id || filters.language || sort === 'featured')
 
   return (
     <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
       <BrowseSidebar
         categories={categories}
         activeCategoryId={filters.category_id}
-        onSelectCategory={categoryId => applyFilters({ category_id: categoryId })}
-        onSelectQuickLink={value => setSort(value === 'newest' ? 'newest' : 'title')}
+        activeQuickLink={explicitSort ?? undefined}
+        onSelectCategory={categoryId => applyFilters({ category_id: categoryId }, categoryId ? explicitSort : null)}
+        onSelectQuickLink={value => setSort(parseSort(value))}
         showFilters
         availableLanguages={availableLanguages}
         activeLanguage={filters.language}
@@ -198,10 +213,12 @@ export function Catalog() {
             )}
             <select
               value={sort}
-              onChange={e => setSort(e.target.value)}
+              onChange={e => setSort(parseSort(e.target.value))}
               className="h-11 border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
             >
+              <option value="best">{t('sidebar.bestSeller')}</option>
               <option value="newest">{t('catalog.sortOptions.newest')}</option>
+              <option value="featured">{t('sidebar.editorPicks')}</option>
               <option value="title">{t('catalog.sortTitle')}</option>
             </select>
           </div>

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 interface BrowseSidebarProps {
   categories?: Category[]
   activeCategoryId?: string
+  /** Highlights the matching quick link (e.g. 'best', 'featured') */
+  activeQuickLink?: string
   onSelectCategory: (categoryId: string) => void
   onSelectQuickLink?: (value: string) => void
   className?: string
@@ -29,6 +31,7 @@ const quickLinks = [
 export function BrowseSidebar({
   categories,
   activeCategoryId,
+  activeQuickLink,
   onSelectCategory,
   onSelectQuickLink,
   className,
@@ -44,6 +47,7 @@ export function BrowseSidebar({
   const [expanded, setExpanded] = useState(false)
 
   const useDrawer = mobileOpen !== undefined
+  const allBooksActive = !activeCategoryId && !activeQuickLink
 
   const activeLabel = activeCategoryId
     ? categories?.find(c => c.id === activeCategoryId)?.[language === 'lo' ? 'name_lo' : 'name_en']
@@ -82,7 +86,12 @@ export function BrowseSidebar({
             <button
               key={value}
               onClick={() => { onSelectQuickLink?.(value); close() }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-xs font-medium text-white/82 transition-colors hover:bg-white/10 hover:text-white active:bg-white/20"
+              className={cn(
+                'flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-xs font-medium transition-colors',
+                activeQuickLink === value
+                  ? 'bg-white text-[#30343a] font-semibold'
+                  : 'text-white/82 hover:bg-white/10 hover:text-white active:bg-white/20',
+              )}
             >
               <Icon className="h-3.5 w-3.5 flex-shrink-0 text-accent-400" />
               {t(labelKey)}
@@ -92,7 +101,7 @@ export function BrowseSidebar({
             onClick={() => { onSelectCategory(''); close() }}
             className={cn(
               'flex w-full items-center gap-2 rounded-lg px-2 py-2.5 text-left text-xs font-medium transition-colors',
-              !activeCategoryId
+              allBooksActive
                 ? 'bg-white text-[#30343a] font-semibold'
                 : 'text-white/82 hover:bg-white/10 hover:text-white active:bg-white/20',
             )}

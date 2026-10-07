@@ -299,9 +299,13 @@ function LanguageFlag({ target }: { target: 'lo' | 'en' }) {
     )
   }
   return (
-    <span className="relative block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm" aria-hidden="true">
-      <span className="absolute left-1/2 top-0 h-full w-1 -translate-x-1/2 bg-[#ce1126]" />
-      <span className="absolute left-0 top-1/2 h-1 w-full -translate-y-1/2 bg-[#ce1126]" />
-    </span>
+    <svg viewBox="0 0 30 20" preserveAspectRatio="none" className="block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 shadow-sm" aria-hidden="true" focusable="false">
+      <rect width="30" height="20" fill="#fff" />
+      {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={(i * 20) / 13} width="30" height={20 / 13} fill="#b22234" />)}
+      <rect width="12" height={(7 * 20) / 13} fill="#3c3b6e" />
+      {[2, 6, 10].flatMap(x => [2, 5.4, 8.8].map(y => (
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="0.7" fill="#fff" />
+      )))}
+    </svg>
   )
 }
