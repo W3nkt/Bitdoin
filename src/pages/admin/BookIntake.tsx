@@ -275,7 +275,7 @@ export function AdminBookIntake() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Book Intake</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Book Intake</h1>
           <p className="text-sm text-gray-400 mt-0.5">
             Add books awaiting a bookstore price. Share each bookstore's link from the Bookstores page.
           </p>
@@ -299,20 +299,20 @@ export function AdminBookIntake() {
 
       {isLoading ? <LoadingSpinner /> : (
         (pendingBooks ?? []).length === 0 ? (
-          <div className="rounded-2xl bg-white p-12 text-center shadow-card">
-            <BookOpen className="mx-auto h-10 w-10 text-gray-300" />
-            <p className="mt-3 text-sm font-semibold text-gray-700">No books waiting for a price</p>
+          <div className="rounded-2xl bg-white dark:bg-gray-900 p-12 text-center shadow-card">
+            <BookOpen className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />
+            <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-200">No books waiting for a price</p>
             <p className="mt-1 text-xs text-gray-400">Add a book to start collecting prices from bookstores.</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {pendingBooks!.map(book => (
-              <div key={book.id} className="flex min-w-0 gap-3 rounded-2xl bg-white p-3 shadow-card">
-                <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+              <div key={book.id} className="flex min-w-0 gap-3 rounded-2xl bg-white dark:bg-gray-900 p-3 shadow-card">
+                <div className="h-24 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
                   {book.cover_image_url ? (
                     <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-primary-50">
+                    <div className="flex h-full w-full items-center justify-center bg-primary-50 dark:bg-primary-900/40">
                       <BookOpen className="h-5 w-5 text-primary-300" />
                     </div>
                   )}
@@ -320,13 +320,13 @@ export function AdminBookIntake() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-gray-900">{book.title}</p>
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{book.title}</p>
                       {book.author && <p className="truncate text-xs text-gray-400">{book.author}</p>}
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-0.5">
                       <button
                         onClick={() => openEdit(book)}
-                        className="p-1.5 rounded-lg hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                         title="Edit"
                         aria-label={`Edit ${book.title}`}
                       >
@@ -334,7 +334,7 @@ export function AdminBookIntake() {
                       </button>
                       <button
                         onClick={() => setDeleteModal(book)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                         title="Delete"
                         aria-label={`Delete ${book.title}`}
                       >
@@ -347,7 +347,7 @@ export function AdminBookIntake() {
                       <p className="text-xs text-gray-400">No submissions yet</p>
                     ) : (
                       book.prices.map(p => (
-                        <p key={p.id} className="flex items-center gap-1 text-xs text-green-700">
+                        <p key={p.id} className="flex items-center gap-1 text-xs text-green-700 dark:text-green-300">
                           <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
                           {p.bookstore?.name ?? 'Store'} · {formatPrice(p.bookstore_price, currency)}
                         </p>
@@ -375,13 +375,13 @@ export function AdminBookIntake() {
       >
         <form className="space-y-4">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-gray-700">Book Cover</span>
-            <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
-              <div className="flex h-28 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Book Cover</span>
+            <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-4">
+              <div className="flex h-28 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white dark:bg-gray-900 shadow-sm">
                 {coverPreview ? (
                   <img src={coverPreview} alt="Book cover preview" className="h-full w-full object-cover" />
                 ) : (
-                  <BookOpen className="h-6 w-6 text-gray-300" />
+                  <BookOpen className="h-6 w-6 text-gray-300 dark:text-gray-600" />
                 )}
               </div>
               <div className="space-y-2">
@@ -395,13 +395,13 @@ export function AdminBookIntake() {
                 />
                 <label
                   htmlFor="intake-book-cover"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <Upload className="h-4 w-4" />
                   {coverPreview ? 'Change image' : 'Upload image'}
                 </label>
-                <p className="text-xs text-gray-500">JPG, PNG, or WebP. Maximum 5 MB.</p>
-                {coverError && <p className="text-xs text-red-600">{coverError}</p>}
+                <p className="text-xs text-gray-500 dark:text-gray-400">JPG, PNG, or WebP. Maximum 5 MB.</p>
+                {coverError && <p className="text-xs text-red-600 dark:text-red-400">{coverError}</p>}
               </div>
             </div>
           </div>
@@ -423,45 +423,45 @@ export function AdminBookIntake() {
             <Input label="Publication Date" type="date" {...register('publication_date')} />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Description</label>
-            <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-gray-300 bg-gray-50 px-2 py-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+            <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5">
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Bold (Ctrl+B)"
                 aria-label="Bold"
               ><Bold className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Italic (Ctrl+I)"
                 aria-label="Italic"
               ><Italic className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Underline (Ctrl+U)"
                 aria-label="Underline"
               ><Underline className="h-3.5 w-3.5" /></button>
-              <div className="mx-1 h-4 w-px bg-gray-300" />
+              <div className="mx-1 h-4 w-px bg-gray-300 dark:bg-gray-600" />
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Bullet List"
                 aria-label="Bullet list"
               ><List className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Numbered List"
                 aria-label="Numbered list"
               ><ListOrdered className="h-3.5 w-3.5" /></button>
-              <div className="mx-1 h-4 w-px bg-gray-300" />
+              <div className="mx-1 h-4 w-px bg-gray-300 dark:bg-gray-600" />
               <button
                 type="button"
                 onMouseDown={(e) => {
@@ -469,14 +469,14 @@ export function AdminBookIntake() {
                   descRef.current?.focus()
                   document.execCommand('insertHTML', false, '<br>')
                 }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Insert Line Break"
                 aria-label="Insert line break"
               ><CornerDownLeft className="h-3.5 w-3.5" /></button>
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Clear Formatting"
                 aria-label="Clear formatting"
               ><RemoveFormatting className="h-3.5 w-3.5" /></button>
@@ -496,7 +496,7 @@ export function AdminBookIntake() {
                 }
               }}
               onInput={() => setValue('description', descRef.current?.innerHTML ?? '')}
-              className="min-h-[220px] rounded-b-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal"
+              className="min-h-[220px] rounded-b-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal"
               data-placeholder="Enter book description..."
             />
           </div>
@@ -518,7 +518,7 @@ export function AdminBookIntake() {
           </>
         }
       >
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Remove <strong>{deleteModal?.title}</strong> from the intake list? Any bookstore price submissions for
           it will also be removed. This can't be undone.
         </p>

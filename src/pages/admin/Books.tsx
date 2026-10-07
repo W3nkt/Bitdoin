@@ -28,7 +28,7 @@ const SORT_COLUMNS: Record<BookSortKey, string> = {
 }
 // Matches the sortable cells in SortableHeader so a sticky <thead> stays opaque
 // and keeps its divider.
-const HEADER_CELL_BASE = 'bg-gray-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 shadow-[inset_0_-1px_0_0_#f3f4f6]'
+const HEADER_CELL_BASE = 'bg-gray-50 dark:bg-gray-800/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 shadow-[inset_0_-1px_0_0_#f3f4f6]'
 const HEADER_CELL = `${HEADER_CELL_BASE} hidden text-left md:table-cell`
 
 const MAX_COVER_SIZE = 5 * 1024 * 1024
@@ -291,7 +291,7 @@ export function AdminBooks() {
       {/* Page header */}
       <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('admin.books')}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.books')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Manage the book catalog</p>
         </div>
         <div className="flex gap-2">
@@ -311,12 +311,12 @@ export function AdminBooks() {
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1) }}
           placeholder="Search by title, author or ISBN…"
-          className="w-full rounded-2xl border border-gray-200 py-2.5 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none bg-white shadow-sm transition-shadow focus:shadow-card"
+          className="w-full rounded-2xl border border-gray-200 dark:border-gray-700 py-2.5 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none bg-white dark:bg-gray-900 shadow-sm transition-shadow focus:shadow-card"
         />
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-card">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-card">
           {/* Only this box scrolls, so `sticky top-0` pins the header to the card. */}
           <div className="min-h-0 flex-1 overflow-auto">
           {/* `table-fixed` from md up keeps column widths off the content, so a long
@@ -332,36 +332,36 @@ export function AdminBooks() {
                 <th className={cn(HEADER_CELL_BASE, 'text-right md:w-[130px]')}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {data?.data.map(book => (
-                <tr key={book.id} className="hover:bg-gray-50/60 transition-colors">
+                <tr key={book.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {/* Portrait book thumbnail */}
-                      <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+                      <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0 shadow-sm">
                         {book.cover_image_url
                           ? <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
                           : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                            <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
                               <BookOpen className="h-4 w-4 text-primary-300" />
                             </div>
                           )
                         }
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-gray-900">{book.title}</p>
+                        <p className="truncate font-medium text-gray-900 dark:text-gray-100">{book.title}</p>
                         {book.author && <p className="text-xs text-gray-400 truncate">{book.author}</p>}
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="inline-flex max-w-full items-center truncate rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">
+                    <span className="inline-flex max-w-full items-center truncate rounded-full px-2.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                       {(book.category as { name_en?: string } | undefined)?.name_en ?? '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">{book.language}</td>
+                  <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500 dark:text-gray-400">{book.language}</td>
                   <td className="px-4 py-3 hidden lg:table-cell text-xs font-mono text-gray-400">{book.isbn ?? '—'}</td>
-                  <td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap text-xs text-gray-500">
+                  <td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                     {book.created_at ? formatDateTime(book.created_at, language) : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -372,8 +372,8 @@ export function AdminBooks() {
                          className={cn(
                            'rounded-xl p-2 transition-colors',
                            book.is_featured
-                             ? 'bg-amber-50 text-amber-500 hover:bg-amber-100'
-                             : 'text-gray-400 hover:bg-amber-50 hover:text-amber-500',
+                             ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-500/15'
+                             : 'text-gray-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:text-amber-500',
                          )}
                          title={book.is_featured ? 'Remove featured star' : 'Add featured star'}
                          aria-label={book.is_featured ? `Remove featured star from ${book.title}` : `Feature ${book.title}`}
@@ -382,7 +382,7 @@ export function AdminBooks() {
                        </button>
                        <button
                         onClick={() => openEdit(book)}
-                        className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                         title="Edit"
                         aria-label={`Edit ${book.title}`}
                       >
@@ -390,7 +390,7 @@ export function AdminBooks() {
                       </button>
                       <button
                         onClick={() => setDeleteModal(book)}
-                        className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                         title="Remove"
                         aria-label={`Remove ${book.title}`}
                       >
@@ -404,7 +404,7 @@ export function AdminBooks() {
           </table>
           </div>
           {data && data.count > PAGE_SIZE && (
-            <div className="flex-shrink-0 border-t border-gray-100 px-4 py-3">
+            <div className="flex-shrink-0 border-t border-gray-100 dark:border-gray-800 px-4 py-3">
               <Pagination page={page} pageSize={PAGE_SIZE} total={data.count} onChange={setPage} />
             </div>
           )}
@@ -426,13 +426,13 @@ export function AdminBooks() {
       >
         <form className="space-y-4">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-gray-700">Book Cover</span>
-            <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
-              <div className="flex h-28 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Book Cover</span>
+            <div className="flex items-center gap-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-4">
+              <div className="flex h-28 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white dark:bg-gray-900 shadow-sm">
                 {coverPreview ? (
                   <img src={coverPreview} alt="Book cover preview" className="h-full w-full object-cover" />
                 ) : (
-                  <BookOpen className="h-6 w-6 text-gray-300" />
+                  <BookOpen className="h-6 w-6 text-gray-300 dark:text-gray-600" />
                 )}
               </div>
               <div className="space-y-2">
@@ -446,14 +446,14 @@ export function AdminBooks() {
                 />
                 <label
                   htmlFor="book-cover"
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 >
                   <Upload className="h-4 w-4" />
                   {coverPreview ? 'Change image' : 'Upload image'}
                 </label>
-                <p className="text-xs text-gray-500">JPG, PNG, or WebP. Maximum 5 MB.</p>
-                {coverFile && <p className="max-w-xs truncate text-xs text-gray-600">{coverFile.name}</p>}
-                {coverError && <p className="text-xs text-red-600">{coverError}</p>}
+                <p className="text-xs text-gray-500 dark:text-gray-400">JPG, PNG, or WebP. Maximum 5 MB.</p>
+                {coverFile && <p className="max-w-xs truncate text-xs text-gray-600 dark:text-gray-300">{coverFile.name}</p>}
+                {coverError && <p className="text-xs text-red-600 dark:text-red-400">{coverError}</p>}
               </div>
             </div>
           </div>
@@ -475,13 +475,13 @@ export function AdminBooks() {
             <Input label="Publication Date" type="date" {...register('publication_date')} />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Description</label>
-            <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-gray-300 bg-gray-50 px-2 py-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Description</label>
+            <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 px-2 py-1.5">
               {/* Bold */}
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('bold') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Bold (Ctrl+B)"
                 aria-label="Bold"
               ><Bold className="h-3.5 w-3.5" /></button>
@@ -489,7 +489,7 @@ export function AdminBooks() {
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('italic') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Italic (Ctrl+I)"
                 aria-label="Italic"
               ><Italic className="h-3.5 w-3.5" /></button>
@@ -497,16 +497,16 @@ export function AdminBooks() {
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('underline') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Underline (Ctrl+U)"
                 aria-label="Underline"
               ><Underline className="h-3.5 w-3.5" /></button>
-              <div className="mx-1 h-4 w-px bg-gray-300" />
+              <div className="mx-1 h-4 w-px bg-gray-300 dark:bg-gray-600" />
               {/* Bullet list */}
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Bullet List"
                 aria-label="Bullet list"
               ><List className="h-3.5 w-3.5" /></button>
@@ -514,11 +514,11 @@ export function AdminBooks() {
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertOrderedList') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Numbered List"
                 aria-label="Numbered list"
               ><ListOrdered className="h-3.5 w-3.5" /></button>
-              <div className="mx-1 h-4 w-px bg-gray-300" />
+              <div className="mx-1 h-4 w-px bg-gray-300 dark:bg-gray-600" />
               {/* New line */}
               <button
                 type="button"
@@ -527,7 +527,7 @@ export function AdminBooks() {
                   descRef.current?.focus()
                   document.execCommand('insertHTML', false, '<br>')
                 }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Insert Line Break"
                 aria-label="Insert line break"
               ><CornerDownLeft className="h-3.5 w-3.5" /></button>
@@ -535,7 +535,7 @@ export function AdminBooks() {
               <button
                 type="button"
                 onMouseDown={(e) => { e.preventDefault(); document.execCommand('removeFormat') }}
-                className="rounded p-1.5 text-gray-600 hover:bg-gray-200 active:bg-gray-300"
+                className="rounded p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-300 dark:active:bg-gray-600"
                 title="Clear Formatting"
                 aria-label="Clear formatting"
               ><RemoveFormatting className="h-3.5 w-3.5" /></button>
@@ -556,7 +556,7 @@ export function AdminBooks() {
                 }
               }}
               onInput={() => setValue('description', descRef.current?.innerHTML ?? '')}
-              className="min-h-[220px] rounded-b-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal"
+              className="min-h-[220px] rounded-b-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal"
               data-placeholder="Enter book description..."
             />
           </div>
@@ -576,7 +576,7 @@ export function AdminBooks() {
           </>
         }
       >
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Remove <strong>{deleteModal?.title}</strong>? This will hide it from the catalog.
         </p>
       </Modal>

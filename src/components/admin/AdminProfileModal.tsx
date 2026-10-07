@@ -112,7 +112,7 @@ export function AdminProfileModal({ open, onClose }: AdminProfileModalProps) {
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={uploadingAvatar}
-              className="group relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 ring-2 ring-gray-200"
+              className="group relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800 ring-2 ring-gray-200 dark:ring-gray-700"
             >
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
@@ -124,7 +124,7 @@ export function AdminProfileModal({ open, onClose }: AdminProfileModalProps) {
               </span>
             </button>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-800">Profile picture</p>
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Profile picture</p>
               <p className="text-xs text-gray-400">Shown in both the Bookstore and Academy admin panels.</p>
             </div>
             <input
@@ -149,7 +149,7 @@ export function AdminProfileModal({ open, onClose }: AdminProfileModalProps) {
           </div>
         </section>
 
-        <div className="border-t border-gray-100" />
+        <div className="border-t border-gray-100 dark:border-gray-800" />
 
         <PaymentAccountsManager />
       </div>

@@ -49,7 +49,7 @@ type PriceSortKey = 'book' | 'store' | 'storePrice' | 'margin' | 'finalPrice' | 
 
 // Matches the sortable cells in SortableHeader so a sticky <thead> stays opaque
 // and keeps its divider.
-const HEADER_CELL = 'bg-gray-50 px-4 py-3 shadow-[inset_0_-1px_0_0_#f3f4f6]'
+const HEADER_CELL = 'bg-gray-50 dark:bg-gray-800/50 px-4 py-3 shadow-[inset_0_-1px_0_0_#f3f4f6]'
 
 export function AdminPricing() {
   const { t } = useTranslation()
@@ -444,7 +444,7 @@ export function AdminPricing() {
       {/* Page header */}
       <div className="flex flex-shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('admin.pricing')}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.pricing')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Book prices and margin rules</p>
         </div>
         <div className="flex gap-2">
@@ -462,15 +462,15 @@ export function AdminPricing() {
       </div>
 
       {/* Pill-style tab switcher */}
-      <div className="flex w-fit flex-shrink-0 gap-1 rounded-2xl bg-gray-100 p-1">
+      <div className="flex w-fit flex-shrink-0 gap-1 rounded-2xl bg-gray-100 dark:bg-gray-800 p-1">
         {(['prices', 'rules'] as const).map(t2 => (
           <button
             key={t2}
             onClick={() => setTab(t2)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               tab === t2
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {t2 === 'prices' ? 'Book Prices' : 'Margin Rules'}
@@ -480,8 +480,8 @@ export function AdminPricing() {
 
       {tab === 'prices' && (
         isLoading ? <LoadingSpinner /> : (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-card">
-            <div className="flex flex-shrink-0 flex-col gap-2 border-b border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-card">
+            <div className="flex flex-shrink-0 flex-col gap-2 border-b border-gray-100 dark:border-gray-800 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="w-full sm:max-w-sm">
                 <Input
                   type="search"
@@ -513,12 +513,12 @@ export function AdminPricing() {
                   <th className={cn(HEADER_CELL, 'md:w-[100px]')}></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                 {visiblePrices.map(price => (
-                  <tr key={price.id} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={price.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+                        <div className="w-9 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0 shadow-sm">
                           {(price.book as { cover_image_url?: string } | undefined)?.cover_image_url ? (
                             <img
                               src={(price.book as { cover_image_url?: string }).cover_image_url}
@@ -526,36 +526,36 @@ export function AdminPricing() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                            <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
                               <BookOpen className="h-4 w-4 text-primary-300" />
                             </div>
                           )}
                         </div>
-                        <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
+                        <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900 dark:text-gray-100">
                           {(price.book as { title?: string } | undefined)?.title ?? '—'}
                         </p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 hidden md:table-cell truncate text-xs text-gray-500">
+                    <td className="px-4 py-3 hidden md:table-cell truncate text-xs text-gray-500 dark:text-gray-400">
                       {(price.bookstore as { name?: string } | undefined)?.name ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-xs text-gray-600">{formatPrice(price.bookstore_price, currency)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-600 dark:text-gray-300">{formatPrice(price.bookstore_price, currency)}</td>
                     <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-primary-50 text-primary-700">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
                         {price.margin_percent}%
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-xs font-bold text-primary-700">{formatPrice(price.final_price, currency)}</td>
+                    <td className="px-4 py-3 text-right text-xs font-bold text-primary-700 dark:text-primary-300">{formatPrice(price.final_price, currency)}</td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        price.availability === 'AVAILABLE' ? 'bg-green-100 text-green-700' :
-                        price.availability === 'LOW_STOCK' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
+                        price.availability === 'AVAILABLE' ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' :
+                        price.availability === 'LOW_STOCK' ? 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700 dark:text-yellow-300' :
+                        'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
                       }`}>
                         {price.availability}
                       </span>
                     </td>
-                    <td className="px-4 py-3 hidden xl:table-cell whitespace-nowrap text-xs text-gray-500">
+                    <td className="px-4 py-3 hidden xl:table-cell whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
                       {price.created_at ? formatDateTime(price.created_at, language) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -573,7 +573,7 @@ export function AdminPricing() {
                             })
                             setPriceModal(true)
                           }}
-                          className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                          className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                           title={t('common.edit')}
                           aria-label={t('common.edit')}
                         >
@@ -581,7 +581,7 @@ export function AdminPricing() {
                         </button>
                         <button
                           onClick={() => setDeletePrice(price)}
-                          className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
                           title={t('common.delete')}
                           aria-label={t('common.delete')}
                         >
@@ -608,18 +608,18 @@ export function AdminPricing() {
       {tab === 'rules' && (
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
           {rules?.map(rule => (
-            <div key={rule.id} className="bg-white rounded-2xl shadow-card p-5 flex items-center justify-between gap-4">
+            <div key={rule.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 flex items-center justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
                 {/* Priority badge */}
-                <span className="inline-flex items-center rounded-xl bg-primary-50 px-2.5 py-1 text-xs font-bold text-primary-700 flex-shrink-0">
+                <span className="inline-flex items-center rounded-xl bg-primary-50 dark:bg-primary-900/40 px-2.5 py-1 text-xs font-bold text-primary-700 dark:text-primary-300 flex-shrink-0">
                   P{rule.priority}
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Tag className="h-4 w-4 flex-shrink-0 text-gray-400" />
-                    <p className="font-semibold text-gray-800 text-sm">{rule.name}</p>
+                    <p className="font-semibold text-gray-800 dark:text-gray-100 text-sm">{rule.name}</p>
                     {!rule.is_active && (
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         Inactive
                       </span>
                     )}
@@ -627,14 +627,14 @@ export function AdminPricing() {
                   {/* Scope: without these two, rules that differ only by store or
                       category are indistinguishable in the list. */}
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                    <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
                       {rule.bookstore_id ? (storeNames.get(rule.bookstore_id) ?? 'Unknown store') : 'All stores'}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                    <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
                       {rule.category_id ? (categoryNames.get(rule.category_id) ?? 'Unknown category') : 'All categories'}
                     </span>
                   </div>
-                  <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                  <div className="flex gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                     {rule.min_price && <span>Min: {formatPrice(rule.min_price, currency)}</span>}
                     {rule.max_price && <span>Max: {formatPrice(rule.max_price, currency)}</span>}
                     {!rule.min_price && !rule.max_price && <span className="text-gray-400">Applies to all price ranges</span>}
@@ -643,14 +643,14 @@ export function AdminPricing() {
               </div>
               <div className="flex flex-shrink-0 items-center gap-4">
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-primary-700">{rule.margin_percent}%</p>
+                  <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">{rule.margin_percent}%</p>
                   <p className="text-xs text-gray-400">margin</p>
                 </div>
                 {canManageRules && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openEditRule(rule)}
-                    className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                    className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                     title={t('common.edit')}
                     aria-label={`Edit margin rule ${rule.name}`}
                   >
@@ -658,7 +658,7 @@ export function AdminPricing() {
                   </button>
                   <button
                     onClick={() => setDeleteRule(rule)}
-                    className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="p-2 rounded-xl text-gray-400 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400"
                     title={t('common.delete')}
                     aria-label={`Delete margin rule ${rule.name}`}
                   >
@@ -670,7 +670,7 @@ export function AdminPricing() {
             </div>
           ))}
           {(!rules || rules.length === 0) && (
-            <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl shadow-card">
+            <div className="text-center py-12 text-gray-400 text-sm bg-white dark:bg-gray-900 rounded-2xl shadow-card">
               No margin rules yet. Add one to get started.
             </div>
           )}
@@ -692,11 +692,11 @@ export function AdminPricing() {
       >
         <form className="space-y-4">
           <div className="flex items-start gap-3">
-            <div className="w-14 h-[74px] rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 shadow-sm">
+            <div className="w-14 h-[74px] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0 shadow-sm">
               {selectedBookCover ? (
                 <img src={selectedBookCover} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-primary-50">
+                <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
                   <BookOpen className="h-5 w-5 text-primary-300" />
                 </div>
               )}
@@ -712,15 +712,15 @@ export function AdminPricing() {
           </div>
           {/* Live price calculator */}
           {livePrice && (
-            <div className="flex items-center gap-3 rounded-2xl bg-primary-50 border border-primary-100 p-4">
-              <Calculator className="h-4 w-4 text-primary-500 flex-shrink-0" />
+            <div className="flex items-center gap-3 rounded-2xl bg-primary-50 dark:bg-primary-900/40 border border-primary-100 dark:border-primary-800 p-4">
+              <Calculator className="h-4 w-4 text-primary-500 dark:text-primary-400 flex-shrink-0" />
               <div className="flex items-center gap-2 text-sm flex-wrap">
-                <span className="text-gray-500">Store Price</span>
-                <span className="font-medium text-gray-700">{formatPrice(parseFloat(bookstorePrice), currency)}</span>
+                <span className="text-gray-500 dark:text-gray-400">Store Price</span>
+                <span className="font-medium text-gray-700 dark:text-gray-200">{formatPrice(parseFloat(bookstorePrice), currency)}</span>
                 <span className="text-gray-400">×</span>
-                <span className="text-gray-500">(1 + {marginPercent}%)</span>
+                <span className="text-gray-500 dark:text-gray-400">(1 + {marginPercent}%)</span>
                 <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
-                <span className="font-bold text-primary-700 text-base">{formatPrice(livePrice, currency)}</span>
+                <span className="font-bold text-primary-700 dark:text-primary-300 text-base">{formatPrice(livePrice, currency)}</span>
               </div>
             </div>
           )}
@@ -761,7 +761,7 @@ export function AdminPricing() {
             options={[{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }]}
             {...rMargin('is_active')}
           />
-          <p className="rounded-xl bg-gray-50 px-3 py-2.5 text-xs leading-5 text-gray-500">
+          <p className="rounded-xl bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 text-xs leading-5 text-gray-500 dark:text-gray-400">
             Margin rules are applied when a bookstore submits a price, and the resulting
             margin is stored on that price row. Editing this rule changes future
             submissions only &mdash; prices already in the table keep the margin they were
@@ -786,8 +786,8 @@ export function AdminPricing() {
           </>
         }
       >
-        <p className="text-sm leading-6 text-gray-600">
-          Delete <strong className="text-gray-900">{deleteRule?.name}</strong>? New price
+        <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Delete <strong className="text-gray-900 dark:text-gray-100">{deleteRule?.name}</strong>? New price
           submissions will fall through to the next matching rule. Prices already in the
           table keep the margin they were given.
         </p>
@@ -809,10 +809,10 @@ export function AdminPricing() {
           </>
         }
       >
-        <p className="text-sm leading-6 text-gray-600">
-          Delete the price for <strong className="text-gray-900">
+        <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Delete the price for <strong className="text-gray-900 dark:text-gray-100">
             {(deletePrice?.book as { title?: string } | undefined)?.title ?? 'this book'}
-          </strong> at <strong className="text-gray-900">
+          </strong> at <strong className="text-gray-900 dark:text-gray-100">
             {(deletePrice?.bookstore as { name?: string } | undefined)?.name ?? 'this store'}
           </strong>? If this is the last price for the book, it will move back to the Book Intake list.
         </p>

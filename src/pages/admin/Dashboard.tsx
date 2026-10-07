@@ -10,6 +10,7 @@ import { formatPrice, formatDate, orderStatusLabel, orderStatusColor } from '@/l
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useChartTheme } from '@/lib/theme'
 import type { Order, OrderStatus, Language } from '@/types'
 
 // Fixed hue per status — identity never shifts with which statuses happen to appear.
@@ -38,6 +39,7 @@ function statusChartLabel(status: string, lang: Language): string {
 export function AdminDashboard() {
   const { t } = useTranslation()
   const { profile } = useAuth()
+  const chart = useChartTheme()
   const { currency, language } = useLanguage()
   const navigate = useNavigate()
 
@@ -109,7 +111,7 @@ export function AdminDashboard() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Good morning, {firstName}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Good morning, {firstName}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Here's what's happening on the platform today.</p>
         </div>
       </div>
@@ -153,14 +155,14 @@ export function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Top books chart */}
         {topBooks && topBooks.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">{t('admin.topBooks')}</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">{t('admin.topBooks')}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={topBooks}>
-                <XAxis dataKey="title" tick={{ fontSize: 10 }} tickFormatter={s => s.slice(0, 12) + '…'} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v) => [v, 'Orders']} />
-                <Bar dataKey="count" fill="#1e3a5f" radius={[4, 4, 0, 0]} />
+                <XAxis dataKey="title" tick={{ fontSize: 10, ...chart.tick }} stroke={chart.axisLine} tickFormatter={s => s.slice(0, 12) + '…'} />
+                <YAxis tick={{ fontSize: 10, ...chart.tick }} stroke={chart.axisLine} />
+                <Tooltip formatter={(v) => [v, 'Orders']} {...chart.tooltip} />
+                <Bar dataKey="count" fill={chart.brand} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -168,8 +170,8 @@ export function AdminDashboard() {
 
         {/* Order status breakdown */}
         {stats?.statusBreakdown && stats.statusBreakdown.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Order Status</h3>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">Order Status</h3>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -179,14 +181,14 @@ export function AdminDashboard() {
                   innerRadius={48}
                   outerRadius={78}
                   paddingAngle={2}
-                  stroke="#ffffff"
+                  stroke={chart.surface}
                   strokeWidth={2}
                 >
                   {stats.statusBreakdown.map(entry => (
                     <Cell key={entry.status} fill={STATUS_CHART_COLORS[entry.status]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number, _name, item) => [value, statusChartLabel(item.payload.status, language)]} />
+                <Tooltip formatter={(value: number, _name, item) => [value, statusChartLabel(item.payload.status, language)]} {...chart.tooltip} />
                 <Legend
                   layout="vertical"
                   align="right"
@@ -194,7 +196,7 @@ export function AdminDashboard() {
                   iconType="circle"
                   iconSize={8}
                   formatter={(value: string) => (
-                    <span className="text-xs text-gray-600">{statusChartLabel(value, language)}</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300">{statusChartLabel(value, language)}</span>
                   )}
                 />
               </PieChart>
@@ -205,14 +207,14 @@ export function AdminDashboard() {
 
       <div>
         {/* Recent orders */}
-        <div className="bg-white rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-4 sm:p-5 min-w-0 overflow-hidden">
           <div className="mb-3 flex items-center justify-between gap-4">
-            <h3 className="text-sm font-semibold text-gray-700">Recent Orders</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Recent Orders</h3>
             {!!recentOrders?.length && (
               <button
                 type="button"
                 onClick={() => navigate('/admin/orders')}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 transition-colors hover:text-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-md"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-400 transition-colors hover:text-primary-800 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 rounded-md"
               >
                 View all
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -227,23 +229,23 @@ export function AdminDashboard() {
                   type="button"
                   key={order.id}
                   onClick={() => navigate('/admin/orders', { state: { selectedOrder: order } })}
-                  className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                  className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                   aria-label={`Open order ${order.order_number}`}
                 >
-                  <div className="h-8 w-8 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-primary-700">{initial}</span>
+                  <div className="h-8 w-8 rounded-full bg-primary-50 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-primary-700 dark:text-primary-300">{initial}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-800 text-xs truncate">{order.order_number}</p>
+                    <p className="font-medium text-gray-800 dark:text-gray-100 text-xs truncate">{order.order_number}</p>
                     <p className="text-gray-400 text-xs">{formatDate(order.created_at, language)}</p>
                   </div>
                   <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium flex-shrink-0', orderStatusColor(order.status))}>
                     {orderStatusLabel(order.status, language)}
                   </span>
-                  <span className="text-xs font-semibold text-gray-800 flex-shrink-0 ml-1">
+                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-100 flex-shrink-0 ml-1">
                     {formatPrice(order.total_amount, currency)}
                   </span>
-                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500" />
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-gray-300 dark:text-gray-600 transition-transform group-hover:translate-x-0.5 group-hover:text-primary-500 dark:group-hover:text-primary-400" />
                 </button>
               )
             })}

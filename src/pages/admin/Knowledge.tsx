@@ -19,11 +19,11 @@ const POST_TYPES: { value: KnowledgePostType; label: string; icon: React.Element
 ]
 
 const TYPE_COLOR: Record<KnowledgePostType, string> = {
-  article:   'bg-blue-100 text-blue-700',
-  quote:     'bg-amber-100 text-amber-700',
-  tip:       'bg-green-100 text-green-700',
-  blog:      'bg-purple-100 text-purple-700',
-  biography: 'bg-indigo-100 text-indigo-700',
+  article:   'bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  quote:     'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  tip:       'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300',
+  blog:      'bg-purple-100 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300',
+  biography: 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300',
 }
 
 interface PostForm {
@@ -198,8 +198,8 @@ export function AdminKnowledge() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('knowledge.adminTitle')}</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{posts.length} total posts</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('knowledge.adminTitle')}</h1>
+          <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{posts.length} total posts</p>
         </div>
         <button
           onClick={openCreate}
@@ -215,12 +215,12 @@ export function AdminKnowledge() {
         {POST_TYPES.map(({ value, label, icon: Icon }) => {
           const count = posts.filter(p => p.type === value).length
           return (
-            <div key={value} className="rounded-xl border border-gray-100 bg-white p-4">
+            <div key={value} className="rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Icon className="h-4 w-4 text-gray-400" />
-                <span className="text-xs font-medium text-gray-500">{label}s</span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}s</span>
               </div>
-              <p className="text-2xl font-bold text-gray-800">{count}</p>
+              <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{count}</p>
             </div>
           )
         })}
@@ -231,7 +231,7 @@ export function AdminKnowledge() {
         <select
           value={filterType}
           onChange={e => setFilterType(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-200"
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800"
         >
           <option value="all">All Types</option>
           {POST_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
@@ -239,7 +239,7 @@ export function AdminKnowledge() {
         <select
           value={filterPub}
           onChange={e => setFilterPub(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-200"
+          className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800"
         >
           <option value="all">All Status</option>
           <option value="published">Published</option>
@@ -251,22 +251,22 @@ export function AdminKnowledge() {
       {isLoading ? (
         <p className="py-8 text-center text-sm text-gray-400">Loading…</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-left">
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Title</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Type</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Category</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider text-right">Actions</th>
+              <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 text-left">
+                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Title</th>
+                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider hidden sm:table-cell">Type</th>
+                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider hidden md:table-cell">Category</th>
+                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {filtered.map(post => (
-                <tr key={post.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={post.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-800 line-clamp-1">{post.title_en}</p>
+                    <p className="font-medium text-gray-800 dark:text-gray-100 line-clamp-1">{post.title_en}</p>
                     {post.title_lo && (
                       <p className="text-xs text-gray-400 line-clamp-1">{post.title_lo}</p>
                     )}
@@ -277,7 +277,7 @@ export function AdminKnowledge() {
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {post.category ? `${post.category.icon} ${post.category.name_en}` : '—'}
                     </span>
                   </td>
@@ -286,13 +286,13 @@ export function AdminKnowledge() {
                       <span className={cn(
                         'rounded-full px-2 py-0.5 text-[10px] font-semibold',
                         post.is_published
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-500',
+                          ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
                       )}>
                         {post.is_published ? 'Published' : 'Draft'}
                       </span>
                       {post.is_featured && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                        <span className="rounded-full bg-amber-100 dark:bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                           ⭐
                         </span>
                       )}
@@ -306,7 +306,7 @@ export function AdminKnowledge() {
                           id: post.id, field: 'is_published', value: !post.is_published,
                         })}
                         title={t('knowledge.publishToggle')}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                       >
                         {post.is_published ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
@@ -316,14 +316,14 @@ export function AdminKnowledge() {
                           id: post.id, field: 'is_featured', value: !post.is_featured,
                         })}
                         title={t('knowledge.featureToggle')}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-100 hover:text-amber-600 transition-colors"
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-100 dark:hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                       >
                         {post.is_featured ? <StarOff className="h-3.5 w-3.5" /> : <Star className="h-3.5 w-3.5" />}
                       </button>
                       {/* Edit */}
                       <button
                         onClick={() => openEdit(post)}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-100 hover:text-blue-600 transition-colors"
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -334,7 +334,7 @@ export function AdminKnowledge() {
                             deleteMutation.mutate(post.id)
                           }
                         }}
-                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                        className="rounded-lg p-1.5 text-gray-400 hover:bg-red-100 dark:hover:bg-red-500/15 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -357,15 +357,15 @@ export function AdminKnowledge() {
       {/* ── Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+          <div className="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h2 className="text-base font-bold text-gray-800">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4">
+              <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">
                 {editing ? t('knowledge.editPost') : t('knowledge.addPost')}
               </h2>
               <button
                 onClick={closeModal}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 transition-colors"
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -375,13 +375,13 @@ export function AdminKnowledge() {
               {/* Type + Category row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-600">
+                  <label className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">
                     {t('knowledge.formType')} *
                   </label>
                   <select
                     value={form.type}
                     onChange={e => setForm(f => ({ ...f, type: e.target.value as KnowledgePostType }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800"
                     required
                   >
                     {POST_TYPES.map(t => (
@@ -390,13 +390,13 @@ export function AdminKnowledge() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-semibold text-gray-600">
+                  <label className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">
                     {t('knowledge.formCategory')}
                   </label>
                   <select
                     value={form.category_id}
                     onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800"
                   >
                     <option value="">— None —</option>
                     {categories.map(c => (
@@ -423,7 +423,7 @@ export function AdminKnowledge() {
 
               {/* Content */}
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-600">
+                <label className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">
                   {t('knowledge.formContent')} *
                 </label>
                 <textarea
@@ -431,20 +431,20 @@ export function AdminKnowledge() {
                   onChange={e => setForm(f => ({ ...f, content_en: e.target.value }))}
                   rows={8}
                   required
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 resize-y font-mono"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 resize-y font-mono"
                   placeholder="Supports ## headings and **bold** markdown…"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-600">
+                <label className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">
                   {t('knowledge.formContentLo')}
                 </label>
                 <textarea
                   value={form.content_lo}
                   onChange={e => setForm(f => ({ ...f, content_lo: e.target.value }))}
                   rows={5}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 resize-y"
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800 resize-y"
                 />
               </div>
 
@@ -480,32 +480,32 @@ export function AdminKnowledge() {
 
               {/* Flags */}
               <div className="flex items-center gap-6">
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.is_published}
                     onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-200"
+                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-primary-600 dark:text-primary-400 focus:ring-primary-200 dark:focus:ring-primary-800"
                   />
                   {t('knowledge.formPublished')}
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={form.is_featured}
                     onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-200"
+                    className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-amber-500 focus:ring-amber-200 dark:focus:ring-amber-500/30"
                   />
                   {t('knowledge.formFeatured')} ⭐
                 </label>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+              <div className="flex justify-end gap-3 border-t border-gray-100 dark:border-gray-800 pt-4">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 >
                   {t('common.cancel')}
                 </button>
@@ -536,14 +536,14 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-semibold text-gray-600">{label}</label>
+      <label className="mb-1 block text-xs font-semibold text-gray-600 dark:text-gray-300">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
+        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200 dark:focus:ring-primary-800"
       />
     </div>
   )

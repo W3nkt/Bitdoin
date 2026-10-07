@@ -282,10 +282,10 @@ export function PaymentAccountsManager() {
   }
 
   return (
-    <section className="bg-white rounded-2xl shadow-card p-5 space-y-4">
+    <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-gray-800">Payment Accounts</h2>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Payment Accounts</h2>
           <p className="text-xs text-gray-400 mt-0.5">QR codes and bank details shown to buyers</p>
         </div>
         {!showAddAccount && (
@@ -297,34 +297,34 @@ export function PaymentAccountsManager() {
 
       {/* Account list */}
       {paymentAccounts && paymentAccounts.length > 0 && !showAddAccount && (
-        <div className="rounded-xl border border-gray-100 overflow-hidden divide-y divide-gray-50">
+        <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden divide-y divide-gray-50 dark:divide-gray-800">
           {paymentAccounts.map(acc => (
             <div key={acc.id} className={`flex items-center gap-3 p-4 ${!acc.is_active ? 'opacity-50' : ''}`}>
               {/* Icon */}
-              <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
                 {acc.method === 'QR_PAYMENT'
-                  ? <QrCode className="h-5 w-5 text-primary-600" />
-                  : <CreditCard className="h-5 w-5 text-primary-600" />}
+                  ? <QrCode className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                  : <CreditCard className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
               </div>
 
               {/* QR thumbnail */}
               {acc.qr_image_url && (
-                <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800 flex-shrink-0">
                   <img src={acc.qr_image_url} alt="QR" className="w-full h-full object-cover" />
                 </div>
               )}
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800">{acc.label}</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{acc.label}</p>
                 <p className="text-xs text-gray-400">
                   {acc.bank_name}
                   {acc.account_number ? ` · ${acc.account_number}` : ''}
                 </p>
                 <span className={`inline-flex items-center mt-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                   acc.method === 'QR_PAYMENT'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-blue-100 text-blue-700'
+                    ? 'bg-purple-100 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300'
+                    : 'bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300'
                 }`}>
                   {acc.method === 'QR_PAYMENT' ? 'QR Payment' : 'Bank Transfer'}
                 </span>
@@ -335,7 +335,7 @@ export function PaymentAccountsManager() {
                 <button
                   onClick={() => toggleActive(acc)}
                   title={acc.is_active ? 'Deactivate' : 'Activate'}
-                  className="p-2 rounded-xl hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {acc.is_active
                     ? <ToggleRight className="h-4 w-4 text-green-500" />
@@ -343,13 +343,13 @@ export function PaymentAccountsManager() {
                 </button>
                 <button
                   onClick={() => openEditAccount(acc)}
-                  className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-600 transition-colors"
+                  className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => deleteAccount(acc)}
-                  className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                  className="p-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -361,21 +361,21 @@ export function PaymentAccountsManager() {
 
       {/* Empty state */}
       {(!paymentAccounts || paymentAccounts.length === 0) && !showAddAccount && (
-        <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center">
-          <QrCode className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+        <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 py-8 text-center">
+          <QrCode className="h-8 w-8 text-gray-200 dark:text-gray-700 mx-auto mb-2" />
           <p className="text-sm text-gray-400">No payment accounts yet.</p>
-          <p className="text-xs text-gray-300 mt-1">Add a QR code or bank account for buyers to pay.</p>
+          <p className="text-xs text-gray-300 dark:text-gray-600 mt-1">Add a QR code or bank account for buyers to pay.</p>
         </div>
       )}
 
       {/* Add / Edit form */}
       {showAddAccount && (
-        <form onSubmit={hsAcc(saveAccount)} className="space-y-4 pt-3 border-t border-gray-100">
+        <form onSubmit={hsAcc(saveAccount)} className="space-y-4 pt-3 border-t border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               {editAccount ? 'Edit Account' : 'New Payment Account'}
             </p>
-            <button type="button" onClick={cancelAccountForm} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+            <button type="button" onClick={cancelAccountForm} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -417,7 +417,7 @@ export function PaymentAccountsManager() {
 
           {/* QR code upload — shown for QR_PAYMENT but useful for either */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
               QR Code Image
               {methodWatch === 'QR_PAYMENT' && <span className="text-red-500 ml-0.5">*</span>}
             </p>
@@ -427,7 +427,7 @@ export function PaymentAccountsManager() {
                 <img
                   src={qrPreview}
                   alt="QR Preview"
-                  className="w-36 h-36 object-contain rounded-xl border-2 border-primary-100 bg-white p-1"
+                  className="w-36 h-36 object-contain rounded-xl border-2 border-primary-100 dark:border-primary-800 bg-white dark:bg-gray-900 p-1"
                 />
                 <button
                   type="button"
@@ -441,7 +441,7 @@ export function PaymentAccountsManager() {
               <button
                 type="button"
                 onClick={() => qrInputRef.current?.click()}
-                className="flex flex-col items-center justify-center w-36 h-36 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-gray-400 hover:text-primary-600"
+                className="flex flex-col items-center justify-center w-36 h-36 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/40 transition-colors text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
               >
                 <Upload className="h-6 w-6 mb-1.5" />
                 <span className="text-xs font-medium">Upload QR</span>

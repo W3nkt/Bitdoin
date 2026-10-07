@@ -3,7 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, BookOpen, Store, Tag, ShoppingBag, ClipboardList,
-  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb
+  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb, Moon, Sun
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -12,6 +12,7 @@ import { useAdminNotifications } from '@/hooks/useAdminNotifications'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
+import { useApplyTheme, useTheme } from '@/lib/theme'
 
 interface AdminLayoutProps { children: ReactNode }
 
@@ -22,6 +23,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileSettingsOpen, setProfileSettingsOpen] = useState(false)
+  const theme = useTheme(state => state.theme)
+  const toggleTheme = useTheme(state => state.toggleTheme)
+  useApplyTheme()
+  const themeLabel = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
   const { orderBadge, paymentBadge, deliveryBadge, markSeen } = useAdminNotifications()
 
   const badgeCounts: Record<string, number> = {
@@ -51,7 +56,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const Sidebar = () => (
-    <aside className="flex flex-col h-full bg-primary-900">
+    <aside className="flex flex-col h-full bg-primary-900 dark:bg-gray-900 dark:border-r dark:border-gray-800">
       {/* Logo area */}
       <div className="flex items-center gap-3 px-5 h-16 border-b border-white/10 flex-shrink-0">
         <img
@@ -96,7 +101,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Display preferences */}
       <div className="border-t border-white/10 px-3 py-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
           <button
             type="button"
             onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
@@ -120,6 +125,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="text-sm leading-none" aria-hidden="true">₭</span>
             )}
             <span>{currency === 'LAK' ? 'USD' : 'LAK'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-primary-100 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 dark:text-amber-300"
+            title={themeLabel}
+            aria-label={themeLabel}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
         </div>
       </div>
@@ -169,7 +183,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <AdminNotificationsContext.Provider value={{ markSeen }}>
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Desktop sidebar */}
       <div className="hidden md:flex w-60 flex-shrink-0 flex-col">
         <Sidebar />
@@ -188,27 +202,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-white border-b border-gray-100 shadow-sm flex-shrink-0">
+        <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <Menu className="h-5 w-5 text-gray-600" />
+            <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
           </button>
           <img
             src={publicAsset('icons/Bitdoin Logo H.png')}
             alt="Bitdoin"
             className="h-9 w-9 rounded-lg bg-white object-contain"
           />
-          <span className="text-lg font-bold text-primary-900 tracking-tight">Bitdoin</span>
-          <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700 uppercase tracking-wider">
+          <span className="text-lg font-bold text-primary-900 dark:text-primary-300 tracking-tight">Bitdoin</span>
+          <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
             Admin
           </span>
           <div className="ml-auto flex items-center gap-0.5">
             <button
               type="button"
               onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               title="Switch language"
               aria-label={`Switch language to ${language === 'lo' ? 'English' : 'Lao'}`}
             >
@@ -217,7 +231,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <button
               type="button"
               onClick={() => setCurrency(currency === 'LAK' ? 'USD' : 'LAK')}
-              className="flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              className="flex h-9 items-center gap-1 rounded-xl px-2 text-xs font-semibold text-gray-600 dark:text-gray-300 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               title="Switch currency"
               aria-label={`Switch currency to ${currency === 'LAK' ? 'USD' : 'LAK'}`}
             >
@@ -228,13 +242,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               )}
               {currency}
             </button>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-amber-300 dark:hover:bg-gray-800"
+              title={themeLabel}
+              aria-label={themeLabel}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </div>
           {sidebarOpen && (
             <button
-              className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               onClick={() => setSidebarOpen(false)}
             >
-              <X className="h-5 w-5 text-gray-600" />
+              <X className="h-5 w-5 text-gray-600 dark:text-gray-300" />
             </button>
           )}
         </header>
@@ -252,7 +275,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 function LanguageFlag({ target }: { target: 'lo' | 'en' }) {
   if (target === 'lo') {
     return (
-      <span className="relative block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 bg-[#002868] shadow-sm" aria-hidden="true">
+      <span className="relative block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-700 bg-[#002868] shadow-sm" aria-hidden="true">
         <span className="absolute inset-x-0 top-0 h-1/4 bg-[#ce1126]" />
         <span className="absolute inset-x-0 bottom-0 h-1/4 bg-[#ce1126]" />
         <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -261,7 +284,7 @@ function LanguageFlag({ target }: { target: 'lo' | 'en' }) {
   }
 
   return (
-    <svg viewBox="0 0 30 20" preserveAspectRatio="none" className="block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 shadow-sm" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 30 20" preserveAspectRatio="none" className="block h-4 w-6 overflow-hidden rounded-sm border border-gray-200 dark:border-gray-700 shadow-sm" aria-hidden="true" focusable="false">
       <rect width="30" height="20" fill="#fff" />
       {[0, 2, 4, 6, 8, 10, 12].map(i => <rect key={i} y={(i * 20) / 13} width="30" height={20 / 13} fill="#b22234" />)}
       <rect width="12" height={(7 * 20) / 13} fill="#3c3b6e" />

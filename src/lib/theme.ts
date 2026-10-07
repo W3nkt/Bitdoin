@@ -50,6 +50,29 @@ export const useTheme = create<ThemeState>((set, get) => {
   }
 })
 
+/**
+ * Colors for recharts, which takes plain color values rather than classes.
+ * The navy brand color nearly vanishes on dark cards, so dark mode uses a
+ * lighter brand blue and dark tooltips.
+ */
+export function useChartTheme() {
+  const dark = useTheme(state => state.theme) === 'dark'
+  return {
+    brand: dark ? '#6b8aff' : '#1e3a5f',
+    surface: dark ? '#111827' : '#ffffff',
+    tick: { fill: dark ? '#9ca3af' : '#6b7280' },
+    axisLine: dark ? '#374151' : '#d1d5db',
+    tooltip: {
+      contentStyle: dark
+        ? { background: '#1f2937', border: '1px solid #374151', borderRadius: 12, color: '#f3f4f6' }
+        : { borderRadius: 12 },
+      itemStyle: dark ? { color: '#f3f4f6' } : undefined,
+      labelStyle: dark ? { color: '#d1d5db' } : undefined,
+      cursor: { fill: dark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)' },
+    },
+  }
+}
+
 /** Applies the current theme to <html> while the calling layout is mounted. */
 export function useApplyTheme() {
   const theme = useTheme(state => state.theme)

@@ -251,7 +251,7 @@ export function AdminBookstores() {
       {/* Page header */}
       <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('admin.bookstores')}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.bookstores')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Partner bookstore network</p>
         </div>
         <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openAdd}>
@@ -262,15 +262,15 @@ export function AdminBookstores() {
       {isLoading ? <LoadingSpinner /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookstores?.map(store => (
-            <div key={store.id} className="bg-white rounded-2xl shadow-card p-5 flex min-w-0 flex-col gap-3">
+            <div key={store.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 flex min-w-0 flex-col gap-3">
               {/* Card header: store icon + name + active badge */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-primary-50 p-2.5 flex-shrink-0">
-                    <Store className="h-5 w-5 text-primary-700" />
+                  <div className="rounded-xl bg-primary-50 dark:bg-primary-900/40 p-2.5 flex-shrink-0">
+                    <Store className="h-5 w-5 text-primary-700 dark:text-primary-300" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm leading-tight">{store.name}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight">{store.name}</p>
                     {store.contact_name && (
                       <p className="text-xs text-gray-400 mt-0.5">{store.contact_name}</p>
                     )}
@@ -279,8 +279,8 @@ export function AdminBookstores() {
                 {/* Active/inactive pill badge */}
                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold flex-shrink-0 ${
                   store.is_active
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-500'
+                    ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                 }`}>
                   {store.is_active ? t('common.active') : t('common.inactive')}
                 </span>
@@ -288,7 +288,7 @@ export function AdminBookstores() {
 
               {/* Address */}
               {store.address && (
-                <p className="text-xs text-gray-500 leading-relaxed">{store.address}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{store.address}</p>
               )}
 
               {/* Contact links */}
@@ -296,7 +296,7 @@ export function AdminBookstores() {
                 {store.phone && (
                   <a
                     href={`tel:${store.phone}`}
-                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary-700 transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                   >
                     <Phone className="h-3.5 w-3.5" />
                     {store.phone}
@@ -307,14 +307,14 @@ export function AdminBookstores() {
                     href={whatsAppUrl(store)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-xs text-green-600 hover:text-green-700 transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors"
                   >
                     <MessageCircle className="h-3.5 w-3.5" />
                     WhatsApp
                   </a>
                 )}
                 {store.bank_qr_code_url && (
-                  <span className="flex items-center gap-1.5 text-xs text-primary-600">
+                  <span className="flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400">
                     <QrCode className="h-3.5 w-3.5" />
                     Bank QR
                   </span>
@@ -323,16 +323,16 @@ export function AdminBookstores() {
 
               {/* Notes */}
               {store.notes && (
-                <p className="text-xs text-gray-400 bg-gray-50 rounded-xl p-2.5 italic leading-relaxed">
+                <p className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-2.5 italic leading-relaxed">
                   {store.notes}
                 </p>
               )}
 
               {/* Actions row */}
-              <div className="flex items-center gap-3 pt-2 border-t border-gray-100 mt-auto">
+              <div className="flex items-center gap-3 pt-2 border-t border-gray-100 dark:border-gray-800 mt-auto">
                 <button
                   onClick={() => openEdit(store)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-primary-700 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                 >
                   <Edit2 className="h-3.5 w-3.5" />
                   Edit
@@ -340,7 +340,7 @@ export function AdminBookstores() {
                 <button
                   onClick={() => copyPriceLink(store)}
                   disabled={linkBusyId === store.id}
-                  className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-800 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors disabled:opacity-50"
                   title="Copy a link this store can use to submit book prices"
                 >
                   <Link2 className="h-3.5 w-3.5" />
@@ -350,8 +350,8 @@ export function AdminBookstores() {
                   onClick={() => toggleActive(store)}
                   className={`ml-auto text-xs font-medium transition-colors ${
                     store.is_active
-                      ? 'text-red-400 hover:text-red-600'
-                      : 'text-green-600 hover:text-green-700'
+                      ? 'text-red-400 hover:text-red-600 dark:hover:text-red-400'
+                      : 'text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300'
                   }`}
                 >
                   {store.is_active ? 'Deactivate' : 'Activate'}
@@ -385,25 +385,25 @@ export function AdminBookstores() {
           <Textarea label="Address" rows={2} {...register('address')} />
           <Textarea label="Notes" rows={2} {...register('notes')} />
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">Store Bank QR Code</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Store Bank QR Code</p>
             <button
               type="button"
               onClick={() => qrInputRef.current?.click()}
-              className="flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-gray-200 p-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
+              className="flex w-full items-center gap-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-3 text-left transition-colors hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/40"
             >
               {qrPreview ? (
                 <img
                   src={qrPreview}
                   alt="Store bank QR preview"
-                  className="h-24 w-24 flex-shrink-0 rounded-lg border border-gray-100 bg-white object-contain"
+                  className="h-24 w-24 flex-shrink-0 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 object-contain"
                 />
               ) : (
-                <span className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-gray-50">
-                  <QrCode className="h-9 w-9 text-gray-300" />
+                <span className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <QrCode className="h-9 w-9 text-gray-300 dark:text-gray-600" />
                 </span>
               )}
               <span>
-                <span className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
                   <Upload className="h-4 w-4" />
                   {qrPreview ? 'Replace QR image' : 'Upload QR image'}
                 </span>
@@ -478,15 +478,15 @@ export function AdminBookstores() {
         footer={<Button onClick={() => setLinkModal(null)}>Done</Button>}
       >
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">
-            Copy this link and share it with <strong className="text-gray-900">{linkModal?.name}</strong>.
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Copy this link and share it with <strong className="text-gray-900 dark:text-gray-100">{linkModal?.name}</strong>.
             They can use it anytime, without an account, to enter their book prices.
           </p>
           <input
             readOnly
             value={linkModal?.url ?? ''}
             onFocus={e => e.currentTarget.select()}
-            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-xs font-mono text-gray-700"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5 text-xs font-mono text-gray-700 dark:text-gray-200"
           />
         </div>
       </Modal>

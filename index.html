@@ -16,12 +16,13 @@
       })(window.location)
     </script>
     <script type="text/javascript">
-      // Apply the Bookstore / sign-in dark theme before first paint (no white flash).
+      // Apply the Bookstore / bookstore admin / sign-in dark theme before first
+      // paint (no white flash).
       // Mirrors src/lib/theme.ts: key 'bitdoin_theme', else the OS setting.
       (function () {
         try {
           var path = window.location.pathname
-          if (path.indexOf('/bookstore') !== 0 && path !== '/auth') return
+          if (path.indexOf('/bookstore') !== 0 && path.indexOf('/admin') !== 0 && path !== '/auth') return
           var stored = localStorage.getItem('bitdoin_theme')
           var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
           if (dark) {

@@ -62,7 +62,7 @@ export function AdminSettings() {
     <div className="space-y-6 max-w-2xl">
       {/* Page header */}
       <div>
-        <h1 className="text-xl font-bold text-gray-900">{t('admin.settings')}</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.settings')}</h1>
         <p className="text-sm text-gray-400 mt-0.5">Platform configuration</p>
       </div>
 
@@ -70,28 +70,28 @@ export function AdminSettings() {
       <PaymentAccountsManager />
 
       {/* ── Categories section ── */}
-      <section className="bg-white rounded-2xl shadow-card p-5 space-y-4">
+      <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-gray-800">Book Categories</h2>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Book Categories</h2>
           <span className="text-xs text-gray-400">{categories?.length ?? 0} categories</span>
         </div>
 
-        <div className="rounded-xl border border-gray-100 overflow-hidden">
+        <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           {categories?.map((cat, idx) => (
             <div
               key={cat.id}
               className={`flex items-center gap-4 px-4 py-3 ${
-                idx !== (categories.length - 1) ? 'border-b border-gray-50' : ''
+                idx !== (categories.length - 1) ? 'border-b border-gray-50 dark:border-gray-800' : ''
               }`}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800">{cat.name_en}</p>
+                <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{cat.name_en}</p>
               </div>
               <div className="flex-1 min-w-0 hidden sm:block">
-                <p className="text-sm text-gray-500">{cat.name_lo}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{cat.name_lo}</p>
               </div>
               <div className="flex-shrink-0">
-                <span className="inline-flex items-center rounded-lg bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-500">
+                <span className="inline-flex items-center rounded-lg bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs font-mono text-gray-500 dark:text-gray-400">
                   /{cat.slug}
                 </span>
               </div>
@@ -104,8 +104,8 @@ export function AdminSettings() {
           )}
         </div>
 
-        <form onSubmit={hsCat(addCategory)} className="pt-3 border-t border-gray-100">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Add Category</p>
+        <form onSubmit={hsCat(addCategory)} className="pt-3 border-t border-gray-100 dark:border-gray-800">
+          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Add Category</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Input label="English Name" required {...rCat('name_en', { required: true })} />
             <Input label="Lao Name" required {...rCat('name_lo', { required: true })} />
@@ -120,18 +120,18 @@ export function AdminSettings() {
       </section>
 
       {/* ── Platform info section ── */}
-      <section className="bg-white rounded-2xl shadow-card p-5 space-y-4">
-        <h2 className="text-sm font-bold text-gray-800">Platform</h2>
-        <div className="rounded-xl border border-gray-100 overflow-hidden">
+      <section className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 space-y-4">
+        <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Platform</h2>
+        <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           {platformInfo.map((item, idx) => (
             <div
               key={item.label}
               className={`flex items-center px-4 py-3 ${
-                idx !== platformInfo.length - 1 ? 'border-b border-gray-50' : ''
+                idx !== platformInfo.length - 1 ? 'border-b border-gray-50 dark:border-gray-800' : ''
               }`}
             >
               <span className="text-sm text-gray-400 w-32 flex-shrink-0">{item.label}</span>
-              <span className="text-sm font-semibold text-gray-800">{item.value}</span>
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.value}</span>
             </div>
           ))}
         </div>

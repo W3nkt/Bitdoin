@@ -89,28 +89,28 @@ export function deliveryStatusLabel(status: DeliveryStatus, lang: Language = 'en
 
 export function orderStatusColor(status: OrderStatus): string {
   const colors: Partial<Record<OrderStatus, string>> = {
-    PENDING_PAYMENT:           'bg-yellow-100 text-yellow-800',
-    PAYMENT_REVIEW:            'bg-orange-100 text-orange-800',
-    PROCESSING:                'bg-blue-100 text-blue-800',
-    PURCHASING_FROM_BOOKSTORE: 'bg-purple-100 text-purple-800',
-    PARTIALLY_SHIPPED:         'bg-indigo-100 text-indigo-800',
-    SHIPPED:                   'bg-cyan-100 text-cyan-800',
-    DELIVERED:                 'bg-green-100 text-green-800',
-    COMPLETED:                 'bg-green-200 text-green-900',
-    CANCELLED:                 'bg-red-100 text-red-800',
-    OUT_OF_STOCK:              'bg-gray-100 text-gray-800',
-    RETURNED:                  'bg-rose-100 text-rose-800',
+    PENDING_PAYMENT:           'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300',
+    PAYMENT_REVIEW:            'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300',
+    PROCESSING:                'bg-blue-100 dark:bg-blue-500/15 text-blue-800 dark:text-blue-300',
+    PURCHASING_FROM_BOOKSTORE: 'bg-purple-100 dark:bg-purple-500/15 text-purple-800 dark:text-purple-300',
+    PARTIALLY_SHIPPED:         'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-800 dark:text-indigo-300',
+    SHIPPED:                   'bg-cyan-100 dark:bg-cyan-500/15 text-cyan-800 dark:text-cyan-300',
+    DELIVERED:                 'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300',
+    COMPLETED:                 'bg-green-200 dark:bg-green-500/25 text-green-900 dark:text-green-300',
+    CANCELLED:                 'bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300',
+    OUT_OF_STOCK:              'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100',
+    RETURNED:                  'bg-rose-100 dark:bg-rose-500/15 text-rose-800 dark:text-rose-300',
   }
-  return colors[status] ?? 'bg-gray-100 text-gray-600'
+  return colors[status] ?? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
 }
 
 export function paymentStatusColor(status: PaymentStatus): string {
   const colors: Record<PaymentStatus, string> = {
-    PENDING:         'bg-yellow-100 text-yellow-800',
-    VERIFIED:        'bg-green-100 text-green-800',
-    REQUIRES_REVIEW: 'bg-orange-100 text-orange-800',
-    REJECTED:        'bg-red-100 text-red-800',
-    REFUNDED:        'bg-gray-100 text-gray-800',
+    PENDING:         'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300',
+    VERIFIED:        'bg-green-100 dark:bg-green-500/15 text-green-800 dark:text-green-300',
+    REQUIRES_REVIEW: 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300',
+    REJECTED:        'bg-red-100 dark:bg-red-500/15 text-red-800 dark:text-red-300',
+    REFUNDED:        'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100',
   }
   return colors[status]
 }

@@ -29,16 +29,16 @@ interface DeliveryForm {
 const COURIERS = ['Unitel Logistics', 'Anousith Express', 'HAL Logistics', 'Self-delivery']
 
 const statusColors: Record<DeliveryStatus, string> = {
-  NOT_ASSIGNED:       'bg-gray-100 text-gray-600',
-  READY_FOR_SHIPMENT: 'bg-blue-100 text-blue-700',
-  SHIPPED:            'bg-indigo-100 text-indigo-700',
-  DELIVERED:          'bg-green-100 text-green-700',
-  FAILED:             'bg-red-100 text-red-700',
-  RETURNED:           'bg-rose-100 text-rose-700',
+  NOT_ASSIGNED:       'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
+  READY_FOR_SHIPMENT: 'bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300',
+  SHIPPED:            'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300',
+  DELIVERED:          'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300',
+  FAILED:             'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300',
+  RETURNED:           'bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300',
 }
 
 const statusStripes: Record<DeliveryStatus, string> = {
-  NOT_ASSIGNED:       'bg-gray-300',
+  NOT_ASSIGNED:       'bg-gray-300 dark:bg-gray-600',
   READY_FOR_SHIPMENT: 'bg-blue-400',
   SHIPPED:            'bg-indigo-500',
   DELIVERED:          'bg-green-500',
@@ -173,7 +173,7 @@ export function AdminDeliveries() {
       {/* Page header */}
       <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('admin.deliveries')}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.deliveries')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Track and manage shipments</p>
         </div>
         <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={openAdd}>
@@ -190,7 +190,7 @@ export function AdminDeliveries() {
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
               statusFilter === s
                 ? 'bg-primary-700 text-white shadow-sm'
-                : 'border border-gray-200 text-gray-500 hover:border-primary-400 hover:text-primary-600'
+                : 'border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400'
             }`}
           >
             {s ? deliveryStatusLabel(s as DeliveryStatus, language) : 'All'}
@@ -201,7 +201,7 @@ export function AdminDeliveries() {
       {isLoading ? <LoadingSpinner /> : (
         <div className="space-y-3">
           {deliveries?.map(delivery => (
-            <div key={delivery.id} className="bg-white rounded-2xl shadow-card overflow-hidden flex">
+            <div key={delivery.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden flex">
               {/* Status color stripe on left */}
               <div className={cn('w-1 flex-shrink-0', statusStripes[delivery.status])} />
 
@@ -209,11 +209,11 @@ export function AdminDeliveries() {
                 {/* Card header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-indigo-50 p-2.5 flex-shrink-0">
-                      <Truck className="h-4 w-4 text-indigo-600" />
+                    <div className="rounded-xl bg-indigo-50 dark:bg-indigo-500/10 p-2.5 flex-shrink-0">
+                      <Truck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
                         {(delivery.order as { order_number?: string } | undefined)?.order_number ?? '—'}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -230,12 +230,12 @@ export function AdminDeliveries() {
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                   <div className="flex items-center gap-1.5">
                     <span className="text-gray-400">Courier:</span>
-                    <span className="font-medium text-gray-700">{delivery.courier}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{delivery.courier}</span>
                   </div>
                   {delivery.tracking_number && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">Tracking:</span>
-                      <span className="font-mono bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-md text-[11px]">
+                      <span className="font-mono bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-1.5 py-0.5 rounded-md text-[11px]">
                         {delivery.tracking_number}
                       </span>
                     </div>
@@ -243,13 +243,13 @@ export function AdminDeliveries() {
                   {delivery.shipped_at && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">Shipped:</span>
-                      <span className="text-gray-600">{formatDate(delivery.shipped_at, language)}</span>
+                      <span className="text-gray-600 dark:text-gray-300">{formatDate(delivery.shipped_at, language)}</span>
                     </div>
                   )}
                   {delivery.estimated_delivery_at && (
                     <div className="flex items-center gap-1.5">
                       <span className="text-gray-400">Est. Delivery:</span>
-                      <span className="text-gray-600">{formatDate(delivery.estimated_delivery_at, language)}</span>
+                      <span className="text-gray-600 dark:text-gray-300">{formatDate(delivery.estimated_delivery_at, language)}</span>
                     </div>
                   )}
                 </div>
@@ -263,7 +263,7 @@ export function AdminDeliveries() {
                 )}
 
                 {/* Card footer */}
-                <div className="mt-3 pt-3 border-t border-gray-50 flex justify-end">
+                <div className="mt-3 pt-3 border-t border-gray-50 dark:border-gray-800 flex justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -278,7 +278,7 @@ export function AdminDeliveries() {
           ))}
 
           {deliveries?.length === 0 && (
-            <div className="text-center py-12 text-gray-400 text-sm bg-white rounded-2xl shadow-card">
+            <div className="text-center py-12 text-gray-400 text-sm bg-white dark:bg-gray-900 rounded-2xl shadow-card">
               No deliveries found for this filter.
             </div>
           )}

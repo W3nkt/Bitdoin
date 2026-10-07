@@ -296,11 +296,11 @@ export function AdminPayments() {
   }
 
   const statusColors: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-700',
-    REQUIRES_REVIEW: 'bg-orange-100 text-orange-700',
-    VERIFIED: 'bg-green-100 text-green-700',
-    REJECTED: 'bg-red-100 text-red-700',
-    REFUNDED: 'bg-gray-100 text-gray-700',
+    PENDING: 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700 dark:text-yellow-300',
+    REQUIRES_REVIEW: 'bg-orange-100 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300',
+    VERIFIED: 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300',
+    REJECTED: 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300',
+    REFUNDED: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200',
   }
 
   const pendingCount = payments?.filter(
@@ -312,25 +312,25 @@ export function AdminPayments() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{t('admin.payments')}</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.payments')}</h1>
           <p className="text-sm text-gray-400 mt-0.5">Verify payment receipts</p>
         </div>
       </div>
 
       {/* Pill-style tab switcher */}
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-2xl p-1 w-fit">
         <button
           onClick={() => setTab('pending')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             tab === 'pending'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           Needs Review
           {pendingCount > 0 && (
             <span className={`inline-flex items-center justify-center h-4 min-w-4 rounded-full text-[10px] font-bold px-1 ${
-              tab === 'pending' ? 'bg-accent-500 text-white' : 'bg-orange-100 text-orange-600'
+              tab === 'pending' ? 'bg-accent-500 text-white' : 'bg-orange-100 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400'
             }`}>
               {pendingCount}
             </span>
@@ -340,8 +340,8 @@ export function AdminPayments() {
           onClick={() => setTab('all')}
           className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
             tab === 'all'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
           }`}
         >
           All Payments
@@ -349,44 +349,44 @@ export function AdminPayments() {
       </div>
 
       {isLoading ? <LoadingSpinner /> : (
-        <div className="bg-white rounded-2xl shadow-card overflow-x-auto">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50/80 border-b border-gray-100">
+            <thead className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Order</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Customer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Method</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">AI Score</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Order</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden md:table-cell">Customer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">Method</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide hidden lg:table-cell">AI Score</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
               {payments?.map(payment => (
                 <tr
                   key={payment.id}
-                  className="hover:bg-gray-50/80 transition-colors cursor-pointer"
+                  className="hover:bg-gray-50/80 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                   onClick={() => { setDetailPayment(payment); markSeen(payment.id) }}
                 >
                   <td className="px-4 py-3">
-                    <p className="text-xs font-mono font-semibold text-gray-900">
+                    <p className="text-xs font-mono font-semibold text-gray-900 dark:text-gray-100">
                       {(payment.order as { order_number?: string } | undefined)?.order_number ?? '—'}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(payment.created_at, language)}</p>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <p className="text-xs font-medium text-gray-700">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
                       {(payment.order as { customer_name?: string } | undefined)?.customer_name ?? '—'}
                     </p>
                     <p className="text-xs text-gray-400">
                       {(payment.order as { customer_phone?: string } | undefined)?.customer_phone}
                     </p>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">
+                  <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500 dark:text-gray-400">
                     {payment.method.replace('_', ' ')}
                   </td>
-                  <td className="px-4 py-3 text-right text-xs font-bold text-gray-900">
+                  <td className="px-4 py-3 text-right text-xs font-bold text-gray-900 dark:text-gray-100">
                     {formatPrice(payment.amount, currency)}
                   </td>
                   <td className="px-4 py-3">
@@ -397,7 +397,7 @@ export function AdminPayments() {
                   <td className="px-4 py-3 hidden lg:table-cell">
                     {verificationConfidence(payment) !== null ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="w-16 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
                               Number(verificationConfidence(payment)) >= 90 ? 'bg-green-500' : 'bg-orange-400'
@@ -406,13 +406,13 @@ export function AdminPayments() {
                           />
                         </div>
                         <span className={`text-xs font-semibold ${
-                          Number(verificationConfidence(payment)) >= 90 ? 'text-green-600' : 'text-orange-600'
+                          Number(verificationConfidence(payment)) >= 90 ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
                         }`}>
                           {new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(Number(verificationConfidence(payment)))}%
                         </span>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-300">—</span>
+                      <span className="text-xs text-gray-300 dark:text-gray-600">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
@@ -420,7 +420,7 @@ export function AdminPayments() {
                       {payment.verification_status === 'VERIFIED' && (
                         <button
                           onClick={() => setReceiptPayment(payment)}
-                          className="p-2 rounded-xl hover:bg-green-50 text-gray-400 hover:text-green-600 transition-colors"
+                          className="p-2 rounded-xl hover:bg-green-50 dark:hover:bg-green-500/10 text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                           title="View receipt"
                         >
                           <ReceiptText className="h-4 w-4" />
@@ -428,7 +428,7 @@ export function AdminPayments() {
                       )}
                       <button
                         onClick={() => { setDetailPayment(payment); markSeen(payment.id) }}
-                        className="p-2 rounded-xl hover:bg-primary-50 text-gray-400 hover:text-primary-700 transition-colors"
+                        className="p-2 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/40 text-gray-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
                         title="Review payment"
                       >
                         <Eye className="h-4 w-4" />
@@ -456,15 +456,15 @@ export function AdminPayments() {
           <div className="space-y-5">
             {/* Order & customer summary */}
             {detailPayment.order && (
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+              <div className="rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-3 space-y-2">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{detailPayment.order.customer_name}</p>
-                  <p className="text-xs text-gray-500">{detailPayment.order.customer_phone}</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{detailPayment.order.customer_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{detailPayment.order.customer_phone}</p>
                 </div>
                 {!!detailPayment.order.items?.length && (
-                  <div className="space-y-1 border-t border-gray-200 pt-2">
+                  <div className="space-y-1 border-t border-gray-200 dark:border-gray-700 pt-2">
                     {detailPayment.order.items.map(item => (
-                      <p key={item.id} className="text-xs text-gray-700">
+                      <p key={item.id} className="text-xs text-gray-700 dark:text-gray-200">
                         {item.book?.title}
                         <span className="text-gray-400"> ×{item.quantity}</span>
                       </p>
@@ -476,37 +476,37 @@ export function AdminPayments() {
 
             {/* Key details grid */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-primary-50 rounded-xl p-3">
+              <div className="bg-primary-50 dark:bg-primary-900/40 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">Amount</p>
-                <p className="font-bold text-xl text-primary-700">{formatPrice(detailPayment.amount, currency)}</p>
+                <p className="font-bold text-xl text-primary-700 dark:text-primary-300">{formatPrice(detailPayment.amount, currency)}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                 <p className="text-xs text-gray-400 mb-1">Method</p>
-                <p className="font-semibold text-gray-800">{detailPayment.method.replace('_', ' ')}</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-100">{detailPayment.method.replace('_', ' ')}</p>
               </div>
               {detailPayment.sender_name && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">Sender</p>
-                  <p className="font-medium text-gray-800">{detailPayment.sender_name}</p>
+                  <p className="font-medium text-gray-800 dark:text-gray-100">{detailPayment.sender_name}</p>
                 </div>
               )}
               {detailPayment.transaction_reference && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">Reference</p>
-                  <p className="font-mono text-xs text-gray-700">{detailPayment.transaction_reference}</p>
+                  <p className="font-mono text-xs text-gray-700 dark:text-gray-200">{detailPayment.transaction_reference}</p>
                 </div>
               )}
               {detailPayment.transferred_at && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-1">Transferred At</p>
-                  <p className="text-sm text-gray-700">{formatDateTime(detailPayment.transferred_at, language)}</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">{formatDateTime(detailPayment.transferred_at, language)}</p>
                 </div>
               )}
               {verificationConfidence(detailPayment) !== null && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3">
                   <p className="text-xs text-gray-400 mb-2">AI Confidence</p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                    <div className="flex-1 h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           Number(verificationConfidence(detailPayment)) >= 90 ? 'bg-green-500' : 'bg-orange-400'
@@ -515,7 +515,7 @@ export function AdminPayments() {
                       />
                     </div>
                     <span className={`text-sm font-bold ${
-                      Number(verificationConfidence(detailPayment)) >= 90 ? 'text-green-600' : 'text-orange-500'
+                      Number(verificationConfidence(detailPayment)) >= 90 ? 'text-green-600 dark:text-green-400' : 'text-orange-500'
                     }`}>
                       {Number(verificationConfidence(detailPayment)).toFixed(1)}%
                     </span>
@@ -535,11 +535,11 @@ export function AdminPayments() {
 
               if (!ai) {
                 return (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-amber-900">AI OCR has not been completed</p>
-                        <p className="mt-1 text-xs text-amber-700">Run Qwen OCR to extract the slip amount, transaction date, and recommendation.</p>
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">AI OCR has not been completed</p>
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">Run Qwen OCR to extract the slip amount, transaction date, and recommendation.</p>
                       </div>
                       <Button
                         variant="outline"
@@ -557,18 +557,18 @@ export function AdminPayments() {
               return (
                 <div className={cn(
                   'rounded-xl border p-3',
-                  recommendApprove ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50',
+                  recommendApprove ? 'border-green-200 dark:border-green-500/30 bg-green-50 dark:bg-green-500/10' : 'border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10',
                 )}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className={cn(
                         'flex items-center gap-1.5 text-sm font-semibold',
-                        recommendApprove ? 'text-green-800' : 'text-red-800',
+                        recommendApprove ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300',
                       )}>
                         <Sparkles className="h-4 w-4" />
                         AI suggests: {recommendApprove ? 'Approve' : 'Reject / review'}
                       </p>
-                      <p className="mt-1.5 text-sm text-gray-700">
+                      <p className="mt-1.5 text-sm text-gray-700 dark:text-gray-200">
                         OCR amount: <strong>{ai.amount != null ? formatLak(Number(ai.amount)) : 'Not detected'}</strong>
                         {' · '}Transaction date: <strong>{ai.date ? formatDateTime(ai.date, language) : 'Not detected'}</strong>
                       </p>
@@ -576,16 +576,16 @@ export function AdminPayments() {
                         <div className="mt-2 flex items-center gap-2">
                           <span className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-bold',
-                            matches ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+                            matches ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300',
                           )}>
                             {new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(coverage)}% of order total
                           </span>
-                          <span className={cn('text-xs font-semibold', matches ? 'text-green-700' : 'text-red-700')}>
+                          <span className={cn('text-xs font-semibold', matches ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300')}>
                             {matches ? 'Amount matched' : 'Amount short'}
                           </span>
                         </div>
                       )}
-                      <p className="mt-1 text-xs text-gray-600">
+                      <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
                         {matches === true
                           ? coverage !== null && coverage > 100
                             ? `The transfer exceeds the order total by ${formatLak(Number(ai.amount) - detailPayment.amount)}.`
@@ -596,7 +596,7 @@ export function AdminPayments() {
                         {ai.raw ? ` ${ai.raw}` : ''}
                       </p>
                       {!transactionUnique && (
-                        <p className="mt-1.5 text-xs font-semibold text-amber-700">
+                        <p className="mt-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
                           Warning: this transaction reference was also detected on another payment. Please confirm it manually.
                         </p>
                       )}
@@ -608,7 +608,7 @@ export function AdminPayments() {
                       type="button"
                       onClick={() => analyzePayment(detailPayment)}
                       disabled={analyzing}
-                      className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/70 disabled:opacity-50"
+                      className="shrink-0 rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-white/70 dark:hover:bg-gray-900/70 disabled:opacity-50"
                       title="Run Qwen OCR again"
                     >
                       <RefreshCw className={cn('h-4 w-4', analyzing && 'animate-spin')} />
@@ -626,14 +626,14 @@ export function AdminPayments() {
                   src={detailPayment.receipt_image_url}
                   bucket="receipts"
                   alt="Receipt"
-                  className="w-full max-h-72 object-contain rounded-2xl border border-gray-100 shadow-sm"
+                  className="w-full max-h-72 object-contain rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm"
                 />
               </div>
             )}
 
             {/* Action buttons for pending / needs-review payments */}
             {(detailPayment.verification_status === 'PENDING' || detailPayment.verification_status === 'REQUIRES_REVIEW') && (
-              <div className="space-y-3 pt-1 border-t border-gray-100">
+              <div className="space-y-3 pt-1 border-t border-gray-100 dark:border-gray-800">
                 <Input
                   label="Rejection Reason (required to reject)"
                   placeholder="e.g. Amount does not match order total"
@@ -664,7 +664,7 @@ export function AdminPayments() {
 
             {/* For already-verified payments in the review modal, offer receipt view */}
             {detailPayment.verification_status === 'VERIFIED' && (
-              <div className="pt-1 border-t border-gray-100">
+              <div className="pt-1 border-t border-gray-100 dark:border-gray-800">
                 <Button
                   fullWidth
                   variant="outline"
