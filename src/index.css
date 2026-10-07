@@ -86,3 +86,100 @@
   from { width: 0% }
   to   { width: 100% }
 }
+
+/* ── Buy Now button ── */
+.buy-now-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: buy-now-shine 3.4s ease-in-out 1s infinite;
+}
+
+@keyframes buy-now-shine {
+  0%   { transform: translateX(-120%); }
+  35%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+
+.buy-now-ripple {
+  position: absolute;
+  z-index: 0;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  animation: buy-now-ripple 0.55s ease-out forwards;
+}
+
+@keyframes buy-now-ripple {
+  from { transform: scale(0);  opacity: 0.9; }
+  to   { transform: scale(26); opacity: 0; }
+}
+
+.buy-now-pop {
+  animation: buy-now-pop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes buy-now-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(0.9); }
+  65%  { transform: scale(1.1); }
+  100% { transform: scale(1.04); }
+}
+
+.buy-now-check {
+  animation: buy-now-check 0.35s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+@keyframes buy-now-check {
+  from { transform: scale(0) rotate(-45deg); }
+  to   { transform: scale(1) rotate(0deg); }
+}
+
+.buy-now-particle {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* ── Add to cart: flying book + cart bump ── */
+.fly-to-cart {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 8px;
+  background-color: #1e3a5f;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.9);
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+.cart-bump {
+  animation: cart-bump 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes cart-bump {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.35) rotate(-10deg); }
+  50%  { transform: scale(0.9) rotate(6deg); }
+  75%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buy-now-shine,
+  .buy-now-ripple,
+  .buy-now-pop,
+  .buy-now-check,
+  .cart-bump {
+    animation: none;
+  }
+}

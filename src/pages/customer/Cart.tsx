@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ShoppingCart, Trash2, Plus, Minus, BookOpen } from 'lucide-react'
+import { ShoppingCart, Trash2, Plus, Minus, BookOpen, ShieldCheck } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
+import { CtaButton } from '@/components/ui/CtaButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 export function Cart() {
@@ -92,7 +92,7 @@ export function Cart() {
       ))}
 
       {/* Fixed summary bar — above bottom tab bar on mobile */}
-      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-100 shadow-up">
+      <div data-bitty-avoid className="fixed bottom-14 md:bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-100 shadow-up">
         <div className="max-w-5xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between text-sm mb-1">
             <span className="text-gray-600">{t('cart.subtotal')}</span>
@@ -102,9 +102,13 @@ export function Cart() {
             <span>{t('cart.deliveryFee')}</span>
             <span>{t('cart.deliveryFeeNote')}</span>
           </div>
-          <Button fullWidth size="lg" onClick={() => navigate('/bookstore/checkout')}>
+          <CtaButton
+            onActivate={() => navigate('/bookstore/checkout')}
+            icon={<ShieldCheck className="h-5 w-5" />}
+            className="h-12 w-full text-base"
+          >
             {t('cart.checkout')}
-          </Button>
+          </CtaButton>
         </div>
       </div>
     </div>

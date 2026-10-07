@@ -173,7 +173,7 @@ export function Catalog() {
             <div className="flex gap-2">
               <button
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden flex h-11 items-center gap-1.5 rounded border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 flex-shrink-0"
+                className="lg:hidden flex h-11 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-slate-600 hover:bg-slate-50 flex-shrink-0"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="text-xs font-medium">{t('catalog.filter', 'Filter')}</span>
@@ -187,7 +187,7 @@ export function Catalog() {
                   value={filters.query ?? ''}
                   onChange={e => applyFilters({ query: e.target.value })}
                   placeholder={t('home.searchPlaceholder')}
-                  className="h-11 w-full border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-10 text-sm text-slate-800 placeholder:text-slate-400 focus:border-accent-500 focus:outline-none"
                 />
                 {filters.query && (
                   <button
@@ -214,7 +214,7 @@ export function Catalog() {
             <select
               value={sort}
               onChange={e => setSort(parseSort(e.target.value))}
-              className="h-11 border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 focus:border-accent-500 focus:outline-none"
             >
               <option value="best">{t('sidebar.bestSeller')}</option>
               <option value="newest">{t('catalog.sortOptions.newest')}</option>

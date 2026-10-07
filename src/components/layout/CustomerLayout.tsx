@@ -95,6 +95,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                   state={!profile && to === '/auth' ? { from: '/bookstore/profile' } : undefined}
                   end={end}
                   aria-label={label}
+                  data-cart-target={to === '/bookstore/cart' ? '' : undefined}
                   className={({ isActive }) => cn(
                     'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
                     isActive
@@ -118,22 +119,17 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
           {/* Controls */}
           <div className="flex flex-shrink-0 items-center gap-0.5">
-            <Tooltip label="Switch to Bitdoin Academy" className="hidden lg:inline-flex">
+            {/* Platform switch — on mobile it takes the place of a search icon,
+                since every page has its own search bar. Hidden on md where the
+                header search + nav icons need the room. */}
+            <Tooltip label="Switch to Bitdoin Academy" className="inline-flex md:hidden lg:inline-flex">
               <Link
                 to="/academy"
-                className="flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-amber-300 transition hover:bg-slate-800"
+                className="mr-1 flex items-center gap-1.5 px-2 py-2 text-xs font-black text-amber-600 transition hover:text-orange-600 active:scale-95"
               >
                 <GraduationCap className="h-4 w-4" /> Academy
               </Link>
             </Tooltip>
-            {/* Mobile search icon */}
-            <button
-              onClick={openSearch}
-              className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100 transition-colors"
-              aria-label={t('common.search')}
-            >
-              <Search className="h-4 w-4" />
-            </button>
 
             {/* Language toggle */}
             <Tooltip label="Switch language">
@@ -155,7 +151,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       </main>
 
       {/* ── Footer ── */}
-      <footer className="bg-primary-900 text-white">
+      <footer data-bitty-avoid className="bg-primary-900 text-white">
         <div className="max-w-6xl mx-auto px-4 pt-8 pb-24 md:pb-8">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             {/* Brand */}
@@ -179,38 +175,25 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 {t('nav.contacts')}
               </p>
               <div className="flex flex-wrap gap-2">
-                <a
-                  href={waHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
-                >
-                  <WhatsAppIcon className="h-4 w-4 text-green-400" />
-                  <span>WhatsApp</span>
-                </a>
-                <a
-                  href={messengerHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
-                >
-                  <MessengerIcon className="h-4 w-4 text-blue-400" />
-                  <span>Messenger</span>
-                </a>
-                <a
-                  href={phoneHref}
-                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
-                >
-                  <IPhoneIcon className="h-4 w-4 text-gray-300" />
-                  <span>{waNumber}</span>
-                </a>
-                <a
-                  href={emailHref}
-                  className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm hover:bg-white/20 transition-colors"
-                >
-                  <GmailIcon className="h-4 w-4 text-red-400" />
-                  <span>{email}</span>
-                </a>
+                {[
+                  { href: waHref, label: 'WhatsApp', external: true, icon: <WhatsAppIcon className="h-5 w-5 text-green-400" /> },
+                  { href: messengerHref, label: 'Messenger', external: true, icon: <MessengerIcon className="h-5 w-5 text-blue-400" /> },
+                  { href: phoneHref, label: waNumber, external: false, icon: <IPhoneIcon className="h-5 w-5 text-gray-300" /> },
+                  { href: emailHref, label: email, external: false, icon: <GmailIcon className="h-5 w-5 text-red-400" /> },
+                ].map(({ href, label, external, icon }) => (
+                  <Tooltip key={href} label={label}>
+                    <a
+                      href={href}
+                      target={external ? '_blank' : undefined}
+                      rel={external ? 'noreferrer' : undefined}
+                      aria-label={label}
+                      title={label}
+                      className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20"
+                    >
+                      {icon}
+                    </a>
+                  </Tooltip>
+                ))}
               </div>
             </div>
           </div>
@@ -256,7 +239,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       )}
 
       {/* ── Mobile bottom tab bar — hidden on md+ ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-200">
+      <nav data-bitty-avoid className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-t border-gray-200">
         <div className="flex items-stretch h-14">
           {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
             <NavLink
@@ -269,7 +252,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 isActive ? 'text-primary-700' : 'text-gray-400 active:text-gray-600',
               )}
             >
-              <div className="relative">
+              <div className="relative" data-cart-target={to === '/bookstore/cart' ? '' : undefined}>
                 <Icon className="h-5 w-5" />
                 {(badge ?? 0) > 0 && (
                   <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-500 px-1 text-[9px] font-bold text-white">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -8,12 +8,14 @@ import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { BookCard } from '@/components/ui/BookCard'
+import { CtaButton } from '@/components/ui/CtaButton'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { flyToCart } from '@/lib/flyToCart'
 import { cn } from '@/lib/utils'
 
 // Keeps the structure/formatting (headings, paragraphs, colors, lists) that admins
@@ -50,6 +52,7 @@ export function BookDetail() {
   const { success } = useToast()
 
   const [selectedPriceIdx, setSelectedPriceIdx] = useState(0)
+  const coverRef = useRef<HTMLDivElement>(null)
 
   const { data: book, isLoading } = useQuery({
     queryKey: ['book', id],
@@ -125,8 +128,8 @@ export function BookDetail() {
       ? t('sidebar.english')
       : book.language
 
-  function handleAddToCart() {
-    if (!selectedPrice) return
+  function addToCart() {
+    if (!selectedPrice) return false
     addItem({
       id: `${book!.id}-${selectedPrice.bookstore_id}`,
       book_id: book!.id,
@@ -138,12 +141,17 @@ export function BookDetail() {
       bookstore_price: selectedPrice.bookstore_price,
       margin_percent: selectedPrice.margin_percent,
     })
+    return true
+  }
+
+  function handleAddToCart() {
+    if (!addToCart()) return
+    flyToCart(coverRef.current, book!.cover_image_url)
     success(t('book.addToCart') + ': ' + book!.title)
   }
 
   function handleBuyNow() {
-    handleAddToCart()
-    navigate('/bookstore/cart')
+    if (addToCart()) navigate('/bookstore/cart')
   }
 
   function handleOpenSummary() {
@@ -189,7 +197,7 @@ export function BookDetail() {
 
           {/* Book cover */}
           <div className="flex-shrink-0 w-[100px] sm:w-[120px] md:w-[140px]">
-            <div className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
+            <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
               {book.cover_image_url ? (
                 <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
               ) : (
@@ -258,13 +266,9 @@ export function BookDetail() {
                   <ShoppingCart className="h-4 w-4 flex-shrink-0" />
                   <span className="hidden sm:inline">{t('book.addToCart')}</span>
                 </button>
-                <button
-                  onClick={handleBuyNow}
-                  disabled={!isAvailable}
-                  className="h-11 rounded-xl bg-primary-700 px-5 text-sm font-bold text-white hover:bg-primary-800 active:scale-95 transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
-                >
+                <CtaButton onActivate={handleBuyNow} disabled={!isAvailable}>
                   {t('book.buyNow')}
-                </button>
+                </CtaButton>
               </div>
             </div>
 

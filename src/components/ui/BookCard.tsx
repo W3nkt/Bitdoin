@@ -1,9 +1,11 @@
+import { useRef } from 'react'
 import { BookOpen, ShoppingCart } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { Book } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn, formatPrice } from '@/lib/utils'
+import { flyToCart } from '@/lib/flyToCart'
 
 interface BookCardProps {
   book: Book
@@ -15,6 +17,7 @@ interface BookCardProps {
 export function BookCard({ book, onAddToCart, className, compact = false }: BookCardProps) {
   const { t } = useTranslation()
   const { currency } = useLanguage()
+  const coverRef = useRef<HTMLDivElement>(null)
 
   const lowestPrice = book.min_price ?? book.prices?.[0]?.final_price
   const isAvailable = book.prices?.some(p => p.availability === 'AVAILABLE') ?? false
@@ -28,6 +31,7 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
     )}>
       <Link to={`/bookstore/books/${book.id}`} className="flex flex-1 flex-col">
         <div
+          ref={coverRef}
           className={cn(
             'relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 transition-all duration-300',
             compact ? 'rounded-lg' : 'rounded-xl',
@@ -81,7 +85,10 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
 
       {isAvailable && onAddToCart && (
         <button
-          onClick={() => onAddToCart(book)}
+          onClick={() => {
+            onAddToCart(book)
+            flyToCart(coverRef.current, book.cover_image_url)
+          }}
           className={cn(
             'flex w-full items-center justify-center gap-1.5 bg-primary-700 font-semibold text-white transition-all duration-150 hover:bg-primary-800 active:scale-95',
             compact ? 'mt-2 rounded-md py-1.5 text-[11px]' : 'mt-2.5 rounded-xl py-2 text-xs',
