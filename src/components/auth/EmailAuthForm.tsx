@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff } from 'lucide-react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faApple } from '@fortawesome/free-brands-svg-icons'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
@@ -19,7 +21,7 @@ interface EmailAuthFormProps {
 /** Email sign in / sign up tabs plus Google and Facebook buttons. Used by the Auth page and the login modal. */
 export function EmailAuthForm({ returnPath, onSignedIn }: EmailAuthFormProps) {
   const { t } = useTranslation()
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithFacebook } = useAuth()
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth()
   const { error: showError, success } = useToast()
 
   const [emailStep, setEmailStep] = useState<EmailStep>('signin')
@@ -187,6 +189,15 @@ export function EmailAuthForm({ returnPath, onSignedIn }: EmailAuthFormProps) {
             alt="Facebook"
             className="h-12 w-12 object-contain"
           />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => signInWithApple(returnPath)}
+          aria-label={t('auth.continueWithApple')}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-black dark:text-white transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+        >
+          <FontAwesomeIcon icon={faApple} className="h-5 w-5" />
         </button>
       </div>
     </>

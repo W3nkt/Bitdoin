@@ -244,6 +244,7 @@ const en = {
     verifyOtp: 'Verify',
     continueWithGoogle: 'Continue with Google',
     continueWithFacebook: 'Continue with Facebook',
+    continueWithApple: 'Continue with Apple',
     or: 'or Sign In with',
     name: 'Full Name',
     haveAccount: 'Already have an account?',

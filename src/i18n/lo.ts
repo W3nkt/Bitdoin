@@ -236,6 +236,7 @@ const lo: Translations = {
     verifyOtp: 'ຢືນຢັນ',
     continueWithGoogle: 'ສືບຕໍ່ດ້ວຍ Google',
     continueWithFacebook: 'ສືບຕໍ່ດ້ວຍ Facebook',
+    continueWithApple: 'ສືບຕໍ່ດ້ວຍ Apple',
     or: 'ຫຼື ເຂົ້າສູ່ລະບົບດ້ວຍ',
     name: 'ຊື່ ແລະ ນາມສະກຸນ',
     haveAccount: 'ມີບັນຊີແລ້ວ?',
