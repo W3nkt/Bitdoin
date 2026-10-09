@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation } from 'react-router-dom'
 import { RotateCcw, SendHorizontal, X } from 'lucide-react'
 import {
   type BittyErrorCode,
@@ -45,6 +46,7 @@ const CASCADE_ROWS = 6
 export default function BittyChatPanel({ animateIn, closing, onClose, onExited }: BittyChatPanelProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
+  const { pathname } = useLocation()
   const [messages, setMessages] = useState<BittyMessage[]>(initialMessages)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -85,7 +87,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
       setMessages(prev => prev.map(m => (m.id === replyId ? change(m) : m)))
 
     try {
-      await streamBittyReply(history, language === 'en' ? 'en' : 'lo', {
+      await streamBittyReply(history, language === 'en' ? 'en' : 'lo', pathname, {
         onText: chunk => update(m => ({ ...m, text: m.text + chunk })),
         onReplaceText: text => update(m => ({ ...m, text })),
         onQuickReplies: options => update(m => ({ ...m, quickReplies: options })),
@@ -129,7 +131,11 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
   }
 
   const last = messages[messages.length - 1]
-  const greetingReplies = [t('bitty.topicBook'), t('bitty.topicOrder'), t('bitty.topicTrack'), t('bitty.topicAccount'), t('bitty.topicAcademy')]
+  // On a book or Knowledge Hub post, lead with a question about what the customer is looking at.
+  const pageReply = /^\/bookstore\/books\/[^/]+$/.test(pathname)
+    ? [t('bitty.topicThisBook')]
+    : /^\/bookstore\/knowledge\/[^/]+$/.test(pathname) ? [t('bitty.topicThisArticle')] : []
+  const greetingReplies = [...pageReply, t('bitty.topicBook'), t('bitty.topicOrder'), t('bitty.topicTrack'), t('bitty.topicAccount'), t('bitty.topicAcademy')]
   // Only 3 books fit in one reply, so book cards always come with a way to see more.
   const afterBooksReplies = (modelReplies: string[]) => {
     const fallback = [t('bitty.otherCategory'), t('bitty.otherLanguage')]

@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap, Moon, Sun } from 'lucide-react'
-import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
+import { WhatsAppIcon, MessengerIcon, PhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
@@ -192,7 +192,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                 {[
                   { href: waHref, label: 'WhatsApp', external: true, icon: <WhatsAppIcon className="h-5 w-5 text-green-400" /> },
                   { href: messengerHref, label: 'Messenger', external: true, icon: <MessengerIcon className="h-5 w-5 text-blue-400" /> },
-                  { href: phoneHref, label: waNumber, external: false, icon: <IPhoneIcon className="h-5 w-5 text-gray-300 dark:text-gray-600" /> },
+                  { href: phoneHref, label: waNumber, external: false, icon: <PhoneIcon className="h-5 w-5 text-gray-300" /> },
                   { href: emailHref, label: email, external: false, icon: <GmailIcon className="h-5 w-5 text-red-400" /> },
                 ].map(({ href, label, external, icon }) => (
                   <Tooltip key={href} label={label}>
@@ -202,7 +202,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
                       rel={external ? 'noreferrer' : undefined}
                       aria-label={label}
                       title={label}
-                      className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 transition-colors hover:bg-white/20"
+                      className="flex h-11 w-11 items-center justify-center transition-transform hover:scale-110"
                     >
                       {icon}
                     </a>

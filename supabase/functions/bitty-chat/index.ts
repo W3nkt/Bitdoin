@@ -7,7 +7,16 @@ import {
   requestSubject,
   userSubject,
 } from '../_shared/ai-rate-limit.ts'
-import { type AcademyPlan, buildCatalog, type CatalogBook, createBittyHandler } from './bitty.ts'
+import {
+  type AcademyPlan,
+  type ArticlePageDetails,
+  type BookPageDetails,
+  buildCatalog,
+  type CatalogBook,
+  createBittyHandler,
+  pageText,
+  type UiLanguage,
+} from './bitty.ts'
 import { streamQwenChat } from './qwen.ts'
 
 const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
@@ -77,6 +86,59 @@ async function loadPlans(): Promise<AcademyPlan[]> {
   return plans
 }
 
+function categoryName(category: { name_en: string } | { name_en: string }[] | null): string | null {
+  return (Array.isArray(category) ? category[0] : category)?.name_en ?? null
+}
+
+// Same anon-key rule as the catalog: only books and posts the public storefront can see.
+async function loadBookPage(id: string): Promise<BookPageDetails | null> {
+  const { data, error } = await publicDb
+    .from('books')
+    .select('id, title, author, publisher, language, pages, isbn, publication_date, description, category:categories(name_en), prices:book_prices(final_price, availability)')
+    .eq('id', id)
+    .eq('is_active', true)
+    .maybeSingle()
+  if (error) throw new Error(`Book page query failed: ${error.message}`)
+  if (!data) return null
+  const prices = data.prices ?? []
+  const inStock = prices.filter(price => price.availability === 'AVAILABLE')
+  const pool = inStock.length > 0 ? inStock : prices
+  return {
+    id: data.id,
+    title: data.title,
+    author: data.author,
+    publisher: data.publisher,
+    language: data.language,
+    category: categoryName(data.category),
+    pages: data.pages,
+    isbn: data.isbn,
+    publicationDate: data.publication_date,
+    description: pageText(data.description),
+    price: pool.length > 0 ? Math.min(...pool.map(price => Number(price.final_price))) : null,
+    available: inStock.length > 0,
+  }
+}
+
+async function loadArticlePage(id: string, uiLanguage: UiLanguage): Promise<ArticlePageDetails | null> {
+  const { data, error } = await publicDb
+    .from('knowledge_posts')
+    .select('type, title_en, title_lo, content_en, content_lo, author, category:knowledge_categories(name_en)')
+    .eq('id', id)
+    .eq('is_published', true)
+    .maybeSingle()
+  if (error) throw new Error(`Article page query failed: ${error.message}`)
+  if (!data) return null
+  // Show the model the version the customer is reading.
+  const lao = uiLanguage === 'lo'
+  return {
+    title: (lao && data.title_lo) || data.title_en,
+    type: data.type,
+    author: data.author,
+    category: categoryName(data.category),
+    content: pageText((lao && data.content_lo) || data.content_en) ?? '',
+  }
+}
+
 async function identify(req: Request): Promise<string> {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (token && token !== SUPABASE_ANON_KEY) {
@@ -91,6 +153,8 @@ serve(createBittyHandler({
   identify,
   loadCatalog,
   loadPlans,
+  loadBookPage,
+  loadArticlePage,
   consumeQuota: subjectHash => consumeAiQuota(admin, {
     feature: 'bitty-chat',
     subjectHash,

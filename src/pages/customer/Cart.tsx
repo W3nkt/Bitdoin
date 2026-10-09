@@ -1,9 +1,12 @@
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ShoppingCart, Trash2, Plus, Minus, BookOpen, ShieldCheck } from 'lucide-react'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice } from '@/lib/utils'
+import { collapseRow, throwToTrash } from '@/lib/throwToTrash'
+import type { CartItem } from '@/types'
 import { CtaButton } from '@/components/ui/CtaButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -12,6 +15,24 @@ export function Cart() {
   const navigate = useNavigate()
   const { items, removeItem, updateQty, subtotal } = useCart()
   const { currency } = useLanguage()
+  const listRef = useRef<HTMLDivElement>(null)
+  // Items mid-way through the trash animation, so a second tap can't remove them twice.
+  const [removing, setRemoving] = useState<Set<string>>(() => new Set())
+
+  async function handleRemove(item: CartItem, row: HTMLElement | null) {
+    const key = `${item.book_id}-${item.bookstore_id}`
+    if (removing.has(key)) return
+    setRemoving(prev => new Set(prev).add(key))
+    const cover = row?.querySelector('[data-cart-cover]')
+    collapseRow(row)
+    await throwToTrash(cover, item.book?.cover_image_url, listRef.current)
+    removeItem(item.book_id, item.bookstore_id)
+    setRemoving(prev => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }
 
   if (items.length === 0) {
     return (
@@ -27,7 +48,7 @@ export function Cart() {
 
   return (
     // Extra bottom padding: tab bar (56px) + fixed summary bar (~110px) + buffer
-    <div className="space-y-3 pb-44 md:pb-28">
+    <div ref={listRef} className="space-y-3 pb-44 md:pb-28">
       <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('cart.title')}</h1>
       <p className="text-xs text-gray-400">
         {t('cart.itemsFrom').replace('{{count}}', String(storeCount))}
@@ -36,10 +57,11 @@ export function Cart() {
       {items.map(item => (
         <div
           key={`${item.book_id}-${item.bookstore_id}`}
+          data-cart-row
           className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-3 flex gap-3"
         >
           {/* Cover */}
-          <div className="w-16 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+          <div data-cart-cover className="w-16 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
             {item.book?.cover_image_url ? (
               <img src={item.book.cover_image_url} alt={item.book.title} className="w-full h-full object-cover" />
             ) : (
@@ -79,7 +101,8 @@ export function Cart() {
                   {formatPrice((item.unit_price ?? 0) * item.quantity, currency)}
                 </p>
                 <button
-                  onClick={() => removeItem(item.book_id, item.bookstore_id)}
+                  onClick={e => handleRemove(item, e.currentTarget.closest<HTMLElement>('[data-cart-row]'))}
+                  disabled={removing.has(`${item.book_id}-${item.bookstore_id}`)}
                   className="flex h-9 w-9 items-center justify-center rounded-full text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 active:bg-red-100 dark:active:bg-red-500/15 transition-colors"
                   aria-label="Remove item"
                 >

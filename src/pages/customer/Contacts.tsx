@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { WhatsAppIcon, MessengerIcon, IPhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
+import { WhatsAppIcon, MessengerIcon, PhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 
 export default function Contacts() {
   const { t } = useTranslation()
@@ -33,7 +33,7 @@ export default function Contacts() {
         </a>
 
         <a href={phoneHref} className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800/50">
-          <IPhoneIcon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
+          <PhoneIcon className="h-6 w-6 text-gray-700 dark:text-gray-200" />
           <span className="text-sm">{waNumber}</span>
         </a>
 

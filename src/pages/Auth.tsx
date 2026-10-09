@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Mail, Phone, Eye, EyeOff, Moon, Sun } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Moon, Sun } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { EmailAuthForm } from '@/components/auth/EmailAuthForm'
 import { publicAsset } from '@/lib/assets'
 import { resolvePostLoginDestination, sanitizeAuthReturnPath } from '@/lib/authRedirect'
 import { useTheme } from '@/lib/theme'
 
 type Method = 'email' | 'phone'
-type EmailStep = 'signin' | 'signup'
 type PhoneStep = 'phone' | 'otp'
 
 // Toggle back to true when phone OTP is ready to re-enable.
@@ -21,7 +21,7 @@ export function Auth() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { profile, loading: authLoading, signInWithEmail, signUpWithEmail, signInWithOtp, verifyOtp, signInWithGoogle, signInWithFacebook } = useAuth()
+  const { profile, loading: authLoading, signInWithOtp, verifyOtp } = useAuth()
   const { error: showError, success } = useToast()
   const theme = useTheme(state => state.theme)
   const toggleTheme = useTheme(state => state.toggleTheme)
@@ -29,15 +29,8 @@ export function Auth() {
   const from = sanitizeAuthReturnPath((location.state as { from?: string })?.from)
 
   const [method, setMethod] = useState<Method>('email')
-  const [emailStep, setEmailStep] = useState<EmailStep>('signin')
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone')
   const [loading, setLoading] = useState(false)
-  const [showPw, setShowPw] = useState(false)
-
-  // Email form state
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
 
   // Phone form state
   const [phone, setPhone] = useState('')
@@ -48,25 +41,6 @@ export function Auth() {
       navigate(resolvePostLoginDestination(from, profile.role), { replace: true })
     }
   }, [authLoading, profile, from, navigate])
-
-  async function handleEmailSignIn(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    const { error, role } = await signInWithEmail(email, password)
-    setLoading(false)
-    if (error) { showError(error); return }
-    navigate(resolvePostLoginDestination(from, role), { replace: true })
-  }
-
-  async function handleEmailSignUp(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    const { error } = await signUpWithEmail(email, password, name)
-    setLoading(false)
-    if (error) { showError(error); return }
-    success(t('auth.accountCreated'))
-    setEmailStep('signin')
-  }
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault()
@@ -158,145 +132,10 @@ export function Auth() {
 
           {/* ── Email mode ── */}
           {method === 'email' && (
-            <>
-              {/* Sign in / Sign up sub-tabs */}
-              <div className="flex border-b border-gray-100 dark:border-gray-800">
-                <button
-                  onClick={() => setEmailStep('signin')}
-                  className={`pb-2 px-1 mr-5 text-sm font-semibold transition-colors border-b-2 ${
-                    emailStep === 'signin'
-                      ? 'border-primary-700 dark:border-primary-400 text-primary-700 dark:text-primary-300'
-                      : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                  }`}
-                >
-                  {t('auth.signIn')}
-                </button>
-                <button
-                  onClick={() => setEmailStep('signup')}
-                  className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${
-                    emailStep === 'signup'
-                      ? 'border-primary-700 dark:border-primary-400 text-primary-700 dark:text-primary-300'
-                      : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                  }`}
-                >
-                  {t('auth.signUp')}
-                </button>
-              </div>
-
-              {emailStep === 'signin' ? (
-                <form onSubmit={handleEmailSignIn} className="space-y-4">
-                  <Input
-                    label={t('auth.email')}
-                    type="email"
-                    placeholder={t('auth.emailPlaceholder')}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <div className="relative">
-                    <Input
-                      label={t('auth.password')}
-                      type={showPw ? 'text' : 'password'}
-                      placeholder={t('auth.passwordDots')}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      autoComplete="current-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPw(v => !v)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <Button type="submit" fullWidth loading={loading} size="lg">
-                    {t('auth.signIn')}
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={handleEmailSignUp} className="space-y-4">
-                  <Input
-                    label={t('auth.name')}
-                    type="text"
-                    placeholder={t('auth.namePlaceholder')}
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    required
-                    autoComplete="name"
-                  />
-                  <Input
-                    label={t('auth.email')}
-                    type="email"
-                    placeholder={t('auth.emailPlaceholder')}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                  <div className="relative">
-                    <Input
-                      label={t('auth.password')}
-                      type={showPw ? 'text' : 'password'}
-                      placeholder={t('auth.passwordPlaceholder')}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPw(v => !v)}
-                      className="absolute right-3 top-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <Button type="submit" fullWidth loading={loading} size="lg">
-                    {t('auth.signUp')}
-                  </Button>
-                </form>
-              )}
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-                </div>
-                <div className="relative flex justify-center text-xs text-gray-400">
-                  <span className="bg-white dark:bg-gray-900 px-3">{t('auth.or')}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => signInWithGoogle(from)}
-                  aria-label={t('auth.continueWithGoogle')}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                >
-                  <img
-                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                    alt="Google"
-                    className="h-5 w-5"
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => signInWithFacebook(from)}
-                  aria-label={t('auth.continueWithFacebook')}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                >
-                  <img
-                    src={publicAsset('icons/Facebook-Logosu.png')}
-                    alt="Facebook"
-                    className="h-12 w-12 object-contain"
-                  />
-                </button>
-              </div>
-            </>
+            <EmailAuthForm
+              returnPath={from}
+              onSignedIn={role => navigate(resolvePostLoginDestination(from, role), { replace: true })}
+            />
           )}
 
           {/* ── Phone OTP mode ── */}

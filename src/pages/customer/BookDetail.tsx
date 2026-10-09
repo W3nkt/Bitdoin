@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
-import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRight, GraduationCap } from 'lucide-react'
+import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRight, GraduationCap, Heart } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -13,6 +13,9 @@ import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
+import { LoginModal } from '@/components/auth/LoginModal'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { rememberPendingFavorite, useBookFavorite } from '@/hooks/useBookFavorite'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { flyToCart } from '@/lib/flyToCart'
@@ -49,10 +52,13 @@ export function BookDetail() {
   const { addItem } = useCart()
   const { currency, language } = useLanguage()
   const { profile } = useAuth()
-  const { success } = useToast()
+  const { success, error: showError } = useToast()
 
   const [selectedPriceIdx, setSelectedPriceIdx] = useState(0)
   const coverRef = useRef<HTMLDivElement>(null)
+  const [loginOpen, setLoginOpen] = useState(false)
+  const [coverOpen, setCoverOpen] = useState(false)
+  const favorite = useBookFavorite(id, () => success(t('book.addedToFavorites')))
 
   const { data: book, isLoading } = useQuery({
     queryKey: ['book', id],
@@ -150,6 +156,27 @@ export function BookDetail() {
     success(t('book.addToCart') + ': ' + book!.title)
   }
 
+  async function handleToggleFavorite() {
+    if (!favorite.isSignedIn) {
+      // Saved automatically once they sign in (see useBookFavorite).
+      rememberPendingFavorite(book!.id)
+      setLoginOpen(true)
+      return
+    }
+    const next = !favorite.isFavorite
+    try {
+      await favorite.setFavorite(next)
+      success(t(next ? 'book.addedToFavorites' : 'book.removedFromFavorites'))
+    } catch {
+      showError(t('common.error'))
+    }
+  }
+
+  function closeLogin() {
+    rememberPendingFavorite(null)
+    setLoginOpen(false)
+  }
+
   function handleBuyNow() {
     if (addToCart()) navigate('/bookstore/cart')
   }
@@ -192,20 +219,43 @@ export function BookDetail() {
           <ChevronLeft className="h-5 w-5" />
         </button>
 
+        {/* Favorite button */}
+        <button
+          type="button"
+          onClick={handleToggleFavorite}
+          disabled={favorite.isSaving}
+          aria-pressed={favorite.isFavorite}
+          aria-label={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
+          title={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
+          className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 active:scale-90 transition-all"
+        >
+          <Heart className={cn('h-5 w-5 transition-colors', favorite.isFavorite && 'fill-rose-500 text-rose-500')} />
+        </button>
+
         {/* Cover + title — anchored to bottom of hero */}
         <div className="absolute bottom-0 inset-x-0 flex items-end gap-4 px-4 pb-5 max-w-5xl mx-auto">
 
           {/* Book cover */}
           <div className="flex-shrink-0 w-[100px] sm:w-[120px] md:w-[140px]">
-            <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
-              {book.cover_image_url ? (
-                <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
-              ) : (
+            {book.cover_image_url ? (
+              <button
+                type="button"
+                onClick={() => setCoverOpen(true)}
+                aria-label={t('book.enlargeCover')}
+                title={t('book.enlargeCover')}
+                className="block w-full cursor-zoom-in rounded-2xl transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+              >
+                <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
+                  <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
+                </div>
+              </button>
+            ) : (
+              <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-primary-800">
                   <BookOpen className="h-10 w-10 text-primary-200" />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Title + author */}
@@ -430,6 +480,22 @@ export function BookDetail() {
           </div>
         )}
       </div>
+      {book.cover_image_url && (
+        <ImageLightbox
+          open={coverOpen}
+          onClose={() => setCoverOpen(false)}
+          src={book.cover_image_url}
+          alt={book.title}
+          closeLabel={t('common.close')}
+        />
+      )}
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSignedIn={() => setLoginOpen(false)}
+        returnPath={`/bookstore/books/${book.id}`}
+        message={t('book.signInToFavorite')}
+      />
     </div>
   )
 }

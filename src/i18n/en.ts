@@ -66,6 +66,12 @@ const en = {
   // ── Book ──────────────────────────────────────────────────────────────────────
   book: {
     addToCart: 'Add to Cart',
+    addToFavorites: 'Add to favorites',
+    enlargeCover: 'Enlarge cover',
+    removeFromFavorites: 'Remove from favorites',
+    addedToFavorites: 'Added to favorites',
+    removedFromFavorites: 'Removed from favorites',
+    signInToFavorite: 'Sign in to save this book to your favorites.',
     buyNow: 'Buy Now',
     outOfStock: 'Out of Stock',
     available: 'Available',
@@ -242,6 +248,7 @@ const en = {
     name: 'Full Name',
     haveAccount: 'Already have an account?',
     noAccount: "Don't have an account?",
+    signInRequired: 'Sign in to continue',
   },
 
   sidebar: {
@@ -360,6 +367,8 @@ const en = {
     topicTrack: 'Track my order',
     topicAccount: 'Sign in / sign up',
     topicAcademy: 'Bitdoin Academy',
+    topicThisBook: 'Summarize this book',
+    topicThisArticle: 'Summarize this article',
     moreBooks: 'Show more books',
     otherCategory: 'Another category',
     otherLanguage: 'Another language',

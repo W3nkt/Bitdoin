@@ -186,6 +186,42 @@
   will-change: transform, opacity;
 }
 
+/* ── Remove from cart: trash bin the book is thrown into ── */
+.trash-bin {
+  position: fixed;
+  z-index: 9998;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-radius: 9999px;
+  background-color: #ef4444;
+  color: #fff;
+  box-shadow: 0 12px 28px -8px rgba(239, 68, 68, 0.6), 0 0 0 4px rgba(255, 255, 255, 0.85);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.trash-bin-lid {
+  width: 28px;
+  height: 9px;
+  transform-origin: 12% 90%;
+}
+
+.trash-bin-body {
+  width: 28px;
+  height: 19px;
+}
+
+.trash-bin-lid svg,
+.trash-bin-body svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .cart-bump {
   animation: cart-bump 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
 }

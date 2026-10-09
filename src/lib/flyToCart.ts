@@ -40,8 +40,8 @@ export function flyToCart(source: Element | null | undefined, imageUrl?: string 
   const to = target.getBoundingClientRect()
 
   // Keep the flying copy book-shaped and reasonably small, even when the
-  // source is a large cover.
-  const height = Math.min(from.height, 120)
+  // source is a large cover, and big enough to read when it's a small icon.
+  const height = Math.min(Math.max(from.height, 72), 120)
   const width = Math.min(from.width, height * (2 / 3))
   const startX = from.left + from.width / 2 - width / 2
   const startY = from.top + from.height / 2 - height / 2

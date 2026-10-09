@@ -62,6 +62,12 @@ const lo: Translations = {
   },
 
   book: {
+    addToFavorites: 'ເພີ່ມໃສ່ລາຍການທີ່ມັກ',
+    enlargeCover: 'ຂະຫຍາຍໜ້າປົກ',
+    removeFromFavorites: 'ລຶບອອກຈາກລາຍການທີ່ມັກ',
+    addedToFavorites: 'ເພີ່ມໃສ່ລາຍການທີ່ມັກແລ້ວ',
+    removedFromFavorites: 'ລຶບອອກຈາກລາຍການທີ່ມັກແລ້ວ',
+    signInToFavorite: 'ກະລຸນາເຂົ້າສູ່ລະບົບ ເພື່ອບັນທຶກປຶ້ມຫົວນີ້ໄວ້ໃນລາຍການທີ່ມັກ.',
     addToCart: 'ໃສ່ກະຕ່າ',
     buyNow: 'ຊື້ທັນທີ',
     outOfStock: 'ໝົດສາງ',
@@ -234,6 +240,7 @@ const lo: Translations = {
     name: 'ຊື່ ແລະ ນາມສະກຸນ',
     haveAccount: 'ມີບັນຊີແລ້ວ?',
     noAccount: 'ຍັງບໍ່ມີບັນຊີ?',
+    signInRequired: 'ກະລຸນາເຂົ້າສູ່ລະບົບເພື່ອດຳເນີນການຕໍ່',
   },
 
   sidebar: {
@@ -351,6 +358,8 @@ const lo: Translations = {
     topicTrack: 'ຕິດຕາມຄຳສັ່ງຊື້',
     topicAccount: 'ເຂົ້າສູ່ລະບົບ / ສະໝັກ',
     topicAcademy: 'Bitdoin Academy',
+    topicThisBook: 'ສະຫຼຸບປຶ້ມຫົວນີ້',
+    topicThisArticle: 'ສະຫຼຸບບົດຄວາມນີ້',
     moreBooks: 'ສະແດງປຶ້ມເພີ່ມເຕີມ',
     otherCategory: 'ໝວດໝູ່ອື່ນ',
     otherLanguage: 'ພາສາອື່ນ',

@@ -678,3 +678,88 @@ Deno.test('an open question can stay without buttons', async () => {
   assertEquals(events.filter(e => e.type === 'quick_replies' || e.type === 'error'), [])
   assertEquals(events.at(-1), { type: 'done' })
 })
+
+// ─── Current page ────────────────────────────────────────────────────────────
+
+const PAGE_BOOK_ID = '3f2b8c1e-5a4d-4e7f-9b6a-1c2d3e4f5a6b'
+
+Deno.test('the book page the customer is on reaches the prompt with its full description', async () => {
+  const requested: string[] = []
+  const { deps, calls } = makeDeps({
+    loadBookPage: id => {
+      requested.push(id)
+      return Promise.resolve({
+        id: 'a-1',
+        title: 'Money Basics',
+        author: 'Kham',
+        publisher: 'Vientiane Press',
+        language: 'Lao',
+        category: 'Business',
+        pages: 180,
+        isbn: '978-1',
+        publicationDate: '2024-01-01',
+        description: 'A long, complete description of saving and budgeting.',
+        price: 120000,
+        available: true,
+      })
+    },
+  })
+  await readEvents(await createBittyHandler(deps)(post({ ...VALID_BODY, page: { path: `/bookstore/books/${PAGE_BOOK_ID}` } })))
+  assertEquals(requested, [PAGE_BOOK_ID])
+  const system = calls.modelInputs[0].messages[0].content as string
+  assertStringIncludes(system, 'The customer is now on: A book page')
+  assertStringIncludes(system, 'Catalog ref: B1')
+  assertStringIncludes(system, 'Publisher: Vientiane Press')
+  assertStringIncludes(system, 'Description: A long, complete description of saving and budgeting.')
+  assertStringIncludes(system, 'call recommend_books with ref B1')
+  // The page goes after the cached instructions and catalog.
+  assert(system.indexOf('Current page:') > system.indexOf('Catalog (ref'))
+})
+
+Deno.test('a Knowledge Hub post page reaches the prompt in the UI language', async () => {
+  const languages: string[] = []
+  const { deps, calls } = makeDeps({
+    loadArticlePage: (_id, uiLanguage) => {
+      languages.push(uiLanguage)
+      return Promise.resolve({ title: 'Saving tips', type: 'tip', author: null, category: null, content: 'Save first, spend later.' })
+    },
+  })
+  await readEvents(await createBittyHandler(deps)(post({ ...VALID_BODY, page: { path: `/bookstore/knowledge/${PAGE_BOOK_ID}` } })))
+  assertEquals(languages, ['en'])
+  const system = calls.modelInputs[0].messages[0].content as string
+  assertStringIncludes(system, 'Knowledge Hub post on this page:')
+  assertStringIncludes(system, 'Content: Save first, spend later.')
+})
+
+Deno.test('other pages are named without loading details', async () => {
+  let loaded = false
+  const { deps, calls } = makeDeps({
+    loadBookPage: () => {
+      loaded = true
+      return Promise.resolve(null)
+    },
+  })
+  await readEvents(await createBittyHandler(deps)(post({ ...VALID_BODY, page: { path: '/bookstore/cart' } })))
+  assertEquals(loaded, false)
+  assertStringIncludes(calls.modelInputs[0].messages[0].content as string, 'The customer is now on: Cart (/bookstore/cart).')
+})
+
+Deno.test('a failed page lookup does not stop the chat', async () => {
+  const { deps, calls } = makeDeps({ loadBookPage: () => Promise.reject(new Error('db down')) })
+  const events = await readEvents(await createBittyHandler(deps)(post({ ...VALID_BODY, page: { path: `/bookstore/books/${PAGE_BOOK_ID}` } })))
+  assertEquals(events.at(-1), { type: 'done' })
+  const system = calls.modelInputs[0].messages[0].content as string
+  assertStringIncludes(system, 'The customer is now on: A book page')
+  assert(!system.includes('Book on this page:'))
+})
+
+Deno.test('unusable page paths are ignored', () => {
+  for (const page of [{ path: 'bookstore' }, { path: `/${'x'.repeat(300)}` }, { path: 42 }, 'nope', null]) {
+    const parsed = parseBittyRequest({ ...VALID_BODY, page })
+    assert(typeof parsed !== 'string')
+    assertEquals(parsed.pagePath, undefined)
+  }
+  const parsed = parseBittyRequest({ ...VALID_BODY, page: { path: '/bookstore/faq' } })
+  assert(typeof parsed !== 'string')
+  assertEquals(parsed.pagePath, '/bookstore/faq')
+})

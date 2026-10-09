@@ -129,10 +129,14 @@ interface StreamHandlers {
   onOffTopic: () => void
 }
 
-/** Sends the conversation to the bitty-chat Edge Function and streams its reply. Throws a BittyErrorCode on failure. */
+/**
+ * Sends the conversation and the page the customer is on to the bitty-chat Edge Function and streams
+ * its reply, so questions like "summarize this book" refer to that page. Throws a BittyErrorCode on failure.
+ */
 export async function streamBittyReply(
   messages: BittyMessage[],
   uiLanguage: 'lo' | 'en',
+  pagePath: string,
   handlers: StreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -155,7 +159,7 @@ export async function streamBittyReply(
           apikey: anonKey,
           Authorization: `Bearer ${session?.access_token ?? anonKey}`,
         },
-        body: JSON.stringify({ messages: toApiMessages(messages), uiLanguage }),
+        body: JSON.stringify({ messages: toApiMessages(messages), uiLanguage, page: { path: pagePath } }),
         signal: controller.signal,
       })
     } catch {
