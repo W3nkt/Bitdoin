@@ -16,13 +16,15 @@ export function rememberPendingFavorite(bookId: string | null) {
   }
 }
 
-function takePendingFavorite(bookId: string) {
+/** The remembered book (only `bookId`, when given), cleared once taken. */
+function takePendingFavorite(bookId?: string): string | null {
   try {
-    if (sessionStorage.getItem(PENDING_KEY) !== bookId) return false
+    const pending = sessionStorage.getItem(PENDING_KEY)
+    if (!pending || (bookId && pending !== bookId)) return null
     sessionStorage.removeItem(PENDING_KEY)
-    return true
+    return pending
   } catch {
-    return false
+    return null
   }
 }
 
@@ -76,5 +78,56 @@ export function useBookFavorite(bookId: string | undefined, onSavedAfterSignIn?:
     isFavorite,
     isSaving: mutation.isPending,
     setFavorite: (favorite: boolean) => mutation.mutateAsync(favorite),
+  }
+}
+
+/** All of the signed-in customer's favorite book ids, for pages that list many books. */
+export function useFavoriteBookIds(onSavedAfterSignIn?: () => void) {
+  const { supabaseUser } = useAuth()
+  const userId = supabaseUser?.id
+  const queryClient = useQueryClient()
+  const queryKey = ['book-favorite', userId, 'ids']
+
+  const { data: ids = new Set<string>() } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('book_favorites').select('book_id')
+      if (error) throw error
+      return new Set((data ?? []).map(row => row.book_id as string))
+    },
+    enabled: !!userId,
+  })
+
+  const mutation = useMutation({
+    mutationFn: async ({ bookId, favorite }: { bookId: string; favorite: boolean }) => {
+      const { error } = favorite
+        ? await supabase.from('book_favorites').upsert({ book_id: bookId }, { onConflict: 'user_id,book_id', ignoreDuplicates: true })
+        : await supabase.from('book_favorites').delete().eq('book_id', bookId)
+      if (error) throw error
+    },
+    onMutate: ({ bookId, favorite }) => {
+      const previous = queryClient.getQueryData<Set<string>>(queryKey)
+      const next = new Set(previous)
+      if (favorite) next.add(bookId)
+      else next.delete(bookId)
+      queryClient.setQueryData(queryKey, next)
+      return { previous }
+    },
+    onError: (_error, _vars, context) => queryClient.setQueryData(queryKey, context?.previous),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['book-favorite', userId] }),
+  })
+
+  // Finish the favorite a guest started once they come back signed in.
+  useEffect(() => {
+    if (!userId) return
+    const pending = takePendingFavorite()
+    if (pending) mutation.mutate({ bookId: pending, favorite: true }, { onSuccess: onSavedAfterSignIn })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
+  return {
+    isSignedIn: !!userId,
+    isFavorite: (bookId: string) => ids.has(bookId),
+    setFavorite: (bookId: string, favorite: boolean) => mutation.mutateAsync({ bookId, favorite }),
   }
 }

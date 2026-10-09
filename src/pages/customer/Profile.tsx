@@ -8,6 +8,7 @@ import {
   Crown,
   DollarSign,
   Globe,
+  Heart,
   Loader2,
   LogOut,
   Package,
@@ -327,6 +328,17 @@ export function Profile() {
           <div className="flex-1">
             <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('orders.title')}</p>
             <p className="text-xs text-gray-400">{t('orders.manageAll')}</p>
+          </div>
+          <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" />
+        </Card>
+
+        <Card hover onClick={() => navigate('/bookstore/favorites')} className="flex items-center gap-3">
+          <div className="rounded-xl bg-gradient-to-br from-rose-400 to-rose-600 p-2.5 shadow-sm">
+            <Heart className="h-5 w-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('favorites.title')}</p>
+            <p className="text-xs text-gray-400">{t('favorites.subtitle')}</p>
           </div>
           <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" />
         </Card>

@@ -11,6 +11,9 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Pagination } from '@/components/ui/Pagination'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
+import { FavoriteHeartButton } from '@/components/ui/FavoriteHeartButton'
+import { LoginModal } from '@/components/auth/LoginModal'
+import { rememberPendingFavorite, useFavoriteBookIds } from '@/hooks/useBookFavorite'
 
 const PAGE_SIZE = 18
 const SORTS = ['newest', 'title', 'best', 'featured'] as const
@@ -24,7 +27,9 @@ export function Catalog() {
   const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { addItem } = useCart()
-  const { success } = useToast()
+  const { success, error: showError } = useToast()
+  const favorites = useFavoriteBookIds(() => success(t('book.addedToFavorites')))
+  const [loginOpen, setLoginOpen] = useState(false)
 
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -147,6 +152,27 @@ export function Catalog() {
     success(book.title)
   }
 
+  async function handleToggleFavorite(book: Book) {
+    if (!favorites.isSignedIn) {
+      // Saved automatically once they sign in (see useFavoriteBookIds).
+      rememberPendingFavorite(book.id)
+      setLoginOpen(true)
+      return
+    }
+    const next = !favorites.isFavorite(book.id)
+    try {
+      await favorites.setFavorite(book.id, next)
+      success(t(next ? 'book.addedToFavorites' : 'book.removedFromFavorites'))
+    } catch {
+      showError(t('common.error'))
+    }
+  }
+
+  function closeLogin() {
+    rememberPendingFavorite(null)
+    setLoginOpen(false)
+  }
+
   const hasFilters = !!(filters.query || filters.category_id || filters.language || sort === 'featured')
 
   return (
@@ -239,7 +265,15 @@ export function Catalog() {
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {data?.data.map(book => (
-              <BookCard key={book.id} book={book} onAddToCart={handleAddToCart} compact />
+              <div key={book.id} className="relative">
+                <BookCard book={book} onAddToCart={handleAddToCart} compact className="h-full" />
+                <FavoriteHeartButton
+                  size="sm"
+                  favorite={favorites.isFavorite(book.id)}
+                  onClick={() => handleToggleFavorite(book)}
+                  className="absolute right-3 top-3"
+                />
+              </div>
             ))}
           </div>
         )}
@@ -250,6 +284,14 @@ export function Catalog() {
           </div>
         )}
       </div>
+
+      <LoginModal
+        open={loginOpen}
+        onClose={closeLogin}
+        onSignedIn={() => setLoginOpen(false)}
+        returnPath="/bookstore/books"
+        message={t('book.signInToFavorite')}
+      />
     </div>
   )
 }

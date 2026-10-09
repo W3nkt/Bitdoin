@@ -201,6 +201,16 @@ const en = {
     viewTracking: 'View order tracking',
   },
 
+  favorites: {
+    title: 'My Favorites',
+    subtitle: 'Books you saved with the heart',
+    count: '{{count}} saved books',
+    empty: 'No favorite books yet',
+    emptyHint: 'Tap the heart on a book page to save it here.',
+    browse: 'Browse books',
+    signInHint: 'Sign in to see your favorite books.',
+  },
+
   orders: {
     title: 'My Orders',
     empty: 'You have no orders yet.',

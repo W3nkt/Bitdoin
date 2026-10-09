@@ -21,6 +21,7 @@ const BookDetail = lazy(() => import('@/pages/customer/BookDetail').then(m => ({
 const Cart       = lazy(() => import('@/pages/customer/Cart').then(m => ({ default: m.Cart })))
 const Checkout   = lazy(() => import('@/pages/customer/Checkout').then(m => ({ default: m.Checkout })))
 const Orders     = lazy(() => import('@/pages/customer/Orders').then(m => ({ default: m.Orders })))
+const Favorites  = lazy(() => import('@/pages/customer/Favorites').then(m => ({ default: m.Favorites })))
 const OrderDetail = lazy(() => import('@/pages/customer/OrderDetail').then(m => ({ default: m.OrderDetail })))
 const TrackOrder = lazy(() => import('@/pages/customer/TrackOrder').then(m => ({ default: m.TrackOrder })))
 const Profile    = lazy(() => import('@/pages/customer/Profile').then(m => ({ default: m.Profile })))
@@ -162,6 +163,7 @@ export function App() {
                     <Route path="/bookstore/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
                     <Route path="/bookstore/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
                     <Route path="/bookstore/orders" element={<CustomerLayout><Orders /></CustomerLayout>} />
+                    <Route path="/bookstore/favorites" element={<CustomerLayout><Favorites /></CustomerLayout>} />
                     <Route path="/bookstore/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
                     <Route path="/bookstore/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
                     <Route path="/bookstore/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
