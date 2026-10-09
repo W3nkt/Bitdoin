@@ -36,7 +36,12 @@ import {
   Minimize2,
   Pause,
   Play,
+  BellRing,
+  Trophy,
 } from 'lucide-react'
+import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
+import { isMembershipExpired } from '@/lib/academyMembership'
+import { draftedDeclineReason, PaymentAiReviewCard, usePaymentAiReviews } from '@/components/premium/PaymentAiReviewCard'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { useTheme } from '@/lib/theme'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
@@ -51,11 +56,11 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
-import { cn, formatDate, formatPrice } from '@/lib/utils'
+import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
-type PremiumAdminSection = 'overview' | 'forge' | 'payments' | 'members' | 'plans' | 'mentor' | 'content'
+type PremiumAdminSection = 'overview' | 'forge' | 'renewals' | 'members' | 'mentor' | 'content' | 'plans'
 
 interface PremiumPlan {
   id: string
@@ -76,6 +81,10 @@ interface PremiumSubscription {
   status: SubscriptionStatus
   starts_at?: string | null
   ends_at?: string | null
+  /** Set on an ACTIVE row when the member cancelled; access runs until ends_at. */
+  cancelled_at?: string | null
+  /** Set on the Free membership given automatically when a paid one expired. */
+  downgraded_from_id?: string | null
   created_at: string
   auto_renew: boolean
   user?: {
@@ -161,10 +170,19 @@ type GenerationStep = {
 }
 
 interface MemberWhatsAppDraft {
-  outcome: 'APPROVED' | 'DECLINED'
+  outcome: 'APPROVED' | 'DECLINED' | 'EXPIRING' | 'EXPIRED'
   message: string
   memberName: string
   recipient: string | null
+  /** Draft logged in notifications; marked SENT when WhatsApp is opened. */
+  notificationId?: string | null
+}
+
+const WHATSAPP_DRAFT_TITLES: Record<MemberWhatsAppDraft['outcome'], string> = {
+  APPROVED: 'Tell the member: membership approved',
+  DECLINED: 'Tell the member: request declined',
+  EXPIRING: 'Remind the member: membership ending soon',
+  EXPIRED: 'Remind the member: membership expired',
 }
 
 // wa.me needs international digits; accept Lao local formats typed by an admin.
@@ -239,13 +257,18 @@ interface PremiumCommunity {
   is_active: boolean
 }
 
-interface PremiumPerformanceHighlight {
-  id: string
+interface TopPerformer {
+  user_id: string
   display_name: string
-  metric: string
-  period_label?: string | null
-  rank_order: number
-  is_active: boolean
+  avatar_url: string | null
+  plan_name: string
+  xp: number
+  daily_xp: number
+  learning_xp: number
+  streak: number
+  completed_days: number
+  last_active_day: string | null
+  rank: number
 }
 
 interface PlanFormState {
@@ -268,15 +291,6 @@ interface MemberContentFormState {
   is_active: boolean
 }
 
-interface PerformanceFormState {
-  id?: string
-  display_name: string
-  metric: string
-  period_label: string
-  rank_order: string
-  is_active: boolean
-}
-
 interface MotivationFormState {
   publish_date: string
   quote: string
@@ -289,11 +303,17 @@ function statusLabel(status: SubscriptionStatus) {
   return status.replace(/_/g, ' ')
 }
 
+// Paid rows stay ACTIVE in the database after ends_at; show them as expired.
+function effectiveStatus(subscription: Pick<PremiumSubscription, 'status' | 'ends_at'>): SubscriptionStatus {
+  return isMembershipExpired(subscription) ? 'EXPIRED' : subscription.status
+}
+
 function subscriptionStatusClass(status: SubscriptionStatus) {
   if (status === 'ACTIVE') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
   if (status === 'PAYMENT_REVIEW') return 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300'
   if (status === 'PENDING_APPROVAL' || status === 'PENDING_PAYMENT') return 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300'
-  if (status === 'CANCELLED' || status === 'EXPIRED') return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+  if (status === 'EXPIRED') return 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300'
+  if (status === 'CANCELLED') return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
   return 'bg-primary-100 dark:bg-primary-900/60 text-primary-800 dark:text-primary-300'
 }
 
@@ -338,11 +358,18 @@ export function PremiumAdminDashboard() {
   const [rejectReason, setRejectReason] = useState('')
   // Drafted approval/decline message the admin reviews and sends via WhatsApp.
   const [whatsAppDraft, setWhatsAppDraft] = useState<MemberWhatsAppDraft | null>(null)
+  const [draftingReminderId, setDraftingReminderId] = useState<string | null>(null)
+  const [runningAiCheckId, setRunningAiCheckId] = useState<string | null>(null)
+  const [dismissingRenewalId, setDismissingRenewalId] = useState<string | null>(null)
+  const {
+    data: expiringMemberships = [],
+    isLoading: expiringLoading,
+    error: expiringError,
+  } = useExpiringMemberships()
   const [editingPlan, setEditingPlan] = useState<PlanFormState | null>(null)
   const [motivationForm, setMotivationForm] = useState<MotivationFormState | null>(null)
   const [editingEvent, setEditingEvent] = useState<MemberContentFormState | null>(null)
   const [editingCommunity, setEditingCommunity] = useState<MemberContentFormState | null>(null)
-  const [editingHighlight, setEditingHighlight] = useState<PerformanceFormState | null>(null)
   const [savingMotivation, setSavingMotivation] = useState(false)
   const [generationOpen, setGenerationOpen] = useState(false)
   // Shown while the week is being checked/initialized, before tasks exist.
@@ -400,9 +427,11 @@ export function PremiumAdminDashboard() {
     queryFn: async () => {
       const { data, error: subscriptionsError } = await supabase
         .from('premium_subscriptions')
-        .select('id,user_id,plan_id,status,starts_at,ends_at,created_at,auto_renew,user:users!premium_subscriptions_user_id_fkey(id,name,email,phone,avatar_url,cover_image_url,language,created_at),plan:premium_plans(id,slug,name,description,price_lak,interval,features,is_active,sort_order)')
+        .select('id,user_id,plan_id,status,starts_at,ends_at,cancelled_at,downgraded_from_id,created_at,auto_renew,user:users!premium_subscriptions_user_id_fkey(id,name,email,phone,avatar_url,cover_image_url,language,created_at),plan:premium_plans(id,slug,name,description,price_lak,interval,features,is_active,sort_order)')
         .order('created_at', { ascending: false })
-        .limit(50)
+        // Members are listed once with their whole history, so load well past
+        // the latest few rows.
+        .limit(1000)
       if (subscriptionsError) throw subscriptionsError
       return (data ?? []).map(row => ({
         ...row,
@@ -562,16 +591,19 @@ export function PremiumAdminDashboard() {
     },
   })
 
-  const { data: performanceHighlights, isLoading: performanceHighlightsLoading } = useQuery({
-    queryKey: ['premium-admin', 'performance-highlights'],
+  // Ranked from real member activity (migration 097); admins can't edit it.
+  const {
+    data: topPerformers,
+    isLoading: topPerformersLoading,
+    error: topPerformersError,
+  } = useQuery({
+    queryKey: ['premium-admin', 'top-performers'],
     queryFn: async () => {
-      const { data, error: highlightsError } = await supabase
-        .from('premium_performance_highlights')
-        .select('id,display_name,metric,period_label,rank_order,is_active')
-        .order('rank_order')
-      if (highlightsError) throw highlightsError
-      return data as PremiumPerformanceHighlight[]
+      const { data, error: performersError } = await supabase.rpc('get_academy_top_performers', { p_limit: 10 })
+      if (performersError) throw performersError
+      return (data ?? []) as TopPerformer[]
     },
+    refetchInterval: 5 * 60_000,
   })
 
   const reviewQueue = useMemo(
@@ -593,7 +625,16 @@ export function PremiumAdminDashboard() {
     )),
     [subscriptions],
   )
-  const activeCount = (subscriptions ?? []).filter(subscription => subscription.status === 'ACTIVE').length
+  const activeCount = (subscriptions ?? []).filter(subscription => effectiveStatus(subscription) === 'ACTIVE').length
+  // AI (Qwen) checks of the uploaded proofs waiting for review.
+  const reviewPaymentIds = useMemo(
+    () => subscriptionRequests
+      .map(subscription => paymentBySubscription.get(subscription.id))
+      .filter((payment): payment is PremiumPayment => !!payment?.receipt_image_url && payment.status === 'REQUIRES_REVIEW')
+      .map(payment => payment.id),
+    [subscriptionRequests, paymentBySubscription],
+  )
+  const { data: paymentAiReviews } = usePaymentAiReviews(reviewPaymentIds)
   const reviewCount = reviewQueue.length
   const monthlyRevenueLak = (payments ?? [])
     .filter(payment => payment.status === 'VERIFIED')
@@ -608,11 +649,11 @@ export function PremiumAdminDashboard() {
   }> = [
     { id: 'overview', label: 'Overview', detail: 'Premium health', icon: <Sparkles className="h-4 w-4" /> },
     { id: 'forge', label: 'Weekly Content', detail: 'Generate next week', icon: <WandSparkles className="h-4 w-4" /> },
-    { id: 'payments', label: 'Payment Review', detail: 'Transfer proofs', icon: <ReceiptText className="h-4 w-4" />, badge: reviewCount },
+    { id: 'renewals', label: 'Renewals', detail: 'Memberships ending', icon: <BellRing className="h-4 w-4" />, badge: expiringMemberships.length },
     { id: 'members', label: 'Members', detail: 'Subscriptions', icon: <Users className="h-4 w-4" />, badge: subscriptionRequests.length },
-    { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
     { id: 'mentor', label: 'Daily Mentor', detail: 'Motivation content', icon: <MessageSquareText className="h-4 w-4" /> },
-    { id: 'content', label: 'Member Content', detail: 'Events and community', icon: <Flame className="h-4 w-4" /> },
+    { id: 'content', label: 'Member Content', detail: 'Events and performers', icon: <Flame className="h-4 w-4" /> },
+    { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
   ]
 
   function scrollToSection(section: PremiumAdminSection) {
@@ -626,12 +667,13 @@ export function PremiumAdminDashboard() {
   async function invalidateAdminPremium() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['premium-admin', 'subscriptions'] }),
+      qc.invalidateQueries({ queryKey: ['premium-admin', 'renewals'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'payments'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'plans'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'motivations'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'member-events'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'communities'] }),
-      qc.invalidateQueries({ queryKey: ['premium-admin', 'performance-highlights'] }),
+      qc.invalidateQueries({ queryKey: ['premium-admin', 'top-performers'] }),
       qc.invalidateQueries({ queryKey: ['premium-admin', 'weekly-content-run'] }),
     ])
   }
@@ -692,6 +734,79 @@ export function PremiumAdminDashboard() {
       console.error(err)
       error('The review was saved, but the WhatsApp message could not be drafted.')
     }
+  }
+
+  // Take a member off the Renewals list once they were reminded and chose to stay on Free.
+  async function dismissRenewal(membership: ExpiringMembership) {
+    setDismissingRenewalId(membership.id)
+    try {
+      const { error: dismissError } = await supabase
+        .from('premium_subscriptions')
+        .update({ admin_renewal_dismissed_at: new Date().toISOString() })
+        .eq('id', membership.id)
+      if (dismissError) throw dismissError
+      await qc.invalidateQueries({ queryKey: ['premium-admin', 'renewals'] })
+      success(`${membership.memberName} removed from Renewals.`)
+    } catch (err) {
+      console.error(err)
+      error('Could not dismiss this renewal.')
+    } finally {
+      setDismissingRenewalId(null)
+    }
+  }
+
+  // (Re-)run the AI check of a payment proof; it only advises, the admin decides.
+  async function runPaymentAiCheck(paymentId: string) {
+    setRunningAiCheckId(paymentId)
+    try {
+      const { data, error: checkError } = await supabase.functions.invoke('review-academy-payment', {
+        body: { payment_id: paymentId, force: true },
+      })
+      if (checkError) throw checkError
+      if (data?.error) throw new Error(data.error)
+    } catch (err) {
+      console.error(err)
+      error(err instanceof Error ? `AI check failed: ${err.message}` : 'AI check failed.')
+    } finally {
+      setRunningAiCheckId(null)
+      await qc.invalidateQueries({ queryKey: ['premium-admin', 'payment-ai-reviews'] })
+    }
+  }
+
+  // Draft the "membership ending / expired" reminder; the admin sends it from WhatsApp.
+  async function draftExpiryReminder(membership: ExpiringMembership) {
+    setDraftingReminderId(membership.id)
+    try {
+      const { data, error: draftError } = await supabase.functions.invoke('notify-member-whatsapp', {
+        body: { subscription_id: membership.id, kind: 'expiry' },
+      })
+      if (draftError) throw draftError
+      if (data?.error) throw new Error(data.error)
+      const draft = data as MemberWhatsAppDraft
+      // An outdated notify-member-whatsapp deployment ignores `kind` and drafts
+      // the approval message instead; never show that as a reminder.
+      if (draft.outcome !== 'EXPIRING' && draft.outcome !== 'EXPIRED') {
+        throw new Error(`Expected an expiry reminder but got a ${draft.outcome} draft. Redeploy notify-member-whatsapp.`)
+      }
+      setWhatsAppDraft(draft)
+    } catch (err) {
+      console.error(err)
+      error('The reminder message could not be drafted. Please try again.')
+    } finally {
+      setDraftingReminderId(null)
+    }
+  }
+
+  // Opening WhatsApp is as far as the app can go; record it as sent so the
+  // Renewals list shows who has been reminded.
+  async function markWhatsAppDraftSent(draft: MemberWhatsAppDraft) {
+    if (!draft.notificationId) return
+    const { error: updateError } = await supabase
+      .from('notifications')
+      .update({ status: 'SENT', sent_at: new Date().toISOString(), recipient: whatsAppDigits(draft.recipient ?? ''), message: draft.message })
+      .eq('id', draft.notificationId)
+    if (updateError) console.error(updateError)
+    await qc.invalidateQueries({ queryKey: ['premium-admin', 'renewals'] })
   }
 
   async function approveSubscription(subscriptionId: string) {
@@ -873,17 +988,6 @@ export function PremiumAdminDashboard() {
     })
   }
 
-  function openHighlightEditor(highlight?: PremiumPerformanceHighlight | null) {
-    setEditingHighlight({
-      id: highlight?.id,
-      display_name: highlight?.display_name ?? '',
-      metric: highlight?.metric ?? '',
-      period_label: highlight?.period_label ?? '',
-      rank_order: String(highlight?.rank_order ?? ((performanceHighlights?.length ?? 0) + 1)),
-      is_active: highlight?.is_active ?? true,
-    })
-  }
-
   async function saveEvent() {
     if (!editingEvent) return
     const payload = {
@@ -935,32 +1039,7 @@ export function PremiumAdminDashboard() {
     }
   }
 
-  async function saveHighlight() {
-    if (!editingHighlight) return
-    const payload = {
-      display_name: editingHighlight.display_name.trim(),
-      metric: editingHighlight.metric.trim(),
-      period_label: editingHighlight.period_label.trim() || null,
-      rank_order: Number(editingHighlight.rank_order) || 0,
-      is_active: editingHighlight.is_active,
-    }
-
-    try {
-      const query = editingHighlight.id
-        ? supabase.from('premium_performance_highlights').update(payload).eq('id', editingHighlight.id)
-        : supabase.from('premium_performance_highlights').insert(payload)
-      const { error: highlightError } = await query
-      if (highlightError) throw highlightError
-      setEditingHighlight(null)
-      await invalidateAdminPremium()
-      success('Performance highlight saved.')
-    } catch (err) {
-      console.error(err)
-      error('Could not save performance highlight.')
-    }
-  }
-
-  const loading = plansLoading || subscriptionsLoading || paymentsLoading || onboardingResponsesLoading || motivationsLoading || weeklyRunLoading || memberEventsLoading || communitiesLoading || performanceHighlightsLoading
+  const loading = plansLoading || subscriptionsLoading || paymentsLoading || onboardingResponsesLoading || motivationsLoading || weeklyRunLoading || memberEventsLoading || communitiesLoading
   const selectedOnboarding = selectedSubscription
     ? onboardingByUser.get(selectedSubscription.user_id)
     : undefined
@@ -1151,90 +1230,15 @@ export function PremiumAdminDashboard() {
 
           <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
 
-          <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <Panel
-              id="premium-payments"
-              title="Payment Review"
-              eyebrow="Queue"
-              action={`${reviewQueue.length} pending`}
-              icon={<ReceiptText className="h-5 w-5" />}
-            >
-              <div className="space-y-3">
-                {reviewQueue.length > 0 ? reviewQueue.map(payment => (
-                  <div key={payment.id} className="rounded-2xl border border-orange-100 dark:border-orange-500/30 bg-orange-50/60 dark:bg-orange-500/10 p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{payment.user?.name ?? 'Unknown user'}</p>
-                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                          {payment.plan?.name ?? 'Premium'} · {formatPrice(payment.amount_lak, currency)} · {formatDate(payment.created_at, language)}
-                        </p>
-                      </div>
-                      <div className="grid w-full grid-cols-3 gap-2 md:w-auto">
-                        <Button type="button" size="sm" variant="outline" loading={loadingProofId === payment.id} icon={<Eye className="h-4 w-4" />} onClick={() => void viewProof(payment)}>
-                          Proof
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="danger"
-                          icon={<XCircle className="h-4 w-4" />}
-                          onClick={() => {
-                            setRejectingRequest({
-                              subscriptionId: payment.subscription_id,
-                              userName: payment.user?.name ?? 'Unknown user',
-                            })
-                            setRejectReason('')
-                          }}
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="success"
-                          icon={<CheckCircle2 className="h-4 w-4" />}
-                          onClick={() => void approveSubscription(payment.subscription_id)}
-                          loading={reviewingSubscriptionId === payment.subscription_id}
-                        >
-                          Approve
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )) : (
-                  <EmptyMessage icon={<ShieldCheck className="h-8 w-8" />} title="No payments need review" detail="Premium transfer proofs will appear here after users upload them." />
-                )}
-              </div>
-            </Panel>
-
-            <Panel
-              id="premium-plans"
-              title="Plans"
-              eyebrow="Pricing"
-              action={`${plans?.length ?? 0} plans`}
-              icon={<Crown className="h-5 w-5" />}
-            >
-              <div className="space-y-3">
-                {(plans ?? []).map(plan => (
-                  <div key={plan.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {plan.price_lak > 0 ? <Crown className="h-4 w-4 text-amber-500" /> : <ShieldCheck className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
-                          <p className="text-sm font-black text-gray-950 dark:text-gray-100">{plan.name}</p>
-                        </div>
-                        <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{plan.description}</p>
-                        <p className="mt-3 text-lg font-black text-gray-950 dark:text-gray-100">{formatPrice(plan.price_lak, currency)} <span className="text-xs font-semibold text-gray-400">/{plan.interval}</span></p>
-                      </div>
-                      <Button type="button" size="sm" variant="outline" icon={<Edit3 className="h-4 w-4" />} onClick={() => openPlanEditor(plan)}>
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-          </section>
+          <ExpiringMembersPanel
+            memberships={expiringMemberships}
+            loading={expiringLoading}
+            failed={!!expiringError}
+            draftingId={draftingReminderId}
+            dismissingId={dismissingRenewalId}
+            onSendReminder={membership => void draftExpiryReminder(membership)}
+            onDismiss={membership => void dismissRenewal(membership)}
+          />
 
           <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
              <Panel
@@ -1303,8 +1307,8 @@ export function PremiumAdminDashboard() {
                                     </div>
                                   </div>
                                  <div className="flex flex-wrap gap-2">
-                                   <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', subscriptionStatusClass(subscription.status))}>
-                                     {statusLabel(subscription.status)}
+                                   <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', subscriptionStatusClass(effectiveStatus(subscription)))}>
+                                     {statusLabel(effectiveStatus(subscription))}
                                    </span>
                                    {payment ? (
                                      <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', paymentStatusClass(payment.status))}>
@@ -1313,6 +1317,23 @@ export function PremiumAdminDashboard() {
                                    ) : null}
                                  </div>
                                </div>
+
+                               {payment?.receipt_image_url && !isFreeRequest && payment.status === 'REQUIRES_REVIEW' && (
+                                 <PaymentAiReviewCard
+                                   review={paymentAiReviews?.get(payment.id)}
+                                   receiptRef={payment.receipt_image_url}
+                                   memberLanguage={subscription.user?.language === 'en' ? 'en' : 'lo'}
+                                   running={runningAiCheckId === payment.id}
+                                   onRun={() => void runPaymentAiCheck(payment.id)}
+                                   onDeclineWithReason={reason => {
+                                     setRejectingRequest({
+                                       subscriptionId: subscription.id,
+                                       userName: subscription.user?.name ?? 'Unknown user',
+                                     })
+                                     setRejectReason(reason)
+                                   }}
+                                 />
+                               )}
 
                                <div className="border-t border-orange-200 dark:border-orange-500/30 pt-3">
                                  {payment?.receipt_image_url ? (
@@ -1341,7 +1362,12 @@ export function PremiumAdminDashboard() {
                                            subscriptionId: subscription.id,
                                            userName: subscription.user?.name ?? 'Unknown user',
                                          })
-                                         setRejectReason('')
+                                         // Start from the AI's drafted reason when it has one; the admin can edit it.
+                                         const aiReview = paymentAiReviews?.get(payment.id)
+                                         const isCurrentProof = aiReview?.receipt_ref === payment.receipt_image_url
+                                         setRejectReason(isCurrentProof
+                                           ? draftedDeclineReason(aiReview, subscription.user?.language === 'en' ? 'en' : 'lo')
+                                           : '')
                                        }}
                                      >
                                        Reject
@@ -1416,32 +1442,10 @@ export function PremiumAdminDashboard() {
                    <p className="mb-3 text-sm font-black text-gray-950 dark:text-gray-100">All subscriptions</p>
                    <div className="overflow-hidden rounded-2xl border border-gray-100 dark:border-gray-800">
                      {(subscriptions ?? []).length > 0 ? (
-                       <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                         {subscriptions!.map(subscription => (
-                           <button
-                             type="button"
-                             key={subscription.id}
-                             onClick={() => setSelectedSubscription(subscription)}
-                             className="grid w-full gap-3 p-4 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:outline-none focus-visible:bg-primary-50 dark:focus-visible:bg-primary-900/40 md:grid-cols-[1fr_auto] md:items-center"
-                           >
-                              <div className="flex min-w-0 items-center gap-3">
-                                <MemberAvatar
-                                  name={subscription.user?.name}
-                                  avatarUrl={subscription.user?.avatar_url}
-                                />
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{subscription.user?.name ?? 'Unknown user'}</p>
-                                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {subscription.plan?.name ?? 'Plan'} · Ends {subscription.ends_at ? formatDate(subscription.ends_at, language) : 'manual'}
-                                  </p>
-                                </div>
-                              </div>
-                             <span className={cn('w-fit rounded-full px-2.5 py-1 text-xs font-bold', subscriptionStatusClass(subscription.status))}>
-                               {statusLabel(subscription.status)}
-                             </span>
-                           </button>
-                         ))}
-                       </div>
+                       <MemberSubscriptionList
+                         subscriptions={subscriptions!}
+                         onOpenProfile={setSelectedSubscription}
+                       />
                      ) : (
                        <EmptyMessage icon={<Users className="h-8 w-8" />} title="No subscriptions yet" detail="Premium subscriptions will appear here once users start a plan." />
                      )}
@@ -1502,21 +1506,36 @@ export function PremiumAdminDashboard() {
               }))}
               onCreate={() => openCommunityEditor(null)}
             />
-            <MemberContentPanel
-              eyebrow="Leaderboard"
-              title="Top performers"
-              action="New highlight"
-              items={(performanceHighlights ?? []).map(highlight => ({
-                id: highlight.id,
-                title: highlight.display_name,
-                detail: highlight.metric,
-                meta: highlight.period_label ?? 'No period',
-                isActive: highlight.is_active,
-                onEdit: () => openHighlightEditor(highlight),
-              }))}
-              onCreate={() => openHighlightEditor(null)}
-            />
+            <TopPerformersPanel performers={topPerformers ?? []} loading={topPerformersLoading} failed={!!topPerformersError} />
           </section>
+
+          <Panel
+              id="premium-plans"
+              title="Plans"
+              eyebrow="Pricing"
+              action={`${plans?.length ?? 0} plans`}
+              icon={<Crown className="h-5 w-5" />}
+            >
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {(plans ?? []).map(plan => (
+                  <div key={plan.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {plan.price_lak > 0 ? <Crown className="h-4 w-4 text-amber-500" /> : <ShieldCheck className="h-4 w-4 text-primary-600 dark:text-primary-400" />}
+                          <p className="text-sm font-black text-gray-950 dark:text-gray-100">{plan.name}</p>
+                        </div>
+                        <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{plan.description}</p>
+                        <p className="mt-3 text-lg font-black text-gray-950 dark:text-gray-100">{formatPrice(plan.price_lak, currency)} <span className="text-xs font-semibold text-gray-400">/{plan.interval}</span></p>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" icon={<Edit3 className="h-4 w-4" />} onClick={() => openPlanEditor(plan)}>
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
           </div>
         </main>
       )}
@@ -1668,7 +1687,7 @@ export function PremiumAdminDashboard() {
       <Modal
         open={!!whatsAppDraft}
         onClose={() => setWhatsAppDraft(null)}
-        title={whatsAppDraft?.outcome === 'DECLINED' ? 'Tell the member: request declined' : 'Tell the member: membership approved'}
+        title={whatsAppDraft ? WHATSAPP_DRAFT_TITLES[whatsAppDraft.outcome] : ''}
         footer={
           <div className="flex w-full justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setWhatsAppDraft(null)}>Skip</Button>
@@ -1684,6 +1703,7 @@ export function PremiumAdminDashboard() {
                   event.preventDefault()
                   return
                 }
+                void markWhatsAppDraftSent(whatsAppDraft)
                 setWhatsAppDraft(null)
               }}
               className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#1ebe5a] aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
@@ -1760,7 +1780,7 @@ export function PremiumAdminDashboard() {
 
             <MemberDetailSection icon={<Users className="h-4 w-4" />} title="Account and membership">
               <MemberDetail label="Plan" value={selectedSubscription.plan?.name} />
-              <MemberDetail label="Status" value={statusLabel(selectedSubscription.status)} />
+              <MemberDetail label="Status" value={statusLabel(effectiveStatus(selectedSubscription))} />
               <MemberDetail label="Requested" value={formatDate(selectedSubscription.created_at, language)} />
               <MemberDetail label="Phone" value={selectedSubscription.user?.phone} icon={<Phone className="h-4 w-4" />} />
               <MemberDetail label="Email" value={selectedSubscription.user?.email} icon={<Mail className="h-4 w-4" />} />
@@ -1820,28 +1840,6 @@ export function PremiumAdminDashboard() {
       >
         {editingCommunity && (
           <MemberContentForm form={editingCommunity} setForm={setEditingCommunity} labelName="Optional label" />
-        )}
-      </Modal>
-
-      <Modal
-        open={!!editingHighlight}
-        onClose={() => setEditingHighlight(null)}
-        title={editingHighlight?.id ? 'Edit Performance Highlight' : 'New Performance Highlight'}
-        footer={
-          <>
-            <Button type="button" variant="ghost" onClick={() => setEditingHighlight(null)}>Cancel</Button>
-            <Button type="button" icon={<Save className="h-4 w-4" />} onClick={saveHighlight}>Save highlight</Button>
-          </>
-        }
-      >
-        {editingHighlight && (
-          <div className="space-y-4">
-            <Input label="Display name" value={editingHighlight.display_name} onChange={event => setEditingHighlight({ ...editingHighlight, display_name: event.target.value })} />
-            <Input label="Metric" value={editingHighlight.metric} onChange={event => setEditingHighlight({ ...editingHighlight, metric: event.target.value })} />
-            <Input label="Period label" value={editingHighlight.period_label} onChange={event => setEditingHighlight({ ...editingHighlight, period_label: event.target.value })} />
-            <Input label="Rank order" type="number" value={editingHighlight.rank_order} onChange={event => setEditingHighlight({ ...editingHighlight, rank_order: event.target.value })} />
-            <ActiveToggle checked={editingHighlight.is_active} onChange={checked => setEditingHighlight({ ...editingHighlight, is_active: checked })} />
-          </div>
         )}
       </Modal>
 
@@ -2138,6 +2136,169 @@ function MemberDetail({ label, value, icon }: { label: string; value?: string | 
   )
 }
 
+const PENDING_STATUSES: SubscriptionStatus[] = ['PENDING_PAYMENT', 'PAYMENT_REVIEW', 'PENDING_APPROVAL']
+
+/** The membership that describes the member now: live paid, then live Free, then a request, then the latest. */
+function currentSubscription(history: PremiumSubscription[]) {
+  const live = history.filter(subscription => effectiveStatus(subscription) === 'ACTIVE')
+  return live.find(subscription => Number(subscription.plan?.price_lak ?? 0) > 0)
+    ?? live[0]
+    ?? history.find(subscription => PENDING_STATUSES.includes(subscription.status))
+    ?? history[0]
+}
+
+/** Paid plan vs Free plan, so admins can tell members apart at a glance. */
+function PlanTierBadge({ subscription }: { subscription: PremiumSubscription }) {
+  const paid = Number(subscription.plan?.price_lak ?? 0) > 0
+  return paid ? (
+    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm">
+      <Crown className="h-3 w-3" /> Premium
+    </span>
+  ) : (
+    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
+      <ShieldCheck className="h-3 w-3" /> Free
+    </span>
+  )
+}
+
+function subscriptionSummary(subscription: PremiumSubscription, language: 'lo' | 'en') {
+  if (!subscription.ends_at && subscription.status === 'ACTIVE') return 'No end date'
+  const date = subscription.ends_at ? formatDate(subscription.ends_at, language) : 'manual'
+  if (effectiveStatus(subscription) === 'EXPIRED') return `Ended ${date}`
+  if (subscription.status === 'ACTIVE' && subscription.cancelled_at) return `Cancelled · access until ${date}`
+  return `Ends ${date}`
+}
+
+/**
+ * One row per member showing their current membership. The profile picture
+ * opens the member's details; the rest of the row expands their history.
+ */
+function MemberSubscriptionList({
+  subscriptions,
+  onOpenProfile,
+}: {
+  subscriptions: PremiumSubscription[]
+  onOpenProfile: (subscription: PremiumSubscription) => void
+}) {
+  const { language } = useLanguage()
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
+  // Rows arrive newest first, so members are ordered by their latest activity.
+  const members = useMemo(() => {
+    const byUser = new Map<string, PremiumSubscription[]>()
+    for (const subscription of subscriptions) {
+      const history = byUser.get(subscription.user_id)
+      if (history) history.push(subscription)
+      else byUser.set(subscription.user_id, [subscription])
+    }
+    return [...byUser.entries()].map(([userId, history]) => ({ userId, history, current: currentSubscription(history) }))
+  }, [subscriptions])
+
+  function toggle(userId: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  return (
+    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+      {members.map(({ userId, history, current }) => {
+        const open = expanded.has(userId)
+        const status = effectiveStatus(current)
+        const memberName = current.user?.name ?? 'Unknown user'
+        return (
+          <div key={userId}>
+            <div className="flex items-center gap-3 p-4 transition hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <button
+                type="button"
+                onClick={() => onOpenProfile(current)}
+                aria-label={`View profile: ${memberName}`}
+                title="View profile"
+                className="flex-shrink-0 rounded-full transition hover:scale-105 hover:ring-2 hover:ring-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+              >
+                <MemberAvatar name={current.user?.name} avatarUrl={current.user?.avatar_url} />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggle(userId)}
+                aria-expanded={open}
+                className="flex min-w-0 flex-1 items-center gap-3 text-left focus:outline-none focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-primary-500"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{memberName}</p>
+                    <PlanTierBadge subscription={current} />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {current.plan?.name ?? 'Plan'} · {subscriptionSummary(current, language)}
+                  </p>
+                </div>
+                <span className={cn('flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', subscriptionStatusClass(status))}>
+                  {statusLabel(status)}
+                </span>
+                <span className="hidden flex-shrink-0 text-xs font-semibold text-gray-400 sm:inline">
+                  {history.length} {history.length === 1 ? 'record' : 'records'}
+                </span>
+                <ChevronDown className={cn('h-4 w-4 flex-shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
+              </button>
+            </div>
+
+            {open && (
+              <ol className="space-y-2 bg-gray-50/80 px-4 pb-4 pt-1 dark:bg-gray-800/30 md:pl-[4.75rem]">
+                {history.map(subscription => {
+                  const rowStatus = effectiveStatus(subscription)
+                  return (
+                    <li key={subscription.id} className="rounded-xl border border-gray-100 bg-white p-3 dark:border-gray-800 dark:bg-gray-900">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-sm font-bold text-gray-900 dark:text-gray-100">
+                          {subscription.plan?.name ?? 'Plan'}
+                          {subscription.id === current.id && (
+                            <span className="ml-2 rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-black uppercase text-primary-700 dark:bg-primary-900/40 dark:text-primary-300">Current</span>
+                          )}
+                        </p>
+                        <span className={cn('flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold', subscriptionStatusClass(rowStatus))}>
+                          {statusLabel(rowStatus)}
+                        </span>
+                      </div>
+                      <dl className="mt-2 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+                        <HistoryDate label="Requested" value={subscription.created_at} language={language} />
+                        <HistoryDate label="Started" value={subscription.starts_at} language={language} />
+                        <HistoryDate
+                          label={rowStatus === 'EXPIRED' ? 'Ended' : 'Ends'}
+                          value={subscription.ends_at}
+                          language={language}
+                          fallback={subscription.starts_at ? 'No end date' : undefined}
+                        />
+                        <HistoryDate label="Cancelled" value={subscription.cancelled_at} language={language} />
+                      </dl>
+                      {subscription.downgraded_from_id && (
+                        <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-gray-400">Given automatically when their Premium expired.</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ol>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function HistoryDate({ label, value, language, fallback }: { label: string; value?: string | null; language: 'lo' | 'en'; fallback?: string }) {
+  if (!value && !fallback) return null
+  return (
+    <div className="flex gap-1.5">
+      <dt className="text-gray-400">{label}</dt>
+      <dd className="font-semibold text-gray-700 dark:text-gray-200">{value ? formatDateTime(value, language) : fallback}</dd>
+    </div>
+  )
+}
+
 function MemberAvatar({ name, avatarUrl }: { name?: string | null; avatarUrl?: string | null }) {
   return (
     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white dark:border-gray-800 bg-primary-100 dark:bg-primary-900/60 text-sm font-black text-primary-800 dark:text-primary-300 shadow-sm">
@@ -2147,6 +2308,63 @@ function MemberAvatar({ name, avatarUrl }: { name?: string | null; avatarUrl?: s
         <span>{name?.charAt(0).toUpperCase() ?? '?'}</span>
       )}
     </div>
+  )
+}
+
+function TopPerformersPanel({ performers, loading, failed }: { performers: TopPerformer[]; loading: boolean; failed: boolean }) {
+  const { language } = useLanguage()
+  return (
+    <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Leaderboard</p>
+          <h2 className="mt-1 text-lg font-black text-gray-950 dark:text-gray-100">Top performers</h2>
+          <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+            Ranked automatically by XP from the daily mentor and learning activities.
+          </p>
+        </div>
+        <Trophy className="h-5 w-5 flex-shrink-0 text-amber-500" />
+      </div>
+      {failed ? (
+        <p role="alert" className="rounded-2xl bg-red-50 dark:bg-red-500/10 p-4 text-sm font-semibold text-red-700 dark:text-red-300">
+          Could not load top performers. Refresh to try again.
+        </p>
+      ) : loading ? (
+        <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+      ) : performers.length === 0 ? (
+        <EmptyMessage icon={<Trophy className="h-8 w-8" />} title="No activity yet" detail="Members appear here once they earn XP." />
+      ) : (
+        <ol className="space-y-2">
+          {performers.map(performer => (
+            <li key={performer.user_id} className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
+              <span className={cn(
+                'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
+                performer.rank === 1 ? 'bg-amber-400 text-amber-950'
+                  : performer.rank === 2 ? 'bg-slate-300 text-slate-800'
+                    : performer.rank === 3 ? 'bg-orange-300 text-orange-950'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
+              )}>
+                {performer.rank}
+              </span>
+              <MemberAvatar name={performer.display_name} avatarUrl={performer.avatar_url} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{performer.display_name}</p>
+                <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                  {performer.plan_name}
+                  {performer.streak > 0 ? ` · 🔥 ${performer.streak}` : ''}
+                  {` · ${performer.completed_days} full days`}
+                  {performer.last_active_day ? ` · active ${formatDate(performer.last_active_day, language)}` : ''}
+                </p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                <p className="text-sm font-black text-gray-950 dark:text-gray-100">{performer.xp.toLocaleString()}</p>
+                <p className="text-[10px] font-semibold uppercase text-gray-400">XP</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }
 

@@ -38,7 +38,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         'disabled:opacity-40 disabled:cursor-not-allowed',
         variants[variant],
         sizes[size],
-        fullWidth && 'w-full',
+        // Keep short labels on one line: in a tight flex row the button would
+        // otherwise shrink and wrap (Lao text breaks mid-word, e.g. "ແກ້ / ໄຂ").
+        fullWidth ? 'w-full' : 'shrink-0 whitespace-nowrap',
         className,
       )}
       {...props}

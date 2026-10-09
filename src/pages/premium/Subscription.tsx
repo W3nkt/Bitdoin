@@ -32,6 +32,8 @@ import {
   ZoomIn,
   XCircle,
   Zap,
+  ChevronDown,
+  X as XIcon,
 } from 'lucide-react'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
@@ -45,9 +47,10 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
-import { notifyAdminOfAcademyPayment, notifyAdminOfAcademySubscription } from '@/lib/premiumNotify'
+import { notifyAdminOfAcademyPayment, notifyAdminOfAcademySubscription, requestAcademyPaymentReview } from '@/lib/premiumNotify'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
+import { EXPIRY_WARNING_DAYS, isMembershipExpired } from '@/lib/academyMembership'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
 import type { Language, PaymentAccount } from '@/types'
@@ -220,6 +223,24 @@ function formatStreak(days: number) {
   return `${days} ${days === 1 ? 'day' : 'days'}`
 }
 
+const DISMISSED_REJECTION_KEY = 'academy_rejected_payment_dismissed'
+
+function readDismissedRejection() {
+  try {
+    return localStorage.getItem(DISMISSED_REJECTION_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeDismissedRejection(paymentId: string) {
+  try {
+    localStorage.setItem(DISMISSED_REJECTION_KEY, paymentId)
+  } catch {
+    // Blocked storage: the notice just shows again on the next visit.
+  }
+}
+
 function statusLabel(status?: PremiumStatus) {
   if (!status) return 'Free'
   const labels: Record<PremiumStatus, string> = {
@@ -282,6 +303,10 @@ export function Subscription() {
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<PremiumPlan | null>(null)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
+  // Rejected payment notice: hidden per payment once dismissed (this device).
+  const [dismissedRejectionId, setDismissedRejectionId] = useState(readDismissedRejection)
+  // Payment history rows that are open to show their rejection reason.
+  const [openPaymentIds, setOpenPaymentIds] = useState<Set<string>>(() => new Set())
   const [qrPaymentOpen, setQrPaymentOpen] = useState(false)
   const [qrPlan, setQrPlan] = useState<PremiumPlan | null>(null)
   const [qrPreview, setQrPreview] = useState<{ url: string; label: string } | null>(null)
@@ -378,7 +403,7 @@ export function Subscription() {
     retry: 1,
   })
 
-  const { data: onboarding } = useQuery({
+  const { data: onboarding, isLoading: onboardingLoading } = useQuery({
     queryKey: ['premium', 'onboarding-profile-v2', profile?.id],
     enabled: !!profile,
     queryFn: async () => {
@@ -399,7 +424,9 @@ export function Subscription() {
   // so "Premium" access requires the active plan to actually be paid —
   // otherwise Free members would silently get the full Premium experience
   // (and never see a plan to upgrade to).
-  const isPaidPremium = subscription?.status === 'ACTIVE' && (subscription?.plan?.price_lak ?? 0) > 0
+  // Paid rows stay ACTIVE after ends_at; the database denies access from then on.
+  const membershipExpired = isMembershipExpired(subscription, nowMs)
+  const isPaidPremium = subscription?.status === 'ACTIVE' && !membershipExpired && (subscription?.plan?.price_lak ?? 0) > 0
 
   const { data: motivation } = useQuery({
     queryKey: ['premium', 'daily-motivation', profile?.id, isPaidPremium],
@@ -446,7 +473,7 @@ export function Subscription() {
 
   const { data: dailyHistory, isLoading: dailyHistoryLoading } = useQuery({
     queryKey: ['premium', 'daily-history', profile?.id],
-    enabled: Boolean(profile && subscription?.status === 'ACTIVE'),
+    enabled: Boolean(profile && subscription?.status === 'ACTIVE' && !membershipExpired),
     queryFn: async () => {
       const { data, error: historyError } = await supabase
         .from('premium_challenge_completions')
@@ -521,13 +548,23 @@ export function Subscription() {
     payment.subscription_id === subscription?.id
     && (payment.status === 'PENDING' || payment.status === 'REJECTED')
   ))
+  // The admin declined the latest request: the request is CANCELLED and its
+  // payment REJECTED with the admin's reason.
+  const rejectedPayment = subscription?.status === 'CANCELLED'
+    ? payments?.find(payment => payment.subscription_id === subscription.id && payment.status === 'REJECTED')
+    : undefined
+  const showRejectedNotice = !!rejectedPayment && dismissedRejectionId !== rejectedPayment.id
   const isPremiumActive = premiumMemberContentEnabled
   // The member home page (mentor, arcade, events, communities) is a benefit
   // of ANY active membership, including the Free plan — that's the whole
   // point of "the subscribed home page". isPaidPremium separately controls
   // paid-only extras (personalized AI guidance, higher limits) and whether
   // the upgrade banner/plans are shown.
-  const isMemberActive = subscription?.status === 'ACTIVE'
+  const isMemberActive = subscription?.status === 'ACTIVE' && !membershipExpired
+  // Cancelled, but the paid period hasn't ended: full access continues until ends_at.
+  const cancelledWithAccess = isMemberActive && !!subscription?.cancelled_at && !!subscription?.ends_at
+  // What cancelling now would do: keep paid access until ends_at, or end at once.
+  const cancelKeepsAccess = isPaidPremium && !!subscription?.ends_at && !cancelledWithAccess
   const isPaymentPending = subscription?.status === 'PENDING_PAYMENT'
   const isReviewing = subscription?.status === 'PAYMENT_REVIEW'
   const isAwaitingApproval = subscription?.status === 'PENDING_APPROVAL'
@@ -537,7 +574,7 @@ export function Subscription() {
     isPaidPremium
     && subscriptionRemainingMs != null
     && subscriptionRemainingMs > 0
-    && subscriptionRemainingMs <= 3 * 24 * 60 * 60 * 1000,
+    && subscriptionRemainingMs <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000,
   )
   const remainingTotalHours = Math.max(0, Math.ceil((subscriptionRemainingMs ?? 0) / (60 * 60 * 1000)))
   const remainingDays = Math.floor(remainingTotalHours / 24)
@@ -563,7 +600,7 @@ export function Subscription() {
       navigate('/auth')
       return
     }
-    if (subscription?.plan_id === plan.id && subscription.status === 'ACTIVE') {
+    if (subscription?.plan_id === plan.id && subscription.status === 'ACTIVE' && !membershipExpired) {
       error('You are already on this plan.')
       return
     }
@@ -692,14 +729,21 @@ export function Subscription() {
     if (!subscription) return
     setBusyPlanId(subscription.plan_id)
     try {
-      const { error: cancelError } = await supabase
-        .from('premium_subscriptions')
-        .update({ status: 'CANCELLED', cancelled_at: new Date().toISOString(), auto_renew: false })
-        .eq('id', subscription.id)
-
+      // A paid membership with time left stays ACTIVE until ends_at (it just
+      // won't renew); free plans and pending requests end right away.
+      const { data, error: cancelError } = await supabase.rpc('cancel_premium_subscription', {
+        p_subscription_id: subscription.id,
+      })
       if (cancelError) throw cancelError
+      const result = (Array.isArray(data) ? data[0] : data) as { status: PremiumStatus; ends_at: string | null } | null
       await invalidatePremium()
-      success('Premium subscription cancelled.')
+      if (result?.status === 'ACTIVE' && result.ends_at) {
+        success(language === 'lo'
+          ? `ຍົກເລີກແລ້ວ. ທ່ານຍັງໃຊ້ງານໄດ້ຄົບທຸກຢ່າງຈົນຮອດວັນທີ ${formatDate(result.ends_at, language)}.`
+          : `Subscription cancelled. You keep full access until ${formatDate(result.ends_at, language)}.`)
+      } else {
+        success(language === 'lo' ? 'ຍົກເລີກການສະໝັກສະມາຊິກແລ້ວ.' : 'Premium subscription cancelled.')
+      }
     } catch (err) {
       console.error(err)
       error('Could not cancel subscription.')
@@ -746,6 +790,7 @@ export function Subscription() {
       if (subscriptionUpdateError) throw subscriptionUpdateError
 
       notifyAdminOfAcademyPayment(subscription.id, pendingPayment.id)
+      requestAcademyPaymentReview(pendingPayment.id)
 
       await invalidatePremium()
       success('Payment proof submitted. Admin will review it.')
@@ -873,9 +918,36 @@ export function Subscription() {
     document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [location.hash, pageLoading])
 
+  // "Subscribe again" on the expiry banner / profile menu lands here as
+  // ?renew=1: run the normal Subscribe flow for the paid plan the member had
+  // last (payment QR, or the onboarding chat first if it isn't done).
+  const renewHandledRef = useRef(false)
+  useEffect(() => {
+    // Wait for onboarding too: requestSubscribe opens the onboarding chat when it looks unfinished.
+    if (!new URLSearchParams(location.search).has('renew') || pageLoading || onboardingLoading || !profile || renewHandledRef.current) return
+    renewHandledRef.current = true
+    navigate({ pathname: location.pathname, hash: '#plans' }, { replace: true })
+    void (async () => {
+      const { data } = await supabase
+        .from('premium_subscriptions')
+        .select('plan_id,plan:premium_plans(price_lak)')
+        .eq('user_id', profile.id)
+        .not('ends_at', 'is', null)
+        .order('ends_at', { ascending: false })
+        .limit(5)
+      const lastPaid = (data ?? []).find(row => (firstRelation(row.plan)?.price_lak ?? 0) > 0)
+      const plan = activePlans.find(candidate => candidate.id === lastPaid?.plan_id && candidate.price_lak > 0)
+      // No earlier paid plan (or it was retired): the #plans scroll lets them pick one.
+      if (plan) requestSubscribe(plan)
+      // ?renew is gone from the URL by now, so a later tap can run this again.
+      renewHandledRef.current = false
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, pageLoading, onboardingLoading, profile])
+
   return (
     <div className="premium-i18n min-h-screen bg-slate-50 dark:bg-gray-950 pt-[104px] text-slate-950 dark:text-slate-100">
-      <section className="fixed inset-x-0 top-0 z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
+      <section className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,95,240,0.35),transparent_35%),linear-gradient(135deg,#0f1f35_0%,#162d4a_58%,#1e3a5f_100%)]" />
         <div className="relative mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -990,6 +1062,19 @@ export function Subscription() {
             </>
            ) : (
              <>
+          {showRejectedNotice && rejectedPayment && (
+            <RejectedPaymentNotice
+              payment={rejectedPayment}
+              reason={rejectedPayment.rejection_reason}
+              language={language}
+              busy={busyPlanId === subscription?.plan_id}
+              onSubscribeAgain={subscription?.plan && subscription.plan.price_lak > 0 ? () => requestSubscribe(subscription.plan!) : undefined}
+              onDismiss={() => {
+                writeDismissedRejection(rejectedPayment.id)
+                setDismissedRejectionId(rejectedPayment.id)
+              }}
+            />
+          )}
           {isAwaitingApproval && (
             <section className="flex flex-col gap-3 rounded-2xl border border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-start gap-3">
@@ -1114,7 +1199,8 @@ export function Subscription() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {activePlans.map(plan => {
                 const isCurrent = subscription?.plan_id === plan.id && subscription.status !== 'CANCELLED'
-                const isActiveCurrent = isCurrent && subscription?.status === 'ACTIVE'
+                const isActiveCurrent = isCurrent && subscription?.status === 'ACTIVE' && !membershipExpired
+                const isExpiredCurrent = isCurrent && membershipExpired
                 const isPendingCurrent = isCurrent && (subscription?.status === 'PENDING_PAYMENT' || subscription?.status === 'PAYMENT_REVIEW' || subscription?.status === 'PENDING_APPROVAL')
                 const isPremium = plan.price_lak > 0
                 const isYearly = plan.slug === 'premium-yearly'
@@ -1126,6 +1212,7 @@ export function Subscription() {
                     isPremium ? 'border-primary-200 dark:border-primary-800' : 'border-gray-100 dark:border-gray-800',
                     isYearly && 'border-amber-300 dark:border-amber-500/40',
                     isCurrent && 'border-primary-700 dark:border-primary-400',
+                    isExpiredCurrent && 'border-red-500 dark:border-red-500',
                   )}>
                     {isYearly && !isCurrent && (
                       <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
@@ -1140,7 +1227,11 @@ export function Subscription() {
                         </div>
                         <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{plan.description}</p>
                       </div>
-                      {isCurrent && (
+                      {isExpiredCurrent ? (
+                        <span className="whitespace-nowrap rounded-full bg-red-50 dark:bg-red-500/15 px-3 py-1 text-xs font-bold text-red-700 dark:text-red-300">
+                          {language === 'lo' ? 'ໝົດອາຍຸແລ້ວ' : 'Expired'}
+                        </span>
+                      ) : isCurrent && (
                         <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-3 py-1 text-xs font-bold text-primary-700 dark:text-primary-300">Current</span>
                       )}
                     </div>
@@ -1174,7 +1265,13 @@ export function Subscription() {
                           loading={busyPlanId === plan.id}
                           disabled={isActiveCurrent}
                         >
-                          {isActiveCurrent ? 'Current plan' : isPendingCurrent ? 'Continue payment' : 'Start Premium'}
+                          {isActiveCurrent
+                            ? 'Current plan'
+                            : isPendingCurrent
+                              ? 'Continue payment'
+                              : isExpiredCurrent
+                                ? (language === 'lo' ? 'ສະໝັກອີກຄັ້ງ' : 'Subscribe again')
+                                : 'Start Premium'}
                         </Button>
                       ) : (
                         <Button
@@ -1184,7 +1281,7 @@ export function Subscription() {
                           icon={<CheckCircle2 className="h-4 w-4" />}
                           onClick={() => requestSubscribe(plan)}
                           loading={busyPlanId === plan.id}
-                          disabled={isCurrent || (Boolean(subscription) && subscription!.status !== 'CANCELLED' && subscription!.status !== 'EXPIRED')}
+                          disabled={isCurrent || (Boolean(subscription) && !membershipExpired && subscription!.status !== 'CANCELLED' && subscription!.status !== 'EXPIRED')}
                         >
                           {isCurrent ? 'Subscribed' : 'Subscribe'}
                         </Button>
@@ -1208,7 +1305,16 @@ export function Subscription() {
 
               <div className="mt-5 space-y-3">
                 <InfoRow label="Current plan" value={planName} />
-                <InfoRow label="Status" value={statusLabel(subscription?.status)} />
+                <InfoRow
+                  label="Status"
+                  value={membershipExpired
+                    ? statusLabel('EXPIRED')
+                    : cancelledWithAccess
+                      ? (language === 'lo'
+                          ? `ຍົກເລີກແລ້ວ · ໃຊ້ໄດ້ຮອດ ${formatDate(subscription!.ends_at!, language)}`
+                          : `Cancelled · access until ${formatDate(subscription!.ends_at!, language)}`)
+                      : statusLabel(subscription?.status)}
+                />
                 <InfoRow label="Renewal" value={subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'Manual activation'} />
                 <InfoRow label="Auto-renew" value={subscription?.auto_renew ? 'On' : 'Off'} />
               </div>
@@ -1220,7 +1326,7 @@ export function Subscription() {
                 icon={<XCircle className="h-4 w-4" />}
                 onClick={() => setConfirmCancelOpen(true)}
                 loading={busyPlanId === subscription?.plan_id}
-                disabled={!subscription || subscription.status === 'CANCELLED' || subscription.status === 'EXPIRED'}
+                disabled={!subscription || membershipExpired || cancelledWithAccess || subscription.status === 'CANCELLED' || subscription.status === 'EXPIRED'}
                 className="mt-5 border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
               >
                 Cancel subscription
@@ -1229,12 +1335,12 @@ export function Subscription() {
               <Modal
                 open={confirmCancelOpen}
                 onClose={() => setConfirmCancelOpen(false)}
-                title="Cancel your subscription?"
+                title={language === 'lo' ? 'ຍົກເລີກການສະໝັກສະມາຊິກບໍ?' : 'Cancel your subscription?'}
                 size="sm"
                 footer={
                   <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={() => setConfirmCancelOpen(false)}>
-                      Keep my plan
+                      {language === 'lo' ? 'ຮັກສາແຜນໄວ້' : 'Keep my plan'}
                     </Button>
                     <Button
                       type="button"
@@ -1243,16 +1349,38 @@ export function Subscription() {
                       loading={busyPlanId === subscription?.plan_id}
                       onClick={async () => { await cancelSubscription(); setConfirmCancelOpen(false) }}
                     >
-                      Yes, cancel subscription
+                      {language === 'lo' ? 'ແມ່ນ, ຍົກເລີກ' : 'Yes, cancel subscription'}
                     </Button>
                   </div>
                 }
               >
-                <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  You'll lose access to <span className="font-bold text-slate-900 dark:text-slate-100">{planName}</span> immediately
-                  {isPaidPremium ? ' — this cannot be undone, and any remaining time on your current billing period will not be refunded.' : '.'}
-                  {' '}You can subscribe again at any time.
-                </p>
+                {cancelKeepsAccess ? (
+                  <div className="space-y-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-3">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <p className="text-emerald-900 dark:text-emerald-200">
+                        {language === 'lo' ? (
+                          <>ທ່ານຍັງໃຊ້ <span className="font-bold">{planName}</span> ໄດ້ຄົບທຸກຢ່າງ (ບົດຮຽນ, AI Coach ແລະ ຄຸນສົມບັດພຣີມຽມທັງໝົດ) ຈົນຮອດວັນທີ <span className="font-bold">{formatDate(subscription!.ends_at!, language)}</span>.</>
+                        ) : (
+                          <>You'll keep full access to <span className="font-bold">{planName}</span> (lessons, AI Coach and every Premium feature) until <span className="font-bold">{formatDate(subscription!.ends_at!, language)}</span>.</>
+                        )}
+                      </p>
+                    </div>
+                    <p>
+                      {language === 'lo'
+                        ? 'ຫຼັງຈາກວັນທີນັ້ນ ສະມາຊິກຈະສິ້ນສຸດ ແລະ ຈະບໍ່ຕໍ່ອາຍຸອັດຕະໂນມັດ. ບໍ່ມີການຄືນເງິນສຳລັບເວລາທີ່ເຫຼືອ. ທ່ານສາມາດສະໝັກໃໝ່ໄດ້ທຸກເວລາ.'
+                        : "After that date your membership ends and won't renew. Remaining time isn't refunded. You can subscribe again at any time."}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {language === 'lo' ? (
+                      <>ທ່ານຈະບໍ່ສາມາດໃຊ້ <span className="font-bold text-slate-900 dark:text-slate-100">{planName}</span> ໄດ້ທັນທີ. ທ່ານສາມາດສະໝັກໃໝ່ໄດ້ທຸກເວລາ.</>
+                    ) : (
+                      <>You'll lose access to <span className="font-bold text-slate-900 dark:text-slate-100">{planName}</span> immediately. You can subscribe again at any time.</>
+                    )}
+                  </p>
+                )}
               </Modal>
             </section>
 
@@ -1266,17 +1394,58 @@ export function Subscription() {
               </div>
 
               <div className="mt-5 space-y-3">
-                {(payments ?? []).length > 0 ? payments!.map(payment => (
-                  <div key={payment.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{payment.plan?.name ?? 'Premium'}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">{formatDate(payment.created_at, language)} · {formatPrice(payment.amount_lak, currency)}</p>
+                {(payments ?? []).length > 0 ? payments!.map(payment => {
+                  const rejected = payment.status === 'REJECTED'
+                  const open = rejected && openPaymentIds.has(payment.id)
+                  const row = (
+                    <>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">{payment.plan?.name ?? 'Premium'}</p>
+                        <p className="mt-0.5 text-xs text-gray-400">{formatDate(payment.created_at, language)} · {formatPrice(payment.amount_lak, currency)}</p>
+                      </div>
+                      <span className="flex flex-shrink-0 items-center gap-1.5">
+                        <span className={cn('rounded-full px-2.5 py-1 text-xs font-bold', paymentStatusClass(payment.status))}>
+                          {payment.status.replace(/_/g, ' ')}
+                        </span>
+                        {rejected && <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')} />}
+                      </span>
+                    </>
+                  )
+                  if (!rejected) {
+                    return (
+                      <div key={payment.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
+                        {row}
+                      </div>
+                    )
+                  }
+                  return (
+                    <div key={payment.id} className={cn('rounded-2xl border', open ? 'border-red-200 dark:border-red-500/30' : 'border-gray-100 dark:border-gray-800')}>
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => setOpenPaymentIds(prev => {
+                          const next = new Set(prev)
+                          if (next.has(payment.id)) next.delete(payment.id)
+                          else next.add(payment.id)
+                          return next
+                        })}
+                        className="flex w-full items-center justify-between gap-3 rounded-2xl p-3 text-left transition hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                      >
+                        {row}
+                      </button>
+                      {open && (
+                        <div className="mx-3 mb-3 rounded-xl bg-red-50 dark:bg-red-500/10 p-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
+                            {language === 'lo' ? 'ເຫດຜົນທີ່ບໍ່ອະນຸມັດ' : 'Reason it was not approved'}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-red-900 dark:text-red-100">
+                            {payment.rejection_reason || (language === 'lo' ? 'ບໍ່ໄດ້ລະບຸເຫດຜົນ.' : 'No reason was given.')}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <span className={cn('flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', paymentStatusClass(payment.status))}>
-                      {payment.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                )) : (
+                  )
+                }) : (
                   <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
                     <ReceiptText className="mx-auto h-8 w-8 text-gray-300" />
                     <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-200">No Premium payments yet</p>
@@ -1909,6 +2078,75 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
       <span className="text-right text-sm font-bold text-gray-900 dark:text-gray-100">{value}</span>
     </div>
+  )
+}
+
+function RejectedPaymentNotice({
+  payment,
+  reason,
+  language,
+  busy,
+  onSubscribeAgain,
+  onDismiss,
+}: {
+  payment: PremiumPayment
+  reason?: string | null
+  language: 'lo' | 'en'
+  busy: boolean
+  onSubscribeAgain?: () => void
+  onDismiss: () => void
+}) {
+  const lao = language === 'lo'
+  return (
+    <section role="alert" className="overflow-hidden rounded-3xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-5">
+      <div className="flex gap-3">
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-300">
+          <AlertTriangle className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black text-red-950 dark:text-red-100">
+            {lao ? 'ການຊຳລະເງິນຂອງທ່ານບໍ່ໄດ້ຮັບການອະນຸມັດ' : 'Your payment was not approved'}
+          </p>
+          <p className="mt-0.5 text-xs text-red-800 dark:text-red-300">
+            {payment.plan?.name ?? 'Premium'} · {formatPrice(payment.amount_lak, 'LAK')} · {formatDate(payment.created_at, language)}
+          </p>
+          <div className="mt-3 rounded-xl bg-white/80 dark:bg-gray-900/60 p-3 ring-1 ring-red-100 dark:ring-red-500/20">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-red-700 dark:text-red-300">
+              {lao ? 'ເຫດຜົນ' : 'Reason'}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-800 dark:text-gray-100">
+              {reason || (lao ? 'ບໍ່ໄດ້ລະບຸເຫດຜົນ.' : 'No reason was given.')}
+            </p>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-red-800 dark:text-red-300">
+            {lao
+              ? 'ກະລຸນາກວດສອບເຫດຜົນຂ້າງເທິງ ແລ້ວສະໝັກອີກຄັ້ງ ພ້ອມຫຼັກຖານການໂອນທີ່ຖືກຕ້ອງ. ຖ້າມີຄຳຖາມ, ຕິດຕໍ່ພວກເຮົາໄດ້.'
+              : 'Check the reason above, then subscribe again with a correct transfer proof. Contact us if you have any questions.'}
+          </p>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            {onSubscribeAgain ? (
+              <Button
+                type="button"
+                icon={<RefreshCw className={cn('h-4 w-4', busy && 'animate-spin')} />}
+                loading={busy}
+                onClick={onSubscribeAgain}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {lao ? 'ສະໝັກອີກຄັ້ງ' : 'Subscribe again'}
+              </Button>
+            ) : <span />}
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-xl bg-orange-500 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-orange-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+            >
+              <XIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {lao ? 'ປິດ' : 'Dismiss'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 

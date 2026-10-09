@@ -32,17 +32,33 @@ export function formatNumber(n: number): string {
 
 // ─── Date formatting ──────────────────────────────────────────────────────────
 
+// Browsers have no Lao month names (lo-LA falls back to English "Sep 27"),
+// so Lao dates are written as day/month/year: 9/10/2026.
+export function formatLaoDate(date: Date, withYear = true): string {
+  const dayMonth = `${date.getDate()}/${date.getMonth() + 1}`
+  return withYear ? `${dayMonth}/${date.getFullYear()}` : dayMonth
+}
+
+/** 24-hour time, as used in Laos: 14:05. */
+export function formatLaoTime(date: Date): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 export function formatDate(dateStr: string, lang: Language = 'en'): string {
-  return new Intl.DateTimeFormat(lang === 'lo' ? 'lo-LA' : 'en-US', {
+  const date = new Date(dateStr)
+  if (lang === 'lo') return formatLaoDate(date)
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
-  }).format(new Date(dateStr))
+  }).format(date)
 }
 
 export function formatDateTime(dateStr: string, lang: Language = 'en'): string {
-  return new Intl.DateTimeFormat(lang === 'lo' ? 'lo-LA' : 'en-US', {
+  const date = new Date(dateStr)
+  if (lang === 'lo') return `${formatLaoDate(date)} ${formatLaoTime(date)}`
+  return new Intl.DateTimeFormat('en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  }).format(new Date(dateStr))
+  }).format(date)
 }
 
 // ─── Order / payment status labels ────────────────────────────────────────────

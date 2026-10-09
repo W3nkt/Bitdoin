@@ -8,6 +8,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { CustomerLayout } from '@/components/layout/CustomerLayout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
+import { MembershipExpiryBanner } from '@/components/premium/MembershipExpiryBanner'
 import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedirect'
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { useSeoMeta } from '@/hooks/useSeoMeta'
@@ -143,6 +144,7 @@ export function App() {
                 <ThemeController />
                 <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
+                <MembershipExpiryBanner />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
                     {/* Customer Routes */}

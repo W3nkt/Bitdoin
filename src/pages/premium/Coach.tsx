@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
 import { usePremiumTranslation } from '@/i18n/premium'
-import { cn } from '@/lib/utils'
+import { cn, formatLaoDate, formatLaoTime } from '@/lib/utils'
 import { careerPaths } from '@/data/careerPaths'
 import { careerPathsLo } from '@/data/careerPathsLo'
 
@@ -152,10 +152,12 @@ async function getFunctionErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'The mentor is unavailable. Please try again.'
 }
 
-function formatTimestamp(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
+function formatTimestamp(value: string, language: 'lo' | 'en') {
+  const date = new Date(value)
+  if (language === 'lo') return `${formatLaoDate(date, false)} ${formatLaoTime(date)}`
+  return new Intl.DateTimeFormat('en-US', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 export function PremiumCoach() {
@@ -336,21 +338,28 @@ export function PremiumCoach() {
 
   return (
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
-      <header className="fixed inset-x-0 top-0 z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 px-4 backdrop-blur md:px-8">
-        <div className="relative flex h-full items-center justify-between">
+      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 px-4 backdrop-blur md:px-8">
+        <div className="relative flex h-full items-center justify-between gap-2">
           <Link
             to="/academy/home"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-950 dark:hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-950 dark:hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             aria-label="Back to Premium"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-900 text-white"><Brain className="h-5 w-5" /></span><div><p className="whitespace-nowrap text-sm font-black">Bitdoin Mentor</p><p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Ready to coach</p></div></div>
-          <div className="flex items-center gap-2">
+          {/* In the flow (not absolutely centered) so the buttons beside it can never overlap it on narrow screens. */}
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
+            <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-900 text-white sm:flex"><Brain className="h-5 w-5" /></span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black">Bitdoin Mentor</p>
+              <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Ready to coach</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
             {access.data ? (
               <Crown className="h-5 w-5 text-amber-500" />
             ) : (
-              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25">
+              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25">
                 <Crown className="h-3.5 w-3.5" /> Upgrade
               </Link>
             )}
@@ -363,15 +372,15 @@ export function PremiumCoach() {
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
-          className="fixed left-3 top-20 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 dark:hover:text-primary-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
+          className="fixed left-3 top-[calc(var(--academy-banner-h,0px)+5rem)] z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 dark:hover:text-primary-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
           aria-label="Open chat history"
         >
           <History className="h-5 w-5" />
         </button>
       )}
 
-      {historyOpen && <button type="button" className="fixed inset-0 top-16 z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
-      <aside className={`fixed bottom-0 left-0 top-16 z-40 flex w-72 flex-col border-r border-black/5 dark:border-white/10 bg-white dark:bg-gray-900 transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      {historyOpen && <button type="button" className="fixed inset-0 top-[calc(var(--academy-banner-h,0px)+4rem)] z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
+      <aside className={`fixed bottom-0 left-0 top-[calc(var(--academy-banner-h,0px)+4rem)] z-40 flex w-72 flex-col border-r border-black/5 dark:border-white/10 bg-white dark:bg-gray-900 transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex items-center justify-between px-4 pb-3 pt-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Your mentor</p>
@@ -389,7 +398,7 @@ export function PremiumCoach() {
               <MessageSquare className={`mt-0.5 h-4 w-4 flex-shrink-0 ${conversation.id === conversationId ? 'text-primary-600 dark:text-primary-400' : 'text-gray-300 group-hover:text-gray-500 dark:group-hover:text-gray-400'}`} />
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold">{conversation.title}</span>
-                <time dateTime={conversation.updated_at} className="mt-1 block text-[11px] font-medium text-gray-400">{formatTimestamp(conversation.updated_at)}</time>
+                <time dateTime={conversation.updated_at} className="mt-1 block text-[11px] font-medium text-gray-400">{formatTimestamp(conversation.updated_at, language)}</time>
               </span>
             </button>
           ))}
@@ -412,7 +421,7 @@ export function PremiumCoach() {
               })}</div>
             </div>
           )}
-          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white dark:bg-primary-700' : 'rounded-bl-md bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none dark:ring-1 dark:ring-white/10'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at)}</time></div></div>)}
+          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white dark:bg-primary-700' : 'rounded-bl-md bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none dark:ring-1 dark:ring-white/10'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at, language)}</time></div></div>)}
           {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white dark:bg-gray-900 px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
           <div ref={endRef} />
         </div>

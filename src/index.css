@@ -8,6 +8,26 @@
     scroll-behavior: smooth;
   }
 
+  /* Small phones: text, icons, spacing and buttons are sized in rem, so a
+     smaller root font scales the whole UI down evenly. 390px+ (most current
+     phones, tablets, desktop) keeps the normal 16px. */
+  @media (max-width: 389px) {
+    /* iPhone SE 2nd/3rd gen, iPhone 8, 12/13 mini, most 360px Androids */
+    html { font-size: 93.75%; }
+
+    /* iOS Safari zooms the page into any field under 16px; keep fields at 16px. */
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  @media (max-width: 349px) {
+    /* iPhone SE 1st gen and other 320px screens */
+    html { font-size: 87.5%; }
+  }
+
   body {
     @apply text-gray-900 antialiased bg-gray-50 dark:bg-gray-950 dark:text-gray-100;
     font-family: 'Inter', 'Noto Sans Thai', 'Noto Sans Lao', sans-serif;

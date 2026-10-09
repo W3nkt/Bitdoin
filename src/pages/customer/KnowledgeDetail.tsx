@@ -9,7 +9,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import type { KnowledgePost, KnowledgePostType } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
-import { cn } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { BIOGRAPHY_PROFILES, splitBioTitle } from '@/data/biographyProfiles'
 import { BioAvatar } from '@/components/ui/BioAvatar'
@@ -298,7 +298,7 @@ function BiographyDetail({ post }: { post: KnowledgePost }) {
           </span>
         )}
         <span className="ml-auto text-gray-300 dark:text-gray-600">
-          {new Date(post.created_at).toLocaleDateString(language === 'lo' ? 'lo-LA' : 'en-GB', {
+          {language === 'lo' ? formatDate(post.created_at, 'lo') : new Date(post.created_at).toLocaleDateString('en-GB', {
             year: 'numeric', month: 'long', day: 'numeric',
           })}
         </span>
@@ -543,7 +543,7 @@ function StandardDetail({ post }: { post: KnowledgePost }) {
               <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{post.views + 1} {t('knowledge.views')}</span>
             )}
             <span className="text-gray-300 dark:text-gray-600">
-              {new Date(post.created_at).toLocaleDateString(language === 'lo' ? 'lo-LA' : 'en-GB', {
+              {language === 'lo' ? formatDate(post.created_at, 'lo') : new Date(post.created_at).toLocaleDateString('en-GB', {
                 year: 'numeric', month: 'long', day: 'numeric',
               })}
             </span>

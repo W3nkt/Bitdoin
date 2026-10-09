@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight, Brain, Camera, Clock, Flame, GraduationCap, Lightbulb,
+  AlertTriangle, ArrowRight, Brain, Camera, Clock, Flame, GraduationCap, Lightbulb,
   ChevronRight, Loader2, LogOut, Moon, Pencil, Save, Send, Sun, Target, XCircle, Zap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -11,18 +11,10 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
-import { firstRelation } from '@/lib/supabaseRelations'
+import { isMembershipExpired, premiumEndedAt, type PremiumStatus, useMenuSubscription } from '@/lib/academyMembership'
 import { cn, formatDate } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { telegramRemindersAvailable } from '@/components/premium/TelegramReminderCard'
-
-type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
-
-interface MenuSubscription {
-  status: PremiumStatus
-  ends_at?: string | null
-  plan?: { name: string }
-}
 
 interface MenuPersonalization {
   completed: boolean
@@ -55,7 +47,8 @@ function statusClass(status?: PremiumStatus) {
   if (status === 'ACTIVE') return 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-800 dark:text-emerald-300'
   if (status === 'PAYMENT_REVIEW') return 'bg-orange-100 dark:bg-orange-500/15 text-orange-800 dark:text-orange-300'
   if (status === 'PENDING_APPROVAL' || status === 'PENDING_PAYMENT') return 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-800 dark:text-yellow-300'
-  if (status === 'CANCELLED' || status === 'EXPIRED') return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+  if (status === 'EXPIRED') return 'bg-red-500/20 text-red-300 ring-1 ring-red-400/40'
+  if (status === 'CANCELLED') return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
   return 'bg-primary-100 dark:bg-primary-900/60 text-primary-800 dark:text-primary-300'
 }
 
@@ -76,25 +69,13 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   const qc = useQueryClient()
   const { success, error } = useToast()
 
-  const { data: subscription } = useQuery({
-    queryKey: ['premium', 'subscription-menu', profile?.id],
-    enabled: !!profile,
-    queryFn: async () => {
-      const { data, error: subscriptionError } = await supabase
-        .from('premium_subscriptions')
-        .select('status,ends_at,plan:premium_plans(name)')
-        .eq('user_id', profile!.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (subscriptionError) throw subscriptionError
-      if (!data) return null
-      return { ...data, plan: firstRelation(data.plan) ?? undefined } as MenuSubscription
-    },
-    staleTime: 0,
-    refetchOnMount: 'always',
-    retry: 1,
-  })
+  const { data: subscription } = useMenuSubscription()
+  // Premium ended (just now, or the member fell back to Free): show it as expired.
+  const premiumEnded = premiumEndedAt(subscription)
+  const expired = !!premiumEnded
+  const effectiveStatus = expired ? 'EXPIRED' : subscription?.status
+  // Cancelled before the end date: still full access until ends_at.
+  const cancelledWithAccess = !expired && subscription?.status === 'ACTIVE' && !!subscription.cancelled_at && !!subscription.ends_at
 
   const { data: onboarding } = useQuery({
     queryKey: ['premium', 'onboarding-profile-v2', profile?.id],
@@ -114,7 +95,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
 
   const { data: memberProgress } = useQuery({
     queryKey: ['premium', 'member-progress', profile?.id],
-    enabled: Boolean(profile) && subscription?.status === 'ACTIVE',
+    enabled: Boolean(profile) && subscription?.status === 'ACTIVE' && !isMembershipExpired(subscription),
     queryFn: async () => {
       const { data, error: progressError } = await supabase.rpc('get_premium_member_dashboard', { p_limit: 5 })
       if (progressError) throw progressError
@@ -126,15 +107,45 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
 
   const personalization = onboarding?.responses ?? {}
   const planName = subscription?.plan?.name ?? (subscription?.status === 'ACTIVE' ? 'Premium Monthly' : 'Free')
-  const status = statusLabel(subscription?.status)
-  const statusClassName = statusClass(subscription?.status)
+  const status = expired
+    ? (language === 'lo' ? 'ໝົດອາຍຸແລ້ວ' : 'Expired')
+    : cancelledWithAccess
+      ? (language === 'lo' ? 'ຍົກເລີກແລ້ວ' : 'Cancelled')
+      : statusLabel(subscription?.status)
+  const statusClassName = cancelledWithAccess
+    ? 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-300/40'
+    : statusClass(effectiveStatus)
   const streak = formatStreak(memberProgress?.member.streak ?? 0)
   const xp = (memberProgress?.member.xp ?? 0).toLocaleString()
-  const expiration = subscription?.ends_at ? formatDate(subscription.ends_at, language) : 'No expiry'
+  const expirationIso = premiumEnded ?? subscription?.ends_at
+  const expiration = expirationIso ? formatDate(expirationIso, language) : 'No expiry'
 
   const menuRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelMaxHeight, setPanelMaxHeight] = useState<number>()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
+
+  // Fit the dropdown between where it starts and the bottom of the visible
+  // screen, so its end (e.g. the Telegram card) can always be scrolled to —
+  // even when the expiry banner pushes the header down, and on phones where
+  // 100vh reaches behind the browser's toolbar.
+  useLayoutEffect(() => {
+    if (!open) return
+    const fit = () => {
+      const panel = panelRef.current
+      if (!panel) return
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      setPanelMaxHeight(Math.max(200, viewportHeight - panel.getBoundingClientRect().top - 12))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    window.visualViewport?.addEventListener('resize', fit)
+    return () => {
+      window.removeEventListener('resize', fit)
+      window.visualViewport?.removeEventListener('resize', fit)
+    }
+  }, [open])
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [draft, setDraft] = useState<Record<string, string>>(personalization)
@@ -322,9 +333,11 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
 
       {open && (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Premium profile and personalization"
-          className="absolute right-0 top-full z-20 mt-3 max-h-[calc(100vh-6.5rem)] w-[min(28rem,calc(100vw-2rem))] origin-top-right overflow-y-auto rounded-[1.75rem] border border-amber-200/60 dark:border-amber-500/30 bg-[#fffdf8] dark:bg-gray-900 p-3 text-left text-slate-950 dark:text-slate-100 shadow-[0_28px_80px_rgba(3,10,24,0.32)] animate-slide-up"
+          style={{ maxHeight: panelMaxHeight }}
+          className="absolute right-0 top-full z-20 mt-3 max-h-[calc(100dvh-6.5rem)] w-[min(28rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-[1.75rem] border border-amber-200/60 dark:border-amber-500/30 bg-[#fffdf8] dark:bg-gray-900 p-3 text-left text-slate-950 dark:text-slate-100 shadow-[0_28px_80px_rgba(3,10,24,0.32)] animate-slide-up"
         >
           <div className="flex items-center gap-3 px-1 pb-3">
             <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-950 text-sm font-black text-amber-200 ring-1 ring-amber-300/30">
@@ -436,14 +449,20 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
             )}
           </div>
 
-          <div className="relative overflow-hidden rounded-[1.4rem] bg-[#06101f] p-4 text-white">
-            <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-amber-300/15 blur-2xl" />
+          <div className={cn(
+            'relative overflow-hidden rounded-[1.4rem] bg-[#06101f] p-4 text-white',
+            expired && 'ring-2 ring-red-500/60',
+          )}>
+            <div className={cn(
+              'pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-2xl',
+              expired ? 'bg-red-500/25' : 'bg-amber-300/15',
+            )} />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Membership</p>
                 <p className="mt-1 truncate text-lg font-black">{planName}</p>
               </div>
-              <span className={cn('flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', statusClassName)}>
+              <span className={cn('flex-shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold leading-5', statusClassName)}>
                 {status}
               </span>
             </div>
@@ -451,8 +470,39 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
             <div className="mt-4 grid grid-cols-3 gap-2">
               <ProfileMenuStat label="Streak" value={streak} icon={<Flame className="h-4 w-4" />} />
               <ProfileMenuStat label="XP" value={xp} icon={<Zap className="h-4 w-4" />} />
-              <ProfileMenuStat label="Expires" value={expiration} icon={<Clock className="h-4 w-4" />} />
+              <ProfileMenuStat
+                label={expired
+                  ? (language === 'lo' ? 'ໝົດອາຍຸແລ້ວ' : 'Expired')
+                  : cancelledWithAccess ? (language === 'lo' ? 'ໃຊ້ໄດ້ຮອດ' : 'Access until') : 'Expires'}
+                value={expiration}
+                icon={expired ? <AlertTriangle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                danger={expired}
+              />
             </div>
+
+            {expired && (
+              <div role="alert" className="relative mt-3 rounded-xl bg-red-500/15 p-3 ring-1 ring-red-400/40">
+                <p className="text-sm font-black text-red-200">
+                  {language === 'lo' ? 'ພຣີມຽມຂອງທ່ານໝົດອາຍຸແລ້ວ' : 'Your Premium has expired'}
+                </p>
+                <p className="mt-0.5 text-xs font-semibold leading-5 text-red-100/80">
+                  {language === 'lo'
+                    ? 'ຕອນນີ້ທ່ານໃຊ້ແຜນຟຣີ. ສະໝັກອີກຄັ້ງ ເພື່ອກັບມາໃຊ້ພຣີມຽມຄົບທຸກຢ່າງ.'
+                    : "You're on the Free plan now. Subscribe again to get full Premium back."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    navigate('/academy/subscription?renew=1')
+                  }}
+                  className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-xs font-black text-white transition hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                >
+                  {language === 'lo' ? 'ສະໝັກອີກຄັ້ງ' : 'Subscribe again'}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="px-1 pb-1 pt-4">
@@ -549,12 +599,12 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   )
 }
 
-function ProfileMenuStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function ProfileMenuStat({ label, value, icon, danger = false }: { label: string; value: string; icon: React.ReactNode; danger?: boolean }) {
   return (
-    <div className="min-w-0 rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
-      <div className="mb-1 text-primary-200">{icon}</div>
-      <p className="truncate text-sm font-black text-white">{value}</p>
-      <p className="mt-0.5 truncate text-[10px] font-semibold text-primary-200">{label}</p>
+    <div className={cn('min-w-0 rounded-xl p-2 ring-1', danger ? 'bg-red-500/20 ring-red-400/50' : 'bg-white/10 ring-white/10')}>
+      <div className={cn('mb-1', danger ? 'text-red-300' : 'text-primary-200')}>{icon}</div>
+      <p className={cn('truncate text-sm font-black', danger ? 'text-red-200' : 'text-white')}>{value}</p>
+      <p className={cn('mt-0.5 truncate text-[10px] font-semibold', danger ? 'text-red-300' : 'text-primary-200')}>{label}</p>
     </div>
   )
 }
