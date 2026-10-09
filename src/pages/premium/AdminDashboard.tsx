@@ -38,6 +38,10 @@ import {
   Play,
   BellRing,
   Trophy,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Menu,
+  X,
 } from 'lucide-react'
 import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
 import { isMembershipExpired } from '@/lib/academyMembership'
@@ -204,13 +208,13 @@ const TASK_STATUS: Record<WeeklyContentTask['status'], GenerationStep['status']>
   PENDING: 'queued', PROCESSING: 'running', PAUSED: 'paused', DONE: 'done', FAILED: 'failed', CANCELLED: 'cancelled',
 }
 
-function generationStepLabel(taskKey: string, categoryNames: Map<string, string>) {
+function generationStepLabel(taskKey: string, categoryNames: Map<string, string>, batchTotals: Map<string, number>) {
   const batch = taskKey.match(/^(brain_sprint|word_match)-(\d+)$/)
   if (batch) {
-    return batch[1] === 'brain_sprint'
-      ? `Daily Brain Sprint · Batch ${Number(batch[2]) + 1}/5`
-      : `Word Match · Batch ${Number(batch[2]) + 1}/3`
+    const total = batchTotals.get(batch[1]) ?? 0
+    return `${batch[1] === 'brain_sprint' ? 'Daily Brain Sprint' : 'Word Match'} · Batch ${Number(batch[2]) + 1}/${total}`
   }
+  if (taskKey.startsWith('lesson_research-')) return `Learning Hub · ${categoryNames.get(taskKey.slice('lesson_research-'.length)) ?? 'Lesson'} · research`
   if (taskKey === 'daily_mentor') return 'Daily Mentor'
   if (taskKey === 'roleplay_missions') return 'AI role-play missions'
   if (taskKey === 'prompt_library') return 'AI Prompt Library'
@@ -378,6 +382,28 @@ export function PremiumAdminDashboard() {
   const [forgeBusy, setForgeBusy] = useState<string | null>(null)
   const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
+  // Mobile: off-canvas drawer. Desktop: the sticky sidebar can be hidden.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [desktopMenuHidden, setDesktopMenuHidden] = useState(false)
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMobileMenuOpen(false)
+    }
+    function closeOnDesktop() {
+      if (window.matchMedia('(min-width: 1024px)').matches) setMobileMenuOpen(false)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', closeOnDesktop)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', closeOnDesktop)
+    }
+  }, [mobileMenuOpen])
 
   useEffect(() => {
     if (!profileMenuOpen) return
@@ -533,11 +559,17 @@ export function PremiumAdminDashboard() {
     staleTime: 10 * 60_000,
   })
 
+  // Batch counts come from the queue itself, so older runs label correctly too.
+  const forgeBatchTotals = new Map<string, number>()
+  for (const task of forgeTasks ?? []) {
+    const stream = task.task_key.match(/^(brain_sprint|word_match)-\d+$/)?.[1]
+    if (stream) forgeBatchTotals.set(stream, (forgeBatchTotals.get(stream) ?? 0) + 1)
+  }
   const generationSteps: GenerationStep[] = (forgeTasks ?? []).map(task => {
     const status = TASK_STATUS[task.status]
     return {
       id: task.task_key,
-      label: generationStepLabel(task.task_key, forgeCategoryNames ?? new Map()),
+      label: generationStepLabel(task.task_key, forgeCategoryNames ?? new Map(), forgeBatchTotals),
       status,
       detail: task.error_message ?? (status === 'done' ? 'Saved and ready' : status === 'running' ? 'Researching and writing…' : status === 'paused' ? 'Paused · will be skipped until started' : undefined),
     }
@@ -656,7 +688,13 @@ export function PremiumAdminDashboard() {
     { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
   ]
 
+  function toggleAdminMenu() {
+    if (window.matchMedia('(min-width: 1024px)').matches) setDesktopMenuHidden(hidden => !hidden)
+    else setMobileMenuOpen(open => !open)
+  }
+
   function scrollToSection(section: PremiumAdminSection) {
+    setMobileMenuOpen(false)
     const target = document.getElementById(`premium-${section}`)
     if (!target) return
     setActiveSection(section)
@@ -1046,14 +1084,30 @@ export function PremiumAdminDashboard() {
   const selectedResponses = selectedOnboarding?.responses ?? {}
 
   return (
-    <div className="premium-i18n min-h-screen bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-      <header className="border-b border-primary-800 bg-primary-900 text-white">
+    <div className="premium-i18n min-h-screen overflow-x-clip bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
-          <PwenLogoLockup
-            textClassName="text-white"
-            subTextClassName="text-primary-200"
-            markClassName="rounded-xl bg-white/10 p-1"
-          />
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleAdminMenu}
+              aria-label={mobileMenuOpen || !desktopMenuHidden ? 'Hide admin menu' : 'Show admin menu'}
+              aria-controls="premium-admin-menu"
+              aria-expanded={mobileMenuOpen}
+              title="Admin menu"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-primary-100 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              <Menu className="h-5 w-5 lg:hidden" />
+              {desktopMenuHidden
+                ? <PanelLeftOpen className="hidden h-5 w-5 lg:block" />
+                : <PanelLeftClose className="hidden h-5 w-5 lg:block" />}
+            </button>
+            <PwenLogoLockup
+              textClassName="text-white"
+              subTextClassName="text-primary-200"
+              markClassName="rounded-xl bg-white/10 p-1"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1145,7 +1199,9 @@ export function PremiumAdminDashboard() {
             </div>
           </div>
         </div>
+      </header>
 
+      <div className="border-b border-primary-800 bg-primary-900 text-white">
         <div className="mx-auto max-w-7xl px-4 pb-8 pt-4">
           <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div>
@@ -1179,28 +1235,58 @@ export function PremiumAdminDashboard() {
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
-          <aside className="h-fit rounded-3xl bg-primary-900 p-3 text-white shadow-card lg:sticky lg:top-6">
-            <div className="border-b border-white/10 px-3 pb-4 pt-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-primary-200">Premium</p>
-              <p className="mt-1 text-lg font-black">Admin Menu</p>
+        <main className={cn(
+          'mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6',
+          !desktopMenuHidden && 'lg:grid-cols-[260px_minmax(0,1fr)]',
+        )}>
+          {/* Backdrop for the mobile drawer */}
+          <div
+            aria-hidden="true"
+            onClick={() => setMobileMenuOpen(false)}
+            className={cn(
+              'fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm transition-opacity lg:hidden',
+              mobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+          />
+          <aside
+            id="premium-admin-menu"
+            className={cn(
+              'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] overflow-y-auto bg-primary-900 p-3 text-white shadow-2xl transition-transform duration-300 motion-reduce:transition-none',
+              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+              'lg:sticky lg:inset-auto lg:top-24 lg:z-auto lg:h-fit lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:rounded-3xl lg:shadow-card lg:transition-none',
+              desktopMenuHidden && 'lg:hidden',
+            )}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-3 pb-4 pt-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary-200">Premium</p>
+                <p className="mt-1 text-lg font-black">Admin Menu</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close admin menu"
+                className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-primary-100 hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 lg:hidden"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-             <nav className="mt-3 space-y-1">
-               {navItems.map(item => (
-                 <button
-                   type="button"
-                   key={item.id}
-                   onClick={() => scrollToSection(item.id)}
-                   className={cn(
-                     'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
-                     activeSection === item.id
-                       ? 'bg-white/15 text-white'
-                       : 'text-primary-200 hover:bg-white/10 hover:text-white',
+            <nav className="mt-3 space-y-1">
+              {navItems.map(item => (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
+                    activeSection === item.id
+                      ? 'bg-white/15 text-white'
+                      : 'text-primary-200 hover:bg-white/10 hover:text-white',
                   )}
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10">
@@ -1214,14 +1300,14 @@ export function PremiumAdminDashboard() {
                     <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-primary-950">
                       {item.badge}
                     </span>
-                   ) : null}
-                 </button>
-               ))}
-             </nav>
+                  ) : null}
+                </button>
+              ))}
+            </nav>
           </aside>
 
           <div className="min-w-0 space-y-6">
-          <section id="premium-overview" className="grid scroll-mt-6 gap-4 md:grid-cols-4">
+          <section id="premium-overview" className="grid scroll-mt-24 grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
             <Stat label="Active members" value={activeCount} icon={<Users className="h-5 w-5" />} color="blue" />
             <Stat label="Payment review" value={reviewCount} icon={<ReceiptText className="h-5 w-5" />} color="amber" />
             <Stat label="Verified revenue" value={formatPrice(monthlyRevenueLak, currency)} icon={<Crown className="h-5 w-5" />} color="green" />
@@ -1240,7 +1326,7 @@ export function PremiumAdminDashboard() {
             onDismiss={membership => void dismissRenewal(membership)}
           />
 
-          <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
              <Panel
                id="premium-members"
                title="Subscriptions"
@@ -1477,7 +1563,7 @@ export function PremiumAdminDashboard() {
             </Panel>
           </section>
 
-          <section id="premium-content" className="scroll-mt-6 grid gap-6 xl:grid-cols-3">
+          <section id="premium-content" className="scroll-mt-24 grid grid-cols-1 gap-6 xl:grid-cols-3">
             <MemberContentPanel
               eyebrow="Events"
               title="Member events"
@@ -1516,7 +1602,7 @@ export function PremiumAdminDashboard() {
               action={`${plans?.length ?? 0} plans`}
               icon={<Crown className="h-5 w-5" />}
             >
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {(plans ?? []).map(plan => (
                   <div key={plan.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -1985,13 +2071,13 @@ function Stat({ label, value, icon, color }: { label: string; value: ReactNode; 
     purple: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
   }
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-gray-950 dark:text-gray-100">{value}</p>
+    <Card className="min-w-0 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 sm:text-xs">{label}</p>
+          <p className="mt-2 break-words text-lg font-black text-gray-950 dark:text-gray-100 sm:text-2xl">{value}</p>
         </div>
-        <div className={cn('rounded-2xl p-3', colors[color])}>{icon}</div>
+        <div className={cn('shrink-0 rounded-2xl p-2 sm:p-3', colors[color])}>{icon}</div>
       </div>
     </Card>
   )
@@ -2027,7 +2113,7 @@ function WeeklyContentForge({
   const weekLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${targetWeek}T00:00:00Z`))
 
   return (
-    <section id="premium-forge" className="relative scroll-mt-6 overflow-hidden rounded-[2rem] bg-[#110b24] px-5 py-6 text-white shadow-[0_24px_70px_-28px_rgba(67,33,132,0.8)] sm:px-8 sm:py-8">
+    <section id="premium-forge" className="relative scroll-mt-24 overflow-hidden rounded-[2rem] bg-[#110b24] px-5 py-6 text-white shadow-[0_24px_70px_-28px_rgba(67,33,132,0.8)] sm:px-8 sm:py-8">
       <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-violet-500/20 blur-3xl motion-safe:animate-pulse" />
       <div className="pointer-events-none absolute -bottom-24 left-1/4 h-52 w-52 rounded-full bg-amber-300/10 blur-3xl" />
       <div className="relative grid gap-8 lg:grid-cols-3 lg:items-center lg:gap-10 xl:gap-14">
@@ -2058,26 +2144,27 @@ function WeeklyContentForge({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col items-center lg:col-span-1 lg:justify-self-end lg:pl-4 xl:pr-6">
-          <div className="relative">
-            <div className={cn(
-              'pointer-events-none absolute -inset-3 rounded-full bg-gradient-to-r from-amber-300 via-fuchsia-400 to-violet-500 opacity-65 blur-lg transition duration-500',
-              working ? 'motion-safe:animate-pulse' : 'group-hover:opacity-90',
-            )} />
-            <button
-              type="button"
-              onClick={working || paused ? onOpenProgress : onGenerate}
-              disabled={ready}
-              className="group relative flex h-36 w-36 flex-col items-center justify-center overflow-hidden rounded-full border border-white/25 bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 p-4 text-center text-[#160b2d] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_50px_rgba(168,85,247,0.35)] transition duration-300 hover:-translate-y-1 hover:scale-[1.03] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/70 dark:focus-visible:ring-amber-500/30 disabled:cursor-not-allowed disabled:grayscale-[0.15] disabled:hover:translate-y-0 disabled:hover:scale-100 motion-reduce:transition-none"
-            >
-              <span className="absolute inset-x-0 top-0 h-1/2 -translate-x-full skew-x-[-25deg] bg-gradient-to-r from-transparent via-white/55 dark:via-gray-900/55 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              {working ? <Sparkles className="h-8 w-8 motion-safe:animate-spin" /> : paused ? <Pause className="h-8 w-8" /> : ready ? <CheckCircle2 className="h-8 w-8" /> : <WandSparkles className="h-8 w-8 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" />}
-              <span className="mt-2 text-xs font-black uppercase tracking-[0.12em]">
-                {working ? 'View progress' : paused ? 'Paused' : ready ? 'Week ready' : canContinue ? 'Continue' : 'Forge week'}
-              </span>
-            </button>
-          </div>
-          <p className="mt-5 text-center text-xs font-semibold text-violet-200/70">
+        <div className="flex w-full min-w-0 flex-col items-stretch sm:items-center lg:col-span-1 lg:justify-self-end">
+          <button
+            type="button"
+            onClick={working || paused ? onOpenProgress : onGenerate}
+            disabled={ready}
+            data-tone={ready ? 'ready' : undefined}
+            className={cn(
+              'forge-cta group relative flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-[0.14em] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200/60 disabled:cursor-not-allowed sm:w-auto sm:min-w-64',
+              ready ? 'bg-emerald-400 text-emerald-950' : 'bg-amber-300 text-[#160b2d] hover:bg-amber-200',
+            )}
+          >
+            {!ready && <span aria-hidden="true" className="forge-cta-halo" />}
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#160b2d]/10">
+              {working ? <Sparkles className="h-5 w-5 motion-safe:animate-spin" />
+                : paused ? <Pause className="h-5 w-5" />
+                : ready ? <CheckCircle2 className="h-5 w-5" />
+                : <WandSparkles className="forge-cta-spark h-5 w-5" />}
+            </span>
+            <span>{working ? 'View progress' : paused ? 'Paused' : ready ? 'Week ready' : canContinue ? 'Continue' : 'Forge week'}</span>
+          </button>
+          <p className="mt-4 text-center text-xs font-semibold leading-5 text-violet-200/70 sm:max-w-64">
             {ready ? `Completed ${run?.completed_at ? formatDate(run.completed_at, 'en') : ''}` : working ? 'Runs in the background one step at a time. Tap to view or pause steps.' : paused ? 'Some steps are paused. Tap to start them again.' : canContinue ? 'Continue from the first unfinished step—saved content will not be regenerated.' : 'Generate on any day · existing weeks are checked first'}
           </p>
         </div>
@@ -2151,12 +2238,12 @@ function currentSubscription(history: PremiumSubscription[]) {
 function PlanTierBadge({ subscription }: { subscription: PremiumSubscription }) {
   const paid = Number(subscription.plan?.price_lak ?? 0) > 0
   return paid ? (
-    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm">
-      <Crown className="h-3 w-3" /> Premium
+    <span title="Premium" className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 p-1 sm:px-2 sm:py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm">
+      <Crown className="h-3 w-3" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Premium</span>
     </span>
   ) : (
-    <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
-      <ShieldCheck className="h-3 w-3" /> Free
+    <span title="Free" className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 p-1 sm:px-2 sm:py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-600 dark:text-slate-300 ring-1 ring-slate-200 dark:ring-slate-700">
+      <ShieldCheck className="h-3 w-3" aria-hidden="true" /><span className="sr-only sm:not-sr-only">Free</span>
     </span>
   )
 }
@@ -2314,7 +2401,7 @@ function MemberAvatar({ name, avatarUrl }: { name?: string | null; avatarUrl?: s
 function TopPerformersPanel({ performers, loading, failed }: { performers: TopPerformer[]; loading: boolean; failed: boolean }) {
   const { language } = useLanguage()
   return (
-    <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
+    <section className="min-w-0 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Leaderboard</p>
@@ -2336,7 +2423,7 @@ function TopPerformersPanel({ performers, loading, failed }: { performers: TopPe
       ) : (
         <ol className="space-y-2">
           {performers.map(performer => (
-            <li key={performer.user_id} className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-gray-800 p-3">
+            <li key={performer.user_id} className="flex items-center gap-2 rounded-2xl border border-gray-100 dark:border-gray-800 p-3 sm:gap-3">
               <span className={cn(
                 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
                 performer.rank === 1 ? 'bg-amber-400 text-amber-950'
@@ -2389,7 +2476,7 @@ function MemberContentPanel({
   onCreate: () => void
 }) {
   return (
-    <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
+    <section className="min-w-0 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{eyebrow}</p>
@@ -2401,9 +2488,9 @@ function MemberContentPanel({
       </div>
       <div className="space-y-3">
         {items.length > 0 ? items.map(item => (
-          <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+          <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{item.title}</p>
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -2480,9 +2567,9 @@ function Panel({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-6 rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
+    <section id={id} className="min-w-0 scroll-mt-24 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{eyebrow}</p>
           <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{title}</h2>
         </div>

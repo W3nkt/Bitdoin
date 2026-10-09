@@ -264,6 +264,63 @@
   }
 }
 
+/* ── Academy Admin: Weekly content forge button ── */
+.forge-cta {
+  box-shadow: 0 5px 0 #b45309, 0 14px 28px -10px rgba(251, 191, 36, 0.55);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+}
+
+.forge-cta:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 0 #b45309, 0 20px 36px -10px rgba(251, 191, 36, 0.7);
+}
+
+.forge-cta:not(:disabled):active {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 #b45309, 0 6px 14px -8px rgba(251, 191, 36, 0.6);
+}
+
+.forge-cta[data-tone='ready'] {
+  box-shadow: 0 5px 0 #047857, 0 14px 28px -10px rgba(52, 211, 153, 0.45);
+}
+
+.forge-cta-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: forge-halo 2.2s ease-out infinite;
+}
+
+@keyframes forge-halo {
+  0%   { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0.6); }
+  70%  { box-shadow: 0 0 0 14px rgba(252, 211, 77, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, 0); }
+}
+
+.forge-cta-spark {
+  animation: forge-spark 2.2s ease-in-out infinite;
+}
+
+@keyframes forge-spark {
+  0%, 60%, 100% { transform: rotate(0deg) scale(1); }
+  70%           { transform: rotate(-18deg) scale(1.2); }
+  85%           { transform: rotate(12deg) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forge-cta,
+  .forge-cta:not(:disabled):hover,
+  .forge-cta:not(:disabled):active {
+    transition: none;
+    transform: none;
+  }
+  .forge-cta-halo,
+  .forge-cta-spark {
+    animation: none;
+  }
+}
+
 /* ── Form validation tip (src/lib/formValidation.ts) ── */
 [data-invalid='true']:not([type='radio']):not([type='checkbox']) {
   border-color: #ef4444 !important;

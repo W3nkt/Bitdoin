@@ -123,24 +123,24 @@ export function ExpiringMembersPanel({ memberships, loading, failed, draftingId,
   const expiredCount = memberships.filter(m => m.daysLeft <= 0).length
 
   return (
-    <section id="premium-renewals" className="scroll-mt-6 rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
-      <div className="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Renewals</p>
-          <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Memberships ending soon</h2>
-          <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-            Paid members ending within {EXPIRY_WARNING_DAYS} days, or who expired in the last {EXPIRED_LOOKBACK_DAYS} days and haven’t renewed.
-            Tap Send reminder to review the drafted WhatsApp message.
-          </p>
-        </div>
+    <section id="premium-renewals" className="min-w-0 scroll-mt-24 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
+      <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
+        <p className="self-center text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Renewals</p>
         <div className={cn(
-          'flex flex-shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold',
+          'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold',
           memberships.length > 0
             ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300'
             : 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300',
         )}>
-          <BellRing className="h-4 w-4" />
+          <BellRing className="h-3.5 w-3.5" />
           <span>{memberships.length} to remind{expiredCount > 0 ? ` · ${expiredCount} expired` : ''}</span>
+        </div>
+        <div className="col-span-2">
+          <h2 className="text-xl font-black text-gray-950 dark:text-gray-100">Memberships ending soon</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-400">
+            Paid members ending within {EXPIRY_WARNING_DAYS} days, or who expired in the last {EXPIRED_LOOKBACK_DAYS} days and haven’t renewed.
+            Tap Send reminder to review the drafted WhatsApp message.
+          </p>
         </div>
       </div>
 
