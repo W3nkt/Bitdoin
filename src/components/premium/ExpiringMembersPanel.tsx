@@ -114,18 +114,26 @@ interface ExpiringMembersPanelProps {
   draftingId: string | null
   dismissingId: string | null
   onSendReminder: (membership: ExpiringMembership) => void
-  /** Removes the member from this list (offered once reminded and they closed the notice). */
+  /** Removes the member from this list (offered once they have been reminded). */
   onDismiss: (membership: ExpiringMembership) => void
 }
 
 export function ExpiringMembersPanel({ memberships, loading, failed, draftingId, dismissingId, onSendReminder, onDismiss }: ExpiringMembersPanelProps) {
   const { language } = useLanguage()
+  const lo = language === 'lo'
   const expiredCount = memberships.filter(m => m.daysLeft <= 0).length
 
+  function expiryBadge(daysLeft: number) {
+    if (daysLeft === 0) return lo ? 'ໝົດອາຍຸມື້ນີ້' : 'Expired today'
+    if (daysLeft < 0) return lo ? `ໝົດອາຍຸ ${-daysLeft} ມື້ກ່ອນ` : `Expired ${-daysLeft}d ago`
+    return lo ? `ເຫຼືອ ${daysLeft} ມື້` : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`
+  }
+
+  // Translated here rather than by the page-wide phrase list: most lines mix in counts and dates.
   return (
     <section id="premium-renewals" className="min-w-0 scroll-mt-24 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
       <div className="mb-5 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
-        <p className="self-center text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Renewals</p>
+        <p className="self-center text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{lo ? 'ການຕໍ່ອາຍຸ' : 'Renewals'}</p>
         <div className={cn(
           'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold',
           memberships.length > 0
@@ -133,31 +141,39 @@ export function ExpiringMembersPanel({ memberships, loading, failed, draftingId,
             : 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300',
         )}>
           <BellRing className="h-3.5 w-3.5" />
-          <span>{memberships.length} to remind{expiredCount > 0 ? ` · ${expiredCount} expired` : ''}</span>
+          <span>
+            {lo ? `ຕ້ອງແຈ້ງເຕືອນ ${memberships.length}` : `${memberships.length} to remind`}
+            {expiredCount > 0 ? (lo ? ` · ໝົດອາຍຸ ${expiredCount}` : ` · ${expiredCount} expired`) : ''}
+          </span>
         </div>
         <div className="col-span-2">
-          <h2 className="text-xl font-black text-gray-950 dark:text-gray-100">Memberships ending soon</h2>
+          <h2 className="text-xl font-black text-gray-950 dark:text-gray-100">{lo ? 'ສະມາຊິກທີ່ໃກ້ໝົດອາຍຸ' : 'Memberships ending soon'}</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-400">
-            Paid members ending within {EXPIRY_WARNING_DAYS} days, or who expired in the last {EXPIRED_LOOKBACK_DAYS} days and haven’t renewed.
-            Tap Send reminder to review the drafted WhatsApp message.
+            {lo
+              ? `ສະມາຊິກແບບຊຳລະທີ່ຈະໝົດອາຍຸພາຍໃນ ${EXPIRY_WARNING_DAYS} ມື້, ຫຼື ໝົດອາຍຸແລ້ວໃນ ${EXPIRED_LOOKBACK_DAYS} ມື້ຜ່ານມາ ແລະ ຍັງບໍ່ໄດ້ຕໍ່ອາຍຸ. ກົດ "ສົ່ງແຈ້ງເຕືອນ" ເພື່ອກວດຂໍ້ຄວາມ WhatsApp ທີ່ຮ່າງໄວ້.`
+              : `Paid members ending within ${EXPIRY_WARNING_DAYS} days, or who expired in the last ${EXPIRED_LOOKBACK_DAYS} days and haven’t renewed. Tap Send reminder to review the drafted WhatsApp message.`}
           </p>
         </div>
       </div>
 
       {failed ? (
         <div role="alert" className="rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-4">
-          <p className="text-sm font-black text-red-900 dark:text-red-300">Could not load memberships that are ending</p>
-          <p className="mt-1 text-xs text-red-700 dark:text-red-300">Refresh this page to try again.</p>
+          <p className="text-sm font-black text-red-900 dark:text-red-300">{lo ? 'ບໍ່ສາມາດໂຫຼດລາຍຊື່ສະມາຊິກທີ່ໃກ້ໝົດອາຍຸ' : 'Could not load memberships that are ending'}</p>
+          <p className="mt-1 text-xs text-red-700 dark:text-red-300">{lo ? 'ໂຫຼດໜ້ານີ້ຄືນເພື່ອລອງໃໝ່.' : 'Refresh this page to try again.'}</p>
         </div>
       ) : loading ? (
-        <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+        <p className="py-6 text-center text-sm text-gray-400">{lo ? 'ກຳລັງໂຫຼດ…' : 'Loading…'}</p>
       ) : memberships.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-8 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 dark:bg-gray-800/50 text-gray-300">
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <p className="mt-3 text-sm font-bold text-gray-800 dark:text-gray-100">No memberships ending soon</p>
-          <p className="mt-1 text-xs leading-5 text-gray-400">Members appear here {EXPIRY_WARNING_DAYS} days before their paid membership ends.</p>
+          <p className="mt-3 text-sm font-bold text-gray-800 dark:text-gray-100">{lo ? 'ບໍ່ມີສະມາຊິກທີ່ໃກ້ໝົດອາຍຸ' : 'No memberships ending soon'}</p>
+          <p className="mt-1 text-xs leading-5 text-gray-400">
+            {lo
+              ? `ສະມາຊິກຈະສະແດງຢູ່ນີ້ ${EXPIRY_WARNING_DAYS} ມື້ກ່ອນສະມາຊິກແບບຊຳລະໝົດອາຍຸ.`
+              : `Members appear here ${EXPIRY_WARNING_DAYS} days before their paid membership ends.`}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -182,25 +198,23 @@ export function ExpiringMembersPanel({ memberships, loading, failed, draftingId,
                         expired ? 'bg-red-600 text-white' : 'bg-amber-500 text-white',
                       )}>
                         {expired ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-                        {expired
-                          ? (membership.daysLeft === 0 ? 'Expired today' : `Expired ${-membership.daysLeft}d ago`)
-                          : `${membership.daysLeft} ${membership.daysLeft === 1 ? 'day' : 'days'} left`}
+                        {expiryBadge(membership.daysLeft)}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {membership.planName} · {expired ? 'Ended' : 'Ends'} {formatDate(membership.endsAt, language)}
+                    <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
+                      {membership.planName} · {expired ? (lo ? 'ໝົດອາຍຸ' : 'Ended') : (lo ? 'ໝົດອາຍຸວັນທີ' : 'Ends')} {formatDate(membership.endsAt, language)}
                       {membership.contact ? ` · ${membership.contact}` : ''}
                     </p>
                     {membership.reminderSentAt && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        Reminder sent {formatDate(membership.reminderSentAt, language)}
+                        {lo ? 'ສົ່ງແຈ້ງເຕືອນແລ້ວ' : 'Reminder sent'} {formatDate(membership.reminderSentAt, language)}
                       </p>
                     )}
                     {membership.memberDismissedAt && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
                         <EyeOff className="h-3.5 w-3.5" />
-                        Member closed the expiry notice {formatDate(membership.memberDismissedAt, language)}
+                        {lo ? 'ສະມາຊິກປິດແຈ້ງການໝົດອາຍຸແລ້ວ' : 'Member closed the expiry notice'} {formatDate(membership.memberDismissedAt, language)}
                       </p>
                     )}
                   </div>
@@ -214,10 +228,10 @@ export function ExpiringMembersPanel({ memberships, loading, failed, draftingId,
                       onClick={() => onSendReminder(membership)}
                       className="w-full md:w-auto"
                     >
-                      {membership.reminderSentAt ? 'Send again' : 'Send reminder'}
+                      {membership.reminderSentAt ? (lo ? 'ສົ່ງອີກຄັ້ງ' : 'Send again') : (lo ? 'ສົ່ງແຈ້ງເຕືອນ' : 'Send reminder')}
                     </Button>
-                    {/* Reminded, and the member chose to stay on Free: nothing left to chase. */}
-                    {membership.reminderSentAt && membership.memberDismissedAt && (
+                    {/* Once the member has been reminded the admin can close it out. */}
+                    {membership.reminderSentAt && (
                       <Button
                         type="button"
                         size="sm"
@@ -226,7 +240,7 @@ export function ExpiringMembersPanel({ memberships, loading, failed, draftingId,
                         onClick={() => onDismiss(membership)}
                         className="w-full bg-orange-500 hover:bg-orange-600 md:w-auto"
                       >
-                        Dismiss
+                        {lo ? 'ປິດ' : 'Dismiss'}
                       </Button>
                     )}
                   </div>
