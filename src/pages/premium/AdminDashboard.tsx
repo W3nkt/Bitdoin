@@ -38,10 +38,7 @@ import {
   Play,
   BellRing,
   Trophy,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-  X,
+  type LucideIcon,
 } from 'lucide-react'
 import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
 import { isMembershipExpired } from '@/lib/academyMembership'
@@ -60,12 +57,15 @@ import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
-import { usePremiumTranslation } from '@/i18n/premium'
+import { premiumText, usePremiumTranslation } from '@/i18n/premium'
+import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
 import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
 type PremiumAdminSection = 'overview' | 'forge' | 'renewals' | 'members' | 'mentor' | 'content' | 'plans'
+// Page order of the sections (their anchors are #premium-<section>).
+const ADMIN_SECTION_ORDER: PremiumAdminSection[] = ['overview', 'forge', 'renewals', 'members', 'mentor', 'content', 'plans']
 
 interface PremiumPlan {
   id: string
@@ -425,28 +425,24 @@ export function PremiumAdminDashboard() {
   const [forgeBusy, setForgeBusy] = useState<string | null>(null)
   const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
-  // Mobile: off-canvas drawer. Desktop: the sticky sidebar can be hidden.
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [desktopMenuHidden, setDesktopMenuHidden] = useState(false)
 
+  // Highlights the floating menu item for the section scrolled into view.
   useEffect(() => {
-    if (!mobileMenuOpen) return
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setMobileMenuOpen(false)
+    const update = () => {
+      let current = ADMIN_SECTION_ORDER[0]
+      for (const section of ADMIN_SECTION_ORDER) {
+        const el = document.getElementById(`premium-${section}`)
+        if (el && el.getBoundingClientRect().top <= 140) current = section
+      }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        current = ADMIN_SECTION_ORDER[ADMIN_SECTION_ORDER.length - 1]
+      }
+      setActiveSection(current)
     }
-    function closeOnDesktop() {
-      if (window.matchMedia('(min-width: 1024px)').matches) setMobileMenuOpen(false)
-    }
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', closeOnEscape)
-    window.addEventListener('resize', closeOnDesktop)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', closeOnEscape)
-      window.removeEventListener('resize', closeOnDesktop)
-    }
-  }, [mobileMenuOpen])
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
+  }, [])
 
   useEffect(() => {
     if (!profileMenuOpen) return
@@ -745,26 +741,19 @@ export function PremiumAdminDashboard() {
   const navItems: Array<{
     id: PremiumAdminSection
     label: string
-    detail: string
-    icon: ReactNode
-    badge?: ReactNode
+    icon: LucideIcon
+    badge?: number
   }> = [
-    { id: 'overview', label: 'Overview', detail: 'Premium health', icon: <Sparkles className="h-4 w-4" /> },
-    { id: 'forge', label: 'Weekly Content', detail: 'Generate next week', icon: <WandSparkles className="h-4 w-4" /> },
-    { id: 'renewals', label: 'Renewals', detail: 'Memberships ending', icon: <BellRing className="h-4 w-4" />, badge: expiringMemberships.length },
-    { id: 'members', label: 'Members', detail: 'Subscriptions', icon: <Users className="h-4 w-4" />, badge: subscriptionRequests.length },
-    { id: 'mentor', label: 'Daily Mentor', detail: 'Motivation content', icon: <MessageSquareText className="h-4 w-4" /> },
-    { id: 'content', label: 'Member Content', detail: 'Events and performers', icon: <Flame className="h-4 w-4" /> },
-    { id: 'plans', label: 'Plans', detail: 'Pricing and benefits', icon: <Crown className="h-4 w-4" /> },
+    { id: 'overview', label: 'Overview', icon: Sparkles },
+    { id: 'forge', label: 'Weekly Content', icon: WandSparkles },
+    { id: 'renewals', label: 'Renewals', icon: BellRing, badge: expiringMemberships.length },
+    { id: 'members', label: 'Members', icon: Users, badge: subscriptionRequests.length },
+    { id: 'mentor', label: 'Daily Mentor', icon: MessageSquareText },
+    { id: 'content', label: 'Member Content', icon: Flame },
+    { id: 'plans', label: 'Plans', icon: Crown },
   ]
 
-  function toggleAdminMenu() {
-    if (window.matchMedia('(min-width: 1024px)').matches) setDesktopMenuHidden(hidden => !hidden)
-    else setMobileMenuOpen(open => !open)
-  }
-
   function scrollToSection(section: PremiumAdminSection) {
-    setMobileMenuOpen(false)
     const target = document.getElementById(`premium-${section}`)
     if (!target) return
     setActiveSection(section)
@@ -1357,20 +1346,6 @@ export function PremiumAdminDashboard() {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleAdminMenu}
-              aria-label={mobileMenuOpen || !desktopMenuHidden ? 'Hide admin menu' : 'Show admin menu'}
-              aria-controls="premium-admin-menu"
-              aria-expanded={mobileMenuOpen}
-              title="Admin menu"
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/10 text-primary-100 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-            >
-              <Menu className="h-5 w-5 lg:hidden" />
-              {desktopMenuHidden
-                ? <PanelLeftOpen className="hidden h-5 w-5 lg:block" />
-                : <PanelLeftClose className="hidden h-5 w-5 lg:block" />}
-            </button>
             <PwenLogoLockup
               textClassName="text-white"
               subTextClassName="text-primary-200"
@@ -1509,71 +1484,7 @@ export function PremiumAdminDashboard() {
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <main className={cn(
-          'mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6',
-          !desktopMenuHidden && 'lg:grid-cols-[260px_minmax(0,1fr)]',
-        )}>
-          {/* Backdrop for the mobile drawer */}
-          <div
-            aria-hidden="true"
-            onClick={() => setMobileMenuOpen(false)}
-            className={cn(
-              'fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm transition-opacity lg:hidden',
-              mobileMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
-            )}
-          />
-          <aside
-            id="premium-admin-menu"
-            className={cn(
-              'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] overflow-y-auto bg-primary-900 p-3 text-white shadow-2xl transition-transform duration-300 motion-reduce:transition-none',
-              mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
-              'lg:sticky lg:inset-auto lg:top-24 lg:z-auto lg:h-fit lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:rounded-3xl lg:shadow-card lg:transition-none',
-              desktopMenuHidden && 'lg:hidden',
-            )}
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-white/10 px-3 pb-4 pt-2">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-primary-200">Premium</p>
-                <p className="mt-1 text-lg font-black">Admin Menu</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                aria-label="Close admin menu"
-                className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-primary-100 hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 lg:hidden"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <nav className="mt-3 space-y-1">
-              {navItems.map(item => (
-                <button
-                  type="button"
-                  key={item.id}
-                  onClick={() => scrollToSection(item.id)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
-                    activeSection === item.id
-                      ? 'bg-white/15 text-white'
-                      : 'text-primary-200 hover:bg-white/10 hover:text-white',
-                  )}
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10">
-                    {item.icon}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate">{item.label}</span>
-                    <span className="block truncate text-xs font-medium text-primary-300">{item.detail}</span>
-                  </span>
-                  {item.badge ? (
-                    <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-black text-primary-950">
-                      {item.badge}
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-            </nav>
-          </aside>
+        <main className="mx-auto max-w-7xl px-4 py-6 pb-28">
 
           <div className="min-w-0 space-y-6">
           <section id="premium-overview" className="grid scroll-mt-24 grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
@@ -1756,6 +1667,22 @@ export function PremiumAdminDashboard() {
         </main>
       )}
 
+      {!loading && (
+        <FloatingOrbitMenu
+          menuLabel={premiumText(language, 'Admin Menu')}
+          openLabel={language === 'lo' ? 'ເປີດເມນູ' : 'Open menu'}
+          closeLabel={language === 'lo' ? 'ປິດເມນູ' : 'Close menu'}
+          items={navItems.map(item => ({
+            key: item.id,
+            label: premiumText(language, item.label),
+            icon: item.icon,
+            onClick: () => scrollToSection(item.id),
+            active: activeSection === item.id,
+            badge: item.badge,
+          }))}
+        />
+      )}
+
       {/* Closing never stops generation: the backend keeps running the queue
           and the floating progress pill below takes over. */}
       <Modal
@@ -1875,7 +1802,7 @@ export function PremiumAdminDashboard() {
         <button
           type="button"
           onClick={() => setGenerationOpen(true)}
-          className="fixed bottom-5 right-5 z-40 flex w-[min(20rem,calc(100vw-2.5rem))] items-center gap-3 rounded-2xl border border-white/10 bg-[#110b24] p-3 text-left text-white shadow-[0_18px_50px_-12px_rgba(67,33,132,0.7)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          className="fixed bottom-5 right-[5.25rem] z-40 flex w-[min(20rem,calc(100vw-6.5rem))] items-center gap-3 rounded-2xl border border-white/10 bg-[#110b24] p-3 text-left text-white shadow-[0_18px_50px_-12px_rgba(67,33,132,0.7)] transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
           aria-label="Open Academy Content Forge progress"
         >
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-300 via-fuchsia-500 to-violet-700 text-[#160b2d]">

@@ -43,6 +43,7 @@ import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
 import { WeeklyMastery } from '@/components/premium/WeeklyMastery'
 import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting'
+import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { Button } from '@/components/ui/Button'
@@ -1106,7 +1107,21 @@ export function Subscription() {
       </section>
 
       {!pageLoading && isMemberActive && (
-        <MemberFloatingMenu language={language} active={navSection} onSelect={selectMemberSection} onOpenCoach={() => navigate('/academy/coach')} />
+        <FloatingOrbitMenu
+          menuLabel={language === 'lo' ? 'ເມນູ Academy' : 'Academy menu'}
+          openLabel={language === 'lo' ? 'ເປີດເມນູ' : 'Open menu'}
+          closeLabel={language === 'lo' ? 'ປິດເມນູ' : 'Close menu'}
+          items={[
+            ...MEMBER_SECTIONS.map(section => ({
+              key: section.id,
+              label: language === 'lo' ? section.lo : section.en,
+              icon: section.icon,
+              onClick: () => selectMemberSection(section.id),
+              active: section.id === navSection,
+            })),
+            { key: 'coach', label: 'AI Coach', icon: Brain, onClick: () => navigate('/academy/coach'), accent: true },
+          ]}
+        />
       )}
 
       {pageLoading ? (
@@ -2212,152 +2227,6 @@ function MemberDashboard({
           items={communities}
         />
       </div>
-      </div>
-    </>
-  )
-}
-
-// Item centres relative to the floating button's centre (px): an inner chain
-// of three and an outer chain of five, each drawn as one gooey blob that fans
-// up and left from the bottom-right corner.
-const FLOAT_MENU_CHAINS: Array<Array<[number, number]>> = [
-  [[2, -74], [-52, -58], [-73, -2]],
-  [[2, -151], [-54, -137], [-102, -99], [-135, -54], [-148, 0]],
-]
-const FLOAT_ITEM_RADIUS = 24
-const FLOAT_BUTTON_HALF = 24
-
-function MemberFloatingMenu({
-  language,
-  active,
-  onSelect,
-  onOpenCoach,
-}: {
-  language: Language
-  active: MemberSectionId
-  onSelect: (id: MemberSectionId) => void
-  onOpenCoach: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [hovered, setHovered] = useState<string | null>(null)
-  const items = [
-    ...MEMBER_SECTIONS.map(section => ({
-      key: section.id as string,
-      label: language === 'lo' ? section.lo : section.en,
-      icon: section.icon,
-      onClick: () => onSelect(section.id),
-      active: section.id === active,
-      accent: false,
-    })),
-    { key: 'coach', label: 'AI Coach', icon: Brain, onClick: onOpenCoach, active: false, accent: true },
-  ]
-  const positions = FLOAT_MENU_CHAINS.flat()
-  const caption = items.find(item => item.key === hovered)?.label ?? items.find(item => item.active)?.label
-
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open])
-
-  return (
-    <>
-      <div
-        aria-hidden
-        onClick={() => setOpen(false)}
-        className={cn(
-          'fixed inset-0 z-40 bg-slate-950/30 transition-opacity duration-200',
-          open ? 'opacity-100' : 'pointer-events-none opacity-0',
-        )}
-      />
-      <div data-no-premium-translate className="fixed bottom-5 right-5 z-50 h-12 w-12 sm:bottom-6 sm:right-6">
-        <nav
-          id="academy-floating-menu"
-          aria-label={language === 'lo' ? 'ເມນູ Academy' : 'Academy menu'}
-          className={cn(
-            'absolute inset-0 origin-center transition-[transform,opacity,visibility] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-            open ? 'visible scale-100 opacity-100' : 'invisible scale-0 opacity-0',
-          )}
-        >
-          {caption && (
-            <span
-              className="pointer-events-none absolute right-0 whitespace-nowrap rounded-full bg-slate-900/90 px-3 py-1.5 text-xs font-black text-white shadow-lg ring-1 ring-white/10"
-              style={{ bottom: FLOAT_BUTTON_HALF + 151 + FLOAT_ITEM_RADIUS + 10 }}
-            >
-              {caption}
-            </span>
-          )}
-          <svg
-            aria-hidden
-            width={210}
-            height={210}
-            viewBox="-200 -200 210 210"
-            className="pointer-events-none absolute overflow-visible drop-shadow-[0_10px_18px_rgba(2,6,23,0.35)]"
-            style={{ left: FLOAT_BUTTON_HALF - 200, top: FLOAT_BUTTON_HALF - 200 }}
-          >
-            <defs>
-              {/* Blur + alpha threshold melts each chain's circles and links into one blob. */}
-              <filter id="academy-float-goo">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
-                <feColorMatrix mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" />
-              </filter>
-            </defs>
-            <g filter="url(#academy-float-goo)" className="fill-white stroke-white">
-              {FLOAT_MENU_CHAINS.map((chain, chainIndex) => (
-                <g key={chainIndex}>
-                  {chain.slice(1).map(([x, y], index) => (
-                    <line key={index} x1={chain[index][0]} y1={chain[index][1]} x2={x} y2={y} strokeWidth={18} strokeLinecap="round" />
-                  ))}
-                  {chain.map(([x, y]) => (
-                    <circle key={`${x},${y}`} cx={x} cy={y} r={FLOAT_ITEM_RADIUS} stroke="none" />
-                  ))}
-                </g>
-              ))}
-            </g>
-          </svg>
-          {items.map((item, index) => {
-            const [x, y] = positions[index]
-            const Icon = item.icon
-            return (
-              <button
-                key={item.key}
-                type="button"
-                aria-label={item.label}
-                aria-current={item.active ? 'page' : undefined}
-                tabIndex={open ? 0 : -1}
-                onClick={() => { setOpen(false); setHovered(null); item.onClick() }}
-                onMouseEnter={() => setHovered(item.key)}
-                onMouseLeave={() => setHovered(null)}
-                onFocus={() => setHovered(item.key)}
-                onBlur={() => setHovered(null)}
-                className={cn(
-                  'absolute flex h-12 w-12 items-center justify-center rounded-full transition duration-200 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-                  item.active ? 'text-red-500' : item.accent ? 'text-amber-500 hover:text-amber-600' : 'text-slate-500 hover:text-primary-700',
-                )}
-                style={{ left: FLOAT_BUTTON_HALF + x - FLOAT_ITEM_RADIUS, top: FLOAT_BUTTON_HALF + y - FLOAT_ITEM_RADIUS }}
-              >
-                <Icon className="h-5 w-5" strokeWidth={2.25} />
-              </button>
-            )
-          })}
-        </nav>
-        <button
-          type="button"
-          onClick={() => setOpen(current => !current)}
-          aria-expanded={open}
-          aria-controls="academy-floating-menu"
-          aria-label={open ? (language === 'lo' ? 'ປິດເມນູ' : 'Close menu') : (language === 'lo' ? 'ເປີດເມນູ' : 'Open menu')}
-          className={cn(
-            'relative flex h-12 w-12 items-center justify-center rounded-full text-white shadow-[0_10px_24px_-8px_rgba(2,6,23,0.55)] transition duration-300 hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/60',
-            open ? 'bg-red-500 hover:bg-red-400' : 'bg-primary-900 ring-1 ring-amber-300/50 hover:bg-primary-800',
-          )}
-        >
-          <span aria-hidden className={cn('absolute grid grid-cols-2 gap-1 transition duration-300', open ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100')}>
-            {[0, 1, 2, 3].map(dot => <span key={dot} className="h-1.5 w-1.5 rounded-full bg-current" />)}
-          </span>
-          <XIcon className={cn('absolute h-6 w-6 transition duration-300', open ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0')} strokeWidth={2.5} />
-        </button>
       </div>
     </>
   )
