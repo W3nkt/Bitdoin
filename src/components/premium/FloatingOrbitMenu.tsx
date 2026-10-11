@@ -43,7 +43,6 @@ export function FloatingOrbitMenu({
   const [hovered, setHovered] = useState<string | null>(null)
   const id = useId().replace(/:/g, '')
   const menuId = `floating-orbit-${id}`
-  const filterId = `floating-orbit-goo-${id}`
 
   const shown = items.slice(0, FLOATING_ORBIT_MAX_ITEMS)
   const chains = [
@@ -97,21 +96,15 @@ export function FloatingOrbitMenu({
             className="pointer-events-none absolute overflow-visible drop-shadow-[0_10px_18px_rgba(2,6,23,0.35)]"
             style={{ left: BUTTON_HALF - 200, top: BUTTON_HALF - 200 }}
           >
-            <defs>
-              {/* Blur + alpha threshold melts each chain's circles and links into one blob. */}
-              <filter id={filterId}>
-                <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
-                <feColorMatrix mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" />
-              </filter>
-            </defs>
-            <g filter={`url(#${filterId})`} className="fill-white stroke-white">
+            {/* Pure vector blob (no blur/threshold filter) so edges stay crisp on high-DPI mobile screens. */}
+            <g className="fill-white">
               {chains.map((chain, chainIndex) => (
                 <g key={chainIndex}>
-                  {chain.slice(1).map(([x, y], index) => (
-                    <line key={index} x1={chain[index][0]} y1={chain[index][1]} x2={x} y2={y} strokeWidth={18} strokeLinecap="round" />
+                  {chain.slice(1).map((point, index) => (
+                    <path key={index} d={metaballBridge(chain[index], point, ITEM_RADIUS)} />
                   ))}
                   {chain.map(([x, y]) => (
-                    <circle key={`${x},${y}`} cx={x} cy={y} r={ITEM_RADIUS} stroke="none" />
+                    <circle key={`${x},${y}`} cx={x} cy={y} r={ITEM_RADIUS} />
                   ))}
                 </g>
               ))}
@@ -165,6 +158,34 @@ export function FloatingOrbitMenu({
       </div>
     </>
   )
+}
+
+/**
+ * Concave "goo" neck between two equal circles as a vector path (metaball
+ * bridge). The circles themselves are drawn separately on top.
+ */
+function metaballBridge([x1, y1]: [number, number], [x2, y2]: [number, number], r: number, spread = 0.55, handleSize = 2.4) {
+  const d = Math.hypot(x2 - x1, y2 - y1)
+  if (d === 0) return ''
+  const u = d < 2 * r ? Math.acos(d / (2 * r)) : 0
+  const centers = Math.atan2(y2 - y1, x2 - x1)
+  const maxSpread = Math.PI / 2
+  const a1 = centers + u + (maxSpread - u) * spread
+  const a2 = centers - u - (maxSpread - u) * spread
+  const a3 = centers + Math.PI - u - (Math.PI - u - maxSpread) * spread
+  const a4 = centers - Math.PI + u + (Math.PI - u - maxSpread) * spread
+  const at = (cx: number, cy: number, angle: number, length: number) => [cx + Math.cos(angle) * length, cy + Math.sin(angle) * length]
+  const p1 = at(x1, y1, a1, r)
+  const p2 = at(x1, y1, a2, r)
+  const p3 = at(x2, y2, a3, r)
+  const p4 = at(x2, y2, a4, r)
+  const handle = r * Math.min(spread * handleSize, Math.hypot(p3[0] - p1[0], p3[1] - p1[1]) / (2 * r)) * Math.min(1, d / r)
+  const h1 = at(p1[0], p1[1], a1 - Math.PI / 2, handle)
+  const h2 = at(p2[0], p2[1], a2 + Math.PI / 2, handle)
+  const h3 = at(p3[0], p3[1], a3 + Math.PI / 2, handle)
+  const h4 = at(p4[0], p4[1], a4 - Math.PI / 2, handle)
+  const pt = ([x, y]: number[]) => `${x.toFixed(2)} ${y.toFixed(2)}`
+  return `M ${pt(p1)} C ${pt(h1)} ${pt(h3)} ${pt(p3)} L ${pt(p4)} C ${pt(h4)} ${pt(h2)} ${pt(p2)} Z`
 }
 
 function CountBubble({ count, className }: { count: number; className?: string }) {
