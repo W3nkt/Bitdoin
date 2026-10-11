@@ -526,6 +526,9 @@ export function Subscription() {
   })
 
   const premiumMemberContentEnabled = isPaidPremium
+  // Streak, XP and rank are for every active membership, Free included;
+  // events and communities stay paid-only.
+  const memberHomeEnabled = subscription?.status === 'ACTIVE' && !membershipExpired
 
   const { data: memberEvents } = useQuery({
     queryKey: ['premium', 'member-events', profile?.id],
@@ -561,7 +564,7 @@ export function Subscription() {
 
   const { data: memberProgress } = useQuery({
     queryKey: ['premium', 'member-progress', profile?.id],
-    enabled: premiumMemberContentEnabled,
+    enabled: memberHomeEnabled,
     queryFn: async () => {
       const { data, error: progressError } = await supabase
         .rpc('get_premium_member_dashboard', { p_limit: 5 })
@@ -590,7 +593,7 @@ export function Subscription() {
   // point of "the subscribed home page". isPaidPremium separately controls
   // paid-only extras (personalized AI guidance, higher limits) and whether
   // the upgrade banner/plans are shown.
-  const isMemberActive = subscription?.status === 'ACTIVE' && !membershipExpired
+  const isMemberActive = memberHomeEnabled
   // Cancelled, but the paid period hasn't ended: full access continues until ends_at.
   const cancelledWithAccess = isMemberActive && !!subscription?.cancelled_at && !!subscription?.ends_at
   // What cancelling now would do: keep paid access until ends_at, or end at once.
@@ -1198,6 +1201,8 @@ export function Subscription() {
                 onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
                 events={(memberEvents ?? []).filter(hasJoinLink)}
                 communities={(memberCommunities ?? []).filter(hasJoinLink)}
+                communityLocked={!isPaidPremium}
+                onSeePlans={() => selectMemberSection('plans')}
                 memberStats={memberProgress?.member}
                 leaderboard={memberProgress?.leaderboard ?? []}
                 personalization={onboarding?.responses ?? {}}
@@ -1805,6 +1810,8 @@ function MemberDashboard({
   onStartRoleplay,
   events,
   communities,
+  communityLocked,
+  onSeePlans,
   memberStats,
   leaderboard,
   personalization,
@@ -1825,6 +1832,9 @@ function MemberDashboard({
   onStartRoleplay: (mission: string) => void
   events: MemberEvent[]
   communities: MemberCommunity[]
+  /** Events & Communities are paid-only; Free members see them locked. */
+  communityLocked: boolean
+  onSeePlans: () => void
   memberStats?: PremiumMemberStats
   leaderboard: PremiumLeaderboardEntry[]
   personalization: Record<string, string>
@@ -2214,6 +2224,9 @@ function MemberDashboard({
           icon={<CalendarCheck className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={events}
           comingSoon="New live events for Premium members are on the way. We'll let you know when the first one is scheduled."
+          locked={communityLocked}
+          lockedDetail="Join live study sessions and speaking practice with other Premium members."
+          onUnlock={onSeePlans}
         />
         <MemberListSection
           eyebrow="Communities"
@@ -2221,6 +2234,9 @@ function MemberDashboard({
           icon={<Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={communities}
           comingSoon="Premium member groups are opening soon. Check back here to join."
+          locked={communityLocked}
+          lockedDetail="Join Premium communities to learn together, share progress and get support from other members."
+          onUnlock={onSeePlans}
         />
       </div>
       </div>
@@ -2234,12 +2250,19 @@ function MemberListSection({
   icon,
   items,
   comingSoon,
+  locked = false,
+  lockedDetail,
+  onUnlock,
 }: {
   eyebrow: string
   title: string
   icon: React.ReactNode
   items: Array<{ id: string; title: string; detail: string; time_label?: string | null; action_url?: string | null }>
   comingSoon: string
+  /** Free plan: the section is shown but locked behind a paid plan. */
+  locked?: boolean
+  lockedDetail?: string
+  onUnlock?: () => void
 }) {
   return (
     <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
@@ -2250,7 +2273,26 @@ function MemberListSection({
         </div>
         {icon}
       </div>
-      {items.length === 0 ? (
+      {locked ? (
+        <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-amber-300/70 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5 px-5 py-8 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-300">
+            <Lock className="h-5 w-5" />
+          </span>
+          <span className="mt-3 rounded-full bg-amber-400 px-3 py-1 text-xs font-black uppercase tracking-wide text-primary-950">
+            Paid to Unlock
+          </span>
+          {lockedDetail && <p className="mt-3 max-w-xs text-sm leading-6 text-gray-500 dark:text-gray-400">{lockedDetail}</p>}
+          {onUnlock && (
+            <button
+              type="button"
+              onClick={onUnlock}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-900 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
+            >
+              See plans <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ) : items.length === 0 ? (
         <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 px-5 py-8 text-center">
           <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-300">
             Coming soon
