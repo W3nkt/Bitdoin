@@ -305,17 +305,11 @@ function parseMemberSection(hash: string): MemberSectionId {
 // Clears the fixed header (104px) plus the expiry banner when it's showing.
 const SECTION_SCROLL_MARGIN = 'scroll-mt-[calc(var(--academy-banner-h,0px)+7.5rem)]'
 
-const FALLBACK_MEMBER_EVENTS: MemberEvent[] = [
-  { id: 'event-ai-study-sprint', title: 'AI Study Sprint', detail: '30-minute focus session with a practical AI prompt challenge.', time_label: 'Tonight', sort_order: 1 },
-  { id: 'event-english-circle', title: 'English Speaking Circle', detail: 'Practice simple conversation prompts with other Premium learners.', time_label: 'Saturday', sort_order: 2 },
-  { id: 'event-goal-review', title: 'Goal Review Room', detail: 'Review your weekly goal and choose one next action.', time_label: 'Sunday', sort_order: 3 },
-]
-
-const FALLBACK_MEMBER_COMMUNITIES: MemberCommunity[] = [
-  { id: 'community-accountability', title: 'Study Accountability', detail: 'Share daily progress and keep your streak alive.', sort_order: 1 },
-  { id: 'community-prompts', title: 'AI Prompt Practice', detail: 'Compare prompts for homework, coding, writing, and research.', sort_order: 2 },
-  { id: 'community-english', title: 'English Corner', detail: 'Daily vocabulary, speaking prompts, and confidence practice.', sort_order: 3 },
-]
+// An event or community is only shown once it has a place to join; until then
+// the section reads "Coming soon".
+function hasJoinLink(item: { action_url?: string | null }) {
+  return !!item.action_url?.trim()
+}
 
 export function Subscription() {
   const navigate = useNavigate()
@@ -1202,8 +1196,8 @@ export function Subscription() {
                 onOpenCoach={() => navigate('/academy/coach')}
                 onOpenLearning={() => navigate('/academy/learn')}
                 onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
-                events={memberEvents && memberEvents.length > 0 ? memberEvents : FALLBACK_MEMBER_EVENTS}
-                communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
+                events={(memberEvents ?? []).filter(hasJoinLink)}
+                communities={(memberCommunities ?? []).filter(hasJoinLink)}
                 memberStats={memberProgress?.member}
                 leaderboard={memberProgress?.leaderboard ?? []}
                 personalization={onboarding?.responses ?? {}}
@@ -2219,12 +2213,14 @@ function MemberDashboard({
           title="Upcoming member events"
           icon={<CalendarCheck className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={events}
+          comingSoon="New live events for Premium members are on the way. We'll let you know when the first one is scheduled."
         />
         <MemberListSection
           eyebrow="Communities"
           title="Premium communities"
           icon={<Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={communities}
+          comingSoon="Premium member groups are opening soon. Check back here to join."
         />
       </div>
       </div>
@@ -2237,11 +2233,13 @@ function MemberListSection({
   title,
   icon,
   items,
+  comingSoon,
 }: {
   eyebrow: string
   title: string
   icon: React.ReactNode
   items: Array<{ id: string; title: string; detail: string; time_label?: string | null; action_url?: string | null }>
+  comingSoon: string
 }) {
   return (
     <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
@@ -2252,23 +2250,42 @@ function MemberListSection({
         </div>
         {icon}
       </div>
-      <div className="mt-5 grid gap-3">
-        {items.map(item => (
-          <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-black text-gray-950 dark:text-gray-100">{item.title}</p>
-                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
+      {items.length === 0 ? (
+        <div className="mt-5 flex flex-col items-center rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 px-5 py-8 text-center">
+          <span className="rounded-full bg-amber-50 dark:bg-amber-500/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Coming soon
+          </span>
+          <p className="mt-3 max-w-xs text-sm leading-6 text-gray-500 dark:text-gray-400">{comingSoon}</p>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-3">
+          {items.map(item => (
+            <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-black text-gray-950 dark:text-gray-100">{item.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{item.detail}</p>
+                </div>
+                {item.time_label && (
+                  <span className="flex-shrink-0 rounded-full bg-primary-50 dark:bg-primary-900/40 px-2.5 py-1 text-[11px] font-bold text-primary-700 dark:text-primary-300">
+                    {item.time_label}
+                  </span>
+                )}
               </div>
-              {item.time_label && (
-                <span className="flex-shrink-0 rounded-full bg-primary-50 dark:bg-primary-900/40 px-2.5 py-1 text-[11px] font-bold text-primary-700 dark:text-primary-300">
-                  {item.time_label}
-                </span>
+              {item.action_url && (
+                <a
+                  href={item.action_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center rounded-xl bg-primary-900 dark:bg-primary-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-800 dark:hover:bg-primary-400"
+                >
+                  Join
+                </a>
               )}
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

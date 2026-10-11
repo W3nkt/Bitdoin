@@ -3,7 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  CalendarCheck,
+  Check,
   CheckCircle2,
   ChevronDown,
   Crown,
@@ -48,7 +48,6 @@ import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import { useTheme } from '@/lib/theme'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
@@ -59,6 +58,7 @@ import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { premiumText, usePremiumTranslation } from '@/i18n/premium'
 import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
+import { PremiumOverviewAnalytics } from '@/components/premium/PremiumOverviewAnalytics'
 import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
@@ -181,7 +181,12 @@ interface MemberWhatsAppDraft {
   recipient: string | null
   /** Draft logged in notifications; marked SENT when WhatsApp is opened. */
   notificationId?: string | null
+  /** The member a page-drafted payment reminder goes to, so the send can be logged. */
+  userId?: string
 }
+
+// Subject of the notifications row logged when a payment reminder is sent.
+const PAYMENT_REMINDER_SUBJECT = 'Premium payment reminder'
 
 const WHATSAPP_DRAFT_TITLES: Record<MemberWhatsAppDraft['outcome'], string> = {
   APPROVED: 'Tell the member: membership approved',
@@ -702,7 +707,30 @@ export function PremiumAdminDashboard() {
     )),
     [subscriptions],
   )
-  const activeCount = (subscriptions ?? []).filter(subscription => effectiveStatus(subscription) === 'ACTIVE').length
+  const awaitingPaymentUserIds = useMemo(
+    () => [...new Set(subscriptionRequests.filter(subscription => subscription.status === 'PENDING_PAYMENT').map(subscription => subscription.user_id))].sort(),
+    [subscriptionRequests],
+  )
+  // When each member awaiting payment was last sent a payment reminder.
+  const { data: paymentRemindedAt } = useQuery({
+    queryKey: ['premium-admin', 'payment-reminders', awaitingPaymentUserIds],
+    enabled: awaitingPaymentUserIds.length > 0,
+    queryFn: async () => {
+      const { data, error: remindersError } = await supabase
+        .from('notifications')
+        .select('user_id,sent_at')
+        .in('user_id', awaitingPaymentUserIds)
+        .eq('subject', PAYMENT_REMINDER_SUBJECT)
+        .eq('status', 'SENT')
+        .order('sent_at', { ascending: false })
+      if (remindersError) throw remindersError
+      const latest = new Map<string, string>()
+      for (const row of data ?? []) {
+        if (row.user_id && row.sent_at && !latest.has(row.user_id)) latest.set(row.user_id, row.sent_at)
+      }
+      return latest
+    },
+  })
   // AI (Qwen) checks of the uploaded proofs waiting for review.
   const reviewPaymentIds = useMemo(
     () => subscriptionRequests
@@ -713,9 +741,6 @@ export function PremiumAdminDashboard() {
   )
   const { data: paymentAiReviews } = usePaymentAiReviews(reviewPaymentIds)
   const reviewCount = reviewQueue.length
-  const monthlyRevenueLak = (payments ?? [])
-    .filter(payment => payment.status === 'VERIFIED')
-    .reduce((sum, payment) => sum + Number(payment.amount_lak || 0), 0)
   const todayMotivation = motivations?.[0] ?? null
   // The mentor post members get today, for the WhatsApp daily reminder.
   const todayMentor = (motivations ?? []).find(motivation => motivation.is_active && motivation.publish_date === laosToday()) ?? null
@@ -897,6 +922,20 @@ export function PremiumAdminDashboard() {
   // Opening WhatsApp is as far as the app can go; record it as sent so the
   // Renewals list shows who has been reminded.
   async function markWhatsAppDraftSent(draft: MemberWhatsAppDraft) {
+    if (draft.outcome === 'PAYMENT_REMINDER' && draft.userId) {
+      const { error: insertError } = await supabase.from('notifications').insert({
+        user_id: draft.userId,
+        channel: 'WHATSAPP',
+        recipient: whatsAppDigits(draft.recipient ?? ''),
+        subject: PAYMENT_REMINDER_SUBJECT,
+        message: draft.message,
+        status: 'SENT',
+        sent_at: new Date().toISOString(),
+      })
+      if (insertError) console.error(insertError)
+      await qc.invalidateQueries({ queryKey: ['premium-admin', 'payment-reminders'] })
+      return
+    }
     if (!draft.notificationId) return
     const { error: updateError } = await supabase
       .from('notifications')
@@ -917,6 +956,7 @@ export function PremiumAdminDashboard() {
       outcome,
       memberName: subscription.user?.name ?? 'Unknown user',
       recipient: memberWhatsAppNumber(subscription),
+      userId: subscription.user_id,
       message: outcome === 'PAYMENT_REMINDER'
         ? paymentReminderMessage(subscription)
         : outcome === 'DAILY_REMINDER' ? dailyReminderMessage(subscription, todayMentor) : '',
@@ -1167,6 +1207,9 @@ export function PremiumAdminDashboard() {
     const readyForReview = isFreeRequest
       ? subscription.status === 'PENDING_APPROVAL'
       : payment?.status === 'REQUIRES_REVIEW'
+    // Only reminders sent for this request count, not ones for an older one.
+    const lastReminder = paymentRemindedAt?.get(subscription.user_id)
+    const remindedAt = lastReminder && new Date(lastReminder) >= new Date(subscription.created_at) ? lastReminder : null
 
     return (
       <div
@@ -1317,16 +1360,30 @@ export function PremiumAdminDashboard() {
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Waiting for payment proof</span>
-                <button
-                  type="button"
-                  onClick={event => {
-                    event.stopPropagation()
-                    openMemberWhatsApp(subscription, 'PAYMENT_REMINDER')
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#1ebe5a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50"
-                >
-                  <WhatsAppIcon className="h-4 w-4" /> Remind to pay
-                </button>
+                {remindedAt ? (
+                  <button
+                    type="button"
+                    title={formatDateTime(remindedAt)}
+                    onClick={event => {
+                      event.stopPropagation()
+                      openMemberWhatsApp(subscription, 'PAYMENT_REMINDER')
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#25D366]/60 bg-[#25D366]/10 px-3 py-1.5 text-xs font-bold text-[#1a9e4b] transition hover:bg-[#25D366]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50 dark:text-[#4ade80]"
+                  >
+                    <Check className="h-4 w-4" /> Remind again
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={event => {
+                      event.stopPropagation()
+                      openMemberWhatsApp(subscription, 'PAYMENT_REMINDER')
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#1ebe5a] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50"
+                  >
+                    <WhatsAppIcon className="h-4 w-4" /> Remind to pay
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1487,12 +1544,13 @@ export function PremiumAdminDashboard() {
         <main className="mx-auto max-w-7xl px-4 py-6 pb-28">
 
           <div className="min-w-0 space-y-6">
-          <section id="premium-overview" className="grid scroll-mt-24 grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-            <Stat label="Active members" value={activeCount} icon={<Users className="h-5 w-5" />} color="blue" />
-            <Stat label="Payment review" value={reviewCount} icon={<ReceiptText className="h-5 w-5" />} color="amber" />
-            <Stat label="Verified revenue" value={formatPrice(monthlyRevenueLak, currency)} icon={<Crown className="h-5 w-5" />} color="green" />
-            <Stat label="Daily posts" value={motivations?.length ?? 0} icon={<CalendarCheck className="h-5 w-5" />} color="purple" />
-          </section>
+          <PremiumOverviewAnalytics
+            subscriptions={subscriptions ?? []}
+            reviewCount={reviewCount}
+            dailyPosts={motivations?.length ?? 0}
+            currency={currency}
+            language={language}
+          />
 
           <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
 
@@ -1615,6 +1673,7 @@ export function PremiumAdminDashboard() {
                 detail: event.detail,
                 meta: event.time_label ?? 'No time label',
                 isActive: event.is_active,
+                hasLink: !!event.action_url?.trim(),
                 onEdit: () => openEventEditor(event),
               }))}
               onCreate={() => openEventEditor(null)}
@@ -1629,6 +1688,7 @@ export function PremiumAdminDashboard() {
                 detail: community.detail,
                 meta: community.action_url ? 'Has link' : 'No link',
                 isActive: community.is_active,
+                hasLink: !!community.action_url?.trim(),
                 onEdit: () => openCommunityEditor(community),
               }))}
               onCreate={() => openCommunityEditor(null)}
@@ -2189,26 +2249,6 @@ export function PremiumAdminDashboard() {
 
       <AdminProfileModal open={profileSettingsOpen} onClose={() => setProfileSettingsOpen(false)} />
     </div>
-  )
-}
-
-function Stat({ label, value, icon, color }: { label: string; value: ReactNode; icon: ReactNode; color: 'blue' | 'amber' | 'green' | 'purple' }) {
-  const colors = {
-    blue: 'bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300',
-    amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    green: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-    purple: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
-  }
-  return (
-    <Card className="min-w-0 p-4 sm:p-5">
-      <div className="flex items-start justify-between gap-2 sm:gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 sm:text-xs">{label}</p>
-          <p className="mt-2 break-words text-lg font-black text-gray-950 dark:text-gray-100 sm:text-2xl">{value}</p>
-        </div>
-        <div className={cn('shrink-0 rounded-2xl p-2 sm:p-3', colors[color])}>{icon}</div>
-      </div>
-    </Card>
   )
 }
 
@@ -2834,10 +2874,13 @@ function MemberContentPanel({
     detail: string
     meta: string
     isActive: boolean
+    /** Members only see an item once it has a join link. */
+    hasLink: boolean
     onEdit: () => void
   }>
   onCreate: () => void
 }) {
+  const comingSoon = !items.some(item => item.isActive && item.hasLink)
   return (
     <section className="min-w-0 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
       <div className="mb-5 flex items-start justify-between gap-3">
@@ -2849,6 +2892,12 @@ function MemberContentPanel({
           {action}
         </Button>
       </div>
+      {comingSoon && (
+        <div className="mb-4 rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-3">
+          <p className="text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-300">Coming soon</p>
+          <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">Members see "Coming soon" until an active item has a join link.</p>
+        </div>
+      )}
       <div className="space-y-3">
         {items.length > 0 ? items.map(item => (
           <div key={item.id} className="rounded-2xl border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
@@ -2860,9 +2909,13 @@ function MemberContentPanel({
                   <span className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[11px] font-bold text-gray-600 dark:text-gray-300">{item.meta}</span>
                   <span className={cn(
                     'rounded-full px-2 py-0.5 text-[11px] font-bold',
-                    item.isActive ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
+                    !item.isActive
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                      : item.hasLink
+                        ? 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300',
                   )}>
-                    {item.isActive ? 'Active' : 'Hidden'}
+                    {!item.isActive ? 'Hidden' : item.hasLink ? 'Live' : 'Coming soon'}
                   </span>
                 </div>
               </div>
