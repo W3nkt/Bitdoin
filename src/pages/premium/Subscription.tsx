@@ -33,16 +33,23 @@ import {
   XCircle,
   Zap,
   ChevronDown,
+  Gamepad2,
+  Home,
   X as XIcon,
+  type LucideIcon,
 } from 'lucide-react'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
+import { WeeklyMastery } from '@/components/premium/WeeklyMastery'
+import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting'
+import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -275,6 +282,28 @@ const featureModules = [
   { icon: FileText, title: 'Resources', detail: 'Study planners, resume templates, prompt packs, and PDF guides.' },
 ]
 
+type MemberSectionId = 'home' | 'learn' | 'play' | 'mentor' | 'community' | 'plans' | 'membership'
+
+// Member home sections, in page order. The floating menu scrolls between them.
+// The section lives in the URL hash so links like /academy/home#plans keep working.
+const MEMBER_SECTIONS: Array<{ id: MemberSectionId; en: string; lo: string; icon: LucideIcon }> = [
+  { id: 'home', en: 'Member home', lo: 'ໜ້າຫຼັກສະມາຊິກ', icon: Home },
+  { id: 'learn', en: 'Learning Hub', lo: 'ສູນການຮຽນຮູ້', icon: GraduationCap },
+  { id: 'play', en: 'Play & Learn', lo: 'ຫຼິ້ນ ແລະ ຮຽນ', icon: Gamepad2 },
+  { id: 'mentor', en: 'Daily Mentor', lo: 'Mentor ປະຈຳວັນ', icon: Sparkles },
+  { id: 'community', en: 'Events & Communities', lo: 'ກິດຈະກຳ ແລະ ຊຸມຊົນ', icon: Users },
+  { id: 'plans', en: 'Plans', lo: 'ແຜນສະມາຊິກ', icon: Crown },
+  { id: 'membership', en: 'Membership & billing', lo: 'ສະມາຊິກ ແລະ ການຊຳລະ', icon: ReceiptText },
+]
+
+function parseMemberSection(hash: string): MemberSectionId {
+  const id = hash.replace(/^#/, '')
+  return MEMBER_SECTIONS.find(section => section.id === id)?.id ?? 'home'
+}
+
+// Clears the fixed header (104px) plus the expiry banner when it's showing.
+const SECTION_SCROLL_MARGIN = 'scroll-mt-[calc(var(--academy-banner-h,0px)+7.5rem)]'
+
 const FALLBACK_MEMBER_EVENTS: MemberEvent[] = [
   { id: 'event-ai-study-sprint', title: 'AI Study Sprint', detail: '30-minute focus session with a practical AI prompt challenge.', time_label: 'Tonight', sort_order: 1 },
   { id: 'event-english-circle', title: 'English Speaking Circle', detail: 'Practice simple conversation prompts with other Premium learners.', time_label: 'Saturday', sort_order: 2 },
@@ -302,6 +331,12 @@ export function Subscription() {
   const [savingDailyItem, setSavingDailyItem] = useState<DailyChallengeKind | null>(null)
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [pendingPlan, setPendingPlan] = useState<PremiumPlan | null>(null)
+  // Start Premium checkout: package details -> (onboarding) -> payment method -> QR.
+  const [checkoutPlan, setCheckoutPlan] = useState<PremiumPlan | null>(null)
+  const [checkoutStep, setCheckoutStep] = useState<'details' | 'payment' | null>(null)
+  const [checkoutMethod, setCheckoutMethod] = useState<CheckoutPaymentMethod>('BANK_QR')
+  const [confirmWithdrawOpen, setConfirmWithdrawOpen] = useState(false)
+  const [withdrawing, setWithdrawing] = useState(false)
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
   // Rejected payment notice: hidden per payment once dismissed (this device).
   const [dismissedRejectionId, setDismissedRejectionId] = useState(readDismissedRejection)
@@ -613,12 +648,66 @@ export function Subscription() {
       }
       return
     }
+    if (plan.price_lak > 0) {
+      openCheckout(plan)
+      return
+    }
     if (onboarding?.completed) {
-      void (plan.price_lak > 0 ? startSubscription(plan) : subscribeFree(plan))
+      void subscribeFree(plan)
       return
     }
     setPendingPlan(plan)
     setOnboardingOpen(true)
+  }
+
+  function openCheckout(plan: PremiumPlan) {
+    setCheckoutPlan(plan)
+    setCheckoutMethod('BANK_QR')
+    setCheckoutStep('details')
+  }
+
+  function closeCheckout() {
+    setCheckoutStep(null)
+    setCheckoutPlan(null)
+  }
+
+  // Package confirmed: first-time members answer the personalization questions first.
+  function confirmPlanDetails() {
+    if (!checkoutPlan) return
+    if (onboarding?.completed) {
+      setCheckoutStep('payment')
+      return
+    }
+    setCheckoutStep(null)
+    setPendingPlan(checkoutPlan)
+    setOnboardingOpen(true)
+  }
+
+  // The request (and the admin's "Requests to review" entry) is only created here.
+  async function confirmPaymentMethod() {
+    if (!checkoutPlan || checkoutMethod !== 'BANK_QR') return
+    const created = await startSubscription(checkoutPlan)
+    if (created) closeCheckout()
+  }
+
+  async function withdrawRequest() {
+    if (!subscription) return
+    setWithdrawing(true)
+    try {
+      const { error: withdrawError } = await supabase.rpc('withdraw_premium_request', {
+        p_subscription_id: subscription.id,
+      })
+      if (withdrawError) throw withdrawError
+      setConfirmWithdrawOpen(false)
+      setQrPaymentOpen(false)
+      await invalidatePremium()
+      success(language === 'lo' ? 'ຍົກເລີກຄຳຂໍພຣີມຽມແລ້ວ.' : 'Your Premium request was cancelled.')
+    } catch (err) {
+      console.error(err)
+      error(language === 'lo' ? 'ບໍ່ສາມາດຍົກເລີກຄຳຂໍໄດ້.' : 'Could not cancel this request.')
+    } finally {
+      setWithdrawing(false)
+    }
   }
 
   async function handleOnboardingComplete() {
@@ -627,7 +716,12 @@ export function Subscription() {
     const plan = pendingPlan
     setPendingPlan(null)
     if (!plan) return
-    await (plan.price_lak > 0 ? startSubscription(plan) : subscribeFree(plan))
+    if (plan.price_lak > 0) {
+      setCheckoutPlan(plan)
+      setCheckoutStep('payment')
+      return
+    }
+    await subscribeFree(plan)
   }
 
   // Abandoned/duplicate pending requests (from retries or switching plans
@@ -676,9 +770,9 @@ export function Subscription() {
   async function startSubscription(plan: PremiumPlan) {
     if (!profile) {
       navigate('/auth')
-      return
+      return false
     }
-    if (plan.price_lak <= 0) return
+    if (plan.price_lak <= 0) return false
 
     setBusyPlanId(plan.id)
     try {
@@ -717,9 +811,11 @@ export function Subscription() {
       setQrPlan(plan)
       setQrPaymentOpen(true)
       success('Premium subscription created. Scan the QR code to pay, then upload your proof.')
+      return true
     } catch (err) {
       console.error(err)
       error('Could not start Premium subscription.')
+      return false
     } finally {
       setBusyPlanId(null)
     }
@@ -909,14 +1005,45 @@ export function Subscription() {
 
   const pageLoading = plansLoading || (!!profile && subscriptionLoading)
 
+  // The floating menu highlights whatever section is scrolled into view.
+  const [navSection, setNavSection] = useState<MemberSectionId>(() => parseMemberSection(location.hash))
+
   // React Router doesn't auto-scroll to URL hashes on client-side navigation,
   // so "Upgrade"/"Subscribe" links from other pages (which land here as
-  // /academy/subscription#plans) need an explicit scroll once the plans
-  // section has actually rendered.
+  // /academy/subscription#plans) and sidebar picks need an explicit scroll
+  // once the section has actually rendered.
   useEffect(() => {
-    if (location.hash !== '#plans' || pageLoading) return
-    document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (!location.hash || pageLoading) return
+    document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [location.hash, pageLoading])
+
+  // Scroll spy for the sidebar highlight.
+  useEffect(() => {
+    if (!isMemberActive || pageLoading) return
+    const update = () => {
+      let current: MemberSectionId = 'home'
+      for (const section of MEMBER_SECTIONS) {
+        const el = document.getElementById(section.id)
+        if (el && el.getBoundingClientRect().top <= 180) current = section.id
+      }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        current = MEMBER_SECTIONS[MEMBER_SECTIONS.length - 1].id
+      }
+      setNavSection(current)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
+  }, [isMemberActive, pageLoading])
+
+
+  function selectMemberSection(id: MemberSectionId) {
+    if (location.hash === `#${id}`) {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    navigate({ pathname: location.pathname, search: location.search, hash: `#${id}` })
+  }
 
   // "Subscribe again" on the expiry banner / profile menu lands here as
   // ?renew=1: run the normal Subscribe flow for the paid plan the member had
@@ -978,16 +1105,21 @@ export function Subscription() {
         </div>
       </section>
 
+      {!pageLoading && isMemberActive && (
+        <MemberFloatingMenu language={language} active={navSection} onSelect={selectMemberSection} onOpenCoach={() => navigate('/academy/coach')} />
+      )}
+
       {pageLoading ? (
         <LoadingSpinner />
       ) : (
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-24">
+        <div className="mx-auto max-w-6xl px-4 py-6 pb-32">
+          <div className="flex min-w-0 flex-col gap-6">
           {isMemberActive ? (
             <>
               {showExpiryWarning && subscription?.plan && (
                 <section
                   role="alert"
-                  className="animate-slide-up overflow-hidden rounded-2xl border border-red-300 bg-red-600 text-white shadow-[0_12px_30px_-16px_rgba(220,38,38,0.8)]"
+                  className={cn('animate-slide-up overflow-hidden rounded-2xl border border-red-300 bg-red-600 text-white shadow-[0_12px_30px_-16px_rgba(220,38,38,0.8)]')}
                 >
                   <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div className="flex min-w-0 items-start gap-3">
@@ -1008,7 +1140,7 @@ export function Subscription() {
                     <button
                       type="button"
                       disabled={busyPlanId === subscription.plan.id}
-                      onClick={() => void startSubscription(subscription.plan!)}
+                      onClick={() => openCheckout(subscription.plan!)}
                       className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-white dark:bg-gray-900 px-5 py-3 text-sm font-black text-red-700 dark:text-red-300 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-red-50 dark:hover:bg-red-500/10 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-red-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     >
                       <RefreshCw className={cn('h-4 w-4', busyPlanId === subscription.plan.id && 'animate-spin')} />
@@ -1033,12 +1165,13 @@ export function Subscription() {
                       </p>
                     </div>
                   </div>
-                  <a
-                    href="#plans"
+                  <button
+                    type="button"
+                    onClick={() => selectMemberSection('plans')}
                     className="inline-flex shrink-0 items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-black text-primary-950 transition hover:bg-amber-300"
                   >
                     See plans <ArrowRight className="h-4 w-4" />
-                  </a>
+                  </button>
                 </section>
               )}
               <MemberDashboard
@@ -1058,6 +1191,9 @@ export function Subscription() {
                 communities={memberCommunities && memberCommunities.length > 0 ? memberCommunities : FALLBACK_MEMBER_COMMUNITIES}
                 memberStats={memberProgress?.member}
                 leaderboard={memberProgress?.leaderboard ?? []}
+                personalization={onboarding?.responses ?? {}}
+                memberSince={subscription?.starts_at ?? subscription?.created_at}
+                onSetGoal={() => setOnboardingOpen(true)}
               />
             </>
            ) : (
@@ -1082,7 +1218,7 @@ export function Subscription() {
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <div>
-                  <p className="text-sm font-black text-sky-950">Awaiting admin approval</p>
+                  <p className="text-sm font-black text-sky-950 dark:text-sky-200">Awaiting admin approval</p>
                   <p className="mt-1 text-xs leading-5 text-sky-800 dark:text-sky-300">
                     Your Free membership request and profile information are being checked. No payment is required.
                   </p>
@@ -1104,6 +1240,7 @@ export function Subscription() {
                 setQrPlan(subscription?.plan ?? null)
                 setQrPaymentOpen(true)
               }}
+              onCancel={isPaymentPending && !pendingPayment?.receipt_image_url ? () => setConfirmWithdrawOpen(true) : undefined}
             />
           )}
 
@@ -1187,7 +1324,7 @@ export function Subscription() {
              </>
            )}
 
-          <section id="plans" className="scroll-mt-24">
+          <section id="plans" className={SECTION_SCROLL_MARGIN}>
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Plans</p>
@@ -1293,6 +1430,7 @@ export function Subscription() {
             </div>
           </section>
 
+          <div id="membership" className={SECTION_SCROLL_MARGIN}>
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-center justify-between gap-3">
@@ -1455,8 +1593,62 @@ export function Subscription() {
               </div>
             </section>
           </div>
+          </div>
+          </div>
         </div>
       )}
+
+      <PlanDetailsModal
+        open={checkoutStep === 'details'}
+        plan={checkoutPlan}
+        priceLabel={checkoutPlan ? formatPrice(checkoutPlan.price_lak, currency) : ''}
+        savingsLabel={(() => {
+          const monthly = activePlans.find(candidate => candidate.slug === 'premium-monthly')
+          if (checkoutPlan?.slug !== 'premium-yearly' || !monthly) return undefined
+          const savings = monthly.price_lak * 12 - checkoutPlan.price_lak
+          if (savings <= 0) return undefined
+          return language === 'lo' ? `ປະຢັດ ${formatPrice(savings, currency)}` : `Save ${formatPrice(savings, currency)}`
+        })()}
+        modules={featureModules}
+        language={language}
+        onClose={closeCheckout}
+        onConfirm={confirmPlanDetails}
+      />
+
+      <PaymentMethodModal
+        open={checkoutStep === 'payment' && !!checkoutPlan}
+        planName={checkoutPlan?.name ?? ''}
+        priceLabel={checkoutPlan ? formatPrice(checkoutPlan.price_lak, currency) : ''}
+        method={checkoutMethod}
+        busy={!!checkoutPlan && busyPlanId === checkoutPlan.id}
+        language={language}
+        onChangeMethod={setCheckoutMethod}
+        onClose={closeCheckout}
+        onConfirm={() => void confirmPaymentMethod()}
+      />
+
+      <Modal
+        open={confirmWithdrawOpen}
+        onClose={() => { if (!withdrawing) setConfirmWithdrawOpen(false) }}
+        title={language === 'lo' ? 'ຍົກເລີກຄຳຂໍພຣີມຽມບໍ?' : 'Cancel your Premium request?'}
+        size="sm"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" disabled={withdrawing} onClick={() => setConfirmWithdrawOpen(false)}>
+              {language === 'lo' ? 'ຮັກສາຄຳຂໍໄວ້' : 'Keep request'}
+            </Button>
+            <Button type="button" variant="danger" loading={withdrawing} icon={<XCircle className="h-4 w-4" />} onClick={() => void withdrawRequest()}>
+              {language === 'lo' ? 'ແມ່ນ, ຍົກເລີກ' : 'Yes, cancel request'}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+          {language === 'lo'
+            ? 'ຖ້າທ່ານຍັງບໍ່ໄດ້ໂອນເງິນ, ຄຳຂໍນີ້ຈະຖືກລຶບອອກ ແລະ ແອັດມິນຈະບໍ່ກວດສອບມັນອີກ. ທ່ານສາມາດສະໝັກໃໝ່ໄດ້ທຸກເວລາ.'
+            : "If you haven't transferred the money yet, this request will be removed and the admin won't review it. You can subscribe again any time."}
+        </p>
+      </Modal>
 
       {profile && (
         <OnboardingChat
@@ -1606,6 +1798,9 @@ function MemberDashboard({
   communities,
   memberStats,
   leaderboard,
+  personalization,
+  memberSince,
+  onSetGoal,
 }: {
   profileId: string
   profileName: string
@@ -1623,6 +1818,9 @@ function MemberDashboard({
   communities: MemberCommunity[]
   memberStats?: PremiumMemberStats
   leaderboard: PremiumLeaderboardEntry[]
+  personalization: Record<string, string>
+  memberSince?: string | null
+  onSetGoal: () => void
 }) {
   const [activeDailyItem, setActiveDailyItem] = useState<DailyChallengeKind | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -1634,6 +1832,12 @@ function MemberDashboard({
   ]
   const completedCount = dailyItems.filter(item => Boolean(completionResponses[item.kind]?.trim())).length
   const selectedItem = dailyItems.find(item => item.kind === activeDailyItem)
+  // One entry per Daily Mentor reply, dated by the day the guidance was for.
+  const mentorTaskDays = history.flatMap(entry => {
+    const day = (entry.guidance ?? entry.motivation)?.publish_date
+    if (!day) return []
+    return dailyItems.filter(item => Boolean(entry.responses[item.kind]?.trim())).map(() => day)
+  })
   const historyItems = history.map(entry => ({
     ...entry,
     content: entry.guidance ?? entry.motivation,
@@ -1658,23 +1862,87 @@ function MemberDashboard({
 
   return (
     <>
-      <section className="rounded-3xl bg-primary-900 p-5 text-white shadow-card">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-primary-200">Member home</p>
-            <h2 className="mt-1 text-2xl font-black">Welcome back, {profileName}</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-primary-100">
-              Your Premium workspace is ready for today: mentor guidance, events, communities, and performance highlights.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 md:w-80">
+      <div id="home" className={cn(SECTION_SCROLL_MARGIN, 'grid gap-6 lg:grid-cols-2')}>
+      <section className="flex flex-col gap-3 rounded-3xl bg-primary-900 p-5 text-white shadow-card">
+        <MemberGreeting
+          language={language}
+          name={profileName}
+          personalization={personalization}
+          memberSince={memberSince}
+          onSetGoal={onSetGoal}
+        />
+        <div>
+          <div className="grid grid-cols-3 gap-2">
             <ProfileMenuStat label="Streak" value={formatStreak(memberStats?.streak ?? 0)} icon={<Flame className="h-4 w-4" />} />
             <ProfileMenuStat label="XP" value={(memberStats?.xp ?? 0).toLocaleString()} icon={<Zap className="h-4 w-4" />} />
             <ProfileMenuStat label="Rank" value={memberStats?.rank ? `#${memberStats.rank}` : '—'} icon={<Trophy className="h-4 w-4" />} />
           </div>
         </div>
+        <TodayNudges
+          language={language}
+          mentorCompleted={completedCount}
+          streak={memberStats?.streak ?? 0}
+        />
+        <div className="mt-auto">
+          <WeeklyMastery profileId={profileId} language={language} mentorTaskDays={mentorTaskDays} />
+        </div>
       </section>
 
+        <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Community</p>
+              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Top performers</h2>
+            </div>
+            <Trophy className="h-5 w-5 text-amber-500" />
+          </div>
+          <div className="mt-5 space-y-3">
+            {leaderboard.length > 0 ? leaderboard.map(performer => (
+              <div
+                key={`${performer.rank}-${performer.display_name}`}
+                className={cn(
+                  'flex items-center gap-3 rounded-2xl border p-3',
+                  performer.is_current_user ? 'border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/40' : 'border-gray-100 dark:border-gray-800',
+                )}
+              >
+                <div className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black',
+                  performer.rank <= 3 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+                )}>
+                  #{performer.rank}
+                </div>
+                {performer.avatar_url ? (
+                  <img
+                    src={performer.avatar_url}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/60 text-sm font-black text-primary-700 dark:text-primary-300">
+                    {performer.display_name.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
+                    {performer.display_name}
+                    {performer.is_current_user && <span className="ml-1.5 text-[10px] font-black uppercase text-primary-600 dark:text-primary-400">You</span>}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {performer.xp.toLocaleString()} XP · {formatStreak(performer.streak)}
+                  </p>
+                </div>
+              </div>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
+                <Trophy className="mx-auto h-6 w-6 text-slate-300" />
+                <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">Complete today’s activities to join the leaderboard.</p>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div id="learn" className={SECTION_SCROLL_MARGIN}>
       <section
         data-no-premium-translate
         className="group overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-card ring-1 ring-slate-900/5 dark:ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
@@ -1732,9 +2000,13 @@ function MemberDashboard({
         </div>
       </section>
 
-      <PlayLearnArcade profileId={profileId} onStartRoleplay={onStartRoleplay} />
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+      <div id="play" className={SECTION_SCROLL_MARGIN}>
+        <PlayLearnArcade profileId={profileId} onStartRoleplay={onStartRoleplay} />
+      </div>
+
+      <div id="mentor" className={SECTION_SCROLL_MARGIN}>
         <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -1923,60 +2195,9 @@ function MemberDashboard({
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Community</p>
-              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">Top performers</h2>
-            </div>
-            <Trophy className="h-5 w-5 text-amber-500" />
-          </div>
-          <div className="mt-5 space-y-3">
-            {leaderboard.length > 0 ? leaderboard.map(performer => (
-              <div
-                key={`${performer.rank}-${performer.display_name}`}
-                className={cn(
-                  'flex items-center gap-3 rounded-2xl border p-3',
-                  performer.is_current_user ? 'border-primary-200 dark:border-primary-800 bg-primary-50/60 dark:bg-primary-900/40' : 'border-gray-100 dark:border-gray-800',
-                )}
-              >
-                <div className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-xl text-sm font-black',
-                  performer.rank <= 3 ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
-                )}>
-                  #{performer.rank}
-                </div>
-                {performer.avatar_url ? (
-                  <img
-                    src={performer.avatar_url}
-                    alt=""
-                    className="h-10 w-10 rounded-full object-cover ring-2 ring-white"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/60 text-sm font-black text-primary-700 dark:text-primary-300">
-                    {performer.display_name.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                    {performer.display_name}
-                    {performer.is_current_user && <span className="ml-1.5 text-[10px] font-black uppercase text-primary-600 dark:text-primary-400">You</span>}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {performer.xp.toLocaleString()} XP · {formatStreak(performer.streak)}
-                  </p>
-                </div>
-              </div>
-            )) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
-                <Trophy className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-bold text-slate-500 dark:text-slate-400">Complete today’s activities to join the leaderboard.</p>
-              </div>
-            )}
-          </div>
-        </section>
       </div>
 
+      <div id="community" className={cn(SECTION_SCROLL_MARGIN, 'space-y-6')}>
       <div className="grid gap-6 lg:grid-cols-2">
         <MemberListSection
           eyebrow="Events"
@@ -1990,6 +2211,153 @@ function MemberDashboard({
           icon={<Users className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
           items={communities}
         />
+      </div>
+      </div>
+    </>
+  )
+}
+
+// Item centres relative to the floating button's centre (px): an inner chain
+// of three and an outer chain of five, each drawn as one gooey blob that fans
+// up and left from the bottom-right corner.
+const FLOAT_MENU_CHAINS: Array<Array<[number, number]>> = [
+  [[2, -74], [-52, -58], [-73, -2]],
+  [[2, -151], [-54, -137], [-102, -99], [-135, -54], [-148, 0]],
+]
+const FLOAT_ITEM_RADIUS = 24
+const FLOAT_BUTTON_HALF = 24
+
+function MemberFloatingMenu({
+  language,
+  active,
+  onSelect,
+  onOpenCoach,
+}: {
+  language: Language
+  active: MemberSectionId
+  onSelect: (id: MemberSectionId) => void
+  onOpenCoach: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState<string | null>(null)
+  const items = [
+    ...MEMBER_SECTIONS.map(section => ({
+      key: section.id as string,
+      label: language === 'lo' ? section.lo : section.en,
+      icon: section.icon,
+      onClick: () => onSelect(section.id),
+      active: section.id === active,
+      accent: false,
+    })),
+    { key: 'coach', label: 'AI Coach', icon: Brain, onClick: onOpenCoach, active: false, accent: true },
+  ]
+  const positions = FLOAT_MENU_CHAINS.flat()
+  const caption = items.find(item => item.key === hovered)?.label ?? items.find(item => item.active)?.label
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open])
+
+  return (
+    <>
+      <div
+        aria-hidden
+        onClick={() => setOpen(false)}
+        className={cn(
+          'fixed inset-0 z-40 bg-slate-950/30 transition-opacity duration-200',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+      />
+      <div data-no-premium-translate className="fixed bottom-5 right-5 z-50 h-12 w-12 sm:bottom-6 sm:right-6">
+        <nav
+          id="academy-floating-menu"
+          aria-label={language === 'lo' ? 'ເມນູ Academy' : 'Academy menu'}
+          className={cn(
+            'absolute inset-0 origin-center transition-[transform,opacity,visibility] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+            open ? 'visible scale-100 opacity-100' : 'invisible scale-0 opacity-0',
+          )}
+        >
+          {caption && (
+            <span
+              className="pointer-events-none absolute right-0 whitespace-nowrap rounded-full bg-slate-900/90 px-3 py-1.5 text-xs font-black text-white shadow-lg ring-1 ring-white/10"
+              style={{ bottom: FLOAT_BUTTON_HALF + 151 + FLOAT_ITEM_RADIUS + 10 }}
+            >
+              {caption}
+            </span>
+          )}
+          <svg
+            aria-hidden
+            width={210}
+            height={210}
+            viewBox="-200 -200 210 210"
+            className="pointer-events-none absolute overflow-visible drop-shadow-[0_10px_18px_rgba(2,6,23,0.35)]"
+            style={{ left: FLOAT_BUTTON_HALF - 200, top: FLOAT_BUTTON_HALF - 200 }}
+          >
+            <defs>
+              {/* Blur + alpha threshold melts each chain's circles and links into one blob. */}
+              <filter id="academy-float-goo">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
+                <feColorMatrix mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" />
+              </filter>
+            </defs>
+            <g filter="url(#academy-float-goo)" className="fill-white stroke-white">
+              {FLOAT_MENU_CHAINS.map((chain, chainIndex) => (
+                <g key={chainIndex}>
+                  {chain.slice(1).map(([x, y], index) => (
+                    <line key={index} x1={chain[index][0]} y1={chain[index][1]} x2={x} y2={y} strokeWidth={18} strokeLinecap="round" />
+                  ))}
+                  {chain.map(([x, y]) => (
+                    <circle key={`${x},${y}`} cx={x} cy={y} r={FLOAT_ITEM_RADIUS} stroke="none" />
+                  ))}
+                </g>
+              ))}
+            </g>
+          </svg>
+          {items.map((item, index) => {
+            const [x, y] = positions[index]
+            const Icon = item.icon
+            return (
+              <button
+                key={item.key}
+                type="button"
+                aria-label={item.label}
+                aria-current={item.active ? 'page' : undefined}
+                tabIndex={open ? 0 : -1}
+                onClick={() => { setOpen(false); setHovered(null); item.onClick() }}
+                onMouseEnter={() => setHovered(item.key)}
+                onMouseLeave={() => setHovered(null)}
+                onFocus={() => setHovered(item.key)}
+                onBlur={() => setHovered(null)}
+                className={cn(
+                  'absolute flex h-12 w-12 items-center justify-center rounded-full transition duration-200 hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+                  item.active ? 'text-red-500' : item.accent ? 'text-amber-500 hover:text-amber-600' : 'text-slate-500 hover:text-primary-700',
+                )}
+                style={{ left: FLOAT_BUTTON_HALF + x - FLOAT_ITEM_RADIUS, top: FLOAT_BUTTON_HALF + y - FLOAT_ITEM_RADIUS }}
+              >
+                <Icon className="h-5 w-5" strokeWidth={2.25} />
+              </button>
+            )
+          })}
+        </nav>
+        <button
+          type="button"
+          onClick={() => setOpen(current => !current)}
+          aria-expanded={open}
+          aria-controls="academy-floating-menu"
+          aria-label={open ? (language === 'lo' ? 'ປິດເມນູ' : 'Close menu') : (language === 'lo' ? 'ເປີດເມນູ' : 'Open menu')}
+          className={cn(
+            'relative flex h-12 w-12 items-center justify-center rounded-full text-white shadow-[0_10px_24px_-8px_rgba(2,6,23,0.55)] transition duration-300 hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/60',
+            open ? 'bg-red-500 hover:bg-red-400' : 'bg-primary-900 ring-1 ring-amber-300/50 hover:bg-primary-800',
+          )}
+        >
+          <span aria-hidden className={cn('absolute grid grid-cols-2 gap-1 transition duration-300', open ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100')}>
+            {[0, 1, 2, 3].map(dot => <span key={dot} className="h-1.5 w-1.5 rounded-full bg-current" />)}
+          </span>
+          <XIcon className={cn('absolute h-6 w-6 transition duration-300', open ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0')} strokeWidth={2.5} />
+        </button>
       </div>
     </>
   )
@@ -2038,10 +2406,12 @@ function MemberListSection({
 
 function ProfileMenuStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-xl bg-white/10 p-2 ring-1 ring-white/10">
-      <div className="mb-1 text-primary-200">{icon}</div>
-      <p className="truncate text-sm font-black text-white">{value}</p>
-      <p className="mt-0.5 truncate text-[10px] font-semibold text-primary-200">{label}</p>
+    <div className="flex min-w-0 items-center gap-2 rounded-xl bg-white/10 px-2.5 py-2 ring-1 ring-white/10">
+      <span className="flex-shrink-0 text-primary-200">{icon}</span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-black leading-5 text-white">{value}</p>
+        <p className="truncate text-[10px] font-semibold leading-4 text-primary-200">{label}</p>
+      </div>
     </div>
   )
 }
@@ -2150,18 +2520,23 @@ function RejectedPaymentNotice({
   )
 }
 
+const PAYMENT_ICON_BUTTON = 'grid h-11 w-11 place-items-center rounded-full transition hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
+
 function PaymentPanel({
   status,
   payment,
   uploading,
   onUploadClick,
   onViewQr,
+  onCancel,
 }: {
   status?: PremiumStatus
   payment?: PremiumPayment
   uploading: boolean
   onUploadClick: () => void
   onViewQr: () => void
+  /** Withdraw an unpaid request; omitted once a proof is in review. */
+  onCancel?: () => void
 }) {
   const amount = payment ? formatPrice(payment.amount_lak, 'LAK') : 'Pending'
   return (
@@ -2172,7 +2547,7 @@ function PaymentPanel({
             {status === 'PAYMENT_REVIEW' ? <Clock className="h-5 w-5" /> : <Upload className="h-5 w-5" />}
           </div>
           <div>
-            <p className="text-sm font-black text-amber-950">
+            <p className="text-sm font-black text-amber-950 dark:text-amber-200">
               {status === 'PAYMENT_REVIEW' ? 'Payment proof is under review' : 'Manual transfer required'}
             </p>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-amber-800 dark:text-amber-300">
@@ -2180,27 +2555,41 @@ function PaymentPanel({
             </p>
           </div>
         </div>
-        <div className="flex flex-shrink-0 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            icon={<QrCode className="h-4 w-4" />}
-            onClick={onViewQr}
-            disabled={status === 'PAYMENT_REVIEW'}
-            className="border-amber-300 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/15"
-          >
-            View QR
-          </Button>
-          <Button
-            type="button"
-            icon={<Upload className="h-4 w-4" />}
-            onClick={onUploadClick}
-            loading={uploading}
-            disabled={status === 'PAYMENT_REVIEW' || !payment}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            Upload proof
-          </Button>
+        <div className="flex flex-shrink-0 items-center justify-center gap-2">
+          <Tooltip label="View payment QR" side="top">
+            <button
+              type="button"
+              onClick={onViewQr}
+              disabled={status === 'PAYMENT_REVIEW'}
+              aria-label="View payment QR"
+              className={cn(PAYMENT_ICON_BUTTON, 'border border-amber-300 bg-white text-amber-800 hover:bg-amber-100 focus-visible:ring-amber-400 dark:border-amber-500/40 dark:bg-gray-900 dark:text-amber-300 dark:hover:bg-amber-500/15')}
+            >
+              <QrCode className="h-5 w-5" />
+            </button>
+          </Tooltip>
+          <Tooltip label={uploading ? 'Uploading…' : 'Upload payment proof'} side="top">
+            <button
+              type="button"
+              onClick={onUploadClick}
+              disabled={uploading || status === 'PAYMENT_REVIEW' || !payment}
+              aria-label="Upload payment proof"
+              className={cn(PAYMENT_ICON_BUTTON, 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 focus-visible:ring-emerald-400')}
+            >
+              {uploading ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+            </button>
+          </Tooltip>
+          {onCancel && (
+            <Tooltip label="Cancel request" side="top">
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Cancel request"
+                className={cn(PAYMENT_ICON_BUTTON, 'bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-400')}
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </Tooltip>
+          )}
         </div>
       </div>
     </section>

@@ -55,7 +55,7 @@ export interface MenuSubscription {
   downgraded_from_id?: string | null
   /** Set while a cancelled paid membership is still running until ends_at. */
   cancelled_at?: string | null
-  plan?: { name: string }
+  plan?: { name: string; price_lak?: number }
 }
 
 /**
@@ -71,7 +71,7 @@ export function useMenuSubscription(enabled = true) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('premium_subscriptions')
-        .select('status,starts_at,ends_at,cancelled_at,downgraded_from_id,plan:premium_plans(name)')
+        .select('status,starts_at,ends_at,cancelled_at,downgraded_from_id,plan:premium_plans(name,price_lak)')
         .eq('user_id', profile!.id)
         .order('created_at', { ascending: false })
         .limit(1)

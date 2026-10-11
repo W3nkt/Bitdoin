@@ -20,6 +20,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { usePremiumTranslation } from '@/i18n/premium'
+import { WEEKLY_ACTIVITY_QUERY_KEY } from '@/components/premium/WeeklyMastery'
 import type { Language } from '@/types'
 
 type ActivityKind = 'brain_sprint' | 'word_match'
@@ -191,15 +192,6 @@ const WORD_PAIR_BANK = [
   { id: 'skill', left: 'Skill', right: 'ທັກສະ' },
   { id: 'confidence', left: 'Confidence', right: 'ຄວາມໝັ້ນໃຈ' },
 ]
-const WEEK_DAYS = [
-  { short: 'Mon', label: 'M' },
-  { short: 'Tue', label: 'T' },
-  { short: 'Wed', label: 'W' },
-  { short: 'Thu', label: 'T' },
-  { short: 'Fri', label: 'F' },
-  { short: 'Sat', label: 'S' },
-  { short: 'Sun', label: 'S' },
-]
 const ROLEPLAY_MISSIONS = [
   { slug: 'job-interview', description: 'Practice a job interview with your personal mentor.' },
   { slug: 'english-cafe', description: 'Order food and ask questions in English at a café.' },
@@ -362,12 +354,6 @@ export function PlayLearnArcade({
   )
   const todayAttempts = (attempts.data ?? []).filter(attempt => todayInLaosFromIso(attempt.completed_at) === today)
   const completedToday = new Set(todayAttempts.map(attempt => attempt.activity_type))
-  const activeWeekdays = new Set((attempts.data ?? [])
-    .filter(attempt => Date.now() - new Date(attempt.completed_at).getTime() < 7 * 24 * 60 * 60 * 1000)
-    .map(attempt => new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Vientiane',
-      weekday: 'short',
-    }).format(new Date(attempt.completed_at))))
   const bestBrainScore = Math.max(0, ...(attempts.data ?? []).filter(item => item.activity_type === 'brain_sprint').map(item => Math.round((item.score / item.total) * 100)))
   const bestWordScore = Math.max(0, ...(attempts.data ?? []).filter(item => item.activity_type === 'word_match').map(item => item.score))
   const activeDays = new Set((attempts.data ?? []).map(attempt => todayInLaosFromIso(attempt.completed_at))).size
@@ -416,6 +402,7 @@ export function PlayLearnArcade({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['premium', 'learning-activity-attempts', profileId] }),
         queryClient.invalidateQueries({ queryKey: ['premium', 'member-progress', profileId] }),
+        queryClient.invalidateQueries({ queryKey: WEEKLY_ACTIVITY_QUERY_KEY }),
       ])
       success(result?.xp_earned
         ? (language === 'lo' ? `ສຳເລັດກິດຈະກຳ! +${result.xp_earned} XP` : `Activity complete! +${result.xp_earned} XP`)
@@ -492,32 +479,6 @@ export function PlayLearnArcade({
       </div>
 
       <div className="bg-slate-50/80 dark:bg-slate-800/50 px-4 py-4 sm:px-6">
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-3 py-3 sm:px-4">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-            <Target className="h-5 w-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-black text-slate-800 dark:text-slate-100">Weekly mastery</p>
-            <p className="mt-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">{Math.min(activeDays, 7)} of 7 days</p>
-          </div>
-          <div className="flex gap-1.5" aria-label={`${Math.min(activeDays, 7)} active learning days this week`}>
-            {WEEK_DAYS.map(day => {
-              const active = activeWeekdays.has(day.short)
-              return (
-                <span key={day.short} className="flex flex-col items-center gap-1">
-                  <span className="text-[8px] font-black text-slate-400">{day.label}</span>
-                  <span className={cn(
-                    'flex h-4 w-4 items-center justify-center rounded-full border',
-                    active ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900',
-                  )}>
-                    {active && <Check className="h-2.5 w-2.5" />}
-                  </span>
-                </span>
-              )
-            })}
-          </div>
-        </div>
-
         <button
           type="button"
           onClick={() => openActivity('brain_sprint')}

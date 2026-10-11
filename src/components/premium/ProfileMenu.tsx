@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, ArrowRight, Brain, Camera, Clock, Flame, GraduationCap, Lightbulb,
-  ChevronRight, Loader2, LogOut, Moon, Pencil, Save, Send, Sun, Target, XCircle, Zap,
+  ArrowRight, Brain, Camera, Clock, Crown, GraduationCap, Lightbulb,
+  ChevronRight, Loader2, LogOut, Moon, Pencil, Save, Send, Sun, Target, XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -11,22 +11,15 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
-import { isMembershipExpired, premiumEndedAt, type PremiumStatus, useMenuSubscription } from '@/lib/academyMembership'
+import { premiumEndedAt, type PremiumStatus, useMenuSubscription } from '@/lib/academyMembership'
 import { cn, formatDate } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { telegramRemindersAvailable } from '@/components/premium/TelegramReminderCard'
+import { AvatarPhotoModal } from '@/components/premium/AvatarPhotoModal'
 
 interface MenuPersonalization {
   completed: boolean
   responses: Record<string, string>
-}
-
-interface MenuMemberDashboard {
-  member: { streak: number; xp: number }
-}
-
-function formatStreak(days: number) {
-  return `${days} ${days === 1 ? 'day' : 'days'}`
 }
 
 function statusLabel(status?: PremiumStatus) {
@@ -93,20 +86,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
     retry: 1,
   })
 
-  const { data: memberProgress } = useQuery({
-    queryKey: ['premium', 'member-progress', profile?.id],
-    enabled: Boolean(profile) && subscription?.status === 'ACTIVE' && !isMembershipExpired(subscription),
-    queryFn: async () => {
-      const { data, error: progressError } = await supabase.rpc('get_premium_member_dashboard', { p_limit: 5 })
-      if (progressError) throw progressError
-      return data as MenuMemberDashboard | null
-    },
-    staleTime: 1000 * 60,
-    retry: 1,
-  })
-
   const personalization = onboarding?.responses ?? {}
-  const planName = subscription?.plan?.name ?? (subscription?.status === 'ACTIVE' ? 'Premium Monthly' : 'Free')
   const status = expired
     ? (language === 'lo' ? 'ໝົດອາຍຸແລ້ວ' : 'Expired')
     : cancelledWithAccess
@@ -115,15 +95,23 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   const statusClassName = cancelledWithAccess
     ? 'bg-amber-400/20 text-amber-200 ring-1 ring-amber-300/40'
     : statusClass(effectiveStatus)
-  const streak = formatStreak(memberProgress?.member.streak ?? 0)
-  const xp = (memberProgress?.member.xp ?? 0).toLocaleString()
+  // Plan badge: Premium only while a paid plan is live; pending/cancelled states keep their own label.
+  const isPremiumPlan = !expired && subscription?.status === 'ACTIVE' && (subscription.plan?.price_lak ?? 0) > 0
+  const planBadge = expired
+    ? { label: language === 'lo' ? 'ໝົດອາຍຸ' : 'Expired', className: statusClass('EXPIRED') }
+    : cancelledWithAccess
+      ? { label: language === 'lo' ? 'ພຣີມຽມ · ຍົກເລີກແລ້ວ' : 'Premium · Cancelled', className: statusClassName }
+      : isPremiumPlan
+        ? { label: language === 'lo' ? 'ພຣີມຽມ' : 'Premium', className: 'bg-gradient-to-r from-amber-300 to-amber-500 text-[#071426] shadow-sm shadow-amber-500/30' }
+        : subscription && subscription.status !== 'ACTIVE' && subscription.status !== 'FREE'
+          ? { label: status, className: statusClassName }
+          : { label: language === 'lo' ? 'ຟຣີ' : 'Free', className: 'bg-white/10 text-primary-100 ring-1 ring-white/20' }
   const expirationIso = premiumEnded ?? subscription?.ends_at
-  const expiration = expirationIso ? formatDate(expirationIso, language) : 'No expiry'
+  const expiration = expirationIso ? formatDate(expirationIso, language) : null
 
   const menuRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [panelMaxHeight, setPanelMaxHeight] = useState<number>()
-  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
 
   // Fit the dropdown between where it starts and the bottom of the visible
@@ -153,6 +141,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
   const [nameDraft, setNameDraft] = useState('')
   const [savingIdentity, setSavingIdentity] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [confirmingLogout, setConfirmingLogout] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   const displayName = profile?.name?.trim() || 'Guest user'
@@ -216,20 +205,8 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
     }
   }
 
-  async function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file || !profile) return
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      error('Please choose a JPEG, PNG, or WEBP image.')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      error('Image must be smaller than 5MB.')
-      return
-    }
-
+  async function saveAvatar(file: File) {
+    if (!profile) return false
     setUploadingAvatar(true)
     try {
       const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
@@ -248,9 +225,11 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
 
       await refreshProfile()
       success('Profile picture updated.')
+      return true
     } catch (uploadError) {
       console.error(uploadError)
       error('Could not update your profile picture.')
+      return false
     } finally {
       setUploadingAvatar(false)
     }
@@ -339,81 +318,11 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
           style={{ maxHeight: panelMaxHeight }}
           className="absolute right-0 top-full z-20 mt-3 max-h-[calc(100dvh-6.5rem)] w-[min(28rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-[1.75rem] border border-amber-200/60 dark:border-amber-500/30 bg-[#fffdf8] dark:bg-gray-900 p-3 text-left text-slate-950 dark:text-slate-100 shadow-[0_28px_80px_rgba(3,10,24,0.32)] animate-slide-up"
         >
-          <div className="flex items-center gap-3 px-1 pb-3">
-            <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary-950 text-sm font-black text-amber-200 ring-1 ring-amber-300/30">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span>{initial}</span>
-              )}
-              {editingIdentity && profile && (
-                <>
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={event => void handleAvatarFileChange(event)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={uploadingAvatar}
-                    className="absolute inset-0 flex items-center justify-center bg-black/50 text-white transition hover:bg-black/60 disabled:opacity-70"
-                  >
-                    {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                    <span className="sr-only">Change profile picture</span>
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              {editingIdentity ? (
-                <input
-                  value={nameDraft}
-                  onChange={event => setNameDraft(event.target.value)}
-                  placeholder="Your name"
-                  className="w-full rounded-lg border border-amber-200 dark:border-amber-500/30 bg-white dark:bg-gray-900 px-2.5 py-1.5 text-sm font-black text-slate-950 dark:text-slate-100 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 dark:focus:ring-amber-500/30"
-                />
-              ) : (
-                <p className="truncate text-base font-black tracking-tight text-slate-950 dark:text-slate-100">{displayName}</p>
-              )}
-              <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{contact}</p>
-            </div>
-            {profile && (
-              editingIdentity ? (
-                <div className="flex flex-shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setEditingIdentity(false)}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300"
-                    aria-label="Cancel editing profile"
-                  >
-                    <XCircle className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={savingIdentity}
-                    onClick={() => void saveIdentity()}
-                    className="flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-500/15 px-2.5 py-2 text-xs font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25 disabled:opacity-60"
-                    aria-label="Save profile"
-                  >
-                    {savingIdentity ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEditingIdentity(true)}
-                  className="flex-shrink-0 rounded-full p-2 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
-                  aria-label="Edit profile"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-              )
-            )}
-            {!editingIdentity && (
-              <div className="flex flex-shrink-0 items-center gap-1.5">
+          <div className="flex items-center justify-between gap-3 px-1 pb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+              {language === 'lo' ? 'ບັນຊີຂອງຂ້ອຍ' : 'My account'}
+            </p>
+            <div className="flex flex-shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
@@ -445,8 +354,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
                 >
                   {profile ? <LogOut className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
                 </button>
-              </div>
-            )}
+            </div>
           </div>
 
           <div className={cn(
@@ -457,27 +365,93 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               'pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full blur-2xl',
               expired ? 'bg-red-500/25' : 'bg-amber-300/15',
             )} />
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Membership</p>
-                <p className="mt-1 truncate text-lg font-black">{planName}</p>
+            <div className="relative flex items-center gap-4">
+              <button
+                type="button"
+                disabled={!profile}
+                onClick={() => { setOpen(false); setEditingIdentity(false); setPhotoOpen(true) }}
+                aria-label={language === 'lo' ? 'ເບິ່ງ ຫຼື ປ່ຽນຮູບໂປຣໄຟລ໌' : 'View or change profile picture'}
+                className="group relative h-16 w-16 flex-shrink-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-default"
+              >
+                <span className={cn(
+                  'flex h-full w-full items-center justify-center overflow-hidden rounded-2xl bg-primary-950 text-lg font-black text-amber-200 ring-2 transition',
+                  isPremiumPlan ? 'ring-amber-300/70' : 'ring-white/15',
+                  profile && 'group-hover:ring-amber-300',
+                )}>
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                  ) : (
+                    <span>{initial}</span>
+                  )}
+                </span>
+                {profile && (
+                  <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-amber-400 text-[#071426] shadow-md ring-2 ring-[#06101f]">
+                    {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                  </span>
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                {editingIdentity ? (
+                  <input
+                    value={nameDraft}
+                    autoFocus
+                    onChange={event => setNameDraft(event.target.value)}
+                    onKeyDown={event => { if (event.key === 'Enter') void saveIdentity() }}
+                    placeholder="Your name"
+                    className="w-full rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-sm font-black text-white outline-none transition placeholder:text-primary-200/60 focus:border-amber-300 focus:ring-2 focus:ring-amber-300/30"
+                  />
+                ) : (
+                  <p className="truncate text-lg font-black tracking-tight">{displayName}</p>
+                )}
+                <p className="mt-0.5 truncate text-xs font-semibold text-primary-200">{contact}</p>
+                {profile && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-black leading-5', planBadge.className)}>
+                      {isPremiumPlan && <Crown className="h-3 w-3" />}
+                      {planBadge.label}
+                    </span>
+                    {expiration && !expired && (
+                      <span className="text-[11px] font-semibold text-primary-200">
+                        {cancelledWithAccess
+                          ? (language === 'lo' ? `ໃຊ້ໄດ້ຮອດ ${expiration}` : `Until ${expiration}`)
+                          : (language === 'lo' ? `ໝົດອາຍຸ ${expiration}` : `Renews ${expiration}`)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <span className={cn('flex-shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold leading-5', statusClassName)}>
-                {status}
-              </span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <ProfileMenuStat label="Streak" value={streak} icon={<Flame className="h-4 w-4" />} />
-              <ProfileMenuStat label="XP" value={xp} icon={<Zap className="h-4 w-4" />} />
-              <ProfileMenuStat
-                label={expired
-                  ? (language === 'lo' ? 'ໝົດອາຍຸແລ້ວ' : 'Expired')
-                  : cancelledWithAccess ? (language === 'lo' ? 'ໃຊ້ໄດ້ຮອດ' : 'Access until') : 'Expires'}
-                value={expiration}
-                icon={expired ? <AlertTriangle className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-                danger={expired}
-              />
+              {profile && (
+                editingIdentity ? (
+                  <div className="flex flex-shrink-0 flex-col gap-1.5">
+                    <button
+                      type="button"
+                      disabled={savingIdentity}
+                      onClick={() => void saveIdentity()}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-amber-400 text-[#071426] transition hover:bg-amber-300 disabled:opacity-60"
+                      aria-label="Save profile"
+                    >
+                      {savingIdentity ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingIdentity(false)}
+                      className="grid h-8 w-8 place-items-center rounded-full text-primary-200 transition hover:bg-white/10 hover:text-white"
+                      aria-label="Cancel editing profile"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditingIdentity(true)}
+                    className="grid h-8 w-8 flex-shrink-0 place-items-center self-start rounded-full text-primary-200 transition hover:bg-white/10 hover:text-white"
+                    aria-label="Edit name"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )
+              )}
             </div>
 
             {expired && (
@@ -575,36 +549,40 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
         </div>
       )}
 
+      {profile && (
+        <AvatarPhotoModal
+          open={photoOpen}
+          onClose={() => setPhotoOpen(false)}
+          avatarUrl={profile.avatar_url}
+          name={displayName}
+          language={language}
+          saving={uploadingAvatar}
+          onSave={saveAvatar}
+        />
+      )}
+
       <Modal
         open={confirmingLogout}
         onClose={() => setConfirmingLogout(false)}
-        title="Log out?"
+        title={language === 'lo' ? 'ອອກຈາກລະບົບບໍ?' : 'Log out?'}
         size="sm"
         footer={
           <>
             <Button variant="ghost" onClick={() => setConfirmingLogout(false)}>
-              Cancel
+              {language === 'lo' ? 'ຍົກເລີກ' : 'Cancel'}
             </Button>
             <Button variant="danger" loading={signingOut} onClick={() => void confirmLogout()} icon={<LogOut className="h-4 w-4" />}>
-              Log out
+              {language === 'lo' ? 'ອອກຈາກລະບົບ' : 'Log out'}
             </Button>
           </>
         }
       >
         <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
-          You'll be signed out of your Bitdoin Academy account on this device. You can log back in anytime to pick up where you left off.
+          {language === 'lo'
+            ? 'ທ່ານຈະອອກຈາກບັນຊີ Bitdoin Academy ໃນອຸປະກອນນີ້. ທ່ານສາມາດເຂົ້າລະບົບຄືນໄດ້ທຸກເວລາ ເພື່ອສືບຕໍ່ຈາກບ່ອນທີ່ຄ້າງໄວ້.'
+            : "You'll be signed out of your Bitdoin Academy account on this device. You can log back in anytime to pick up where you left off."}
         </p>
       </Modal>
-    </div>
-  )
-}
-
-function ProfileMenuStat({ label, value, icon, danger = false }: { label: string; value: string; icon: React.ReactNode; danger?: boolean }) {
-  return (
-    <div className={cn('min-w-0 rounded-xl p-2 ring-1', danger ? 'bg-red-500/20 ring-red-400/50' : 'bg-white/10 ring-white/10')}>
-      <div className={cn('mb-1', danger ? 'text-red-300' : 'text-primary-200')}>{icon}</div>
-      <p className={cn('truncate text-sm font-black', danger ? 'text-red-200' : 'text-white')}>{value}</p>
-      <p className={cn('mt-0.5 truncate text-[10px] font-semibold', danger ? 'text-red-300' : 'text-primary-200')}>{label}</p>
     </div>
   )
 }
