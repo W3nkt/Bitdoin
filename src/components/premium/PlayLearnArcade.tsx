@@ -63,6 +63,12 @@ function pickLang(text: LocalizedText, language: Language) {
   return language === 'lo' ? text.lo : text.en
 }
 
+const THAI_SCRIPT = /[\u0E00-\u0E7F]/
+
+function hasThaiInLaoText(item: AiBrainSprintItem) {
+  return [item.prompt.lo, item.explanation.lo, ...item.options.map(option => option.lo)].some(text => THAI_SCRIPT.test(text))
+}
+
 const BRAIN_QUESTION_BANK: Question[] = [
   {
     prompt: 'What is 15% of 200?',
@@ -293,7 +299,8 @@ export function PlayLearnArcade({
         console.error('Could not load AI Brain Sprint content', invokeError ?? data?.error)
         return null
       }
-      return data.items as AiBrainSprintItem[]
+      const items = data.items as AiBrainSprintItem[]
+      return items.some(hasThaiInLaoText) ? null : items
     },
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
@@ -308,7 +315,8 @@ export function PlayLearnArcade({
         console.error('Could not load AI Word Match content', invokeError ?? data?.error)
         return null
       }
-      return data.items as AiWordMatchItem[]
+      const items = data.items as AiWordMatchItem[]
+      return items.some(item => THAI_SCRIPT.test(item.lao)) ? null : items
     },
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
@@ -322,7 +330,7 @@ export function PlayLearnArcade({
         .eq('mission_date', today)
         .maybeSingle()
       if (missionError) throw missionError
-      return data
+      return data && !THAI_SCRIPT.test(data.description_lo ?? '') ? data : null
     },
     staleTime: 1000 * 60 * 60 * 24,
     retry: false,
