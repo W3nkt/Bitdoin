@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight, Brain, Camera, Clock, Crown, GraduationCap, Lightbulb,
+  ArrowRight, BellRing, Brain, Camera, Clock, Crown, GraduationCap, Lightbulb,
   ChevronRight, Loader2, LogOut, Moon, Pencil, Save, Send, Sun, Target, XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -15,6 +15,7 @@ import { premiumEndedAt, type PremiumStatus, useMenuSubscription } from '@/lib/a
 import { cn, formatDate } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { telegramRemindersAvailable } from '@/components/premium/TelegramReminderCard'
+import { pushConfigured } from '@/lib/webPush'
 import { AvatarPhotoModal } from '@/components/premium/AvatarPhotoModal'
 
 interface MenuPersonalization {
@@ -531,6 +532,21 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               </div>
             )}
           </div>
+
+          {profile && pushConfigured && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); navigate('/academy/profile#notifications') }}
+              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-amber-500/10 px-4 py-3 text-left transition hover:bg-amber-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-white"><BellRing className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-black text-slate-950 dark:text-slate-100">{language === 'lo' ? 'ການແຈ້ງເຕືອນໃນແອັບ' : 'App notifications'}</span>
+                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{language === 'lo' ? 'ແຈ້ງເຕືອນປະຈຳວັນ ແລະ ເລືອກເວລາ' : 'Daily reminder and your time'}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
+          )}
 
           {profile && telegramRemindersAvailable && (
             <button

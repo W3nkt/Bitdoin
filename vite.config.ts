@@ -9,6 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Register the service worker in `vite dev` too, so push notifications
+      // can be turned on and tested on localhost.
+      devOptions: { enabled: true },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Bitdoin',
@@ -24,6 +27,8 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Web Push 'push' / 'notificationclick' handlers (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

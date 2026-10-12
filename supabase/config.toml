@@ -63,3 +63,8 @@ verify_jwt = false
 # Called by pg_cron every 15 minutes; idempotent (one reminder per member per day).
 [functions.telegram-daily-reminder]
 verify_jwt = false
+
+# Called by pg_cron (daily reminders / new-book digest; both idempotent) and by
+# the app. Staff-only and per-user actions check the JWT inside the function.
+[functions.send-push]
+verify_jwt = false

@@ -400,6 +400,8 @@ const lao: Record<string, string> = {
   'Memberships ending': 'ສະມາຊິກໃກ້ໝົດອາຍຸ',
   'Motivation content': 'ເນື້ອຫາສ້າງແຮງຈູງໃຈ',
   'Member Content': 'ເນື້ອຫາສະມາຊິກ',
+  Notifications: 'ການແຈ້ງເຕືອນ',
+  'Daily reminders run automatically': 'ການແຈ້ງເຕືອນປະຈຳວັນສົ່ງອັດຕະໂນມັດ',
   'Events and performers': 'ກິດຈະກຳ ແລະ ຜູ້ໂດດເດັ່ນ',
   'Pricing and benefits': 'ລາຄາ ແລະ ສິດປະໂຫຍດ',
   Started: 'ເລີ່ມ',

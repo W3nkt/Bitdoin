@@ -8,12 +8,13 @@ import type { Book, Category } from '@/types'
 import { BookCard } from '@/components/ui/BookCard'
 import { BrowseSidebar } from '@/components/ui/BrowseSidebar'
 import { QuoteCarousel } from '@/components/ui/QuoteCarousel'
+import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
 
 export function Home() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const { addItem } = useCart()
@@ -102,6 +103,8 @@ export function Home() {
           <QuoteCarousel slot={0} targetCount={6} autoPlayMs={5500} />
           <QuoteCarousel slot={1} targetCount={6} autoPlayMs={7000} className="hidden sm:block" />
         </div>
+
+        <PushOptInPrompt platform="BOOKSTORE" lo={i18n.language === 'lo'} className="mb-5" />
 
         {/* ── Hero / Search ── */}
         <section className="mb-7">

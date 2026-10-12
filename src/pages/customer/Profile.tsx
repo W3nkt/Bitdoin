@@ -23,6 +23,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
+import { PushNotificationCard } from '@/components/notifications/PushNotificationCard'
 import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -342,6 +343,8 @@ export function Profile() {
           </div>
           <ChevronRight className="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" />
         </Card>
+
+        <PushNotificationCard platform="BOOKSTORE" lo={language === 'lo'} className="rounded-2xl" />
 
         <Card padding>
           <h3 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-200">{t('profile.preferences')}</h3>

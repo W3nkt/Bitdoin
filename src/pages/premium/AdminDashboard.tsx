@@ -38,6 +38,7 @@ import {
   Play,
   BellRing,
   Trophy,
+  Megaphone,
   type LucideIcon,
 } from 'lucide-react'
 import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
@@ -58,14 +59,15 @@ import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { premiumText, usePremiumTranslation } from '@/i18n/premium'
 import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
+import { PushAnnouncementComposer } from '@/components/admin/PushAnnouncementComposer'
 import { PremiumOverviewAnalytics } from '@/components/premium/PremiumOverviewAnalytics'
 import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
 
 type SubscriptionStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
-type PremiumAdminSection = 'overview' | 'forge' | 'renewals' | 'members' | 'mentor' | 'content' | 'plans'
+type PremiumAdminSection = 'overview' | 'forge' | 'renewals' | 'members' | 'mentor' | 'content' | 'notifications' | 'plans'
 // Page order of the sections (their anchors are #premium-<section>).
-const ADMIN_SECTION_ORDER: PremiumAdminSection[] = ['overview', 'forge', 'renewals', 'members', 'mentor', 'content', 'plans']
+const ADMIN_SECTION_ORDER: PremiumAdminSection[] = ['overview', 'forge', 'renewals', 'members', 'mentor', 'content', 'notifications', 'plans']
 
 interface PremiumPlan {
   id: string
@@ -775,6 +777,7 @@ export function PremiumAdminDashboard() {
     { id: 'members', label: 'Members', icon: Users, badge: subscriptionRequests.length },
     { id: 'mentor', label: 'Daily Mentor', icon: MessageSquareText },
     { id: 'content', label: 'Member Content', icon: Flame },
+    { id: 'notifications', label: 'Notifications', icon: Megaphone },
     { id: 'plans', label: 'Plans', icon: Crown },
   ]
 
@@ -1695,6 +1698,16 @@ export function PremiumAdminDashboard() {
             />
             <TopPerformersPanel performers={topPerformers ?? []} loading={topPerformersLoading} failed={!!topPerformersError} />
           </section>
+
+          <Panel
+              id="premium-notifications"
+              title="Notifications"
+              eyebrow="Push"
+              action="Daily reminders run automatically"
+              icon={<Megaphone className="h-5 w-5" />}
+            >
+              <PushAnnouncementComposer defaultAudience="ACADEMY" />
+            </Panel>
 
           <Panel
               id="premium-plans"

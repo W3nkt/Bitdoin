@@ -13,6 +13,7 @@ import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedi
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { useSeoMeta } from '@/hooks/useSeoMeta'
 import { isThemedPath, useApplyTheme } from '@/lib/theme'
+import { syncPushSubscription } from '@/lib/webPush'
 import '@/i18n'
 
 // Customer pages
@@ -117,6 +118,17 @@ function GoogleAnalyticsTracker() {
   return null
 }
 
+// Keeps this browser's push subscription current once per signed-in session.
+function PushSubscriptionSync() {
+  const { profile } = useAuth()
+  const userId = profile?.id
+  useEffect(() => {
+    if (!userId) return
+    syncPushSubscription().catch(err => console.warn('[web-push] sync failed', err))
+  }, [userId])
+  return null
+}
+
 function OAuthReturnHandler() {
   const { profile, loading } = useAuth()
   const navigate = useNavigate()
@@ -144,6 +156,7 @@ export function App() {
                 <ThemeController />
                 <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
+                <PushSubscriptionSync />
                 <MembershipExpiryBanner />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>

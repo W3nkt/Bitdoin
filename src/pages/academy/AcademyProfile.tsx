@@ -2,6 +2,7 @@ import { ArrowLeft, BookOpen, Brain, CreditCard, GraduationCap, Target, UserRoun
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { TelegramReminderCard } from '@/components/premium/TelegramReminderCard'
+import { PushNotificationCard } from '@/components/notifications/PushNotificationCard'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 
@@ -35,6 +36,7 @@ export function AcademyProfile() {
           <ProfileLink to="/academy/coach" icon={Brain} title={lo ? 'AI Coach' : 'AI Coach conversations'} />
           <ProfileLink to="/academy/subscription" icon={CreditCard} title={lo ? 'ສະມາຊິກ ແລະ ການຈ່າຍ' : 'Membership and billing'} />
         </nav>
+        <PushNotificationCard platform="ACADEMY" lo={lo} className="mt-8" />
         <TelegramReminderCard lo={lo} />
       </div>
     </main>

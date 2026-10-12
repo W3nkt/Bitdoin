@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { PaymentAccountsManager } from '@/components/admin/PaymentAccountsManager'
+import { PushAnnouncementComposer } from '@/components/admin/PushAnnouncementComposer'
 import type { Category } from '@/types'
 
 // ─── Category form ────────────────────────────────────────────────────────────
@@ -65,6 +66,17 @@ export function AdminSettings() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('admin.settings')}</h1>
         <p className="text-sm text-gray-400 mt-0.5">Platform configuration</p>
       </div>
+
+      {/* ── Push notifications section ── */}
+      <section id="notifications" className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 space-y-4 scroll-mt-24">
+        <div>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Push Notifications</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Announce new features or books on members' phones and browsers. New books are also announced automatically every day at 18:00 (Laos).
+          </p>
+        </div>
+        <PushAnnouncementComposer defaultAudience="BOOKSTORE" />
+      </section>
 
       {/* ── Payment Accounts section ── */}
       <PaymentAccountsManager />

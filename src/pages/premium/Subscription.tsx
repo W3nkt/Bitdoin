@@ -43,6 +43,7 @@ import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
 import { WeeklyMastery } from '@/components/premium/WeeklyMastery'
 import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting'
+import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
 import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
@@ -1881,6 +1882,7 @@ function MemberDashboard({
 
   return (
     <>
+      <PushOptInPrompt platform="ACADEMY" lo={language === 'lo'} className="mb-6" />
       <div id="home" className={cn(SECTION_SCROLL_MARGIN, 'grid gap-6 lg:grid-cols-2')}>
       <section className="flex flex-col gap-3 rounded-3xl bg-primary-900 p-5 text-white shadow-card">
         <MemberGreeting
