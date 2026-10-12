@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit2, Store, MessageCircle, Phone, QrCode, Upload, Crop as CropIcon, Link2 } from 'lucide-react'
+import { Plus, Edit2, Store, MessageCircle, Phone, QrCode, Upload, Crop as CropIcon, Link2, ImagePlus } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
@@ -35,6 +35,11 @@ export function AdminBookstores() {
   const [qrFile, setQrFile] = useState<File | null>(null)
   const [qrPreview, setQrPreview] = useState<string | null>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  // Which image the shared square-crop modal is editing.
+  const [cropTarget, setCropTarget] = useState<'qr' | 'logo'>('qr')
   const [cropSrc, setCropSrc] = useState<string | null>(null)
   const [showCrop, setShowCrop] = useState(false)
   const [crop, setCrop] = useState<Crop>()
@@ -50,7 +55,7 @@ export function AdminBookstores() {
     queryFn: async () => {
       const { data } = await supabase
         .from('bookstores')
-        .select('id,name,contact_name,phone,whatsapp,messenger_url,bank_qr_code_url,address,notes,is_active,created_at,updated_at')
+        .select('id,name,contact_name,phone,whatsapp,messenger_url,bank_qr_code_url,logo_url,address,notes,is_active,created_at,updated_at')
         .order('name')
       return (data ?? []) as Bookstore[]
     },
@@ -60,6 +65,8 @@ export function AdminBookstores() {
     setEditStore(null)
     setQrFile(null)
     setQrPreview(null)
+    setLogoFile(null)
+    setLogoPreview(null)
     reset({})
     setModalOpen(true)
   }
@@ -68,6 +75,8 @@ export function AdminBookstores() {
     setEditStore(store)
     setQrFile(null)
     setQrPreview(store.bank_qr_code_url ?? null)
+    setLogoFile(null)
+    setLogoPreview(store.logo_url ?? null)
     reset({
       name: store.name,
       contact_name: store.contact_name ?? '',
@@ -80,19 +89,21 @@ export function AdminBookstores() {
     setModalOpen(true)
   }
 
-  function handleQrChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleImageChange(target: 'qr' | 'logo', e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    const label = target === 'qr' ? 'QR code' : 'Logo'
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      error('QR code must be a PNG, JPG, or WebP image')
+      error(`${label} must be a PNG, JPG, or WebP image`)
       e.target.value = ''
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      error('QR code image must be 5 MB or smaller')
+      error(`${label} image must be 5 MB or smaller`)
       e.target.value = ''
       return
     }
+    setCropTarget(target)
     setCropSrc(URL.createObjectURL(file))
     setCrop(undefined)
     setCompletedCrop(undefined)
@@ -135,9 +146,7 @@ export function AdminBookstores() {
 
     canvas.toBlob(blob => {
       if (!blob) return
-      const file = new File([blob], 'store-bank-qr.png', { type: 'image/png' })
-      setQrFile(file)
-      setQrPreview(URL.createObjectURL(blob))
+      setCroppedImage(blob)
       closeCrop()
     }, 'image/png', 1)
   }
@@ -145,9 +154,18 @@ export function AdminBookstores() {
   async function skipCrop() {
     if (!cropSrc) return
     const blob = await fetch(cropSrc).then(response => response.blob())
-    setQrFile(new File([blob], 'store-bank-qr.png', { type: 'image/png' }))
-    setQrPreview(URL.createObjectURL(blob))
+    setCroppedImage(blob)
     closeCrop()
+  }
+
+  function setCroppedImage(blob: Blob) {
+    if (cropTarget === 'logo') {
+      setLogoFile(new File([blob], 'store-logo.png', { type: 'image/png' }))
+      setLogoPreview(URL.createObjectURL(blob))
+    } else {
+      setQrFile(new File([blob], 'store-bank-qr.png', { type: 'image/png' }))
+      setQrPreview(URL.createObjectURL(blob))
+    }
   }
 
   function closeCrop() {
@@ -157,11 +175,13 @@ export function AdminBookstores() {
     setCrop(undefined)
     setCompletedCrop(undefined)
     if (qrInputRef.current) qrInputRef.current.value = ''
+    if (logoInputRef.current) logoInputRef.current.value = ''
   }
 
-  async function uploadStoreQr(storeId: string, file: File) {
+  // Logos share the public bookstore-qr bucket, under the same store folder.
+  async function uploadStoreImage(storeId: string, file: File, name: 'bank-qr' | 'logo') {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
-    const path = `${storeId}/bank-qr.${ext}`
+    const path = `${storeId}/${name}.${ext}`
     const { error: uploadError } = await supabase.storage
       .from('bookstore-qr')
       .upload(path, file, { upsert: true, contentType: file.type })
@@ -199,17 +219,27 @@ export function AdminBookstores() {
         success('Bookstore added')
       }
       if (qrFile) {
-        const bankQrCodeUrl = await uploadStoreQr(storeId, qrFile)
+        const bankQrCodeUrl = await uploadStoreImage(storeId, qrFile, 'bank-qr')
         const { error: qrUpdateError } = await supabase
           .from('bookstores')
           .update({ bank_qr_code_url: bankQrCodeUrl })
           .eq('id', storeId)
         if (qrUpdateError) throw qrUpdateError
       }
+      if (logoFile) {
+        const logoUrl = await uploadStoreImage(storeId, logoFile, 'logo')
+        const { error: logoUpdateError } = await supabase
+          .from('bookstores')
+          .update({ logo_url: logoUrl })
+          .eq('id', storeId)
+        if (logoUpdateError) throw logoUpdateError
+      }
       await qc.invalidateQueries({ queryKey: ['admin', 'bookstores'] })
       setModalOpen(false)
       setQrFile(null)
       setQrPreview(null)
+      setLogoFile(null)
+      setLogoPreview(null)
     } catch (saveError) {
       console.error('[saveBookstore]', saveError)
       error(saveError instanceof Error ? saveError.message : t('common.error'))
@@ -266,9 +296,17 @@ export function AdminBookstores() {
               {/* Card header: store icon + name + active badge */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-primary-50 dark:bg-primary-900/40 p-2.5 flex-shrink-0">
-                    <Store className="h-5 w-5 text-primary-700 dark:text-primary-300" />
-                  </div>
+                  {store.logo_url ? (
+                    <img
+                      src={store.logo_url}
+                      alt={`${store.name} logo`}
+                      className="h-10 w-10 flex-shrink-0 rounded-xl border border-gray-100 dark:border-gray-800 bg-white object-cover"
+                    />
+                  ) : (
+                    <div className="rounded-xl bg-primary-50 dark:bg-primary-900/40 p-2.5 flex-shrink-0">
+                      <Store className="h-5 w-5 text-primary-700 dark:text-primary-300" />
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-tight">{store.name}</p>
                     {store.contact_name && (
@@ -375,6 +413,41 @@ export function AdminBookstores() {
         }
       >
         <form className="space-y-4">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              className="group h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 transition-colors hover:border-primary-300 dark:hover:border-primary-700"
+              title={logoPreview ? 'Replace shop logo' : 'Upload shop logo'}
+            >
+              {logoPreview ? (
+                <img src={logoPreview} alt="Shop logo preview" className="h-full w-full bg-white object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-gray-50 dark:bg-gray-800/50">
+                  <ImagePlus className="h-7 w-7 text-gray-300 dark:text-gray-600 group-hover:text-primary-400" />
+                </span>
+              )}
+            </button>
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Shop Logo</p>
+              <button
+                type="button"
+                onClick={() => logoInputRef.current?.click()}
+                className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {logoPreview ? 'Replace logo' : 'Upload logo'}
+              </button>
+              <p className="mt-1 text-xs text-gray-400">Square · PNG, JPG, or WebP · maximum 5 MB</p>
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={e => handleImageChange('logo', e)}
+            />
+          </div>
           <Input label="Store Name" required {...register('name', { required: true })} />
           <Input label="Contact Name" {...register('contact_name')} />
           <div className="grid grid-cols-2 gap-3">
@@ -415,7 +488,7 @@ export function AdminBookstores() {
               type="file"
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
-              onChange={handleQrChange}
+              onChange={e => handleImageChange('qr', e)}
             />
           </div>
         </form>
@@ -424,7 +497,7 @@ export function AdminBookstores() {
       <Modal
         open={showCrop}
         onClose={closeCrop}
-        title="Crop Store Bank QR Code"
+        title={cropTarget === 'logo' ? 'Crop Shop Logo' : 'Crop Store Bank QR Code'}
         size="lg"
         footer={
           <div className="flex w-full gap-2">
@@ -445,7 +518,7 @@ export function AdminBookstores() {
         {cropSrc && (
           <div className="space-y-3">
             <p className="text-xs text-gray-400">
-              Drag to select the QR code area. The crop is locked to a 1:1 square ratio.
+              Drag to select the {cropTarget === 'logo' ? 'logo' : 'QR code'} area. The crop is locked to a 1:1 square ratio.
             </p>
             <div className="flex justify-center">
               <ReactCrop
@@ -461,7 +534,7 @@ export function AdminBookstores() {
                   ref={cropImgRef}
                   src={cropSrc}
                   onLoad={onCropImageLoad}
-                  alt="Store bank QR crop preview"
+                  alt="Crop preview"
                   style={{ maxHeight: '60vh', maxWidth: '100%', display: 'block' }}
                 />
               </ReactCrop>

@@ -26,6 +26,18 @@ export function formatPrice(amount: number, currency: Currency = 'LAK'): string 
   }).format(amount / LAK_RATE)
 }
 
+/** Short price for chart axes: 950k, 1.9M (LAK) or $1.2k (USD). */
+export function formatCompactPrice(amount: number, currency: Currency = 'LAK'): string {
+  const value = currency === 'LAK' ? amount : amount / LAK_RATE
+  const abs = Math.abs(value)
+  const short = (n: number, unit: string) =>
+    `${new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(n)}${unit}`
+  const text = abs >= 1_000_000 ? short(value / 1_000_000, 'M')
+    : abs >= 1_000 ? short(value / 1_000, 'k')
+    : short(value, '')
+  return currency === 'LAK' ? text : `$${text}`
+}
+
 export function formatNumber(n: number): string {
   return new Intl.NumberFormat().format(n)
 }

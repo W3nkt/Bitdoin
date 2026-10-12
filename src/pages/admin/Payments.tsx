@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, Eye, ReceiptText, RefreshCw, Sparkles } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, ReceiptText, RefreshCw, Sparkles, CheckCheck, AlertTriangle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Receipt } from '@/components/ui/Receipt'
 import { StorageImage } from '@/components/ui/StorageImage'
+import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
@@ -78,6 +79,9 @@ function verificationConfidence(payment: Payment): number | null {
   return payment.ai_confidence_score == null ? Number(ai.confidence ?? 0) : Number(payment.ai_confidence_score)
 }
 
+const TRACKING_BASE_URL = 'https://bitdoin.store/bookstore/track'
+const NO_PAYMENT_REASON = 'ບໍ່ໄດ້ຊຳລະຄ່າສິນຄ້າ'
+
 function laoAmountMismatchReason(payment: Payment, ai: ReceiptAiData): string {
   return `ຈຳນວນເງິນໃນຫຼັກຖານການໂອນ (${formatLak(Number(ai.amount))}) ບໍ່ກົງກັບຍອດຄຳສັ່ງ (${formatLak(payment.amount)}). ກະລຸນາກວດສອບ ແລະ ສົ່ງຫຼັກຖານການຊຳລະໃໝ່.`
 }
@@ -97,6 +101,7 @@ export function AdminPayments() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [actioning, setActioning] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [reminding, setReminding] = useState(false)
 
   useEffect(() => {
     if (!detailPayment) return
@@ -105,6 +110,8 @@ export function AdminPayments() {
       setRejectionReason(ai.review.rejection_reason_lo)
     } else if (ai && amountMatches(detailPayment, ai) === false) {
       setRejectionReason(laoAmountMismatchReason(detailPayment, ai))
+    } else if (!detailPayment.receipt_image_url && !detailPayment.rejection_reason) {
+      setRejectionReason(NO_PAYMENT_REASON)
     } else {
       setRejectionReason(detailPayment.rejection_reason ?? '')
     }
@@ -154,6 +161,56 @@ export function AdminPayments() {
     },
     enabled: !!receiptPayment,
   })
+
+  // Payment reminders sent from the review modal, newest first (logged in audit_logs).
+  const { data: reminderLog } = useQuery({
+    queryKey: ['admin', 'payment-reminders', detailPayment?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('created_at')
+        .eq('entity', 'payment')
+        .eq('entity_id', detailPayment!.id)
+        .eq('action', 'PAYMENT_REMINDER_SENT')
+        .order('created_at', { ascending: false })
+      return (data ?? []) as { created_at: string }[]
+    },
+    enabled: !!detailPayment,
+  })
+
+  async function sendPaymentReminder(payment: Payment) {
+    const orderNumber = payment.order?.order_number
+    const customerPhone = payment.order?.customer_phone
+    if (!orderNumber || !customerPhone) return
+
+    const trackingUrl = `${TRACKING_BASE_URL}?order=${encodeURIComponent(orderNumber)}`
+    const formatted = formatPrice(payment.amount, currency)
+    const bookLines = (payment.order?.items ?? [])
+      .filter(item => item.book?.title)
+      .map(item => `${item.book!.title} x ${item.quantity}`)
+    const books = bookLines.length ? ` [${bookLines.join(', ')}]` : ''
+    const msg = [
+      `ສະບາຍດີທ່ານລູກຄ້າ! ຄຳສັ່ງປຶ້ມເລກທີ #${orderNumber}${books}`,
+      `ເປັນຈຳນວນເງີນ ${formatted} ຍັງລໍຖ້າການຊຳລະ. ກະລຸນາຊຳລະ ແລະ ອັບໂຫຼດຫຼັກຖານການໂອນເຂົ້າລະບົບ ເພື່ອໃຫ້ພວກເຮົາຈັດສົ່ງປຶ້ມໃຫ້ທ່ານໄດ້ໄວ. ທ່ານສາມາດຊຳລະ ແລະ ອັບໂຫຼດຫຼັກຖານການໂອນໄດ້ທີ່ນີ້: ${trackingUrl}`,
+    ].join('\n')
+    const e164 = normalizeLaoPhone(customerPhone).replace(/\D/g, '')
+    // Open before any await so the popup is not blocked.
+    window.open(`https://wa.me/${e164}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener')
+
+    setReminding(true)
+    try {
+      await logAudit({
+        entity: 'payment',
+        entityId: payment.id,
+        action: 'PAYMENT_REMINDER_SENT',
+        newValue: { order_id: payment.order_id, order_number: orderNumber, phone: customerPhone, tracking_url: trackingUrl },
+      })
+      await qc.invalidateQueries({ queryKey: ['admin', 'payment-reminders', payment.id] })
+      success('WhatsApp reminder opened')
+    } finally {
+      setReminding(false)
+    }
+  }
 
   function openWhatsAppApproved(phone: string, orderNumber: string, amount: number) {
     const e164 = normalizeLaoPhone(phone)
@@ -524,7 +581,54 @@ export function AdminPayments() {
               )}
             </div>
 
-            {(() => {
+            {/* Payment status notice: pending with no proof uploaded */}
+            {detailPayment.verification_status === 'PENDING' && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-red-800 dark:text-red-300">
+                    {detailPayment.receipt_image_url ? 'Payment Pending' : 'Payment Pending · No proof uploaded'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-red-700 dark:text-red-300">
+                    {detailPayment.receipt_image_url
+                      ? 'The buyer uploaded a payment proof. It is waiting for review.'
+                      : 'The buyer has not uploaded a payment proof for this order yet.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* WhatsApp payment reminder for pending orders */}
+            {detailPayment.verification_status === 'PENDING' && detailPayment.order?.customer_phone && (
+              <div className="rounded-xl border border-green-200 dark:border-green-500/30 bg-green-50 dark:bg-green-500/10 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-green-900 dark:text-green-300">Remind buyer to pay</p>
+                    <p className="mt-1 text-xs text-green-700 dark:text-green-300 break-all">
+                      Sends the tracking link {TRACKING_BASE_URL}?order={detailPayment.order.order_number}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    icon={<WhatsAppIcon className="h-4 w-4 text-green-500" />}
+                    loading={reminding}
+                    onClick={() => sendPaymentReminder(detailPayment)}
+                  >
+                    {reminderLog?.length ? 'Remind again' : 'WhatsApp Remind'}
+                  </Button>
+                </div>
+                {!!reminderLog?.length && (
+                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-300">
+                    <CheckCheck className="h-4 w-4" />
+                    Reminder sent {formatDateTime(reminderLog[0].created_at, language)}
+                    {reminderLog.length > 1 && <span className="text-green-600/70 dark:text-green-400/70">· {reminderLog.length} reminders total</span>}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* OCR needs a slip to read, so skip it until proof is uploaded */}
+            {detailPayment.receipt_image_url && (() => {
               const ai = receiptAiData(detailPayment)
               const matches = amountMatches(detailPayment, ai)
               const coverage = amountCoverage(detailPayment, ai)

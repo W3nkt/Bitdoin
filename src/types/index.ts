@@ -113,6 +113,7 @@ export interface Bookstore {
   whatsapp?: string
   messenger_url?: string
   bank_qr_code_url?: string
+  logo_url?: string
   address?: string
   notes?: string
   is_active: boolean
