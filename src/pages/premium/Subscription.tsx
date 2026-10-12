@@ -291,8 +291,8 @@ type MemberSectionId = 'home' | 'learn' | 'play' | 'mentor' | 'community' | 'pla
 const MEMBER_SECTIONS: Array<{ id: MemberSectionId; en: string; lo: string; icon: LucideIcon }> = [
   { id: 'home', en: 'Member home', lo: 'ໜ້າຫຼັກສະມາຊິກ', icon: Home },
   { id: 'learn', en: 'Learning Hub', lo: 'ສູນການຮຽນຮູ້', icon: GraduationCap },
-  { id: 'play', en: 'Play & Learn', lo: 'ຫຼິ້ນ ແລະ ຮຽນ', icon: Gamepad2 },
-  { id: 'mentor', en: 'Daily Mentor', lo: 'Mentor ປະຈຳວັນ', icon: Sparkles },
+  { id: 'play', en: 'Play & Learn', lo: 'ຮຽນຮູ້ຜ່ານການຫຼິ້ນ', icon: Gamepad2 },
+  { id: 'mentor', en: 'Daily Mentor', lo: 'ຜູ້ແນະນຳປະຈຳວັນ', icon: Sparkles },
   { id: 'community', en: 'Events & Communities', lo: 'ກິດຈະກຳ ແລະ ຊຸມຊົນ', icon: Users },
   { id: 'plans', en: 'Plans', lo: 'ແຜນສະມາຊິກ', icon: Crown },
   { id: 'membership', en: 'Membership & billing', lo: 'ສະມາຊິກ ແລະ ການຊຳລະ', icon: ReceiptText },
@@ -1521,7 +1521,7 @@ export function Subscription() {
                     </div>
                     <p>
                       {language === 'lo'
-                        ? 'ຫຼັງຈາກວັນທີນັ້ນ ສະມາຊິກຈະສິ້ນສຸດ ແລະ ຈະບໍ່ຕໍ່ອາຍຸອັດຕະໂນມັດ. ບໍ່ມີການຄືນເງິນສຳລັບເວລາທີ່ເຫຼືອ. ທ່ານສາມາດສະໝັກໃໝ່ໄດ້ທຸກເວລາ.'
+                        ? 'ຫຼັງຈາກວັນທີນັ້ນ ການເປັນສະມາຊິກຈະສິ້ນສຸດ ແລະ ຈະບໍ່ຕໍ່ອາຍຸອັດຕະໂນມັດ. ບໍ່ມີການຄືນເງິນສຳລັບເວລາທີ່ເຫຼືອ. ທ່ານສາມາດສະໝັກໃໝ່ໄດ້ທຸກເວລາ.'
                         : "After that date your membership ends and won't renew. Remaining time isn't refunded. You can subscribe again at any time."}
                     </p>
                   </div>
@@ -1978,7 +1978,7 @@ function MemberDashboard({
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
               {language === 'lo'
-                ? 'ບົດຮຽນທີ່ນຳໄປໃຊ້ໄດ້ຈິງດ້ານການເງິນ, AI, ພາສາອັງກິດ, ການເຮັດວຽກຢ່າງມີຜົນ, ອາຊີບ, ທຶນການສຶກສາ ແລະ ທຸລະກິດ—ພ້ອມທັງຄວາມທ້າທາຍປະຈຳອາທິດ ແລະ ນິໄສປະຈຳວັນ.'
+                ? 'ບົດຮຽນທີ່ນຳໄປໃຊ້ໄດ້ຈິງດ້ານການເງິນ, AI, ພາສາອັງກິດ, ການເຮັດວຽກຢ່າງມີປະສິດທິພາບ, ອາຊີບ, ທຶນການສຶກສາ ແລະ ທຸລະກິດ—ພ້ອມທັງຄວາມທ້າທາຍປະຈຳອາທິດ ແລະ ນິໄສປະຈຳວັນ.'
                 : 'Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.'}
             </p>
             <button
@@ -2032,7 +2032,7 @@ function MemberDashboard({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{language === 'lo' ? 'ມື້ນີ້' : 'Today'}</p>
-              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{language === 'lo' ? 'Mentor ປະຈຳວັນ' : 'Daily mentor'}</h2>
+              <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{language === 'lo' ? 'ຜູ້ແນະນຳປະຈຳວັນ' : 'Daily mentor'}</h2>
             </div>
             <div className="flex items-start gap-2 text-right">
               <button
@@ -2134,7 +2134,7 @@ function MemberDashboard({
                       ? (language === 'lo' ? 'ກຳລັງບັນທຶກ…' : 'Saving…')
                       : completionResponses[selectedItem.kind]
                         ? (language === 'lo' ? 'ອັບເດດຄຳຕອບ' : 'Update reply')
-                        : (language === 'lo' ? 'ສຳເລັດກິດຈະກຳ' : 'Complete item')}
+                        : (language === 'lo' ? 'ບັນທຶກວ່າເຮັດແລ້ວ' : 'Complete item')}
                   </button>
                 </div>
               </div>
@@ -2174,7 +2174,7 @@ function MemberDashboard({
                       <span className={cn('absolute -left-[29px] top-1.5 h-4 w-4 rounded-full border-4 border-white dark:border-gray-800', entry.completedCount === 3 ? 'bg-emerald-500' : 'bg-primary-500')} />
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{entry.content ? formatDate(entry.content.publish_date, language) : (language === 'lo' ? 'ກິດຈະກຳ Mentor' : 'Mentor activity')}</p>
+                          <p className="text-sm font-black text-slate-900 dark:text-slate-100">{entry.content ? formatDate(entry.content.publish_date, language) : (language === 'lo' ? 'ກິດຈະກຳຜູ້ແນະນຳ' : 'Mentor activity')}</p>
                           <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{entry.completedCount}/3 {language === 'lo' ? 'ສຳເລັດ' : 'completed'}</p>
                         </div>
                         {entry.completedCount === 3 && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />}

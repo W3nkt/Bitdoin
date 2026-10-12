@@ -83,7 +83,7 @@ function parseGuidance(content: unknown): Guidance | null {
 
 async function generateGuidance(profile: string, language: string, recent: string[]) {
   const languageInstruction = language.toLowerCase().startsWith('lo')
-    ? 'Write naturally in Lao.'
+    ? 'Write naturally in Lao, as a native Lao speaker in Laos would. Use Lao script only — never Thai script, Thai spelling, or Thai-only words. Keep English terms such as AI or Prompt when no common Lao word exists.'
     : 'Write in clear English.'
   const prompt = `Create today's personalized mentor content for one student.
 ${languageInstruction}

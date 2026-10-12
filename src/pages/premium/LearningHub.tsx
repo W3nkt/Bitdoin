@@ -346,7 +346,7 @@ export function LearningHub() {
           <div className="relative max-w-2xl">
             <div className="absolute -right-36 -top-44 h-80 w-80 rounded-full border-[52px] border-primary-700/30" />
             <p className="text-xs font-black uppercase tracking-[0.24em] text-primary-300">
-              {localize(language, 'Your next useful skill', 'ທັກສະທີ່ເປັນປະໂຫຍດຕໍ່ໄປ')}
+              {localize(language, 'Your next useful skill', 'ທັກສະທີ່ເປັນປະໂຫຍດຕໍ່ໄປຂອງທ່ານ')}
             </p>
             <h2 className="relative mt-4 max-w-xl text-4xl font-black leading-[1.04] sm:text-6xl">
               {localize(language, 'Learn something you can use today.', 'ຮຽນສິ່ງທີ່ນຳໄປໃຊ້ໄດ້ມື້ນີ້.')}
@@ -366,7 +366,7 @@ export function LearningHub() {
               {localize(
                 language,
                 'Free plan: 1 lesson unlocked per path. Subscribe to unlock a new lesson every active day.',
-                'ແຜນຟຣີ: ປົດລັອກ 1 ບົດຮຽນຕໍ່ເສັ້ນທາງ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ທຸກມື້ທີ່ໃຊ້ງານ.',
+                'ແຜນຟຣີ: ປົດລັອກໄດ້ 1 ບົດຮຽນຕໍ່ເສັ້ນທາງ. ສະໝັກສະມາຊິກ ເພື່ອປົດລັອກບົດຮຽນໃໝ່ທຸກມື້ທີ່ທ່ານເຂົ້າມາຮຽນ.',
               )}
             </p>
             <Link to="/academy/subscription#plans" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
@@ -403,7 +403,7 @@ export function LearningHub() {
               icon={Sparkles}
               accent="violet"
               title="AI Prompt Library"
-              description={localize(language, 'Useful AI prompts for daily life, work, study, and creative images.', 'ຄຳສັ່ງ AI ທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດປະຈຳວັນ, ວຽກ, ການຮຽນ ແລະ ຮູບພາບສ້າງສັນ.')}
+              description={localize(language, 'Useful AI prompts for daily life, work, study, and creative images.', 'Prompt AI ທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດປະຈຳວັນ, ການເຮັດວຽກ, ການຮຽນ ແລະ ການສ້າງຮູບພາບ.')}
               count={promptCatalogCount.data}
             />
             {(categories.data ?? []).map(category => {
@@ -525,7 +525,7 @@ export function PromptLibraryPage() {
 
   async function copyPrompt(prompt: LibraryPrompt) {
     await navigator.clipboard.writeText(localize(language, prompt.prompt_en, prompt.prompt_lo))
-    success(localize(language, 'Prompt copied.', 'ສຳເນົາຄຳສັ່ງແລ້ວ.'))
+    success(localize(language, 'Prompt copied.', 'ສຳເນົາ Prompt ແລ້ວ.'))
   }
 
   return (
@@ -533,8 +533,8 @@ export function PromptLibraryPage() {
       <main className="mx-auto max-w-5xl px-4 py-8 pb-24">
         <section className="rounded-[2rem] bg-violet-950 px-6 py-8 text-white sm:px-10">
           <Sparkles className="h-7 w-7 text-violet-300" />
-          <h2 className="mt-4 text-3xl font-black">{localize(language, 'Useful prompts for real life', 'ຄຳສັ່ງທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດຈິງ')}</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-violet-100">{localize(language, 'Discover tested templates for daily planning, study, work, writing, research, and creative images—with example outputs.', 'ຄົ້ນພົບແບບຄຳສັ່ງສຳລັບການວາງແຜນປະຈຳວັນ, ການຮຽນ, ວຽກ, ການຂຽນ, ການຄົ້ນຄວ້າ ແລະ ຮູບພາບສ້າງສັນ ພ້ອມຕົວຢ່າງຜົນລັບ.')}</p>
+          <h2 className="mt-4 text-3xl font-black">{localize(language, 'Useful prompts for real life', 'Prompt ທີ່ໃຊ້ໄດ້ແທ້ໃນຊີວິດຈິງ')}</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-violet-100">{localize(language, 'Discover tested templates for daily planning, study, work, writing, research, and creative images—with example outputs.', 'ແມ່ແບບ Prompt ທີ່ທົດສອບແລ້ວ ສຳລັບວາງແຜນປະຈຳວັນ, ການຮຽນ, ການເຮັດວຽກ, ການຂຽນ, ການຄົ້ນຄວ້າ ແລະ ການສ້າງຮູບພາບ — ພ້ອມຕົວຢ່າງຜົນທີ່ໄດ້.')}</p>
           <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-3">
             <div>
               <p className="text-2xl font-black sm:text-3xl">{availableCount}</p>
@@ -544,13 +544,13 @@ export function PromptLibraryPage() {
               <p className="text-2xl font-black sm:text-3xl">{unlockedCount}</p>
               <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-violet-300">{localize(language, 'Unlocked', 'ປົດລັອກແລ້ວ')}</p>
             </div>
-            <p className="pb-1 text-xs font-bold text-violet-300">{localize(language, '+5 more each active day', '+5 ຄຳສັ່ງເພີ່ມທຸກມື້ທີ່ໃຊ້ງານ')}</p>
+            <p className="pb-1 text-xs font-bold text-violet-300">{localize(language, '+5 more each active day', '+5 Prompt ທຸກມື້ທີ່ທ່ານເຂົ້າມາໃຊ້')}</p>
           </div>
         </section>
 
-        <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາຄຳສັ່ງ, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-500/30" />
+        <input value={search} onChange={event => setSearch(event.target.value)} placeholder={localize(language, 'Search prompts, categories, or tags…', 'ຄົ້ນຫາ Prompt, ໝວດໝູ່ ຫຼື ແທັກ…')} className="mt-6 w-full rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-5 py-3 text-sm font-semibold outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 dark:focus:ring-violet-500/30" />
         <a href={'https://youmind.com/gpt-image-2-prompts/explore?search=' + encodeURIComponent(search)} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs font-black text-violet-700 dark:text-violet-300 hover:underline">
-          {localize(language, search ? 'Search the full 16,000+ attributed image-prompt catalog ↗' : 'Browse the full 16,000+ attributed image-prompt catalog ↗', search ? 'ຄົ້ນຫາໃນຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗' : 'ເບິ່ງຄັງຄຳສັ່ງຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗')}
+          {localize(language, search ? 'Search the full 16,000+ attributed image-prompt catalog ↗' : 'Browse the full 16,000+ attributed image-prompt catalog ↗', search ? 'ຄົ້ນຫາໃນຄັງ Prompt ຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗' : 'ເບິ່ງຄັງ Prompt ຮູບພາບຫຼາຍກວ່າ 16,000 ລາຍການ ↗')}
         </a>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -578,13 +578,13 @@ export function PromptLibraryPage() {
 
         {prompts.isLoading ? <LoadingSpinner /> : prompts.isError ? (
           <div className="mt-6 rounded-3xl bg-red-50 dark:bg-red-500/10 p-6 text-center ring-1 ring-red-100 dark:ring-red-500/30">
-            <p className="font-black text-red-900 dark:text-red-300">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງຄຳສັ່ງໄດ້')}</p>
-            <p className="mt-2 text-sm text-red-700 dark:text-red-300">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຄັງຄຳສັ່ງ.')}</p>
+            <p className="font-black text-red-900 dark:text-red-300">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງ Prompt ໄດ້')}</p>
+            <p className="mt-2 text-sm text-red-700 dark:text-red-300">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຂອງຄັງ Prompt.')}</p>
             <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => void prompts.refetch()}>{localize(language, 'Retry', 'ລອງໃໝ່')}</Button>
           </div>
         ) : visible.length === 0 ? (
           <div className="mt-6 rounded-3xl bg-white dark:bg-gray-900 p-8 text-center shadow-sm ring-1 ring-slate-100 dark:ring-slate-800">
-            <p className="font-black">{localize(language, isFiltered ? 'No prompts match your filters.' : 'No prompts are available yet.', isFiltered ? 'ບໍ່ພົບຄຳສັ່ງທີ່ກົງກັບການກັ່ນຕອງ.' : 'ຍັງບໍ່ມີຄຳສັ່ງ.')}</p>
+            <p className="font-black">{localize(language, isFiltered ? 'No prompts match your filters.' : 'No prompts are available yet.', isFiltered ? 'ບໍ່ພົບ Prompt ທີ່ກົງກັບຕົວກັ່ນຕອງ.' : 'ຍັງບໍ່ມີ Prompt.')}</p>
             {isFiltered && <Button className="mt-4" type="button" size="sm" variant="outline" onClick={() => { setSearch(''); selectType('all') }}>{localize(language, 'Clear filters', 'ລ້າງການກັ່ນຕອງ')}</Button>}
           </div>
         ) : (
@@ -595,9 +595,9 @@ export function PromptLibraryPage() {
                 <div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black">{localize(language, prompt.title_en, prompt.title_lo)}</h3><span className="rounded-full bg-violet-50 dark:bg-violet-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-violet-700 dark:text-violet-300">{prompt.category}</span></div>
                 <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{localize(language, prompt.description_en, prompt.description_lo)}</p>
                 <pre className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{localize(language, prompt.prompt_en, prompt.prompt_lo)}</pre>
-                {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນລັບ')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
+                {(prompt.example_output_en || prompt.example_output_lo) && <div className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 p-4"><p className="text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">{localize(language, 'Example output', 'ຕົວຢ່າງຜົນທີ່ໄດ້')}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-emerald-950">{localize(language, prompt.example_output_en ?? '', prompt.example_output_lo ?? '')}</p></div>}
                 <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາຄຳສັ່ງ')}</Button>
+                  <Button type="button" size="sm" variant="outline" icon={<Copy className="h-4 w-4" />} onClick={() => void copyPrompt(prompt)}>{localize(language, 'Copy prompt', 'ສຳເນົາ Prompt')}</Button>
                   {prompt.source_name && <a href={prompt.source_url ?? undefined} target="_blank" rel="noreferrer" className="text-[10px] font-bold text-slate-400 hover:text-violet-700 dark:hover:text-violet-300">{prompt.source_name} · {prompt.source_license}</a>}
                 </div>
               </article>
@@ -651,7 +651,7 @@ export function LearningCategoryPage() {
     <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')} requireSubscription={false}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">{category && localize(language, category.description_en, category.description_lo)}</p>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{localize(language, 'One new lesson unlocks each day you’re active', 'ບົດຮຽນໃໝ່ໜຶ່ງບົດປົດລັອກທຸກມື້ທີ່ທ່ານໃຊ້ງານ')}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{localize(language, 'One new lesson unlocks each day you’re active', 'ປົດລັອກບົດຮຽນໃໝ່ 1 ບົດ ທຸກມື້ທີ່ທ່ານເຂົ້າມາຮຽນ')}</p>
         {tierLocked && (
           <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
@@ -703,7 +703,7 @@ export function LearningCategoryPage() {
                           </Link>
                         </>
                       ) : isNext ? (
-                        localize(language, 'Unlocks next time you’re active', 'ປົດລັອກເມື່ອທ່ານໃຊ້ງານຄັ້ງຕໍ່ໄປ')
+                        localize(language, 'Unlocks next time you’re active', 'ປົດລັອກເມື່ອທ່ານເຂົ້າມາຮຽນຄັ້ງຕໍ່ໄປ')
                       ) : (
                         localize(language, 'Unlocks after that', 'ປົດລັອກຫຼັງຈາກນັ້ນ')
                       )}
@@ -724,7 +724,7 @@ export function LearningCategoryPage() {
               <Link key={lesson.id} to={`/academy/lesson/${lesson.slug}`} className="group grid grid-cols-[42px_1fr_auto] items-start gap-4 border-b border-slate-200 dark:border-slate-700 py-6">{content}</Link>
             )
           })}
-          {!lessons.isLoading && ordered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ບົດຮຽນໃໝ່ກຳລັງກະກຽມ.')} />}
+          {!lessons.isLoading && ordered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ກຳລັງກະກຽມບົດຮຽນໃໝ່.')} />}
         </div>
       </main>
     </LearningShell>
@@ -869,7 +869,7 @@ export function LessonReaderPage() {
               {section.oneline && (
                 <div className="mt-6 border-l-2 border-primary-600 dark:border-primary-400 pl-4">
                   <p className="text-sm leading-7 text-slate-600 dark:text-slate-300">
-                    <span className="font-black text-slate-900 dark:text-slate-100">{localize(language, 'In one line. ', 'ໂດຍສະຫຼຸບ. ')}</span>
+                    <span className="font-black text-slate-900 dark:text-slate-100">{localize(language, 'In one line. ', 'ສະຫຼຸບສັ້ນໆ: ')}</span>
                     {section.oneline}
                   </p>
                 </div>
@@ -885,7 +885,7 @@ export function LessonReaderPage() {
         </section>
         {!!glossary.length && (
           <section className="py-10">
-            <h3 className="text-lg font-black">{localize(language, 'Terms worth remembering', 'ຄຳສັບຄວນຈື່')}</h3>
+            <h3 className="text-lg font-black">{localize(language, 'Terms worth remembering', 'ຄຳສັບທີ່ຄວນຈື່')}</h3>
             <div className="mt-5 space-y-3">
               {glossary.map(item => (
                 <div key={item.term} className="rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-100 dark:ring-slate-800">
@@ -926,7 +926,7 @@ export function LessonReaderPage() {
           </section>
         )}
         <Button fullWidth disabled={!allAnswered || Boolean(itemProgress?.completed_at)} loading={complete.isPending} onClick={() => complete.mutate()} icon={<Check className="h-4 w-4" />}>
-          {itemProgress?.completed_at ? localize(language, 'Lesson completed', 'ບົດຮຽນສຳເລັດ') : localize(language, 'Complete lesson', 'ສຳເລັດບົດຮຽນ')}
+          {itemProgress?.completed_at ? localize(language, 'Lesson completed', 'ບົດຮຽນສຳເລັດ') : localize(language, 'Complete lesson', 'ຮຽນບົດນີ້ສຳເລັດ')}
         </Button>
       </article>
     </LearningShell>
@@ -977,7 +977,7 @@ export function WeeklyChallengesPage() {
   const data = challenge.data
   const steps = data ? (language === 'lo' ? data.steps_lo : data.steps_en) : []
   return (
-    <LearningShell title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} eyebrow={localize(language, 'Build momentum', 'ສ້າງແຮງຂັບເຄື່ອນ')}>
+    <LearningShell title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} eyebrow={localize(language, 'Build momentum', 'ສ້າງແຮງສົ່ງ')}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         {challenge.isLoading ? <LoadingSpinner /> : data ? (
           <>
@@ -999,7 +999,7 @@ export function WeeklyChallengesPage() {
               })}
             </div>
           </>
-        ) : <Empty text={localize(language, 'The next challenge is being prepared.', 'ຄວາມທ້າທາຍຕໍ່ໄປກຳລັງກະກຽມ.')} />}
+        ) : <Empty text={localize(language, 'The next challenge is being prepared.', 'ກຳລັງກະກຽມຄວາມທ້າທາຍຕໍ່ໄປ.')} />}
       </main>
     </LearningShell>
   )
@@ -1072,7 +1072,7 @@ export function HabitTrackerPage() {
             className="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 px-4 py-3 text-sm outline-none focus:border-primary-500" />
           <Button disabled={!name.trim() || (habits.data?.length ?? 0) >= 5} loading={add.isPending} onClick={() => add.mutate()} icon={<Plus className="h-4 w-4" />}>{localize(language, 'Add', 'ເພີ່ມ')}</Button>
         </div>
-        <p className="mt-2 text-xs text-slate-400">{localize(language, 'Up to five active habits.', 'ສູງສຸດຫ້ານິໄສ.')}</p>
+        <p className="mt-2 text-xs text-slate-400">{localize(language, 'Up to five active habits.', 'ເພີ່ມໄດ້ສູງສຸດ 5 ນິໄສ.')}</p>
         <div className="mt-8 border-t border-slate-200 dark:border-slate-700">
           {(habits.data ?? []).map(habit => {
             const done = checkins.data?.some(item => item.habit_id === habit.id)
@@ -1086,7 +1086,7 @@ export function HabitTrackerPage() {
               </div>
             )
           })}
-          {!habits.isLoading && habits.data?.length === 0 && <Empty text={localize(language, 'Add one habit you can repeat tomorrow.', 'ເພີ່ມໜຶ່ງນິໄສທີ່ທ່ານເຮັດຊ້ຳໄດ້ມື້ອື່ນ.')} />}
+          {!habits.isLoading && habits.data?.length === 0 && <Empty text={localize(language, 'Add one habit you can repeat tomorrow.', 'ເພີ່ມນິໄສໜຶ່ງຢ່າງ ທີ່ທ່ານສາມາດເຮັດຊ້ຳໄດ້ໃນມື້ອື່ນ.')} />}
         </div>
       </main>
     </LearningShell>
@@ -1109,7 +1109,7 @@ export function LearningProgressPage() {
         <div className="grid grid-cols-3 border-y border-slate-200 dark:border-slate-700 py-7">
           <Metric value={String(completed.length)} label={localize(language, 'Completed', 'ສຳເລັດ')} />
           <Metric value={`${completed.length * 20}`} label="XP" />
-          <Metric value={`${average}%`} label={localize(language, 'Quiz average', 'ຄະແນນສະເລ່ຍ')} />
+          <Metric value={`${average}%`} label={localize(language, 'Quiz average', 'ຄະແນນແບບທົດສອບສະເລ່ຍ')} />
         </div>
         <h2 className="mt-10 text-xl font-black">{localize(language, 'Learning paths', 'ເສັ້ນທາງການຮຽນ')}</h2>
         <div className="mt-5 space-y-6">

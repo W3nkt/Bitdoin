@@ -45,23 +45,23 @@ export function AcademyLanding() {
 
       <section className="border-y border-white/10 bg-white/[0.03] px-4 py-16 sm:px-6">
         <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-3">
-          <Feature icon={Brain} title={lo ? 'AI Coach ສ່ວນຕົວ' : 'Personal AI Coach'} text={lo ? 'ຝຶກຮຽນ, ອາຊີບ, AI ແລະ ພາສາອັງກິດ.' : 'Get focused support for study, careers, AI, and English.'} />
-          <Feature icon={Target} title={lo ? 'ຄວາມທ້າທາຍທີ່ຊັດເຈນ' : 'Clear weekly challenges'} text={lo ? 'ປ່ຽນຄວາມຮູ້ເປັນການກະທຳ.' : 'Turn useful knowledge into consistent action.'} />
-          <Feature icon={ListChecks} title={lo ? 'ນິໄສທີ່ຕິດຕາມໄດ້' : 'Habits you can track'} text={lo ? 'ສ້າງຄວາມຄືບໜ້າເທື່ອລະມື້.' : 'Build momentum one completed day at a time.'} />
+          <Feature icon={Brain} title={lo ? 'AI Coach ສ່ວນຕົວ' : 'Personal AI Coach'} text={lo ? 'ຊ່ວຍເລື່ອງການຮຽນ, ອາຊີບ, AI ແລະ ພາສາອັງກິດ.' : 'Get focused support for study, careers, AI, and English.'} />
+          <Feature icon={Target} title={lo ? 'ຄວາມທ້າທາຍປະຈຳອາທິດທີ່ຊັດເຈນ' : 'Clear weekly challenges'} text={lo ? 'ປ່ຽນຄວາມຮູ້ເປັນການກະທຳ.' : 'Turn useful knowledge into consistent action.'} />
+          <Feature icon={ListChecks} title={lo ? 'ນິໄສທີ່ຕິດຕາມໄດ້' : 'Habits you can track'} text={lo ? 'ກ້າວໜ້າຂຶ້ນເທື່ອລະມື້.' : 'Build momentum one completed day at a time.'} />
         </div>
       </section>
 
       <section className="px-4 py-20 sm:px-6">
         <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">{lo ? 'ໜຶ່ງການຮຽນທີ່ສົມບູນ' : 'One complete learning rhythm'}</p>
-            <h2 className="mt-4 text-4xl font-black">{lo ? 'ຮຽນ. ຝຶກ. ກັບມາເຮັດຕໍ່.' : 'Learn. Practice. Return stronger.'}</h2>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">{lo ? 'ຈັງຫວະການຮຽນທີ່ຄົບວົງຈອນ' : 'One complete learning rhythm'}</p>
+            <h2 className="mt-4 text-4xl font-black">{lo ? 'ຮຽນ. ຝຶກ. ເກັ່ງຂຶ້ນທຸກມື້.' : 'Learn. Practice. Return stronger.'}</h2>
           </div>
           <div className="space-y-4">
             {[
               [Sparkles, lo ? 'ເລືອກຈາກ 8 ເສັ້ນທາງການຮຽນ' : 'Choose from eight practical learning paths'],
-              [Check, lo ? 'ສຳເລັດບົດຮຽນ ແລະ ການທົດສອບ' : 'Complete short lessons and knowledge checks'],
-              [Trophy, lo ? 'ສ້າງ XP, streak ແລະ ຄວາມຄືບໜ້າ' : 'Build XP, streaks, and visible progress'],
+              [Check, lo ? 'ຮຽນບົດສັ້ນໆ ແລະ ເຮັດແບບທົດສອບ' : 'Complete short lessons and knowledge checks'],
+              [Trophy, lo ? 'ສະສົມ XP, ມື້ຮຽນຕໍ່ເນື່ອງ ແລະ ເຫັນຄວາມຄືບໜ້າ' : 'Build XP, streaks, and visible progress'],
             ].map(([Icon, text]) => (
               <div key={String(text)} className="flex items-center gap-4 border-b border-white/10 pb-4"><span className="grid h-11 w-11 place-items-center rounded-full bg-amber-400/10 text-amber-300"><Icon className="h-5 w-5" /></span><p className="font-bold text-slate-200">{String(text)}</p></div>
             ))}

@@ -44,7 +44,7 @@ function reminderText(lao: boolean, name: string, mentor: { quote: string; chall
     : `🌱 <b>Hi ${escapeHtml(name)}!</b> It's time for today's learning.`
   const body = mentor
     ? `\n\n💬 <i>${escapeHtml(mentor.quote)}</i>\n\n🎯 ${lao ? 'ຄວາມທ້າທາຍມື້ນີ້' : "Today's challenge"}: ${escapeHtml(mentor.challenge)}`
-    : `\n\n${lao ? 'ໃຊ້ເວລາພຽງ 10 ນາທີ ເພື່ອຮຽນບົດຮຽນໃໝ່ ແລະ ຮັກສາ streak ຂອງທ່ານ 🔥' : 'Spend just 10 minutes on a new lesson and keep your streak going 🔥'}`
+    : `\n\n${lao ? 'ໃຊ້ເວລາພຽງ 10 ນາທີ ເພື່ອຮຽນບົດໃໝ່ ແລະ ຮັກສາການຮຽນຕໍ່ເນື່ອງຂອງທ່ານ 🔥' : 'Spend just 10 minutes on a new lesson and keep your streak going 🔥'}`
   const footer = lao ? '\n\nພິມ /stop ເພື່ອຢຸດການແຈ້ງເຕືອນ.' : '\n\nSend /stop to pause reminders.'
   return greeting + body + footer
 }

@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
+import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, wordMatchIssues } from '../_shared/lao-content-standard.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -126,13 +127,19 @@ function isNonEmptyString(value: unknown, maxLength: number) {
 function isLocalized(value: unknown, maxLength: number): value is Localized {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Record<string, unknown>
-  return isNonEmptyString(candidate.en, maxLength) && isNonEmptyString(candidate.lo, maxLength)
+  return isNonEmptyString(candidate.en, maxLength)
+    && isNonEmptyString(candidate.lo, maxLength)
+    && !/[\u0E00-\u0E7F]/.test(candidate.lo as string)
 }
 
 const LATIN_WORD_PATTERN = /^[A-Za-z][A-Za-z'’.\- ]{0,39}$/
 const LAO_SCRIPT_PATTERN = /[຀-໿]/
 
+// Problems found by the Lao content standard in the last rejected batch, fed back into the retry prompt.
+let lastIssues: string[] = []
+
 function validateBrainSprintItems(value: unknown): BrainSprintItem[] | null {
+  lastIssues = []
   if (!Array.isArray(value) || value.length !== POOL_SIZE.brain_sprint) return null
   const ids = new Set<string>()
   const items: BrainSprintItem[] = []
@@ -157,10 +164,12 @@ function validateBrainSprintItems(value: unknown): BrainSprintItem[] | null {
     })
   }
 
-  return items
+  lastIssues = [...collectLaoIssues(items), ...items.flatMap((item, index) => brainSprintIssues(item, `items[${index}]`))]
+  return lastIssues.length ? null : items
 }
 
 function validateWordMatchItems(value: unknown): WordMatchItem[] | null {
+  lastIssues = []
   if (!Array.isArray(value) || value.length !== POOL_SIZE.word_match) return null
   const ids = new Set<string>()
   const items: WordMatchItem[] = []
@@ -170,7 +179,7 @@ function validateWordMatchItems(value: unknown): WordMatchItem[] | null {
     const candidate = raw as Record<string, unknown>
     if (!isNonEmptyString(candidate.id, 80) || ids.has(candidate.id as string)) return null
     if (!isNonEmptyString(candidate.english, 40) || !LATIN_WORD_PATTERN.test((candidate.english as string).trim())) return null
-    if (!isNonEmptyString(candidate.lao, 60) || !LAO_SCRIPT_PATTERN.test(candidate.lao as string)) return null
+    if (!isNonEmptyString(candidate.lao, 60) || !LAO_SCRIPT_PATTERN.test(candidate.lao as string) || /[\u0E00-\u0E7F]/.test(candidate.lao as string)) return null
 
     ids.add(candidate.id as string)
     items.push({
@@ -180,13 +189,15 @@ function validateWordMatchItems(value: unknown): WordMatchItem[] | null {
     })
   }
 
-  return items
+  lastIssues = [...collectLaoIssues(items), ...wordMatchIssues(items)]
+  return lastIssues.length ? null : items
 }
 
 function brainSprintPrompt(recent: string[]) {
   return `Create a pool of exactly ${POOL_SIZE.brain_sprint} short multiple-choice quiz questions for secondary/university students in Laos learning English and general study skills.
 Cover a healthy mix of categories across the set: percentage/word-problem math, English grammar and vocabulary, LAK currency financial literacy, study/exam habits, media literacy, and general knowledge. Keep each question solvable in under 20 seconds.
 Provide every text field in BOTH English and Lao (natural, fluent Lao — not a literal word-for-word translation).
+${LAO_CONTENT_RULES}
 Return JSON only, with exactly one key "items" holding an array of exactly ${POOL_SIZE.brain_sprint} objects, each shaped exactly as:
 { "id": "kebab-case-unique-slug", "prompt": { "en": "...", "lo": "..." }, "options": [{ "en": "...", "lo": "..." }, ... exactly 4 entries], "answerIndex": 0-3, "explanation": { "en": "...", "lo": "..." } }
 "answerIndex" is the zero-based index into "options" of the correct choice. Every "id" must be unique within the array. Do not use Markdown or add any keys beyond what is specified.
@@ -198,7 +209,8 @@ ${recent.length ? recent.join('\n') : '(none)'}`
 function wordMatchPrompt(recent: string[]) {
   return `Create a pool of exactly ${POOL_SIZE.word_match} English-to-Lao vocabulary pairs for secondary/university students in Laos, covering practical academic, study, and everyday-life words.
 The "english" field must always be a real English word or short phrase written only in Latin script — never Lao script, never translated, never swapped with the Lao side.
-The "lao" field must always be its natural Lao translation, written only in Lao script.
+The "lao" field must always be its natural Lao translation, written only in Lao script with no Thai script or Thai wording.
+${LAO_CONTENT_RULES}
 Return JSON only, with exactly one key "items" holding an array of exactly ${POOL_SIZE.word_match} objects, each shaped exactly as:
 { "id": "kebab-case-unique-slug", "english": "Word", "lao": "ຄຳສັບ" }
 Every "id" and every "english" value must be unique within the array. Do not use Markdown or add any keys beyond what is specified.
@@ -241,8 +253,11 @@ async function generatePool(activityType: ActivityType, recent: string[]) {
   const userPrompt = activityType === 'brain_sprint' ? brainSprintPrompt(recent) : wordMatchPrompt(recent)
   const validate = activityType === 'brain_sprint' ? validateBrainSprintItems : validateWordMatchItems
 
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    const raw = await callQwen(systemPrompt, userPrompt, attempt === 1 ? 0.9 : 0.5)
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const feedback = lastIssues.length
+      ? `\n\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems and return the full set again:\n${lastIssues.slice(0, 20).join('\n')}`
+      : ''
+    const raw = await callQwen(systemPrompt, userPrompt + feedback, attempt === 1 ? 0.9 : 0.5)
     const items = validate(raw)
     if (items) return items
   }

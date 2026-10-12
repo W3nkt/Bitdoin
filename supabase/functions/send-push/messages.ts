@@ -72,7 +72,7 @@ interface Template {
 const ACADEMY_TEMPLATES: Template[] = [
   {
     url: '/academy/learn',
-    lo: ['🧠 1 ແນວຄິດທີ່ປ່ຽນອາທິດຂອງທ່ານໄດ້', 'ສະບາຍດີ {name}, ບົດຮຽນ 5 ນາທີຂອງມື້ນີ້ພ້ອມແລ້ວ. ກົດເບິ່ງເລີຍ.'],
+    lo: ['🧠 ແນວຄິດດຽວ ທີ່ອາດປ່ຽນອາທິດຂອງທ່ານ', 'ສະບາຍດີ {name}, ບົດຮຽນ 5 ນາທີຂອງມື້ນີ້ພ້ອມແລ້ວ. ກົດເບິ່ງເລີຍ.'],
     en: ['🧠 1 idea that can change your week', "Hi {name}, today's 5-minute lesson is ready. Tap to see it."],
   },
   {
@@ -82,7 +82,7 @@ const ACADEMY_TEMPLATES: Template[] = [
   },
   {
     url: '/academy/home',
-    lo: ['🔥 ຮັກສາ streak ຂອງທ່ານໄວ້', '{name}, ຮຽນບົດສັ້ນໆມື້ນີ້ ເພື່ອໃຫ້ຄວາມຄືບໜ້າຂອງທ່ານບໍ່ຢຸດ.'],
+    lo: ['🔥 ຮັກສາການຮຽນຕໍ່ເນື່ອງຂອງທ່ານໄວ້', '{name}, ຮຽນບົດສັ້ນໆມື້ນີ້ ເພື່ອໃຫ້ຄວາມຄືບໜ້າຂອງທ່ານບໍ່ຢຸດ.'],
     en: ['🔥 Keep your streak going', '{name}, one quick lesson today keeps your progress moving.'],
   },
   {
@@ -122,12 +122,12 @@ const ACADEMY_TEMPLATES: Template[] = [
   },
   {
     url: '/academy/prompts',
-    lo: ['🤖 ເຮັດວຽກສະຫຼາດຂຶ້ນດ້ວຍ AI', 'ລອງໃຊ້ prompt ສຳເລັດຮູບ: ສຳເນົາ, ວາງ, ສຳເລັດ.'],
+    lo: ['🤖 ເຮັດວຽກສະຫຼາດຂຶ້ນດ້ວຍ AI', 'ລອງໃຊ້ Prompt ສຳເລັດຮູບ: ສຳເນົາ, ວາງ, ແລ້ວໃຊ້ໄດ້ເລີຍ.'],
     en: ['🤖 Work smarter with AI', 'Try a ready-made prompt: copy, paste, done.'],
   },
   {
     url: '/academy/home',
-    lo: ['👋 ພວກເຮົາຮັກສາບ່ອນຂອງທ່ານໄວ້', 'ສືບຕໍ່ຈາກບ່ອນທີ່ຢຸດໄວ້, {name}. ບໍ່ຕ້ອງຟ້າວ, ພຽງບົດດຽວກໍພໍ.'],
+    lo: ['👋 ບົດຮຽນຂອງທ່ານຍັງລໍຖ້າຢູ່', 'ສືບຕໍ່ຈາກບ່ອນທີ່ຢຸດໄວ້, {name}. ບໍ່ຕ້ອງຟ້າວ, ພຽງບົດດຽວກໍພໍ.'],
     en: ['👋 We saved your spot', 'Pick up where you left off, {name}. No pressure, just one lesson.'],
   },
   {
@@ -142,7 +142,7 @@ const ACADEMY_TEMPLATES: Template[] = [
   },
   {
     url: '/academy/home',
-    lo: ['🌱 ຄົນທີ່ກ້າວໜ້າ ຮຽນທຸກມື້', 'ຮັກສານິໄສໄວ້ນະ {name}. ໃຊ້ເວລາໜ້ອຍກວ່າພັກດື່ມກາເຟ.'],
+    lo: ['🌱 ຄົນທີ່ກ້າວໜ້າ ຮຽນທຸກມື້', 'ຮັກສານິໄສນີ້ໄວ້ເດີ້ {name}. ໃຊ້ເວລາໜ້ອຍກວ່າການພັກດື່ມກາເຟອີກ.'],
     en: ['🌱 People who grow show up daily', 'Keep the habit alive, {name}. It takes less than a coffee break.'],
   },
   {

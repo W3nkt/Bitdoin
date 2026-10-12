@@ -229,7 +229,7 @@ serve(async req => {
     ])
     const lao = preferredLanguage === 'lo' || containsLao(message)
     const languageInstruction = preferredLanguage === 'lo'
-      ? 'Reply in natural Lao by default, including when the user starts an activity from an English prompt. Use English only when the learner explicitly asks to practise English.'
+      ? 'Reply in natural Lao by default, as a native Lao speaker in Laos would, including when the user starts an activity from an English prompt. Use Lao script only — never Thai script, Thai spelling, or Thai-only words. Use English only when the learner explicitly asks to practise English.'
       : 'Reply in English by default unless the learner explicitly asks for Lao.'
     const messages = [
       {

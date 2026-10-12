@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
+import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, wordMatchIssues } from '../_shared/lao-content-standard.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -186,18 +187,29 @@ function requireArray(result: Record<string, unknown>, key: string, count: numbe
   return value as Record<string, unknown>[]
 }
 
-const bilingualRules = `Every learner-facing text field must have natural English and natural Lao. Lao must use Lao script, not transliteration. Avoid invented facts, unsafe advice, cheating, politics, gambling, and financial promises. Content must be useful for secondary-school and university-age learners in Laos.`
+// Throws (so the queue retries the step) when generated content breaks the Lao content standard.
+function enforceLaoStandard(value: unknown, extraIssues: string[] = []) {
+  const issues = [...collectLaoIssues(value), ...extraIssues]
+  if (issues.length) throw new Error(`Lao content standard failed: ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
+}
+
+const bilingualRules = `Every learner-facing text field must have natural English and natural Lao. Lao must use Lao script, not transliteration, and must not contain Thai script or Thai wording. For English grammar or vocabulary questions, keep the English target words and example sentences unchanged in the Lao version whenever translating them would defeat the learning objective; translate the instructions and explanations into natural Lao. Avoid invented facts, unsafe advice, cheating, politics, gambling, and financial promises. Content must be useful for secondary-school and university-age learners in Laos.
+${LAO_CONTENT_RULES}`
 
 async function generateBrainSprint(batchIndex: number) {
   const result = await askQwen(`Prepare part ${batchIndex + 1} of ${BRAIN_SPRINT_BATCHES} of a weekly Brain Sprint. ${bilingualRules}
 Return {"items":[${BRAIN_SPRINT_BATCH_SIZE} items]}. Each item: {"id":"unique-kebab-slug","prompt":{"en":"","lo":""},"options":[exactly 4 {"en":"","lo":""}],"answerIndex":0,"explanation":{"en":"one short sentence","lo":"one short sentence"}}. Mix quick math, English, study skills, digital literacy, Lao-context general knowledge, and practical money skills. Keep every option under 8 words. Be concise.`, { maxTokens: 3000, model: FAST_MODEL })
-  return requireArray(result, 'items', BRAIN_SPRINT_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
+  const items = requireArray(result, 'items', BRAIN_SPRINT_BATCH_SIZE)
+  enforceLaoStandard(items, items.flatMap((item, index) => brainSprintIssues(item as unknown as Parameters<typeof brainSprintIssues>[0], `items[${index}]`)))
+  return items.map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
 async function generateWordMatch(batchIndex: number) {
   const result = await askQwen(`Prepare part ${batchIndex + 1} of ${WORD_MATCH_BATCHES} of a weekly Word Match set. ${bilingualRules}
 Return {"items":[${WORD_MATCH_BATCH_SIZE} items]}. Each item: {"id":"unique-kebab-slug","english":"real English word or short phrase","lao":"natural Lao translation"}. English must use Latin script, Lao must use Lao script. Be concise.`, { maxTokens: 1500, model: FAST_MODEL })
-  return requireArray(result, 'items', WORD_MATCH_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
+  const items = requireArray(result, 'items', WORD_MATCH_BATCH_SIZE)
+  enforceLaoStandard(items, wordMatchIssues(items as unknown as Parameters<typeof wordMatchIssues>[0]))
+  return items.map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
 async function generateCoreStage(stage: 'daily_mentor' | 'roleplay_missions' | 'prompt_library', weekStart: string) {
@@ -207,7 +219,9 @@ async function generateCoreStage(stage: 'daily_mentor' | 'roleplay_missions' | '
     prompt_library: `Return {"items":[7 items]} shaped {"slug":"unique-kebab-slug","category":"study|research|writing|english|career|coding|productivity","title_en":"","title_lo":"","description_en":"","description_lo":"","prompt_en":"reusable copy-ready prompt with [placeholders]","prompt_lo":"natural Lao equivalent"}.`,
   }
   const result = await askQwen(`Prepare ${stage.replace(/_/g, ' ')} for Monday ${weekStart} through Sunday ${addDays(weekStart, 6)}. ${bilingualRules}\n${instructions[stage]}`, { maxTokens: 7000 })
-  return requireArray(result, 'items', 7)
+  const items = requireArray(result, 'items', 7)
+  enforceLaoStandard(items)
+  return items
 }
 
 type Category = { id: string; slug: string; name_en: string; name_lo: string }
@@ -233,6 +247,7 @@ async function generateLesson(category: Category, weekStart: string, research?: 
     : 'Research the topic first and prefer durable, verifiable ideas.'
   const result = await askQwen(`Create one new original Learning Hub lesson for category "${category.name_en}" (${category.name_lo}) for the week of ${weekStart}. ${brief} Do not summarize copyrighted books unless the category specifically requires it; even then write an original educational synthesis. ${bilingualRules}
 Return {"slug":"${weekStart}-${category.slug}-unique-topic","title_en":"","title_lo":"","summary_en":"one sentence","summary_lo":"one sentence","content_en":[3 concise objects {"heading":"","body":""}],"content_lo":[3 matching natural-Lao objects],"key_takeaways_en":[3 short strings],"key_takeaways_lo":[3 short strings],"difficulty":"BEGINNER|INTERMEDIATE|ADVANCED","estimated_minutes":5-12,"source_url":"a real authoritative URL used for research or null"}. Do not use Markdown.`, { maxTokens: 3500, enableSearch: !research?.topic })
+  enforceLaoStandard(result)
   const sourceUrl = research?.source_url ?? (typeof result.source_url === 'string' ? result.source_url : null)
   return { ...result, source_url: sourceUrl, category_id: category.id }
 }

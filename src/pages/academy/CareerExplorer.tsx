@@ -59,7 +59,7 @@ const copy = {
     majors: 'ສາຂາຮຽນທີ່ພາໄປສູ່ອາຊີບນີ້', skills: 'ທັກສະທີ່ນາຍຈ້າງຕ້ອງການ',
     certificates: 'ບ່ອນຮຽນ ແລະ ຮັບໃບຢັ້ງຢືນທັກສະ', pathway: 'ເສັ້ນທາງຈາກການຮຽນສູ່ອາຊີບ',
     salary: 'ຊ່ວງເງິນເດືອນໂດຍປະມານ', organizations: 'ອົງກອນທີ່ຄວນສຳຫຼວດ',
-    openings: 'ຄົ້ນຫາຕຳແໜ່ງວ່າງປັດຈຸບັນ', signal: 'ສັນຍານຕະຫຼາດວຽກ', assess: 'ປະເມີນອາຊີບນີ້ກັບ AI Coach',
+    openings: 'ຄົ້ນຫາຕຳແໜ່ງງານທີ່ເປີດຮັບຢູ່', signal: 'ສັນຍານຕະຫຼາດວຽກ', assess: 'ປະເມີນອາຊີບນີ້ກັບ AI Coach',
     salaryNote: 'ຕົວເລກລວມໂດຍປະມານສຳລັບລະດັບເລີ່ມຕົ້ນຫາກາງ. ເງິນເດືອນຈິງຂຶ້ນກັບປະເທດ, ປະສົບການ ແລະ ອົງກອນ.',
     certificateNote: 'ກວດສອບພາສາ, ເງື່ອນໄຂ, ການປະເມີນ ແລະ ຄ່າຮຽນກ່ອນລົງທະບຽນ. ໃບຢັ້ງຢືນບໍ່ສາມາດທົດແທນປະສົບການຈິງ.',
     opportunities: 'ໂອກາດວຽກຕົວຢ່າງໃນຕະຫຼາດທີ່ເລືອກ',
@@ -159,10 +159,10 @@ export function CareerExplorer() {
               <Sparkles className="h-4 w-4" /> {lo ? 'ເລືອກອະນາຄົດດ້ວຍຂໍ້ມູນ' : 'Choose with evidence'}
             </p>
             <h2 className="mt-4 max-w-2xl text-4xl font-black leading-[1.02] sm:text-6xl">
-              {lo ? 'ຈາກວິຊາຮຽນ ໄປສູ່ວຽກທີ່ເໝາະກັບເຈົ້າ.' : 'See where a major can take you.'}
+              {lo ? 'ຈາກວິຊາຮຽນ ໄປສູ່ວຽກທີ່ເໝາະກັບທ່ານ.' : 'See where a major can take you.'}
             </h2>
             <p className="mt-5 max-w-xl text-sm leading-6 text-emerald-50/75 sm:text-base">
-              {lo ? 'ຄົ້ນຫາອາຊີບ, ວິຊາຮຽນ, ທັກສະ ແລະ ເສັ້ນທາງຈາກໂຮງຮຽນໄປສູ່ວຽກທຳ.' : 'Compare careers, study options, practical skills, and the steps from school to your first role.'}
+              {lo ? 'ຄົ້ນຫາອາຊີບ, ວິຊາຮຽນ, ທັກສະ ແລະ ເສັ້ນທາງຈາກໂຮງຮຽນໄປສູ່ວຽກທຳອິດ.' : 'Compare careers, study options, practical skills, and the steps from school to your first role.'}
             </p>
           </div>
         </section>

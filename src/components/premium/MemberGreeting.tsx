@@ -89,7 +89,7 @@ export function MemberGreeting({
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-black text-white">{lo ? 'ຕັ້ງເປົ້າໝາຍຂອງທ່ານ' : 'Set your goal'}</span>
             <span className="mt-0.5 block text-xs font-semibold text-primary-200">
-              {lo ? 'ບອກພວກເຮົາວ່າທ່ານຢາກໄປເຖິງໃສ ແລ້ວ Mentor ຈະຊ່ວຍທ່ານທຸກມື້.' : "Tell us what you're working toward and your mentor will tailor every day to it."}
+              {lo ? 'ບອກພວກເຮົາວ່າທ່ານຢາກໄປໃຫ້ເຖິງໃສ ແລ້ວຜູ້ແນະນຳຈະຊ່ວຍທ່ານທຸກມື້.' : "Tell us what you're working toward and your mentor will tailor every day to it."}
             </span>
           </span>
           <ArrowRight className="h-4 w-4 flex-shrink-0 text-amber-300 transition group-hover:translate-x-1" />
@@ -110,12 +110,12 @@ export function TodayNudges({
 }) {
   const lo = language === 'lo'
   const mentorText = mentorCompleted >= 3
-    ? (lo ? 'Mentor ມື້ນີ້ສຳເລັດແລ້ວ. ເກັ່ງຫຼາຍ!' : "Today's mentor is done. Brilliant work!")
+    ? (lo ? 'ກິດຈະກຳຜູ້ແນະນຳມື້ນີ້ສຳເລັດແລ້ວ. ເກັ່ງຫຼາຍ!' : "Today's mentor is done. Brilliant work!")
     : mentorCompleted > 0
-      ? (lo ? `ເຮັດ Mentor ແລ້ວ ${mentorCompleted}/3. ອີກໜ້ອຍດຽວ!` : `${mentorCompleted} of 3 mentor tasks done. Almost there!`)
+      ? (lo ? `ເຮັດກິດຈະກຳຜູ້ແນະນຳແລ້ວ ${mentorCompleted}/3. ອີກໜ້ອຍດຽວ!` : `${mentorCompleted} of 3 mentor tasks done. Almost there!`)
       : streak > 1
-        ? (lo ? `ຮັກສາສະຖິຕິ ${streak} ມື້ຂອງທ່ານໄວ້ — ເລີ່ມ Mentor ມື້ນີ້.` : `Keep your ${streak}-day streak alive. Start today's mentor.`)
-        : (lo ? 'Mentor ປະຈຳວັນລໍທ່ານຢູ່. 3 ຄຳຕອບສັ້ນໆ.' : 'Your daily mentor is waiting. Just 3 quick replies.')
+        ? (lo ? `ຮັກສາການຮຽນຕໍ່ເນື່ອງ ${streak} ມື້ຂອງທ່ານໄວ້ — ເລີ່ມກິດຈະກຳຜູ້ແນະນຳມື້ນີ້.` : `Keep your ${streak}-day streak alive. Start today's mentor.`)
+        : (lo ? 'ຜູ້ແນະນຳປະຈຳວັນລໍຖ້າທ່ານຢູ່. ຕອບສັ້ນໆພຽງ 3 ຂໍ້.' : 'Your daily mentor is waiting. Just 3 quick replies.')
 
   return (
     <a

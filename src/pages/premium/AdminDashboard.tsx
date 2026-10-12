@@ -245,7 +245,7 @@ function dailyReminderMessage(subscription: PremiumSubscription, mentor: Pick<Da
     : `🌱 *Hi ${name}!* It's time for today's learning.`
   const body = mentor
     ? `\n\n💬 _${mentor.quote}_\n\n🎯 ${lao ? 'ຄວາມທ້າທາຍມື້ນີ້' : "Today's challenge"}: ${mentor.challenge}`
-    : `\n\n${lao ? 'ໃຊ້ເວລາພຽງ 10 ນາທີ ເພື່ອຮຽນບົດຮຽນໃໝ່ ແລະ ຮັກສາ streak ຂອງທ່ານ 🔥' : 'Spend just 10 minutes on a new lesson and keep your streak going 🔥'}`
+    : `\n\n${lao ? 'ໃຊ້ເວລາພຽງ 10 ນາທີ ເພື່ອຮຽນບົດໃໝ່ ແລະ ຮັກສາການຮຽນຕໍ່ເນື່ອງຂອງທ່ານ 🔥' : 'Spend just 10 minutes on a new lesson and keep your streak going 🔥'}`
   const footer = `\n\n📚 ${lao ? 'ເປີດ Academy' : 'Open Academy'}: ${window.location.origin}/academy/home`
   return greeting + body + footer
 }

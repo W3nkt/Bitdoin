@@ -32,7 +32,7 @@ const ROLEPLAY_PROMPTS: Record<string, Record<'en' | 'lo', string>> = {
   },
   'english-cafe': {
     en: 'Start a friendly English café role-play with me. Be the server, ask one question at a time, wait for my reply, and gently correct important mistakes.',
-    lo: 'ເລີ່ມຈຳລອງສະຖານະການໃນຮ້ານກາເຟພາສາອັງກິດກັບຂ້ອຍແບບເປັນມິດ. ໃຫ້ທ່ານເປັນພະນັກງານເສີບ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ, ລໍຖ້າຄຳຕອບຂອງຂ້ອຍ ແລະ ຊ່ວຍແກ້ຂໍ້ຜິດພາດສຳຄັນຢ່າງສຸພາບ.',
+    lo: 'ເລີ່ມຈຳລອງສະຖານະການໃນຮ້ານກາເຟພາສາອັງກິດກັບຂ້ອຍແບບເປັນມິດ. ໃຫ້ເຈົ້າສວມບົດເປັນພະນັກງານເສີບ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ, ລໍຖ້າຄຳຕອບຂອງຂ້ອຍ ແລະ ຊ່ວຍແກ້ຂໍ້ຜິດພາດສຳຄັນຢ່າງສຸພາບ.',
   },
   'class-presentation': {
     en: 'Help me practise a short class presentation in English. Ask me to present one small section at a time, then give concise, encouraging feedback.',
@@ -40,7 +40,7 @@ const ROLEPLAY_PROMPTS: Record<string, Record<'en' | 'lo', string>> = {
   },
   'ask-teacher-help': {
     en: 'Role-play as my teacher while I practise asking for help with a lesson. Respond naturally, ask one question at a time, and help me make my request clear and polite.',
-    lo: 'ຈຳລອງບົດບາດເປັນຄູຂອງຂ້ອຍ ໃນຂະນະທີ່ຂ້ອຍຝຶກຂໍຄວາມຊ່ວຍເຫຼືອກ່ຽວກັບບົດຮຽນ. ຕອບຢ່າງເປັນທຳມະຊາດ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ ແລະ ຊ່ວຍໃຫ້ຄຳຂໍຂອງຂ້ອຍຊັດເຈນ ແລະ ສຸພາບ.',
+    lo: 'ສວມບົດເປັນຄູຂອງຂ້ອຍ ໃນຂະນະທີ່ຂ້ອຍຝຶກຂໍຄວາມຊ່ວຍເຫຼືອກ່ຽວກັບບົດຮຽນ. ຕອບຢ່າງເປັນທຳມະຊາດ, ຖາມເທື່ອລະໜຶ່ງຄຳຖາມ ແລະ ຊ່ວຍໃຫ້ຄຳຂໍຂອງຂ້ອຍຊັດເຈນ ແລະ ສຸພາບ.',
   },
   'scholarship-interview': {
     en: 'Start a supportive scholarship interview role-play with me. Ask one realistic question at a time and give brief feedback that improves my next answer.',
@@ -52,7 +52,7 @@ const ROLEPLAY_PROMPTS: Record<string, Record<'en' | 'lo', string>> = {
   },
   'travel-directions': {
     en: 'Role-play as a local person while I ask for and follow travel directions in English. Keep each turn short and correct any confusing wording.',
-    lo: 'ຈຳລອງບົດບາດເປັນຄົນທ້ອງຖິ່ນ ໃນຂະນະທີ່ຂ້ອຍຖາມ ແລະ ເຮັດຕາມເສັ້ນທາງເປັນພາສາອັງກິດ. ໃຫ້ແຕ່ລະບົດສົນທະນາສັ້ນ ແລະ ຊ່ວຍແກ້ຖ້ອຍຄຳທີ່ບໍ່ຊັດເຈນ.',
+    lo: 'ສວມບົດເປັນຄົນທ້ອງຖິ່ນ ໃນຂະນະທີ່ຂ້ອຍຝຶກຖາມທາງ ແລະ ຟັງຄຳບອກທາງເປັນພາສາອັງກິດ. ໃຫ້ແຕ່ລະຊ່ວງສົນທະນາສັ້ນໆ ແລະ ຊ່ວຍແກ້ຄຳເວົ້າທີ່ຍັງບໍ່ຊັດເຈນ.',
   },
 }
 const markdownSchema = {
@@ -264,7 +264,7 @@ export function PremiumCoach() {
           `ສາຂາຮຽນທີ່ກ່ຽວຂ້ອງ: ${(laoCareer?.majors ?? careerAssessment.majors).join(', ')}.`,
           `ທັກສະສຳຄັນ: ${(laoCareer?.skills ?? careerAssessment.skills).join(', ')}.`,
           '',
-          'ເປັນທີ່ປຶກສາອາຊີບທີ່ເຂົ້າໃຈນັກຮຽນລາວ. ອະທິບາຍອາຊີບນີ້ສັ້ນໆ ແລ້ວຖາມຂ້ອຍເທື່ອລະໜຶ່ງຄຳຖາມກ່ຽວກັບຄວາມສົນໃຈ, ຈຸດແຂງ, ຮູບແບບວຽກ, ວິຊາທີ່ມັກ, ສະຖານທີ່ ແລະ ຂໍ້ຈຳກັດການຮຽນ. ລໍຖ້າຄຳຕອບກ່ອນຖາມຄຳຕໍ່ໄປ. ສຸດທ້າຍໃຫ້ຜົນປະເມີນທີ່ຊື່ສັດ, ທັກສະທີ່ຍັງຂາດ, ແຜນຮຽນທີ່ເຮັດໄດ້ ແລະ ສອງອາຊີບທາງເລືອກ.',
+          'ກະລຸນາເປັນທີ່ປຶກສາດ້ານອາຊີບທີ່ເຂົ້າໃຈນັກຮຽນລາວ. ອະທິບາຍອາຊີບນີ້ສັ້ນໆ ແລ້ວຖາມຂ້ອຍເທື່ອລະໜຶ່ງຄຳຖາມກ່ຽວກັບຄວາມສົນໃຈ, ຈຸດແຂງ, ຮູບແບບວຽກ, ວິຊາທີ່ມັກ, ສະຖານທີ່ ແລະ ຂໍ້ຈຳກັດການຮຽນ. ລໍຖ້າຄຳຕອບກ່ອນຖາມຄຳຕໍ່ໄປ. ສຸດທ້າຍໃຫ້ຜົນປະເມີນທີ່ຊື່ສັດ, ທັກສະທີ່ຍັງຂາດ, ແຜນຮຽນທີ່ເຮັດໄດ້ ແລະ ສອງອາຊີບທາງເລືອກ.',
         ].join('\n')
       : [
           `Help me assess whether a career as a ${careerAssessment.title} is a good fit for me.`,
