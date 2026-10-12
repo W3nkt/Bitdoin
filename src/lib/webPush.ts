@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { isIos, isStandalone } from '@/lib/installPrompt'
 
 // Browser / home-screen notifications (Web Push). The service worker shows
 // them (public/push-sw.js); send-push (edge function) sends them; each
@@ -28,17 +29,6 @@ export interface DevicePushState {
 }
 
 export const pushConfigured = Boolean(VAPID_PUBLIC_KEY)
-
-function isIos() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent)
-    // iPadOS reports itself as a Mac.
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-}
-
-export function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches
-    || (navigator as Navigator & { standalone?: boolean }).standalone === true
-}
 
 export function getPushSupport(): PushSupport {
   if (!pushConfigured) return 'unconfigured'

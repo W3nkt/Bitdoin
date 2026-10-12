@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { BellRing, Loader2, Share, X } from 'lucide-react'
+import { BellRing, Loader2, X } from 'lucide-react'
+import { InstallAppButton } from '@/components/notifications/InstallAppButton'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useWebPush } from '@/hooks/useWebPush'
@@ -90,11 +91,14 @@ export function PushOptInPrompt({ platform, lo, className }: { platform: PushPla
       <div className="min-w-0 flex-1 pr-6">
         <p className="text-sm font-black text-slate-900 dark:text-slate-100">{lo ? copy.title.lo : copy.title.en}</p>
         {push.support === 'ios-install' ? (
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-            {lo ? 'ໃນ iPhone: ກົດ ' : 'On iPhone: tap '}
-            <Share className="inline h-3.5 w-3.5 align-text-bottom" />
-            {lo ? ' ແລ້ວເລືອກ "ເພີ່ມໃສ່ໜ້າຈໍໂຮມ". ຈາກນັ້ນເປີດ Bitdoin ຈາກໜ້າຈໍໂຮມເພື່ອເປີດການແຈ້ງເຕືອນ.' : ' then "Add to Home Screen". Open Bitdoin from your Home Screen to turn on notifications.'}
-          </p>
+          <>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              {lo
+                ? 'ໃນ iPhone, ການແຈ້ງເຕືອນເຮັດວຽກເມື່ອເພີ່ມ Bitdoin ໃສ່ໜ້າຈໍໂຮມແລ້ວເທົ່ານັ້ນ.'
+                : 'On iPhone, notifications work once Bitdoin is on your Home Screen.'}
+            </p>
+            <InstallAppButton lo={lo} className="mt-3" />
+          </>
         ) : (
           <>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{lo ? copy.body.lo : copy.body.en}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Bell, BellOff, BellRing, Loader2, Share, Smartphone } from 'lucide-react'
+import { Bell, BellOff, BellRing, Loader2, Smartphone } from 'lucide-react'
+import { InstallAppButton } from '@/components/notifications/InstallAppButton'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useWebPush } from '@/hooks/useWebPush'
@@ -96,13 +97,14 @@ export function PushNotificationCard({ platform, lo, className }: { platform: Pu
       </div>
 
       {push.support === 'ios-install' ? (
-        <div className="mt-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 text-sm text-slate-700 dark:text-slate-200">
-          <p className="flex items-center gap-2 font-bold"><Smartphone className="h-4 w-4" />{lo ? 'ໃນ iPhone / iPad' : 'On iPhone / iPad'}</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>{lo ? 'ກົດປຸ່ມ ' : 'Tap the '}<Share className="inline h-4 w-4 align-text-bottom" />{lo ? ' ແບ່ງປັນ ໃນ Safari' : ' Share button in Safari'}</li>
-            <li>{lo ? 'ເລືອກ "ເພີ່ມໃສ່ໜ້າຈໍໂຮມ" (Add to Home Screen)' : 'Choose "Add to Home Screen"'}</li>
-            <li>{lo ? 'ເປີດ Bitdoin ຈາກໜ້າຈໍໂຮມ ແລ້ວກັບມາເປີດການແຈ້ງເຕືອນຢູ່ບ່ອນນີ້' : 'Open Bitdoin from your Home Screen and turn notifications on here'}</li>
-          </ol>
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="flex items-start gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+            <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            {lo
+              ? 'ໃນ iPhone / iPad, ການແຈ້ງເຕືອນເຮັດວຽກເມື່ອເພີ່ມ Bitdoin ໃສ່ໜ້າຈໍໂຮມແລ້ວເທົ່ານັ້ນ.'
+              : 'On iPhone / iPad, notifications work once Bitdoin is on your Home Screen.'}
+          </p>
+          <InstallAppButton lo={lo} className="mt-3" />
         </div>
       ) : push.support === 'denied' ? (
         <p className="mt-5 flex items-start gap-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 text-sm text-slate-600 dark:text-slate-300">
