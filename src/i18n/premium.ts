@@ -59,6 +59,7 @@ const lao: Record<string, string> = {
   'Prompt library access': 'ໃຊ້ຄັງ Prompt ໄດ້',
   'Streak and challenge tracking': 'ຕິດຕາມມື້ຮຽນຕໍ່ເນື່ອງ ແລະ ຄວາມທ້າທາຍ',
   'Personal life consultation': 'ປຶກສາບັນຫາຊີວິດສ່ວນຕົວ',
+  'Consult your personal issues or life with the Bitdoin Team.': 'ປຶກສາບັນຫາສ່ວນຕົວ ຫຼື ເລື່ອງຊີວິດຂອງທ່ານກັບທີມງານ Bitdoin.',
   'Best value': 'ຄຸ້ມຄ່າທີ່ສຸດ',
   Subscribe: 'ສະໝັກ',
   Subscribed: 'ສະໝັກແລ້ວ',

@@ -286,6 +286,7 @@ const featureModules = [
   { icon: MessageCircle, title: 'English Corner', detail: 'Daily vocabulary, conversations, listening practice, and grammar tips.' },
   { icon: Timer, title: 'Productivity Center', detail: 'Habit tracker, Pomodoro, goals, checklist, and reflection journal.' },
   { icon: FileText, title: 'Resources', detail: 'Study planners, resume templates, prompt packs, and PDF guides.' },
+  { icon: HeartHandshake, title: 'Personal life consultation', detail: 'Consult your personal issues or life with the Bitdoin Team.' },
 ]
 
 type MemberSectionId = 'home' | 'learn' | 'play' | 'mentor' | 'community' | 'plans' | 'membership'
