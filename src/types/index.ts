@@ -40,6 +40,8 @@ export interface User {
   email?: string
   avatar_url?: string
   cover_image_url?: string
+  /** 6-character member code (migration 105); shown as BA-PRM-XXXXXX. */
+  member_code?: string
   role: UserRole
   language: Language
   currency: Currency

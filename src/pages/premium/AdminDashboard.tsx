@@ -42,6 +42,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
+import { VerifyMemberPanel } from '@/components/premium/VerifyMemberPanel'
 import { isMembershipExpired } from '@/lib/academyMembership'
 import { draftedDeclineReason, PaymentAiReviewCard, usePaymentAiReviews } from '@/components/premium/PaymentAiReviewCard'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
@@ -1556,6 +1557,8 @@ export function PremiumAdminDashboard() {
           />
 
           <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
+
+          <VerifyMemberPanel />
 
           <ExpiringMembersPanel
             memberships={expiringMemberships}

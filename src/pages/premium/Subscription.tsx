@@ -64,6 +64,7 @@ import { EXPIRY_WARNING_DAYS, isMembershipExpired } from '@/lib/academyMembershi
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { adminWhatsAppLink } from '@/lib/whatsapp'
+import { formatMemberCode, memberCodePrefix } from '@/lib/memberCode'
 import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import type { Language, PaymentAccount } from '@/types'
 
@@ -461,6 +462,7 @@ export function Subscription() {
   // Paid rows stay ACTIVE after ends_at; the database denies access from then on.
   const membershipExpired = isMembershipExpired(subscription, nowMs)
   const isPaidPremium = subscription?.status === 'ACTIVE' && !membershipExpired && (subscription?.plan?.price_lak ?? 0) > 0
+  const memberCode = formatMemberCode(profile?.member_code, memberCodePrefix(subscription?.plan, isPaidPremium))
 
   const { data: motivation } = useQuery({
     queryKey: ['premium', 'daily-motivation', profile?.id, isPaidPremium],
@@ -1197,6 +1199,7 @@ export function Subscription() {
               <MemberDashboard
                 profileId={profile!.id}
                 profileName={profile?.name ?? 'Premium member'}
+                memberCode={memberCode}
                 motivation={todaysMotivation}
                 language={language}
                 completionResponses={dailyCompletion?.responses ?? {}}
@@ -1464,6 +1467,7 @@ export function Subscription() {
               </div>
 
               <div className="mt-5 space-y-3">
+                {memberCode && <MemberCodeRow code={memberCode} />}
                 <InfoRow label="Current plan" value={planName} />
                 <InfoRow
                   label="Status"
@@ -1806,6 +1810,7 @@ export function Subscription() {
 function MemberDashboard({
   profileId,
   profileName,
+  memberCode,
   motivation,
   language,
   completionResponses,
@@ -1828,6 +1833,7 @@ function MemberDashboard({
 }: {
   profileId: string
   profileName: string
+  memberCode: string | null
   motivation: DailyMotivation
   language: Language
   completionResponses: Partial<Record<DailyChallengeKind, string>>
@@ -2225,7 +2231,7 @@ function MemberDashboard({
 
         <LifeConsultationCard
           language={language}
-          profileId={profileId}
+          memberCode={memberCode ?? profileId}
           profileName={profileName}
           locked={communityLocked}
           onSeePlans={onSeePlans}
@@ -2261,14 +2267,14 @@ function MemberDashboard({
 }
 
 // Premium benefit: one-to-one personal life consultation over WhatsApp. The
-// drafted message is always Lao and carries the member's ID so the team can
-// look the account up.
-function lifeConsultationMessage(profileId: string, profileName: string) {
+// drafted message is always Lao and carries the member code so the team can
+// verify the account in the Academy admin.
+function lifeConsultationMessage(memberCode: string, profileName: string) {
   return [
     'ສະບາຍດີ ທີມງານ Bitdoin,',
     'ຂ້ອຍເປັນສະມາຊິກ Premium ຂອງ Bitdoin Academy.',
     `ຊື່: ${profileName}`,
-    `ID ຜູ້ໃຊ້: ${profileId}`,
+    `ລະຫັດສະມາຊິກ: ${memberCode}`,
     '',
     'ຂ້ອຍຢາກຂໍປຶກສາກ່ຽວກັບບັນຫາຊີວິດສ່ວນຕົວ. ກະລຸນາແຈ້ງເວລາທີ່ສະດວກໃຫ້ຂ້ອຍແດ່.',
     'ຂອບໃຈຫຼາຍໆ.',
@@ -2277,13 +2283,14 @@ function lifeConsultationMessage(profileId: string, profileName: string) {
 
 function LifeConsultationCard({
   language,
-  profileId,
+  memberCode,
   profileName,
   locked,
   onSeePlans,
 }: {
   language: Language
-  profileId: string
+  /** BA-PRM-XXXXXX; included in the drafted message. */
+  memberCode: string
   profileName: string
   /** Free plan: shown, but locked behind a paid plan. */
   locked: boolean
@@ -2320,7 +2327,7 @@ function LifeConsultationCard({
         </div>
       ) : (
         <a
-          href={adminWhatsAppLink(lifeConsultationMessage(profileId, profileName))}
+          href={adminWhatsAppLink(lifeConsultationMessage(memberCode, profileName))}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#25D366] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_28px_-8px_rgba(37,211,102,0.6)] transition hover:-translate-y-0.5 hover:bg-[#1ebe5a] active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 sm:w-auto"
@@ -2455,6 +2462,33 @@ function DailyItem({ icon, label, text }: { icon: React.ReactNode; label: string
         <p className="text-xs font-bold uppercase tracking-wide">{label}</p>
       </div>
       <p className="text-sm leading-6 text-gray-700 dark:text-gray-200">{text}</p>
+    </div>
+  )
+}
+
+function MemberCodeRow({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard blocked: the code is on screen to copy by hand.
+    }
+  }
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-800 pb-3">
+      <span className="text-sm text-gray-500 dark:text-gray-400">Member code</span>
+      <button
+        type="button"
+        onClick={copy}
+        className="inline-flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 font-mono text-sm font-bold tracking-wide text-gray-900 transition hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+        aria-label="Copy member code"
+      >
+        {code}
+        {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4 text-gray-400" />}
+      </button>
     </div>
   )
 }

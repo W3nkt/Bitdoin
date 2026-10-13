@@ -78,6 +78,7 @@ const lao: Record<string, string> = {
   Current: 'ປັດຈຸບັນ',
   Subscription: 'ການສະໝັກ',
   'Membership control': 'ຈັດການສະມາຊິກ',
+  'Member code': 'ລະຫັດສະມາຊິກ',
   'Current plan': 'ແຜນປັດຈຸບັນ',
   Status: 'ສະຖານະ',
   Renewal: 'ຕໍ່ອາຍຸ',
