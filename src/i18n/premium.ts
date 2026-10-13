@@ -58,6 +58,7 @@ const lao: Record<string, string> = {
   'Premium lessons and resources': 'ບົດຮຽນ ແລະ ຊັບພະຍາກອນພຣີມຽມ',
   'Prompt library access': 'ໃຊ້ຄັງ Prompt ໄດ້',
   'Streak and challenge tracking': 'ຕິດຕາມມື້ຮຽນຕໍ່ເນື່ອງ ແລະ ຄວາມທ້າທາຍ',
+  'Personal life consultation': 'ປຶກສາບັນຫາຊີວິດສ່ວນຕົວ',
   'Best value': 'ຄຸ້ມຄ່າທີ່ສຸດ',
   Subscribe: 'ສະໝັກ',
   Subscribed: 'ສະໝັກແລ້ວ',

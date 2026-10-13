@@ -8,6 +8,7 @@ import { useCart } from '@/context/CartContext'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
+import { adminWhatsAppLink } from '@/lib/whatsapp'
 import { publicAsset } from '@/lib/assets'
 import { useTheme } from '@/lib/theme'
 import { BittyAssistant } from '@/components/bitty/BittyAssistant'
@@ -56,7 +57,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   ]
 
   const waNumber = (import.meta.env.VITE_ADMIN_WHATSAPP || '+8562095324510').replace(/\s+/g, '')
-  const waHref = `https://wa.me/${waNumber.replace(/\D/g, '')}`
+  const waHref = adminWhatsAppLink()
   const rawMessenger = import.meta.env.VITE_ADMIN_MESSENGER || 'm.me/620472337804971'
   const messengerHref = rawMessenger.startsWith('http') ? rawMessenger : `https://${rawMessenger.replace(/^\/+/, '')}`
   const phoneHref = `tel:${waNumber}`

@@ -16,6 +16,7 @@ import {
   History,
   ImageDown,
   Lightbulb,
+  HeartHandshake,
   Lock,
   MessageCircle,
   QrCode,
@@ -62,6 +63,8 @@ import { usePremiumTranslation } from '@/i18n/premium'
 import { EXPIRY_WARNING_DAYS, isMembershipExpired } from '@/lib/academyMembership'
 import { cn } from '@/lib/utils'
 import { formatDate, formatPrice } from '@/lib/utils'
+import { adminWhatsAppLink } from '@/lib/whatsapp'
+import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import type { Language, PaymentAccount } from '@/types'
 
 type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
@@ -193,7 +196,7 @@ const FALLBACK_PLANS: PremiumPlan[] = [
     description: 'Daily mentor guidance, AI coach access, learning paths, prompt packs, and productivity tools.',
     price_lak: 39000,
     interval: 'month',
-    features: ['Daily mentor dashboard', 'AI Coach shortcut', 'Premium lessons and resources', 'Prompt library access', 'Streak and challenge tracking'],
+    features: ['Daily mentor dashboard', 'AI Coach shortcut', 'Premium lessons and resources', 'Prompt library access', 'Streak and challenge tracking', 'Personal life consultation'],
     is_active: true,
     sort_order: 2,
   },
@@ -204,7 +207,7 @@ const FALLBACK_PLANS: PremiumPlan[] = [
     description: 'Daily mentor guidance, AI coach access, learning paths, prompt packs, and productivity tools.',
     price_lak: 390000,
     interval: 'year',
-    features: ['Daily mentor dashboard', 'AI Coach shortcut', 'Premium lessons and resources', 'Prompt library access', 'Streak and challenge tracking'],
+    features: ['Daily mentor dashboard', 'AI Coach shortcut', 'Premium lessons and resources', 'Prompt library access', 'Streak and challenge tracking', 'Personal life consultation'],
     is_active: true,
     sort_order: 3,
   },
@@ -470,10 +473,14 @@ export function Subscription() {
         console.error('Could not load personalized daily guidance', generationError ?? generated?.error)
       }
 
+      // Posts are scheduled ahead: take the latest one up to today (Laos time),
+      // never a future day's.
+      const laosToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Vientiane' }).format(new Date())
       const { data, error: motivationError } = await supabase
         .from('premium_daily_motivations')
         .select('id,publish_date,quote,reflection,challenge,mission')
         .eq('is_active', true)
+        .lte('publish_date', laosToday)
         .order('publish_date', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -2216,6 +2223,13 @@ function MemberDashboard({
           </div>
         </section>
 
+        <LifeConsultationCard
+          language={language}
+          profileId={profileId}
+          profileName={profileName}
+          locked={communityLocked}
+          onSeePlans={onSeePlans}
+        />
       </div>
 
       <div id="community" className={cn(SECTION_SCROLL_MARGIN, 'space-y-6')}>
@@ -2243,6 +2257,79 @@ function MemberDashboard({
       </div>
       </div>
     </>
+  )
+}
+
+// Premium benefit: one-to-one personal life consultation over WhatsApp. The
+// drafted message is always Lao and carries the member's ID so the team can
+// look the account up.
+function lifeConsultationMessage(profileId: string, profileName: string) {
+  return [
+    'ສະບາຍດີ ທີມງານ Bitdoin,',
+    'ຂ້ອຍເປັນສະມາຊິກ Premium ຂອງ Bitdoin Academy.',
+    `ຊື່: ${profileName}`,
+    `ID ຜູ້ໃຊ້: ${profileId}`,
+    '',
+    'ຂ້ອຍຢາກຂໍປຶກສາກ່ຽວກັບບັນຫາຊີວິດສ່ວນຕົວ. ກະລຸນາແຈ້ງເວລາທີ່ສະດວກໃຫ້ຂ້ອຍແດ່.',
+    'ຂອບໃຈຫຼາຍໆ.',
+  ].join('\n')
+}
+
+function LifeConsultationCard({
+  language,
+  profileId,
+  profileName,
+  locked,
+  onSeePlans,
+}: {
+  language: Language
+  profileId: string
+  profileName: string
+  /** Free plan: shown, but locked behind a paid plan. */
+  locked: boolean
+  onSeePlans: () => void
+}) {
+  const lo = language === 'lo'
+  return (
+    <section data-no-premium-translate className="mt-6 rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{lo ? 'ສິດທິພິເສດພຣີມຽມ' : 'Premium benefit'}</p>
+          <h2 className="mt-1 text-xl font-black text-gray-950 dark:text-gray-100">{lo ? 'ປຶກສາບັນຫາຊີວິດສ່ວນຕົວ' : 'Personal life consultation'}</h2>
+        </div>
+        <HeartHandshake className="h-5 w-5 text-rose-500" />
+      </div>
+      <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+        {lo
+          ? 'ມີເລື່ອງໃນຊີວິດທີ່ຢາກລົມນຳໃຜຜູ້ໜຶ່ງບໍ? ເຊັ່ນ ການເຮັດວຽກ, ຄອບຄົວ, ຄວາມສຳພັນ ຫຼື ການວາງແຜນອະນາຄົດ. ສົ່ງຂໍ້ຄວາມຫາທີມງານ Bitdoin ທາງ WhatsApp ເພື່ອຂໍຄຳປຶກສາແບບສ່ວນຕົວ.'
+          : 'Something on your mind about work, family, relationships or your future? Message the Bitdoin team on WhatsApp for one-to-one advice.'}
+      </p>
+      {locked ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-dashed border-amber-300/70 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-sm font-bold text-amber-700 dark:text-amber-300">
+            <Lock className="h-4 w-4" />
+            {lo ? 'ສຳລັບສະມາຊິກພຣີມຽມ' : 'For Premium members'}
+          </p>
+          <button
+            type="button"
+            onClick={onSeePlans}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-900 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
+          >
+            {lo ? 'ເບິ່ງແຜນສະມາຊິກ' : 'See plans'} <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <a
+          href={adminWhatsAppLink(lifeConsultationMessage(profileId, profileName))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[#25D366] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_28px_-8px_rgba(37,211,102,0.6)] transition hover:-translate-y-0.5 hover:bg-[#1ebe5a] active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 sm:w-auto"
+        >
+          <WhatsAppIcon className="h-5 w-5" />
+          {lo ? 'ສົ່ງຂໍ້ຄວາມທາງ WhatsApp' : 'Message us on WhatsApp'}
+        </a>
+      )}
+    </section>
   )
 }
 
