@@ -103,7 +103,7 @@ async function deliver(
   admin: SupabaseClient,
   rows: SubscriptionRow[],
   messageFor: (row: SubscriptionRow) => PushMessage,
-  options: { ttl: number; topic?: string; onFailure?: (row: SubscriptionRow) => Promise<void> },
+  options: { ttl: number; onFailure?: (row: SubscriptionRow) => Promise<void> },
 ) {
   let sent = 0
   let failed = 0
@@ -116,7 +116,9 @@ async function deliver(
         await webpush.sendNotification(
           { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
           JSON.stringify(messageFor(row)),
-          { TTL: options.ttl, urgency: 'normal', ...(options.topic ? { topic: options.topic } : {}) },
+          // No Topic header: Apple rejects it (400 BadWebPushTopic). The
+          // payload's `tag` already replaces an older notification on device.
+          { TTL: options.ttl, urgency: 'normal' },
         )
         sent += 1
         delivered.push(row.id)
@@ -197,7 +199,6 @@ async function sendAcademyDaily(admin: SupabaseClient) {
     })
   }, {
     ttl: 12 * 60 * 60,
-    topic: 'academy-daily',
     // Temporary failure: release today's claim so the next run retries.
     onFailure: async row => {
       await admin.from('push_subscriptions').update({ last_academy_reminder_on: null })
