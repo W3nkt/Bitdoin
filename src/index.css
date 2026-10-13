@@ -28,6 +28,12 @@
     html { font-size: 87.5%; }
   }
 
+  /* Home-screen app: no rubber-band bounce at the top; PullToRefresh draws
+     its own indicator there. */
+  @media (display-mode: standalone) {
+    html, body { overscroll-behavior-y: none; }
+  }
+
   body {
     @apply text-gray-900 antialiased bg-gray-50 dark:bg-gray-950 dark:text-gray-100;
     font-family: 'Inter', 'Noto Sans Thai', 'Noto Sans Lao', sans-serif;
