@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
-import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, wordMatchIssues } from '../_shared/lao-content-standard.ts'
+import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, repairBrainSprintItem, repairLaoFields, wordMatchIssues } from '../_shared/lao-content-standard.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -32,6 +32,8 @@ const TASK_HEARTBEAT_MS = 45_000
 // so every request finishes well inside the time limit.
 const BRAIN_SPRINT_BATCHES = 7
 const BRAIN_SPRINT_BATCH_SIZE = 5
+// Extra questions asked for per batch, so a few rejected ones don't fail it.
+const BRAIN_SPRINT_SPARE_ITEMS = 3
 const WORD_MATCH_BATCHES = 6
 const WORD_MATCH_BATCH_SIZE = 7
 
@@ -187,41 +189,139 @@ function requireArray(result: Record<string, unknown>, key: string, count: numbe
   return value as Record<string, unknown>[]
 }
 
-// Throws (so the queue retries the step) when generated content breaks the Lao content standard.
-function enforceLaoStandard(value: unknown, extraIssues: string[] = []) {
-  const issues = [...collectLaoIssues(value), ...extraIssues]
+// Swaps stray Thai vowel/tone marks for their Lao twins, then throws (so the
+// queue retries the step) when the content still breaks the Lao content standard.
+function enforceLaoStandard<T>(value: T, extraIssues: string[] = []): T {
+  const repaired = repairLaoFields(value)
+  const issues = [...collectLaoIssues(repaired), ...extraIssues]
   if (issues.length) throw new Error(`Lao content standard failed: ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
+  return repaired
 }
 
 const bilingualRules = `Every learner-facing text field must have natural English and natural Lao. Lao must use Lao script, not transliteration, and must not contain Thai script or Thai wording. For English grammar or vocabulary questions, keep the English target words and example sentences unchanged in the Lao version whenever translating them would defeat the learning objective; translate the instructions and explanations into natural Lao. Avoid invented facts, unsafe advice, cheating, politics, gambling, and financial promises. Content must be useful for secondary-school and university-age learners in Laos.
 ${LAO_CONTENT_RULES}`
 
+type BrainSprintItem = Parameters<typeof brainSprintIssues>[0] & { id: string }
+
+const isLocalizedText = (value: unknown) => {
+  const text = value as { en?: unknown; lo?: unknown } | null
+  return typeof text?.en === 'string' && typeof text?.lo === 'string' && text.en.trim() !== '' && text.lo.trim() !== ''
+}
+
+const isBrainSprintShape = (value: Record<string, unknown>) =>
+  typeof value.id === 'string' && isLocalizedText(value.prompt) && isLocalizedText(value.explanation)
+  && Array.isArray(value.options) && value.options.length === 4 && value.options.every(isLocalizedText)
+  && Number.isInteger(value.answerIndex) && (value.answerIndex as number) >= 0 && (value.answerIndex as number) <= 3
+
+// Asks for a few spare questions, repairs the obvious slips (Thai vowel marks,
+// translated English-practice options) and drops any question that still breaks
+// the Lao standard, so one bad question no longer fails the whole batch.
 async function generateBrainSprint(batchIndex: number) {
+  const requested = BRAIN_SPRINT_BATCH_SIZE + BRAIN_SPRINT_SPARE_ITEMS
   const result = await askQwen(`Prepare part ${batchIndex + 1} of ${BRAIN_SPRINT_BATCHES} of a weekly Brain Sprint. ${bilingualRules}
-Return {"items":[${BRAIN_SPRINT_BATCH_SIZE} items]}. Each item: {"id":"unique-kebab-slug","prompt":{"en":"","lo":""},"options":[exactly 4 {"en":"","lo":""}],"answerIndex":0,"explanation":{"en":"one short sentence","lo":"one short sentence"}}. Mix quick math, English, study skills, digital literacy, Lao-context general knowledge, and practical money skills. Keep every option under 8 words. Be concise.`, { maxTokens: 3000, model: FAST_MODEL })
-  const items = requireArray(result, 'items', BRAIN_SPRINT_BATCH_SIZE)
-  enforceLaoStandard(items, items.flatMap((item, index) => brainSprintIssues(item as unknown as Parameters<typeof brainSprintIssues>[0], `items[${index}]`)))
-  return items.map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
+Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","prompt":{"en":"","lo":""},"options":[exactly 4 {"en":"","lo":""}],"answerIndex":0,"explanation":{"en":"one short sentence","lo":"one short sentence"}}. Mix quick math, English, study skills, digital literacy, Lao-context general knowledge, and practical money skills. Keep every option under 8 words. Be concise.`, { maxTokens: 4000, model: FAST_MODEL })
+  const raw = Array.isArray(result.items) ? result.items as Record<string, unknown>[] : []
+  const issues: string[] = []
+  const ids = new Set<string>()
+  const kept: BrainSprintItem[] = []
+  raw.forEach((value, index) => {
+    if (!value || typeof value !== 'object' || !isBrainSprintShape(value)) return void issues.push(`items[${index}]: wrong shape`)
+    const item = repairBrainSprintItem(value as unknown as BrainSprintItem)
+    const itemIssues = [...collectLaoIssues(item, `items[${index}]`), ...brainSprintIssues(item, `items[${index}]`)]
+    if (ids.has(item.id)) itemIssues.push(`items[${index}]: duplicate id`)
+    if (itemIssues.length) return void issues.push(...itemIssues)
+    ids.add(item.id)
+    kept.push(item)
+  })
+  if (kept.length < BRAIN_SPRINT_BATCH_SIZE) {
+    throw new Error(`Lao content standard failed: only ${kept.length} of ${raw.length} questions passed (need ${BRAIN_SPRINT_BATCH_SIZE}): ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
+  }
+  if (issues.length) console.warn(`[academy-forge] brain_sprint-${batchIndex}: dropped ${raw.length - kept.length} question(s): ${issues.slice(0, 5).join('; ')}`)
+  return kept.slice(0, BRAIN_SPRINT_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
 async function generateWordMatch(batchIndex: number) {
   const result = await askQwen(`Prepare part ${batchIndex + 1} of ${WORD_MATCH_BATCHES} of a weekly Word Match set. ${bilingualRules}
 Return {"items":[${WORD_MATCH_BATCH_SIZE} items]}. Each item: {"id":"unique-kebab-slug","english":"real English word or short phrase","lao":"natural Lao translation"}. English must use Latin script, Lao must use Lao script. Be concise.`, { maxTokens: 1500, model: FAST_MODEL })
-  const items = requireArray(result, 'items', WORD_MATCH_BATCH_SIZE)
+  const items = repairLaoFields(requireArray(result, 'items', WORD_MATCH_BATCH_SIZE))
   enforceLaoStandard(items, wordMatchIssues(items as unknown as Parameters<typeof wordMatchIssues>[0]))
   return items.map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
-async function generateCoreStage(stage: 'daily_mentor' | 'roleplay_missions' | 'prompt_library', weekStart: string) {
-  const instructions = {
-    daily_mentor: `Return {"items":[7 items]} shaped {"day":0-6,"quote":"original English motivational sentence","reflection":"English reflection question","challenge":"English practical action","mission":"English measurable outcome"}.`,
-    roleplay_missions: `Return {"items":[7 items]} shaped {"day":0-6,"slug":"unique-kebab-slug","title_en":"","title_lo":"","description_en":"","description_lo":"","coach_prompt_en":"detailed setup instructing the AI to ask one question at a time","coach_prompt_lo":"natural Lao equivalent"}. Use realistic study, English, career, scholarship, workplace, and life situations.`,
-    prompt_library: `Return {"items":[7 items]} shaped {"slug":"unique-kebab-slug","category":"study|research|writing|english|career|coding|productivity","title_en":"","title_lo":"","description_en":"","description_lo":"","prompt_en":"reusable copy-ready prompt with [placeholders]","prompt_lo":"natural Lao equivalent"}.`,
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+// Role-play missions and prompts are long in both languages (Lao text costs
+// many tokens), so all 7 in one answer outlasts the time limit or the output
+// space. Each one is written by its own request, all at the same time, with a
+// set theme or category so they don't overlap, and a word cap on the long field.
+const ROLEPLAY_THEMES = [
+  'a study or classroom situation',
+  'an everyday English conversation',
+  'an exam or presentation situation',
+  'a job interview or career situation',
+  'a scholarship or university application situation',
+  'a workplace situation',
+  'a money or everyday life situation',
+]
+const PROMPT_LIBRARY_CATEGORIES = ['study', 'research', 'writing', 'english', 'career', 'coding', 'productivity']
+const LONG_FIELD_WORDS = 120
+// A failed item is written again on its own (not the whole step), but only
+// while a new request can still finish inside the step's time limit.
+const ITEM_ATTEMPTS = 3
+const ITEM_RETRY_WINDOW_MS = 45_000
+
+async function withRetry<T>(label: string, stepStartedAt: number, write: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await write()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (attempt >= ITEM_ATTEMPTS || Date.now() - stepStartedAt > ITEM_RETRY_WINDOW_MS) throw new Error(`${label}: ${message}`)
+      console.warn(`[academy-forge] ${label} attempt ${attempt} failed, writing it again: ${message}`)
+    }
   }
-  const result = await askQwen(`Prepare ${stage.replace(/_/g, ' ')} for Monday ${weekStart} through Sunday ${addDays(weekStart, 6)}. ${bilingualRules}\n${instructions[stage]}`, { maxTokens: 7000 })
-  const items = requireArray(result, 'items', 7)
-  enforceLaoStandard(items)
-  return items
+}
+
+const generateCheckedItem = (label: string, prompt: string, stepStartedAt: number) => withRetry(label, stepStartedAt, async () => {
+  const result = await askQwen(prompt, { maxTokens: 3000 })
+  return enforceLaoStandard(requireArray(result, 'items', 1)[0])
+})
+
+async function generateRoleplayMissions(weekStart: string) {
+  const startedAt = Date.now()
+  const items = await Promise.all(ROLEPLAY_THEMES.map(async (theme, day) => ({
+    ...await generateCheckedItem(DAY_NAMES[day], `Prepare one role-play mission for ${DAY_NAMES[day]} ${addDays(weekStart, day)}: ${theme}, realistic for learners in Laos. ${bilingualRules}
+Return {"items":[1 item]} shaped {"day":${day},"slug":"unique-kebab-slug","title_en":"","title_lo":"","description_en":"one sentence","description_lo":"one sentence","coach_prompt_en":"setup instructing the AI to ask one question at a time, at most ${LONG_FIELD_WORDS} words","coach_prompt_lo":"natural Lao equivalent of coach_prompt_en"}. Be concise.`, startedAt),
+    day,
+  })))
+  return uniqueSlugs(items)
+}
+
+async function generatePromptLibrary(weekStart: string) {
+  const startedAt = Date.now()
+  const items = await Promise.all(PROMPT_LIBRARY_CATEGORIES.map(async category => ({
+    ...await generateCheckedItem(category, `Prepare one prompt library entry in the "${category}" category for the week of ${weekStart}. ${bilingualRules}
+Return {"items":[1 item]} shaped {"slug":"unique-kebab-slug","category":"${category}","title_en":"","title_lo":"","description_en":"one sentence","description_lo":"one sentence","prompt_en":"reusable copy-ready prompt with [placeholders], at most ${LONG_FIELD_WORDS} words","prompt_lo":"natural Lao equivalent of prompt_en"}. Be concise.`, startedAt),
+    category,
+  })))
+  return uniqueSlugs(items)
+}
+
+// Parts are written separately, so two of them may pick the same slug.
+function uniqueSlugs(items: Record<string, unknown>[]) {
+  const seen = new Set<string>()
+  return items.map((item, index) => {
+    let slug = String(item.slug ?? `item-${index + 1}`)
+    if (seen.has(slug)) slug = `${slug}-${index + 1}`
+    seen.add(slug)
+    return { ...item, slug }
+  })
+}
+
+async function generateDailyMentor(weekStart: string) {
+  const result = await askQwen(`Prepare daily mentor for Monday ${weekStart} through Sunday ${addDays(weekStart, 6)}. ${bilingualRules}
+Return {"items":[7 items]} shaped {"day":0-6,"quote":"original English motivational sentence","reflection":"English reflection question","challenge":"English practical action","mission":"English measurable outcome"}.`, { maxTokens: 7000 })
+  return enforceLaoStandard(requireArray(result, 'items', 7))
 }
 
 type Category = { id: string; slug: string; name_en: string; name_lo: string }
@@ -239,17 +339,40 @@ Return {"topic":"short lesson title","angle":"one sentence on what the learner w
   }
 }
 
-// Step 2 of a lesson: bilingual writing from the research notes, no search.
-// Without notes (an older queued step) it researches inline as before.
+const LESSON_SECTION_SENTENCES = 4
+
+// Step 2 of a lesson: writing from the research notes, no search. The English
+// and the Lao version are written by two requests at the same time from the same
+// notes and section headings: both in one answer ran out of output space, since
+// Lao text costs many tokens. Each half is retried on its own if it fails.
+// Without notes (an older queued step) it researches first.
 async function generateLesson(category: Category, weekStart: string, research?: LessonResearch): Promise<Record<string, unknown>> {
-  const brief = research?.topic
-    ? `Use these research notes: topic "${research.topic}"; goal: ${research.angle}; sections: ${research.outline.join(' | ')}; facts: ${research.facts.join(' | ')}.`
-    : 'Research the topic first and prefer durable, verifiable ideas.'
-  const result = await askQwen(`Create one new original Learning Hub lesson for category "${category.name_en}" (${category.name_lo}) for the week of ${weekStart}. ${brief} Do not summarize copyrighted books unless the category specifically requires it; even then write an original educational synthesis. ${bilingualRules}
-Return {"slug":"${weekStart}-${category.slug}-unique-topic","title_en":"","title_lo":"","summary_en":"one sentence","summary_lo":"one sentence","content_en":[3 concise objects {"heading":"","body":""}],"content_lo":[3 matching natural-Lao objects],"key_takeaways_en":[3 short strings],"key_takeaways_lo":[3 short strings],"difficulty":"BEGINNER|INTERMEDIATE|ADVANCED","estimated_minutes":5-12,"source_url":"a real authoritative URL used for research or null"}. Do not use Markdown.`, { maxTokens: 3500, enableSearch: !research?.topic })
-  enforceLaoStandard(result)
-  const sourceUrl = research?.source_url ?? (typeof result.source_url === 'string' ? result.source_url : null)
-  return { ...result, source_url: sourceUrl, category_id: category.id }
+  const startedAt = Date.now()
+  const notes = research?.topic ? research : await researchLesson(category, weekStart)
+  const sections = notes.outline.length === 3 ? `exactly these 3 sections in this order: ${notes.outline.join(' | ')}` : '3 sections'
+  const brief = `Lesson for category "${category.name_en}" (${category.name_lo}), week of ${weekStart}. Research notes: topic "${notes.topic}"; goal: ${notes.angle}; facts: ${notes.facts.join(' | ')}. Write an original educational lesson with ${sections}. Do not summarize copyrighted books unless the category specifically requires it; even then write an original educational synthesis. Do not use Markdown.`
+  const [english, lao] = await Promise.all([
+    withRetry('English lesson', startedAt, async () => {
+      const result = await askQwen(`${brief} Write it in English only. Avoid invented facts and unsafe advice.
+Return {"slug":"${weekStart}-${category.slug}-unique-topic","title_en":"","summary_en":"one sentence","content_en":[3 objects {"heading":"","body":"at most ${LESSON_SECTION_SENTENCES} sentences"}],"key_takeaways_en":[3 short strings],"difficulty":"BEGINNER|INTERMEDIATE|ADVANCED","estimated_minutes":5-12}.`, { maxTokens: 2000 })
+      requireArray(result, 'content_en', 3)
+      requireArray(result, 'key_takeaways_en', 3)
+      return result
+    }),
+    withRetry('Lao lesson', startedAt, async () => {
+      const result = await askQwen(`${brief} Write it in natural Lao only (the section headings translated into Lao). ${bilingualRules}
+Return {"title_lo":"","summary_lo":"one sentence","content_lo":[3 objects {"heading":"","body":"at most ${LESSON_SECTION_SENTENCES} sentences"}],"key_takeaways_lo":[3 short strings]}. Be concise.`, { maxTokens: 4000 })
+      requireArray(result, 'content_lo', 3)
+      requireArray(result, 'key_takeaways_lo', 3)
+      return enforceLaoStandard(result)
+    }),
+  ])
+  return {
+    slug: english.slug, title_en: english.title_en, summary_en: english.summary_en, content_en: english.content_en,
+    key_takeaways_en: english.key_takeaways_en, difficulty: english.difficulty, estimated_minutes: english.estimated_minutes,
+    title_lo: lao.title_lo, summary_lo: lao.summary_lo, content_lo: lao.content_lo, key_takeaways_lo: lao.key_takeaways_lo,
+    source_url: notes.source_url, category_id: category.id,
+  }
 }
 
 function batchIsComplete(ids: string[], batchIndex: number, size: number) {
@@ -313,7 +436,7 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     if (error) throw error
     counts.word_match = combined.length
   } else if (input.action === 'daily_mentor') {
-    const items = await generateCoreStage('daily_mentor', weekStart)
+    const items = await generateDailyMentor(weekStart)
     const { error } = await admin.from('premium_daily_motivations').upsert(items.map((item, index) => ({
       publish_date: addDays(weekStart, Number(item.day ?? index)), quote: item.quote, reflection: item.reflection,
       challenge: item.challenge, mission: item.mission, is_active: true,
@@ -321,7 +444,7 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     if (error) throw error
     counts.daily_mentor = items.length
   } else if (input.action === 'roleplay_missions') {
-    const items = await generateCoreStage('roleplay_missions', weekStart)
+    const items = await generateRoleplayMissions(weekStart)
     await admin.from('premium_roleplay_missions').delete().eq('run_id', run.id)
     const { error } = await admin.from('premium_roleplay_missions').insert(items.map((item, index) => ({
       run_id: run.id, mission_date: addDays(weekStart, Number(item.day ?? index)), slug: item.slug, title_en: item.title_en,
@@ -331,7 +454,7 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     if (error) throw error
     counts.roleplay_missions = items.length
   } else if (input.action === 'prompt_library') {
-    const items = await generateCoreStage('prompt_library', weekStart)
+    const items = await generatePromptLibrary(weekStart)
     await admin.from('premium_prompt_library').delete().eq('run_id', run.id)
     const { error } = await admin.from('premium_prompt_library').insert(items.map((item, index) => ({
       run_id: run.id, week_start: weekStart, slug: item.slug, category: item.category, title_en: item.title_en,

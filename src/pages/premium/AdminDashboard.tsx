@@ -206,6 +206,10 @@ const REQUESTS_PREVIEW = 3
 const MEMBERS_PREVIEW = 5
 const REQUESTS_PAGE_SIZE = 5
 const MEMBERS_PAGE_SIZE = 8
+// The card shows the top few; the full list (capped at 50 by the RPC) opens in a modal.
+const TOP_PERFORMERS_PREVIEW = 5
+const TOP_PERFORMERS_PAGE_SIZE = 10
+const TOP_PERFORMERS_LIMIT = 50
 
 // wa.me needs international digits; accept Lao local formats typed by an admin.
 function whatsAppDigits(raw: string) {
@@ -678,7 +682,7 @@ export function PremiumAdminDashboard() {
   } = useQuery({
     queryKey: ['premium-admin', 'top-performers'],
     queryFn: async () => {
-      const { data, error: performersError } = await supabase.rpc('get_academy_top_performers', { p_limit: 10 })
+      const { data, error: performersError } = await supabase.rpc('get_academy_top_performers', { p_limit: TOP_PERFORMERS_LIMIT })
       if (performersError) throw performersError
       return (data ?? []) as TopPerformer[]
     },
@@ -1556,7 +1560,7 @@ export function PremiumAdminDashboard() {
             language={language}
           />
 
-          <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
+          <WeeklyContentForge run={weeklyRun} generating={!!forgeStarting} lessonTarget={forgeTasks?.filter(task => task.task_key.startsWith('lesson-')).length || undefined} onGenerate={generateNextAcademyWeek} onOpenProgress={() => setGenerationOpen(true)} />
 
           <VerifyMemberPanel />
 
@@ -2271,11 +2275,14 @@ export function PremiumAdminDashboard() {
 function WeeklyContentForge({
   run,
   generating,
+  lessonTarget,
   onGenerate,
   onOpenProgress,
 }: {
   run?: WeeklyContentRun | null
   generating: boolean
+  // One lesson per active category; taken from the queued steps when known.
+  lessonTarget?: number
   onGenerate: () => void
   onOpenProgress: () => void
 }) {
@@ -2287,13 +2294,15 @@ function WeeklyContentForge({
   const hasSavedProgress = Object.values(counts).some(count => Number(count) > 0)
   const canContinue = !ready && !paused && (hasSavedProgress || run?.status === 'CANCELLED' || run?.status === 'FAILED' || stale)
   const streams = [
-    { key: 'brain_sprint', label: 'Brain Sprint', icon: <BrainCircuit className="h-4 w-4" />, fallback: 35 },
-    { key: 'word_match', label: 'Word Match', icon: <Gamepad2 className="h-4 w-4" />, fallback: 42 },
-    { key: 'roleplay_missions', label: 'Role-play', icon: <MessageSquareText className="h-4 w-4" />, fallback: 7 },
-    { key: 'daily_mentor', label: 'Daily Mentor', icon: <Sparkles className="h-4 w-4" />, fallback: 7 },
-    { key: 'prompt_library', label: 'Prompt Library', icon: <LibraryBig className="h-4 w-4" />, fallback: 7 },
-    { key: 'lessons', label: 'Hub Lessons', icon: <BookOpen className="h-4 w-4" />, fallback: 8 },
+    { key: 'brain_sprint', label: 'Brain Sprint', icon: <BrainCircuit className="h-4 w-4" />, target: 35 },
+    { key: 'word_match', label: 'Word Match', icon: <Gamepad2 className="h-4 w-4" />, target: 42 },
+    { key: 'roleplay_missions', label: 'Role-play', icon: <MessageSquareText className="h-4 w-4" />, target: 7 },
+    { key: 'daily_mentor', label: 'Daily Mentor', icon: <Sparkles className="h-4 w-4" />, target: 7 },
+    { key: 'prompt_library', label: 'Prompt Library', icon: <LibraryBig className="h-4 w-4" />, target: 7 },
+    { key: 'lessons', label: 'Hub Lessons', icon: <BookOpen className="h-4 w-4" />, target: lessonTarget ?? 8 },
   ]
+  // Saved counts are updated after every step; show them against the weekly target until the week is ready.
+  const hasRun = Boolean(run)
   const targetWeek = run?.week_start ?? nextAcademyWeekStart()
   const weekLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${targetWeek}T00:00:00Z`))
 
@@ -2317,7 +2326,14 @@ function WeeklyContentForge({
               <div key={stream.key} className="flex min-w-0 items-center gap-3 border-b border-white/10 pb-3 text-sm text-violet-100">
                 <span className="shrink-0 text-amber-300">{stream.icon}</span>
                 <span className="min-w-max flex-1 whitespace-nowrap font-semibold">{stream.label}</span>
-                <span className="font-black text-white">{ready ? counts[stream.key] ?? 0 : stream.fallback}</span>
+                {ready || !hasRun ? (
+                  <span className="font-black text-white">{ready ? counts[stream.key] ?? 0 : stream.target}</span>
+                ) : (
+                  <span className="font-black tabular-nums text-white" aria-label={`${Number(counts[stream.key] ?? 0)} of ${stream.target} saved`}>
+                    {Number(counts[stream.key] ?? 0)}
+                    <span className="font-semibold text-violet-200/60"> / {stream.target}</span>
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -2817,8 +2833,46 @@ function MemberAvatar({ name, avatarUrl }: { name?: string | null; avatarUrl?: s
   )
 }
 
-function TopPerformersPanel({ performers, loading, failed }: { performers: TopPerformer[]; loading: boolean; failed: boolean }) {
+function TopPerformerRow({ performer }: { performer: TopPerformer }) {
   const { language } = useLanguage()
+  return (
+    <li className="flex items-center gap-2 rounded-2xl border border-gray-100 dark:border-gray-800 p-3 sm:gap-3">
+      <span className={cn(
+        'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
+        performer.rank === 1 ? 'bg-amber-400 text-amber-950'
+          : performer.rank === 2 ? 'bg-slate-300 text-slate-800'
+            : performer.rank === 3 ? 'bg-orange-300 text-orange-950'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
+      )}>
+        {performer.rank}
+      </span>
+      <MemberAvatar name={performer.display_name} avatarUrl={performer.avatar_url} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{performer.display_name}</p>
+        <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
+          {performer.plan_name}
+          {performer.streak > 0 ? ` · 🔥 ${performer.streak}` : ''}
+          {` · ${performer.completed_days} full days`}
+          {performer.last_active_day ? ` · active ${formatDate(performer.last_active_day, language)}` : ''}
+        </p>
+      </div>
+      <div className="flex-shrink-0 text-right">
+        <p className="text-sm font-black text-gray-950 dark:text-gray-100">{performer.xp.toLocaleString()}</p>
+        <p className="text-[10px] font-semibold uppercase text-gray-400">XP</p>
+      </div>
+    </li>
+  )
+}
+
+function TopPerformersPanel({ performers, loading, failed }: { performers: TopPerformer[]; loading: boolean; failed: boolean }) {
+  const [modalOpen, setModalOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const pageCount = Math.max(1, Math.ceil(performers.length / TOP_PERFORMERS_PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const openModal = () => {
+    setPage(1)
+    setModalOpen(true)
+  }
   return (
     <section className="min-w-0 rounded-3xl bg-white dark:bg-gray-900 p-4 shadow-card sm:p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -2840,36 +2894,32 @@ function TopPerformersPanel({ performers, loading, failed }: { performers: TopPe
       ) : performers.length === 0 ? (
         <EmptyMessage icon={<Trophy className="h-8 w-8" />} title="No activity yet" detail="Members appear here once they earn XP." />
       ) : (
-        <ol className="space-y-2">
-          {performers.map(performer => (
-            <li key={performer.user_id} className="flex items-center gap-2 rounded-2xl border border-gray-100 dark:border-gray-800 p-3 sm:gap-3">
-              <span className={cn(
-                'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
-                performer.rank === 1 ? 'bg-amber-400 text-amber-950'
-                  : performer.rank === 2 ? 'bg-slate-300 text-slate-800'
-                    : performer.rank === 3 ? 'bg-orange-300 text-orange-950'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300',
-              )}>
-                {performer.rank}
-              </span>
-              <MemberAvatar name={performer.display_name} avatarUrl={performer.avatar_url} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{performer.display_name}</p>
-                <p className="mt-0.5 truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  {performer.plan_name}
-                  {performer.streak > 0 ? ` · 🔥 ${performer.streak}` : ''}
-                  {` · ${performer.completed_days} full days`}
-                  {performer.last_active_day ? ` · active ${formatDate(performer.last_active_day, language)}` : ''}
-                </p>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                <p className="text-sm font-black text-gray-950 dark:text-gray-100">{performer.xp.toLocaleString()}</p>
-                <p className="text-[10px] font-semibold uppercase text-gray-400">XP</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+        <>
+          <ol className="space-y-2">
+            {performers.slice(0, TOP_PERFORMERS_PREVIEW).map(performer => <TopPerformerRow key={performer.user_id} performer={performer} />)}
+          </ol>
+          {performers.length > TOP_PERFORMERS_PREVIEW && (
+            <Button type="button" variant="outline" className="mt-3 w-full" onClick={openModal}>
+              See all {performers.length} performers
+            </Button>
+          )}
+        </>
       )}
+
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={`Top performers (${performers.length})`}
+        size="xl"
+        footer={<Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Close</Button>}
+      >
+        <ol className="space-y-2">
+          {performers
+            .slice((currentPage - 1) * TOP_PERFORMERS_PAGE_SIZE, currentPage * TOP_PERFORMERS_PAGE_SIZE)
+            .map(performer => <TopPerformerRow key={performer.user_id} performer={performer} />)}
+        </ol>
+        {pageCount > 1 && <Pagination page={currentPage} pageCount={pageCount} onChange={setPage} />}
+      </Modal>
     </section>
   )
 }

@@ -74,6 +74,11 @@ type BrainItem = { prompt: Localized; options: Localized[]; answerIndex: number;
 const QUOTED_BLANK = /['‘’"“”]([^'‘’"“”]*_{2,}[^'‘’"“”]*)['‘’"“”]/
 const ENGLISH_PRACTICE = /\b(preposition|grammar|tense|verb|fill|blank|correct word|correct sentence|which word|synonym|antonym|means the same)\b/i
 
+// English-practice item whose options are plain English, so "lo" options must equal "en".
+const hasEnglishPracticeOptions = (item: BrainItem) =>
+  Boolean(item.prompt.en.match(QUOTED_BLANK) || ENGLISH_PRACTICE.test(item.prompt.en))
+  && item.options.every(option => /^[\x20-\x7E’‘]+$/.test(option.en))
+
 export function brainSprintIssues(item: BrainItem, path = 'item'): string[] {
   const issues: string[] = []
   const lo = item.options.map(option => option.lo.trim())
@@ -84,11 +89,44 @@ export function brainSprintIssues(item: BrainItem, path = 'item'): string[] {
   if (blank && !item.prompt.lo.includes(blank[1].trim())) {
     issues.push(`${path}: English practice sentence "${blank[1].trim()}" must stay in English in the Lao prompt`)
   }
-  const englishOptions = item.options.every(option => /^[\x20-\x7E’‘]+$/.test(option.en))
-  if ((blank || ENGLISH_PRACTICE.test(item.prompt.en)) && englishOptions && item.options.some(option => option.lo.trim() !== option.en.trim())) {
+  if (hasEnglishPracticeOptions(item) && item.options.some(option => option.lo.trim() !== option.en.trim())) {
     issues.push(`${path}: English-practice options must be identical in "lo" and "en"`)
   }
   return issues
+}
+
+// Thai vowels, tone marks and digits look and work the same as their Lao
+// counterparts (Lao = Thai + 0x80), so the model's slips can be swapped safely.
+// Thai consonants are not mapped: they differ, so those items stay rejected.
+const THAI_TO_LAO: Record<string, string> = Object.fromEntries([
+  ...[0x0E30, 0x0E31, 0x0E32, 0x0E33, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 0x0E38, 0x0E39, 0x0E40, 0x0E41, 0x0E42, 0x0E43, 0x0E44, 0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C]
+    .map(code => [String.fromCharCode(code), String.fromCharCode(code + 0x80)]),
+  ...Array.from({ length: 10 }, (_, digit) => [String.fromCharCode(0x0E50 + digit), String(digit)]),
+])
+
+export const fixThaiMarks = (text: string) => text.replace(/[ะ-๙]/g, char => THAI_TO_LAO[char] ?? char)
+
+// Applies fixThaiMarks to every Lao field ("lo", "lao", "*_lo") of any generated object.
+export function repairLaoFields<T>(value: T, inLao = false): T {
+  if (typeof value === 'string') return (inLao ? fixThaiMarks(value) : value) as T
+  if (Array.isArray(value)) return value.map(item => repairLaoFields(item, inLao)) as T
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, repairLaoFields(child, inLao || isLaoKey(key))])) as T
+  }
+  return value
+}
+
+// Fixes the mistakes that have one obvious correction; anything else is left for the checks.
+export function repairBrainSprintItem<T extends BrainItem>(item: T): T {
+  const fixLocalized = (value: Localized): Localized => ({ ...value, lo: fixThaiMarks(value.lo) })
+  const repaired = {
+    ...item,
+    prompt: fixLocalized(item.prompt),
+    explanation: fixLocalized(item.explanation),
+    options: item.options.map(fixLocalized),
+  }
+  if (hasEnglishPracticeOptions(repaired)) repaired.options = repaired.options.map(option => ({ ...option, lo: option.en.trim() }))
+  return repaired
 }
 
 const normalizeEnglish = (word: string) => word.trim().toLowerCase().replace(/s$/, '')
