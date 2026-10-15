@@ -55,6 +55,10 @@ verify_jwt = false
 [functions.bitty-chat]
 verify_jwt = false
 
+# Guest checkout autofill; only a narrow, rate-limited lookup is exposed.
+[functions.checkout-customer]
+verify_jwt = false
+
 # Called by Telegram, which cannot send a Supabase JWT; the function checks
 # Telegram's X-Telegram-Bot-Api-Secret-Token header instead.
 [functions.telegram-webhook]

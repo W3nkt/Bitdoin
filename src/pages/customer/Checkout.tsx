@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
@@ -14,10 +14,12 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
+import { ReturningCustomerWelcome } from '@/components/order/ReturningCustomerWelcome'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { publicAsset } from '@/lib/assets'
 import { formatPrice } from '@/lib/utils'
-import { createCheckoutOrder, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
+import { createCheckoutOrder, lookupCheckoutCustomer, trackOrder, updateGuestPaymentMethod, type GuestOrderAccess } from '@/lib/guestOrders'
+import { checkoutDeliveryDetails } from '@/lib/deliveryAddress'
 import { saveActiveGuestOrder } from '@/lib/guestTracking'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
 import {
@@ -30,6 +32,8 @@ import {
 import type { CheckoutForm, Order, PaymentMethod } from '@/types'
 
 const PHONE_PREFIX = '020'
+const CUSTOMER_FIELDS = ['full_name', 'logistics_provider', 'province', 'district', 'delivery_address'] as const
+type CustomerField = typeof CUSTOMER_FIELDS[number]
 
 const schema = z.object({
   full_name: z.string().min(2),
@@ -87,10 +91,14 @@ export function Checkout() {
   const [paymentLoadError, setPaymentLoadError] = useState('')
   const [guestAccessToken, setGuestAccessToken] = useState<string>()
   const [placedPhone, setPlacedPhone] = useState('')
+  const [customerLookup, setCustomerLookup] = useState<'idle' | 'loading' | 'found' | 'missing' | 'error'>('idle')
+  const [returningCustomerName, setReturningCustomerName] = useState('')
+  const autoFilled = useRef<Partial<Record<CustomerField, string>>>({})
+  const lookupStarted = useRef(false)
 
   const initialDraft = useMemo(() => loadCheckoutDraft(), [])
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CheckoutForm>({
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
     defaultValues: {
       full_name: profile?.name ?? '',
@@ -111,8 +119,88 @@ export function Checkout() {
     return () => subscription.unsubscribe()
   }, [watch])
 
-  const selectedProvinceId = watch('province')
-  const selectedLogistics = watch('logistics_provider')
+  const customerValues = watch(CUSTOMER_FIELDS)
+  const selectedProvinceId = customerValues[2]
+  const selectedLogistics = customerValues[1]
+  const selectedPhone = watch('phone')
+  const isAutoFilled = (field: CustomerField) =>
+    customerLookup === 'found' && !!autoFilled.current[field]
+    && customerValues[CUSTOMER_FIELDS.indexOf(field)] === autoFilled.current[field]
+
+  useEffect(() => {
+    // A different number must not retain the previous customer's autofilled data.
+    const clearProvince = autoFilled.current.province !== undefined && getValues('province') === autoFilled.current.province
+    for (const field of CUSTOMER_FIELDS) {
+      if (autoFilled.current[field] !== undefined && getValues(field) === autoFilled.current[field]) {
+        setValue(field, '')
+      }
+    }
+    if (clearProvince) setValue('district', '')
+    autoFilled.current = {}
+    setCustomerLookup('idle')
+    setReturningCustomerName('')
+
+    if (!/^(?!0)\d{8}$/.test(selectedPhone)) return
+
+    const controller = new AbortController()
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      const preserveDraft = !lookupStarted.current && initialDraft?.phone === selectedPhone
+      lookupStarted.current = true
+      const beforeLookup = getValues()
+      // Restored details belong to the draft's phone, too. Track them so
+      // switching to an unknown number cannot retain the previous address.
+      if (preserveDraft) {
+        for (const field of CUSTOMER_FIELDS) {
+          if (initialDraft?.[field] && beforeLookup[field] === initialDraft[field]) {
+            autoFilled.current[field] = initialDraft[field]
+          }
+        }
+      }
+      setCustomerLookup('loading')
+      try {
+        const customer = await lookupCheckoutCustomer(`${PHONE_PREFIX}${selectedPhone}`, controller.signal)
+        if (cancelled || getValues('phone') !== selectedPhone) return
+        if (!customer) {
+          setCustomerLookup('missing')
+          return
+        }
+
+        const details = {
+          full_name: customer.customer_name,
+          ...checkoutDeliveryDetails(customer.delivery_address),
+        }
+        // Keep edits made while waiting for the lookup, and a restored draft.
+        const canFill = (field: CustomerField) =>
+          getValues(field) === beforeLookup[field] && !(preserveDraft && initialDraft?.[field])
+        const fillLocation = canFill('province') && canFill('district') && !!details.province
+        for (const field of CUSTOMER_FIELDS) {
+          if (field === 'province' || field === 'district') continue
+          if (!details[field] || !canFill(field)) continue
+          setValue(field, details[field], { shouldValidate: true })
+          autoFilled.current[field] = details[field]
+        }
+        // Treat province/district as a pair so an edit cannot leave a district
+        // selected under the wrong province, even for older partial addresses.
+        if (fillLocation) {
+          for (const field of ['province', 'district'] as const) {
+            setValue(field, details[field], { shouldValidate: true })
+            autoFilled.current[field] = details[field]
+          }
+        }
+        setReturningCustomerName(customer.customer_name.trim())
+        setCustomerLookup('found')
+      } catch {
+        if (!cancelled) setCustomerLookup('error')
+      }
+    }, 450)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [selectedPhone, getValues, setValue, initialDraft])
 
   const provinceOptions = useMemo(() => LAOS_ADMIN_DIVISIONS.map(province => ({
     value: province.id,
@@ -124,10 +212,6 @@ export function Checkout() {
     value: district.code,
     label: language === 'lo' ? district.name_lo : district.name_en,
   })) ?? []
-
-  useEffect(() => {
-    setValue('district', '')
-  }, [selectedProvinceId, setValue])
 
   const shouldReturnToCart = items.length === 0 && !placedAccess && !paymentModalOpen
 
@@ -305,12 +389,6 @@ export function Checkout() {
         <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-4 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('checkout.deliveryInfo')}</h2>
           <Input
-            label={t('checkout.fullName')}
-            required
-            error={errors.full_name?.message}
-            {...register('full_name')}
-          />
-          <Input
             label={t('checkout.phone')}
             type="tel"
             inputMode="numeric"
@@ -330,6 +408,20 @@ export function Checkout() {
               },
             })}
           />
+          <div role="status" aria-live="polite" aria-atomic="true">
+            {customerLookup === 'found' ? (
+              <ReturningCustomerWelcome key={selectedPhone} name={returningCustomerName} />
+            ) : (
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t(`checkout.customerLookup.${customerLookup}`)}</p>
+            )}
+          </div>
+          <Input
+            label={t('checkout.fullName')}
+            data-checkout-autofilled={isAutoFilled('full_name') || undefined}
+            required
+            error={errors.full_name?.message}
+            {...register('full_name')}
+          />
 
           <div className="space-y-2">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
@@ -339,6 +431,7 @@ export function Checkout() {
               {logisticsOptions.map(option => (
                 <label
                   key={option.value}
+                  data-checkout-autofilled={selectedLogistics === option.value && isAutoFilled('logistics_provider') || undefined}
                   className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                     selectedLogistics === option.value
                       ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/40 text-primary-900 dark:text-primary-300'
@@ -376,14 +469,17 @@ export function Checkout() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Select
               label={t('checkout.province')}
+              data-checkout-autofilled={isAutoFilled('province') || undefined}
               required
               placeholder={t('checkout.selectProvince')}
               options={provinceOptions}
               error={errors.province?.message}
-              {...register('province')}
+              {...register('province', { onChange: () => setValue('district', '') })}
             />
             <Select
+              key={selectedProvinceId}
               label={t('checkout.district')}
+              data-checkout-autofilled={isAutoFilled('district') || undefined}
               required
               placeholder={t('checkout.selectDistrict')}
               options={districtOptions}
@@ -395,6 +491,7 @@ export function Checkout() {
 
           <Textarea
             label={t('checkout.address')}
+            data-checkout-autofilled={isAutoFilled('delivery_address') || undefined}
             required
             rows={3}
             placeholder={t('checkout.addressDetail')}

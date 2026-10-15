@@ -1,5 +1,5 @@
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
-import type { Language } from '@/types'
+import type { CheckoutForm, Language } from '@/types'
 
 type DeliveryFieldKey = 'logistics' | 'province' | 'district' | 'address'
 
@@ -83,17 +83,45 @@ function parseDeliveryAddress(rawAddress: string) {
     '\n$1:',
   )
   const fields: Partial<Record<DeliveryFieldKey, string>> = {}
+  let currentKey: DeliveryFieldKey | undefined
 
   normalized.split('\n').forEach(line => {
     const separator = line.indexOf(':')
-    if (separator < 0) return
-    const label = line.slice(0, separator).trim()
-    const value = line.slice(separator + 1).trim()
-    const key = fieldKeys[label]
-    if (key && value) fields[key] = value
+    const key = separator < 0 ? undefined : fieldKeys[line.slice(0, separator).trim()]
+    if (key) {
+      currentKey = key
+      fields[key] = line.slice(separator + 1).trim()
+    } else if (currentKey && line.trim()) {
+      fields[currentKey] = [fields[currentKey], line.trim()].filter(Boolean).join('\n')
+    }
   })
 
   return fields
+}
+
+/** Restore form values from either Lao or English order delivery labels. */
+export function checkoutDeliveryDetails(rawAddress: string): Pick<
+  CheckoutForm, 'logistics_provider' | 'province' | 'district' | 'delivery_address'
+> {
+  const fields = parseDeliveryAddress(rawAddress)
+  const matches = (value: string | undefined, ...names: string[]) =>
+    !!value && names.some(name => name.toLocaleLowerCase() === value.trim().toLocaleLowerCase())
+  const province = LAOS_ADMIN_DIVISIONS.find(entry =>
+    matches(fields.province, entry.id, entry.name_en, entry.name_lo),
+  )
+  const district = province?.districts.find(entry =>
+    matches(fields.district, entry.code, entry.name_en, entry.name_lo),
+  )
+  const logistics = Object.entries(logisticsNames).find(([key, names]) =>
+    matches(fields.logistics, key, names.en, names.lo),
+  )
+
+  return {
+    logistics_provider: logistics?.[0] ?? '',
+    province: province?.id ?? '',
+    district: district?.code ?? '',
+    delivery_address: fields.address ?? (Object.keys(fields).length === 0 ? rawAddress : ''),
+  }
 }
 
 function localizeValue(key: DeliveryFieldKey, value: string, language: Language) {

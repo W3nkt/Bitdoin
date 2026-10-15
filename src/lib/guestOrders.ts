@@ -9,6 +9,21 @@ export interface GuestOrderAccess {
   payment_id: string
 }
 
+export interface ReturningCustomer {
+  customer_name: string
+  delivery_address: string
+}
+
+export async function lookupCheckoutCustomer(phone: string, signal: AbortSignal) {
+  const { data, error } = await supabase.functions.invoke('checkout-customer', {
+    body: { phone },
+    signal,
+    timeout: 8_000,
+  })
+  if (error) throw new Error(error.message)
+  return (data?.customer ?? null) as ReturningCustomer | null
+}
+
 async function notifyAdminOfOrder(body: Record<string, unknown>) {
   // Keep this request attached to checkout. A detached request can be cancelled
   // when the customer closes the payment screen or navigates away.

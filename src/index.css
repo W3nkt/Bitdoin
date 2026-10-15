@@ -404,3 +404,63 @@ label:has(input[data-invalid='true']) {
 @media (prefers-reduced-motion: reduce) {
   .form-error-tip { animation: none; }
 }
+
+/* Mark restored checkout details while preserving validation error borders. */
+[data-checkout-autofilled='true'] {
+  background-color: #f0fdf4;
+}
+
+[data-checkout-autofilled='true']:not([aria-invalid='true']):not([data-invalid='true']) {
+  border-color: #86efac;
+}
+
+.dark [data-checkout-autofilled='true']:is(input, select, textarea, label) {
+  background-color: #123326;
+}
+
+.dark [data-checkout-autofilled='true']:not([aria-invalid='true']):not([data-invalid='true']) {
+  border-color: #327252;
+}
+
+/* A single welcome celebration after checkout recognizes a returning reader. */
+.checkout-welcome {
+  animation: checkout-welcome-in 450ms ease-out both;
+}
+
+.checkout-welcome-icon {
+  animation: checkout-welcome-pop 750ms ease-out both;
+}
+
+.checkout-welcome-confetti {
+  animation: checkout-welcome-confetti 1600ms ease-out both;
+}
+
+@keyframes checkout-welcome-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes checkout-welcome-pop {
+  0% { transform: scale(0.7) rotate(-12deg); }
+  45% { transform: scale(1.12) rotate(8deg); }
+  75% { transform: scale(0.96) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes checkout-welcome-confetti {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0); }
+  10% { opacity: 0.9; }
+  70% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate3d(var(--confetti-drift), 170px, 0) rotate(var(--confetti-spin)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-welcome,
+  .checkout-welcome-icon {
+    animation: none;
+  }
+  .checkout-welcome-confetti {
+    display: none;
+    animation: none;
+  }
+}
