@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
+  Box,
   BrainCircuit,
   Check,
   CheckCircle2,
@@ -255,6 +257,7 @@ export function PlayLearnArcade({
 }) {
   usePremiumTranslation()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { success, error } = useToast()
   const { language } = useLanguage()
   const [activeActivity, setActiveActivity] = useState<ActivityKind | null>(null)
@@ -540,6 +543,26 @@ export function PlayLearnArcade({
             onClick={() => onStartRoleplay(dailyRoleplayMission.slug)}
           />
         </div>
+
+        {/* Open to every member (Free and Premium); the lab is its own page so its 3D code loads only when opened. */}
+        <button
+          type="button"
+          onClick={() => navigate('/academy/top-corner-lab')}
+          className="group mt-3 flex w-full items-center gap-3 rounded-3xl border border-sky-200 dark:border-sky-500/30 bg-gradient-to-r from-[#0b101c] to-[#17223f] p-3 text-left text-white transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 sm:p-4"
+        >
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-300/15 text-amber-300 sm:h-11 sm:w-11">
+            <Box className="h-6 w-6" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black sm:text-base">{language === 'lo' ? 'ຫ້ອງທົດລອງມຸມສູງສຸດ' : 'Top Corner Lab'}</span>
+            <span className="mt-0.5 block text-[11px] font-semibold leading-[18px] text-slate-300 sm:text-xs sm:leading-5">
+              {language === 'lo' ? 'ເບິ່ງແບບ 3D ວ່າເປັນຫຍັງຍິ່ງມີຫຼາຍມິຕິ ຈຸດສູງສຸດກໍ່ຍິ່ງໄກ.' : 'See in 3D why the top moves further away with every dimension you add.'}
+            </span>
+          </span>
+          <span className="inline-flex flex-shrink-0 items-center gap-1 rounded-xl bg-amber-300 px-3 py-2 text-xs font-black text-[#0b101c] transition group-hover:bg-amber-200">
+            {language === 'lo' ? 'ເປີດ' : 'Explore'} <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </button>
       </div>
 
       <Modal

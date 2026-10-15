@@ -39,6 +39,8 @@ export default {
         sans: ['Inter', 'Noto Sans Thai', 'Noto Sans Lao', 'sans-serif'],
         lao:  ['Noto Sans Lao', 'sans-serif'],
         thai: ['Noto Sans Thai', 'sans-serif'],
+        // Tailwind's default monospace stack, with Noto Sans Lao so Lao text in mono labels uses the app's Lao font.
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'Noto Sans Lao', 'monospace'],
       },
       boxShadow: {
         'book':       '0 20px 60px -8px rgba(0,0,0,0.4), 0 6px 20px -4px rgba(0,0,0,0.25)',
