@@ -26,8 +26,8 @@ const COPY = {
   ACADEMY: {
     title: { lo: 'ການແຈ້ງເຕືອນໃນແອັບ', en: 'App notifications' },
     description: {
-      lo: 'ຮັບຂໍ້ຄວາມສັ້ນໆມື້ລະຄັ້ງ: ບົດຮຽນໃໝ່, ຄວາມທ້າທາຍມື້ນີ້ ຫຼື ກຳລັງໃຈ, ພ້ອມຂ່າວຟັງຊັນໃໝ່. ເຮັດວຽກເຖິງວ່າຈະປິດແອັບຢູ່.',
-      en: "One short message a day: a new lesson, today's challenge or a quick nudge, plus news about new features. Works even when the app is closed.",
+      lo: 'ຮັບຂໍ້ຄິດປະຈຳວັນ ຫຼື ຄຳຄົມໃຫ້ກຳລັງໃຈເປັນພາສາລາວ ມື້ລະຄັ້ງ. ເຮັດວຽກເຖິງວ່າຈະປິດແອັບຢູ່.',
+      en: "A daily quote or motivational quote in Lao, once a day. Works even when the app is closed.",
     },
     toggle: { lo: 'ການແຈ້ງເຕືອນປະຈຳວັນ', en: 'Daily reminder' },
   },

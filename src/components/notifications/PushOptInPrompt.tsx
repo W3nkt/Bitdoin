@@ -16,8 +16,8 @@ const COPY = {
     body: { lo: 'ເປີດການແຈ້ງເຕືອນເພື່ອຮັບຂ່າວປຶ້ມໃໝ່ ແລະ ຟັງຊັນໃໝ່. ປິດໄດ້ທຸກເວລາ.', en: 'Turn on notifications for new books and new features. Turn them off any time.' },
   },
   ACADEMY: {
-    title: { lo: 'ຮັກສານິໄສການຮຽນດ້ວຍການແຈ້ງເຕືອນປະຈຳວັນ', en: 'Keep your learning habit with a daily reminder' },
-    body: { lo: 'ຂໍ້ຄວາມສັ້ນໆມື້ລະຄັ້ງ ພ້ອມບົດຮຽນໃໝ່ ແລະ ຄວາມທ້າທາຍ. ປ່ຽນເວລາ ຫຼື ປິດໄດ້ໃນໂປຣໄຟລ໌.', en: 'One short message a day with new lessons and challenges. Change the time or turn it off in your profile.' },
+    title: { lo: 'ຮັບກຳລັງໃຈມື້ລະຄັ້ງ', en: 'A little inspiration every day' },
+    body: { lo: 'ຮັບຂໍ້ຄິດປະຈຳວັນ ຫຼື ຄຳຄົມໃຫ້ກຳລັງໃຈເປັນພາສາລາວ. ປ່ຽນເວລາ ຫຼື ປິດໄດ້ໃນໂປຣໄຟລ໌.', en: 'A daily quote or motivational quote in Lao. Change the time or turn it off in your profile.' },
   },
 } as const
 

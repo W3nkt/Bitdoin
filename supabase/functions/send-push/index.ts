@@ -5,7 +5,6 @@ import {
   newBooksMessage,
   testMessage,
   type Lang,
-  type Lesson,
   type NewBook,
   type PushMessage,
 } from './messages.ts'
@@ -162,40 +161,22 @@ async function sendAcademyDaily(admin: SupabaseClient) {
   if (!rows.length) return { sent: 0, date: now.date }
 
   const userIds = [...new Set(rows.map(row => row.user_id))]
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-  const lessonColumns = 'slug,title_en,title_lo,summary_en,summary_lo,estimated_minutes,is_preview'
-  const [users, { data: mentor }, { data: newLessons }, { data: lessons }, { data: subscriptions }] = await Promise.all([
-    languagesFor(admin, userIds),
-    admin.from('premium_daily_motivations').select('challenge').eq('publish_date', now.date).eq('is_active', true).maybeSingle(),
-    admin.from('premium_lessons').select(lessonColumns).eq('status', 'PUBLISHED').gte('published_at', since)
-      .order('published_at', { ascending: false }).limit(5),
-    admin.from('premium_lessons').select(lessonColumns).eq('status', 'PUBLISHED').order('slug').limit(1000),
-    admin.from('premium_subscriptions').select('user_id,plan:premium_plans(price_lak)')
-      .eq('status', 'ACTIVE').in('user_id', userIds)
-      .or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`),
+  const [{ data: mentor }, guidanceBatches] = await Promise.all([
+    admin.from('premium_daily_motivations').select('quote')
+      .lte('publish_date', now.date).eq('is_active', true)
+      .order('publish_date', { ascending: false }).limit(1).maybeSingle(),
+    Promise.all(Array.from({ length: Math.ceil(userIds.length / 500) }, (_, i) =>
+      admin.from('premium_personalized_daily_guidance').select('user_id,quote')
+        .eq('publish_date', now.date).in('user_id', userIds.slice(i * 500, (i + 1) * 500)),
+    )),
   ])
-
-  // A $0 Free plan is also ACTIVE; only paid plans open every lesson.
-  const paid = new Set<string>()
-  for (const sub of subscriptions ?? []) {
-    const plan = Array.isArray(sub.plan) ? sub.plan[0] : sub.plan
-    if ((plan?.price_lak ?? 0) > 0) paid.add(sub.user_id)
-  }
-  const allLessons = (lessons ?? []) as Array<Lesson & { is_preview: boolean }>
-  const previewLessons = allLessons.filter(lesson => lesson.is_preview)
-  const freshLessons = (newLessons ?? []) as Array<Lesson & { is_preview: boolean }>
+  const quotes = new Map(guidanceBatches.flatMap(batch => batch.data ?? []).map(row => [row.user_id, row.quote]))
 
   const result = await deliver(admin, rows, row => {
-    const user = users.get(row.user_id)
-    const isPaid = paid.has(row.user_id)
     return academyDailyMessage({
-      lang: user?.lang ?? 'lo',
-      name: user?.name ?? '',
-      userId: row.user_id,
       laosDate: now.date,
-      newLessons: isPaid ? freshLessons : freshLessons.filter(lesson => lesson.is_preview),
-      spotlightPool: isPaid ? allLessons : previewLessons,
-      challenge: mentor?.challenge ?? null,
+      personalizedQuote: quotes.get(row.user_id),
+      quote: mentor?.quote,
     })
   }, {
     ttl: 12 * 60 * 60,
