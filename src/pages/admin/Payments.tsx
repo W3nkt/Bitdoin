@@ -80,6 +80,11 @@ function verificationConfidence(payment: Payment): number | null {
 }
 
 const TRACKING_BASE_URL = 'https://bitdoin.store/bookstore/track'
+
+// Carries the order code and the buyer's phone so the order opens without typing either.
+function trackingLink(orderNumber: string, customerPhone: string) {
+  return `${TRACKING_BASE_URL}?${new URLSearchParams({ order: orderNumber, phone: customerPhone })}`
+}
 const NO_PAYMENT_REASON = 'ບໍ່ໄດ້ຊຳລະຄ່າສິນຄ້າ'
 
 function laoAmountMismatchReason(payment: Payment, ai: ReceiptAiData): string {
@@ -183,7 +188,7 @@ export function AdminPayments() {
     const customerPhone = payment.order?.customer_phone
     if (!orderNumber || !customerPhone) return
 
-    const trackingUrl = `${TRACKING_BASE_URL}?order=${encodeURIComponent(orderNumber)}`
+    const trackingUrl = trackingLink(orderNumber, customerPhone)
     const formatted = formatPrice(payment.amount, currency)
     const bookLines = (payment.order?.items ?? [])
       .filter(item => item.book?.title)
@@ -605,7 +610,7 @@ export function AdminPayments() {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-green-900 dark:text-green-300">Remind buyer to pay</p>
                     <p className="mt-1 text-xs text-green-700 dark:text-green-300 break-all">
-                      Sends the tracking link {TRACKING_BASE_URL}?order={detailPayment.order.order_number}
+                      Sends the tracking link {trackingLink(detailPayment.order.order_number, detailPayment.order.customer_phone)}
                     </p>
                   </div>
                   <Button

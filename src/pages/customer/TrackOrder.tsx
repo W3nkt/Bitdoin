@@ -22,6 +22,9 @@ export function TrackOrder() {
   )
   const [phone, setPhone] = useState(() => {
     const urlOrderNumber = searchParams.get('order')
+    // A payment reminder link carries the buyer's phone so the order opens straight away.
+    const urlPhone = searchParams.get('phone')
+    if (urlOrderNumber && urlPhone) return urlPhone
     const saved = loadActiveGuestOrder()
     // Only reuse the saved phone when it belongs to the order we're about to
     // look up (either the URL's order, or the saved order when the URL has
