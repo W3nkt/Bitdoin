@@ -249,7 +249,7 @@ const lo: Translations = {
     namePlaceholder: 'ຊື່ຂອງທ່ານ',
     signInWithPhone: 'ເຂົ້າລະບົບດ້ວຍເບີໂທ',
     codeSentTo: 'ສົ່ງລະຫັດໄປທີ່ {{phone}}',
-    accountCreated: 'ສ້າງບັນຊີແລ້ວ! ຕອນນີ້ທ່ານສາມາດເຂົ້າລະບົບໄດ້.',
+    accountCreated: 'ສະໝັກສຳເລັດແລ້ວ! ກະລຸນາກວດເບິ່ງອີເມລຂອງທ່ານ ແລະ ຢືນຢັນອີເມລກ່ອນເຂົ້າສູ່ລະບົບ.',
     otpSent: 'ສົ່ງ OTP ແລ້ວ!',
     otp: 'ໃສ່ລະຫັດ OTP',
     sendOtp: 'ສົ່ງ OTP',
@@ -262,6 +262,9 @@ const lo: Translations = {
     haveAccount: 'ມີບັນຊີແລ້ວ?',
     noAccount: 'ຍັງບໍ່ມີບັນຊີ?',
     signInRequired: 'ກະລຸນາເຂົ້າສູ່ລະບົບເພື່ອດຳເນີນການຕໍ່',
+    followUs: 'ຕິດຕາມພວກເຮົາ',
+    whatsappChannel: 'ຊ່ອງ WhatsApp',
+    copyright: 'ສະຫງວນລິຂະສິດ © {{year}} Bitdoin',
   },
 
   sidebar: {

@@ -257,7 +257,7 @@ const en = {
     namePlaceholder: 'Your name',
     signInWithPhone: 'Sign in with phone',
     codeSentTo: 'Code sent to {{phone}}',
-    accountCreated: 'Account created! You can now sign in.',
+    accountCreated: 'Sign up complete! Please check your email inbox and verify your email address before you sign in.',
     otpSent: 'OTP sent!',
     otp: 'Enter OTP',
     sendOtp: 'Send OTP',
@@ -270,6 +270,9 @@ const en = {
     haveAccount: 'Already have an account?',
     noAccount: "Don't have an account?",
     signInRequired: 'Sign in to continue',
+    followUs: 'Follow Us',
+    whatsappChannel: 'WhatsApp Channel',
+    copyright: 'Copyright © {{year}} Bitdoin',
   },
 
   sidebar: {

@@ -11,9 +11,10 @@ interface Toast {
 }
 
 interface ToastContextValue {
-  toast: (message: string, type?: ToastType) => void
-  success: (message: string) => void
-  error: (message: string) => void
+  /** durationMs: how long the toast stays; 4 seconds by default. */
+  toast: (message: string, type?: ToastType, durationMs?: number) => void
+  success: (message: string, durationMs?: number) => void
+  error: (message: string, durationMs?: number) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -44,14 +45,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const toast = useCallback((message: string, type: ToastType = 'info') => {
+  const toast = useCallback((message: string, type: ToastType = 'info', durationMs = 4000) => {
     const id = Math.random().toString(36).slice(2)
     setToasts(prev => [...prev, { id, type, message }])
-    setTimeout(() => remove(id), 4000)
+    setTimeout(() => remove(id), durationMs)
   }, [remove])
 
-  const success = useCallback((message: string) => toast(message, 'success'), [toast])
-  const error = useCallback((message: string) => toast(message, 'error'), [toast])
+  const success = useCallback((message: string, durationMs?: number) => toast(message, 'success', durationMs), [toast])
+  const error = useCallback((message: string, durationMs?: number) => toast(message, 'error', durationMs), [toast])
 
   return (
     <ToastContext.Provider value={{ toast, success, error }}>
