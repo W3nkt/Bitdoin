@@ -82,6 +82,15 @@ Deno.test('the receiver must be the admin account holder', () => {
   assertEquals(statusOf(review({ receiver_name: 'X' }, { names: [] }), 'receiver'), 'unknown')
 })
 
+Deno.test('a receiver containing Chongyang or Bitdoin always matches', () => {
+  assertEquals(statusOf(review({ receiver_name: 'CHONGYANG SAYAVONG', receiver_matches: false }), 'receiver'), 'pass')
+  assertEquals(statusOf(review({ receiver_name: 'Bitdoin Co., Ltd', receiver_matches: false }), 'receiver'), 'pass')
+  assertEquals(statusOf(review({ receiver_name: 'MR CHONG YANG' }), 'receiver'), 'pass')
+  // Works even when no admin account name is configured.
+  assertEquals(statusOf(review({ receiver_name: 'BITDOIN' }, { names: [] }), 'receiver'), 'pass')
+  assertEquals(review({ receiver_name: 'Chongyang', receiver_matches: false }).suggested_action, 'APPROVE')
+})
+
 Deno.test('receiver names match despite case, order, titles and masking', () => {
   assert(namesMatch('MR WEN KHAMTENG', 'Wen Khamteng'))
   assert(namesMatch('KHAMTENG WEN', 'Wen Khamteng'))

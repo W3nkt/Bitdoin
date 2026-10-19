@@ -30,6 +30,7 @@ import {
   Users,
   WandSparkles,
   XCircle,
+  TriangleAlert,
   Moon,
   Sun,
   Maximize2,
@@ -407,6 +408,7 @@ export function PremiumAdminDashboard() {
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const [reviewingSubscriptionId, setReviewingSubscriptionId] = useState<string | null>(null)
   const [rejectingRequest, setRejectingRequest] = useState<RejectingRequest | null>(null)
+  const [dismissingRequest, setDismissingRequest] = useState<PremiumSubscription | null>(null)
   const [proofPreview, setProofPreview] = useState<ProofPreview | null>(null)
   const [loadingProofId, setLoadingProofId] = useState<string | null>(null)
   const [selectedSubscription, setSelectedSubscription] = useState<PremiumSubscription | null>(null)
@@ -707,12 +709,23 @@ export function PremiumAdminDashboard() {
     () => new Map((onboardingResponses ?? []).map(response => [response.user_id, response])),
     [onboardingResponses],
   )
+  // Requests that can be decided now (proof uploaded, or a Free plan awaiting
+  // approval) come first; ones still waiting for payment follow. Newest first
+  // within each group, as loaded.
   const subscriptionRequests = useMemo(
-    () => (subscriptions ?? []).filter(subscription => (
-      subscription.status === 'PENDING_PAYMENT' || subscription.status === 'PAYMENT_REVIEW'
-      || subscription.status === 'PENDING_APPROVAL'
-    )),
-    [subscriptions],
+    () => {
+      const open = (subscriptions ?? []).filter(subscription => (
+        subscription.status === 'PENDING_PAYMENT' || subscription.status === 'PAYMENT_REVIEW'
+        || subscription.status === 'PENDING_APPROVAL'
+      ))
+      const readyToCheck = (subscription: PremiumSubscription) => {
+        const payment = paymentBySubscription.get(subscription.id)
+        return (!!payment?.receipt_image_url && payment.status === 'REQUIRES_REVIEW')
+          || subscription.status === 'PENDING_APPROVAL'
+      }
+      return [...open.filter(readyToCheck), ...open.filter(subscription => !readyToCheck(subscription))]
+    },
+    [subscriptions, paymentBySubscription],
   )
   const awaitingPaymentUserIds = useMemo(
     () => [...new Set(subscriptionRequests.filter(subscription => subscription.status === 'PENDING_PAYMENT').map(subscription => subscription.user_id))].sort(),
@@ -1020,6 +1033,25 @@ export function PremiumAdminDashboard() {
     } catch (err) {
       console.error(err)
       error('Could not reject this subscription.')
+    } finally {
+      setReviewingSubscriptionId(null)
+    }
+  }
+
+  // A reminded member who never paid: cancel the request so it leaves the list for good.
+  async function dismissSubscriptionRequest(subscription: PremiumSubscription) {
+    setReviewingSubscriptionId(subscription.id)
+    try {
+      const { error: dismissError } = await supabase.rpc('dismiss_premium_subscription_request', {
+        p_subscription_id: subscription.id,
+      })
+      if (dismissError) throw dismissError
+      setDismissingRequest(null)
+      await invalidateAdminPremium()
+      success('Request dismissed and cancelled.')
+    } catch (err) {
+      console.error(err)
+      error('Could not dismiss this request.')
     } finally {
       setReviewingSubscriptionId(null)
     }
@@ -1369,17 +1401,32 @@ export function PremiumAdminDashboard() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Waiting for payment proof</span>
                 {remindedAt ? (
-                  <button
-                    type="button"
-                    title={formatDateTime(remindedAt)}
-                    onClick={event => {
-                      event.stopPropagation()
-                      openMemberWhatsApp(subscription, 'PAYMENT_REMINDER')
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#25D366]/60 bg-[#25D366]/10 px-3 py-1.5 text-xs font-bold text-[#1a9e4b] transition hover:bg-[#25D366]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50 dark:text-[#4ade80]"
-                  >
-                    <Check className="h-4 w-4" /> Remind again
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      icon={<XCircle className="h-4 w-4" />}
+                      loading={reviewingSubscriptionId === subscription.id}
+                      onClick={event => {
+                        event.stopPropagation()
+                        setDismissingRequest(subscription)
+                      }}
+                    >
+                      Dismiss
+                    </Button>
+                    <button
+                      type="button"
+                      title={formatDateTime(remindedAt)}
+                      onClick={event => {
+                        event.stopPropagation()
+                        openMemberWhatsApp(subscription, 'PAYMENT_REMINDER')
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#25D366]/60 bg-[#25D366]/10 px-3 py-1.5 text-xs font-bold text-[#1a9e4b] transition hover:bg-[#25D366]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50 dark:text-[#4ade80]"
+                    >
+                      <Check className="h-4 w-4" /> Remind again
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
@@ -2211,6 +2258,63 @@ export function PremiumAdminDashboard() {
           onChange={event => setRejectReason(event.target.value)}
           placeholder={language === 'lo' ? 'ອະທິບາຍເຫດຜົນທີ່ຄຳຂໍສະໝັກສະມາຊິກນີ້ບໍ່ໄດ້ຮັບການອະນຸມັດ.' : 'Explain why this subscription request was not approved.'}
         />
+      </Modal>
+
+      <Modal
+        open={!!dismissingRequest}
+        onClose={() => setDismissingRequest(null)}
+        size="md"
+        footer={
+          <>
+            <Button type="button" variant="ghost" onClick={() => setDismissingRequest(null)}>
+              {language === 'lo' ? 'ຍົກເລີກ' : 'Keep request'}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              icon={<XCircle className="h-4 w-4" />}
+              onClick={() => dismissingRequest && void dismissSubscriptionRequest(dismissingRequest)}
+              loading={!!dismissingRequest && reviewingSubscriptionId === dismissingRequest.id}
+            >
+              {language === 'lo' ? 'ປິດຄຳຂໍ' : 'Dismiss request'}
+            </Button>
+          </>
+        }
+      >
+        {dismissingRequest && (() => {
+          const remindedAt = paymentRemindedAt?.get(dismissingRequest.user_id)
+          return (
+            <div className="flex flex-col items-center text-center" data-no-premium-translate>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 ring-8 ring-red-50 dark:bg-red-500/20 dark:ring-red-500/10">
+                <TriangleAlert className="h-7 w-7 text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="mt-5 text-lg font-black text-gray-950 dark:text-gray-100">
+                {language === 'lo' ? 'ປິດຄຳຂໍນີ້ບໍ?' : 'Dismiss this request?'}
+              </h3>
+              <div className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-left dark:border-gray-800 dark:bg-gray-900">
+                <MemberAvatar name={dismissingRequest.user?.name} avatarUrl={dismissingRequest.user?.avatar_url} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{dismissingRequest.user?.name ?? 'Unknown user'}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    {dismissingRequest.plan?.name ?? 'Premium'} · {language === 'lo' ? 'ສະໝັກ' : 'Requested'} {formatDate(dismissingRequest.created_at, language)}
+                  </p>
+                  {remindedAt && (
+                    <p className="mt-0.5 text-xs font-semibold text-[#1a9e4b] dark:text-[#4ade80]">
+                      {language === 'lo' ? 'ແຈ້ງເຕືອນແລ້ວ' : 'Reminded'} {formatDateTime(remindedAt)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 w-full rounded-2xl border border-red-200 bg-red-50 p-3 text-left text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
+                {language === 'lo' ? (
+                  <>ຄຳຂໍຈະຖືກ <span className="font-bold">ຍົກເລີກ</span> ແລະ ລຶບອອກຈາກລາຍການກວດສອບຖາວອນ. ສະມາຊິກຈະບໍ່ໄດ້ຮັບຂໍ້ຄວາມແຈ້ງ ແລະ ສິດທີ່ມີຢູ່ແລ້ວຈະບໍ່ຖືກກະທົບ.</>
+                ) : (
+                  <>The request will be <span className="font-bold">cancelled</span> and removed from Requests to review for good. The member gets no message, and any membership they already have stays as it is.</>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </Modal>
 
       <Modal

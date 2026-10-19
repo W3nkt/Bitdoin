@@ -107,6 +107,15 @@ export function namesMatch(receiver: string, expected: string): boolean {
   return matched === a.length && matched >= Math.min(2, b.length)
 }
 
+/** A receiver name containing any of these is always Bitdoin's account. */
+export const TRUSTED_RECEIVER_KEYWORDS = ['chongyang', 'bitdoin']
+
+/** Whether a receiver name contains a trusted keyword, ignoring case, spaces and punctuation ("CHONG YANG", "Bit-doin"). */
+export function hasTrustedReceiverKeyword(receiver: string): boolean {
+  const compact = receiver.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+  return TRUSTED_RECEIVER_KEYWORDS.some(keyword => compact.includes(keyword))
+}
+
 export function buildReview(input: ReviewInput): Review {
   const { reading, planPrice, requestedAt, expectedAccountNames, duplicateTransaction } = input
   const checks: Check[] = []
@@ -168,7 +177,9 @@ export function buildReview(input: ReviewInput): Review {
 
   // Receiver account name
   const expected = expectedAccountNames.filter(Boolean)
-  if (expected.length === 0) {
+  if (reading.receiver_name && hasTrustedReceiverKeyword(reading.receiver_name)) {
+    checks.push({ key: 'receiver', status: 'pass', label: 'Receiver', detail: `${reading.receiver_name} matches the Bitdoin account` })
+  } else if (expected.length === 0) {
     checks.push({ key: 'receiver', status: 'unknown', label: 'Receiver', detail: 'No admin bank account name is set up to compare with' })
   } else if (!reading.receiver_name) {
     checks.push({ key: 'receiver', status: 'unknown', label: 'Receiver', detail: `Could not read the receiver name (expected ${expected.join(' / ')})` })
@@ -238,6 +249,7 @@ export function parseReading(content: string): ReceiptReading {
 export function buildPrompt(planPrice: number, expectedAccountNames: string[]) {
   return `You are checking a bank transfer receipt (Lao, Thai or English) for a Bitdoin Academy membership costing ${planPrice} LAK.
 The money should have been sent to an account named: ${expectedAccountNames.length ? expectedAccountNames.map(name => `"${name}"`).join(' or ') : '(unknown)'}.
+Any receiver name containing "Chongyang" or "Bitdoin" is also the expected account.
 
 Read the image carefully. Never guess values you cannot read; use null instead.
 Return ONLY one JSON object, no Markdown:
