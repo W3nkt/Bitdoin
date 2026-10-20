@@ -8,7 +8,8 @@ import { publicAsset } from '@/lib/assets'
 import { landingCopy } from '@/components/landing/landingCopy'
 import './platform-selector.css'
 
-const bookImages = ['book-action.webp', 'book-focus.webp', 'book-language.webp']
+// The middle entry is the book shown in front when the page loads (activeBook starts at 1).
+const bookImages = ['book-bitcoin.webp', 'book-richdad.webp', 'book-pm.webp']
 const featureIcons = [BookOpen, Lightbulb, Compass]
 const stepIcons = [BookOpen, Sparkles, BarChart3]
 
@@ -136,7 +137,7 @@ export function PlatformSelector() {
               <p className="library-eyebrow">{t.bookstoreEyebrow}</p>
               <h2 id="bookstore-title">{t.bookstoreTitle}</h2>
               <p className="library-section-description">{t.bookstoreDescription}</p>
-              <div className="library-small-shelf" aria-hidden="true"><img src={publicAsset('images/landing/bookstore-shelf.webp')} alt="" width="1100" height="596" loading="lazy" /></div>
+              <div className="library-small-shelf" aria-hidden="true"><img src={publicAsset('images/landing/bookstore-shelf-covers.webp')} alt="" width="1100" height="596" loading="lazy" /></div>
               <PlatformLink platform="bookstore" to={bookstorePath} className="library-text-link">{t.browseStore}<ArrowRight size={20} aria-hidden="true" /></PlatformLink>
             </section>
             <section id="academy" className="library-academy" aria-labelledby="academy-title">

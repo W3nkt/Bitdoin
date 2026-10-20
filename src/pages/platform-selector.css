@@ -50,7 +50,7 @@
 .library-showcase { min-width: 0; touch-action: pan-y; position: relative; margin-top: -17px; }
 .library-books { position: relative; height: 400px; perspective: 1200px; }
 .library-book { position: absolute; width: 43%; height: 100%; left: 28.5%; top: 0; padding: 0; border: 0; background: transparent; transition: transform .65s cubic-bezier(.22,.68,.2,1), filter .65s; transform-origin: center bottom; }
-.library-book img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(4px 18px 12px #0008); user-select: none; }
+.library-book img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(4px 18px 12px #0008); user-select: none; }
 .library-book-center { transform: translateX(0) translateY(-13px) scale(1.07); z-index: 3; }
 .library-book-left { transform: translateX(-70%) translateY(0) scale(.78) rotateY(-12deg) rotateZ(-3deg); z-index: 1; filter: brightness(.82); }
 .library-book-right { transform: translateX(73%) translateY(0) scale(.8) rotateY(12deg) rotateZ(3deg); z-index: 2; filter: brightness(.86); }
