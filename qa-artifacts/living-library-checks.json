@@ -1,0 +1,12 @@
+{
+  "url": "http://127.0.0.1:4173/",
+  "results": [
+    "Carousel: previous/next, wraparound, keyboard, book selection, indicators and announcement passed",
+    "Language switching and persistence passed",
+    "All primary CTAs, sign-in, platform memory and section navigation passed",
+    "English and Lao at 1440, 1159, 1024, 768, 390 and 320px: no horizontal overflow; primary touch targets >=44px",
+    "Reduced motion disables carousel transitions",
+    "Mobile swipe selection passed",
+    "No uncaught browser errors"
+  ]
+}

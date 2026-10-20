@@ -22,7 +22,7 @@
       (function () {
         try {
           var path = window.location.pathname
-          if (!/^\/(bookstore|admin|academy|academy-admin)(\/|$)/.test(path) && path !== '/auth') return
+          if (!/^\/(bookstore|admin|academy|academy-admin)(\/|$)/.test(path) && path !== '/auth' && path !== '/') return
           var stored = localStorage.getItem('bitdoin_theme')
           var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches
           if (dark) {

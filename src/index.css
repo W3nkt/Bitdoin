@@ -3,6 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  /* The `primary` colour scale (tailwind.config.js). Pages opt in to the warm orange scale of the
+     sign-in page by putting `academy-warm` on <html> (see the Academy subscription page). */
+  :root {
+    --primary-50: 240 244 255;
+    --primary-100: 224 233 255;
+    --primary-200: 192 208 255;
+    --primary-300: 154 179 255;
+    --primary-400: 107 138 255;
+    --primary-500: 59 95 240;
+    --primary-600: 35 70 217;
+    --primary-700: 30 58 95;
+    --primary-800: 22 45 74;
+    --primary-900: 15 31 53;
+    --primary-950: 7 15 28;
+  }
+
+  .academy-warm {
+    --primary-50: 255 247 236;
+    --primary-100: 255 236 209;
+    --primary-200: 255 217 163;
+    --primary-300: 255 192 107;
+    --primary-400: 251 176 64;
+    --primary-500: 247 147 26;
+    --primary-600: 207 90 13;
+    --primary-700: 178 74 10;
+    --primary-800: 140 58 10;
+    --primary-900: 74 40 14;
+    --primary-950: 31 20 11;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;

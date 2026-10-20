@@ -40,7 +40,8 @@ export function Auth() {
   const from = sanitizeAuthReturnPath((location.state as { from?: string })?.from)
 
   const [method, setMethod] = useState<Method>('email')
-  const [emailStep, setEmailStep] = useState<EmailStep>('signin')
+  // The Academy landing's "Create free account" buttons open the Sign up tab.
+  const [emailStep, setEmailStep] = useState<EmailStep>(() => (location.state as { mode?: string } | null)?.mode === 'signup' ? 'signup' : 'signin')
   const [phoneStep, setPhoneStep] = useState<PhoneStep>('phone')
   const [loading, setLoading] = useState(false)
 

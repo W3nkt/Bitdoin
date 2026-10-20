@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowLeft,
   ArrowRight,
   AlertTriangle,
   Brain,
@@ -36,10 +37,12 @@ import {
   ChevronDown,
   Gamepad2,
   Home,
+  Languages,
+  Moon,
+  Sun,
   X as XIcon,
   type LucideIcon,
 } from 'lucide-react'
-import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
 import { WeeklyMastery } from '@/components/premium/WeeklyMastery'
@@ -62,6 +65,7 @@ import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { EXPIRY_WARNING_DAYS, isMembershipExpired } from '@/lib/academyMembership'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/lib/theme'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { adminWhatsAppLink } from '@/lib/whatsapp'
 import { formatMemberCode, memberCodePrefix } from '@/lib/memberCode'
@@ -322,8 +326,16 @@ export function Subscription() {
   const location = useLocation()
   const qc = useQueryClient()
   const { profile } = useAuth()
-  const { currency, language } = useLanguage()
+  const { currency, language, setLanguage } = useLanguage()
+  const dark = useTheme(state => state.theme) === 'dark'
+  const toggleTheme = useTheme(state => state.toggleTheme)
   usePremiumTranslation()
+  // This page wears the warm orange palette of the sign-in page: the `primary` colour scale is swapped
+  // on <html> (src/index.css) for as long as the page is open, so modals rendered in a portal match too.
+  useLayoutEffect(() => {
+    document.documentElement.classList.add('academy-warm')
+    return () => document.documentElement.classList.remove('academy-warm')
+  }, [])
   const { success, error } = useToast()
   const proofInputRef = useRef<HTMLInputElement>(null)
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null)
@@ -1081,38 +1093,54 @@ export function Subscription() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, pageLoading, onboardingLoading, profile])
 
+  // Back to where they came from; opened directly, members go to the platform picker and visitors to the landing page.
+  function goBack() {
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate(profile ? '/' : '/academy')
+  }
+
+  const lo = language === 'lo'
+  const headerButton = 'grid h-10 w-10 flex-none place-items-center rounded-full text-slate-700 transition hover:bg-slate-900/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-200 dark:hover:bg-white/10'
+
   return (
-    <div className="premium-i18n min-h-screen bg-slate-50 dark:bg-gray-950 pt-[104px] text-slate-950 dark:text-slate-100">
-      <section className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-30 overflow-visible bg-primary-900 px-4 py-4 text-white">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,95,240,0.35),transparent_35%),linear-gradient(135deg,#0f1f35_0%,#162d4a_58%,#1e3a5f_100%)]" />
-        <div className="relative mx-auto flex min-h-[72px] max-w-6xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <PwenLogoLockup
-              textClassName="text-white"
-              subTextClassName="text-primary-200"
-              markClassName="rounded-xl bg-white/10 p-1"
-            />
-            <div className="inline-flex flex-shrink-0 items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-primary-100 ring-1 ring-white/15 sm:text-sm">
-              <Crown className="h-3.5 w-3.5 text-amber-300" />
-              Academy
-            </div>
-          </div>
+    <div className="premium-i18n min-h-screen bg-gradient-to-br from-[#fff7ec] via-white to-[#fff1e2] text-slate-950 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950 dark:text-slate-100">
+      <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
+        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:h-[72px] sm:gap-3">
+          <button type="button" onClick={goBack} aria-label={lo ? 'ກັບຄືນ' : 'Back'} className={headerButton}>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <Link to="/academy" aria-label="Bitdoin Academy" className="flex flex-none items-center gap-2.5 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
+            <span className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-gradient-to-br from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_8px_20px_-8px_rgba(247,147,26,0.8)]"><GraduationCap className="h-6 w-6" /></span>
+            <span className="hidden whitespace-nowrap font-black leading-tight sm:block" data-no-premium-translate>Bitdoin Academy</span>
+          </Link>
           <div className="hidden min-w-0 flex-1 text-center md:block">
-            <h1 className="truncate text-lg font-black text-white lg:text-xl">
-              Your Academy home
+            <h1 className="truncate text-lg font-black lg:text-xl">
+              {profile ? 'Your Academy home' : (lo ? 'ແພັກເກັດສະມາຊິກ' : 'Membership plans')}
             </h1>
-            <p className="mt-1 truncate text-xs font-semibold text-primary-100 lg:text-sm">
-              Learn, practice, and track your progress.
+            <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 lg:text-sm">
+              {profile ? 'Learn, practice, and track your progress.' : (lo ? 'ເລີ່ມຟຣີ ແລ້ວຍົກລະດັບເມື່ອທ່ານພ້ອມ.' : 'Start free, upgrade when you are ready.')}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Link to="/" className="hidden rounded-full border border-white/15 bg-white/5 px-3 py-2 text-xs font-black text-primary-100 hover:bg-white/10 lg:block">
+          <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5">
+            <Link to="/" className="hidden rounded-full px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white xl:block">
               Switch platform
             </Link>
-            <PremiumProfileMenu variant="dark" />
+            <button type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} aria-label={lo ? 'English' : 'ລາວ'} className={cn(headerButton, 'w-auto min-w-10 gap-1.5 px-2.5 text-xs font-bold sm:px-3')} data-no-premium-translate>
+              <span className="flex items-center gap-1.5"><Languages className="h-4 w-4" /><span className="hidden min-[420px]:inline">{lo ? 'English' : 'ລາວ'}</span></span>
+            </button>
+            <button type="button" onClick={toggleTheme} aria-label={dark ? (lo ? 'ປ່ຽນເປັນໂໝດສະຫວ່າງ' : 'Switch to light mode') : (lo ? 'ປ່ຽນເປັນໂໝດມືດ' : 'Switch to dark mode')} className={cn(headerButton, 'dark:text-amber-300')}>
+              {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            </button>
+            {profile ? (
+              <PremiumProfileMenu variant="light" />
+            ) : (
+              <Link to="/auth" state={{ from: '/academy/subscription' }} className="ml-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#fbb040] to-[#f7931a] px-4 py-2.5 text-sm font-black text-[#1f1207] shadow-[0_8px_22px_-8px_rgba(247,147,26,0.8)] transition hover:from-[#ffc766] hover:to-[#fbb040]">
+                {lo ? 'ເຂົ້າສູ່ລະບົບ' : 'Sign in'}
+              </Link>
+            )}
           </div>
         </div>
-      </section>
+      </header>
 
       {!pageLoading && isMemberActive && (
         <FloatingOrbitMenu
@@ -1175,7 +1203,7 @@ export function Subscription() {
                 </section>
               )}
               {!isPaidPremium && (
-                <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
+                <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
                     <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40 dark:ring-amber-500/40">
                       <Crown className="h-5 w-5 text-amber-300" />
@@ -1278,6 +1306,25 @@ export function Subscription() {
             onChange={uploadPaymentProof}
           />
 
+          {!profile && (
+            <section data-no-premium-translate className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#fbb040] via-[#f7931a] to-[#e2650f] px-6 py-8 text-[#1f1207] dark:from-[#3a220f] dark:via-[#1f140b] dark:to-[#0f0a06] dark:text-white sm:px-10 sm:py-10">
+              <GraduationCap aria-hidden className="absolute -bottom-8 -right-4 h-48 w-48 rotate-[-12deg] text-white/25 dark:text-amber-300/10 sm:h-64 sm:w-64" strokeWidth={1.2} />
+              <div className="relative max-w-2xl">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#1f1207]/70 dark:text-amber-300">{lo ? 'ສະມາຊິກ' : 'Membership'}</p>
+                <h2 className={cn('mt-2 text-balance text-3xl font-black sm:text-4xl', lo ? 'leading-[1.4]' : 'leading-tight')}>{lo ? 'ເລີ່ມຟຣີ. ຮຽນໃຫ້ເລິກຂຶ້ນເມື່ອທ່ານພ້ອມ.' : 'Start free. Go deeper when you are ready.'}</h2>
+                <p className="mt-3 max-w-xl text-base font-semibold leading-7 text-[#1f1207]/75 dark:text-slate-300">{lo ? 'ສ້າງບັນຊີຟຣີ ແລ້ວກ້າວທຳອິດໄດ້ເລີຍມື້ນີ້. ຍົກລະດັບເປັນ Premium ຕອນໃດກໍ່ໄດ້.' : 'Create your free account and take the first step today. Upgrade to Premium any time.'}</p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link to="/auth" state={{ from: '/academy/subscription', mode: 'signup' }} className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#1f1207] px-6 py-3.5 text-sm font-black text-amber-200 shadow-[0_16px_40px_-12px_rgba(31,18,7,0.7)] transition hover:bg-[#2c1a0b] dark:bg-gradient-to-r dark:from-[#fbb040] dark:to-[#f7931a] dark:text-[#1f1207] sm:w-auto">
+                    {lo ? 'ສ້າງບັນຊີຟຣີ' : 'Create free account'}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Link>
+                  <button type="button" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex w-full items-center justify-center rounded-full border-2 border-[#1f1207]/30 px-6 py-3.5 text-sm font-black transition hover:bg-[#1f1207]/10 dark:border-white/25 dark:hover:bg-white/10 sm:w-auto">
+                    {lo ? 'ປຽບທຽບແພັກເກັດ' : 'Compare plans'}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-start justify-between gap-3">
@@ -1290,8 +1337,8 @@ export function Subscription() {
                 </span>
               </div>
 
-              <blockquote className="mt-5 rounded-2xl bg-primary-900 p-5 text-white">
-                <Sparkles className="mb-3 h-5 w-5 text-amber-300" />
+              <blockquote className="mt-5 rounded-2xl bg-gradient-to-br from-[#fbb040] via-[#f7931a] to-[#e2650f] p-5 text-[#1f1207] dark:from-[#3a220f] dark:via-[#1f140b] dark:to-[#0f0a06] dark:text-white">
+                <Sparkles className="mb-3 h-5 w-5 text-[#1f1207]/70 dark:text-amber-300" />
                 <p className="text-lg font-bold leading-7">"{todaysMotivation.quote}"</p>
               </blockquote>
 
@@ -1998,7 +2045,7 @@ function MemberDashboard({
             <button
               type="button"
               onClick={onOpenLearning}
-              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-primary-950 via-[#132845] to-primary-950 px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(9,20,38,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(31,20,11,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
             >
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-full" />
               <Sparkles className="relative h-4 w-4 text-amber-300" />

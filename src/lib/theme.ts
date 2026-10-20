@@ -2,8 +2,7 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 
 // Dark mode covers the sections listed in isThemedPath(); everywhere else
-// (platform selector, landing, the public bookstore price-entry page) stays
-// light. <ThemeController> in App.tsx applies it from the current route.
+// (landing, the public bookstore price-entry page) stays light. <ThemeController> in App.tsx applies it from the current route.
 //
 // The key, the system-preference fallback and the path rule are mirrored in
 // the inline script in index.html that applies the theme before React loads
@@ -13,7 +12,7 @@ export type Theme = 'light' | 'dark'
 
 /** Sections that support dark mode. Exact segments, so `/bookstore-pricing` is not one. */
 export function isThemedPath(pathname: string) {
-  return /^\/(bookstore|admin|academy|academy-admin)(\/|$)/.test(pathname) || pathname === '/auth'
+  return /^\/(bookstore|admin|academy|academy-admin)(\/|$)/.test(pathname) || pathname === '/auth' || pathname === '/'
 }
 
 const THEME_KEY = 'bitdoin_theme'

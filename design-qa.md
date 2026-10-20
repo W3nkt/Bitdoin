@@ -1,3 +1,25 @@
+# Living Library homepage — 2026-10-20
+
+Current review: option 3, homepage `/`, signed out, English, initial carousel selection.
+
+Source: `C:/Users/Lenovo/.codex/generated_images/01a15759-8840-7681-b2ea-d65252b8a772/exec-1f87f3b7-2047-43eb-8720-d3a555acf376.png`.
+Comparison: `qa-artifacts/living-library-comparison.png`, source and rendered page together at 1159 CSS pixels wide, device scale 1. The source is 1159 × 1358; full-page implementation height varies with content and the additional footer.
+
+Initial comparison findings:
+
+- P2, typography/layout: at 1159px the hero headline and lower section headings are smaller than the selected design; the hero begins too low and adds approximately 55px of unnecessary height. Increase heading sizes and tighten the intermediate desktop hero spacing.
+- P2, contrast: the orange primary button has white text at 3.68:1. Darken its orange to reach at least 4.5:1.
+- P2, artwork: the lower three books lack the wooden display shelf shown in the target. Add the matching generated shelf composition.
+- P2, accessibility: disable document-level smooth scrolling in reduced-motion mode, in addition to the existing carousel transition override.
+
+Initial browser checks pass: carousel arrows, wraparound, keyboard controls, direct book/indicator selection, touch swipe, language switch/persistence, all primary CTAs and section anchors. English and Lao at 1440, 1159, 1024, 768, 390 and 320px have no horizontal overflow. Primary controls meet 44px minimum targets. No uncaught browser errors. TypeScript and scoped ESLint pass.
+
+final result: blocked (visual refinements in progress)
+
+---
+
+## Earlier Play & Learn review (retained)
+
 **Source visual truth**
 
 - `C:\Users\ckate\.codex\generated_images\019f7311-4edf-7fc1-927a-63b6b8078326\call_6LvFuTvjKwDmu74OSwkvvHYH.png`
