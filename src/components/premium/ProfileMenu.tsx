@@ -54,7 +54,11 @@ function statusClass(status?: PremiumStatus) {
 // component's select is intentionally narrower, and sharing a key with a
 // fuller query caused the two fetches to race and clobber each other's
 // cached shape depending on which one resolved last.
-export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'light' }) {
+/**
+ * `showPreferences` puts the language and light/dark buttons at the top of the panel. A page whose
+ * header already has them passes false so they aren't offered twice.
+ */
+export function PremiumProfileMenu({ variant = 'dark', showPreferences = true }: { variant?: 'dark' | 'light'; showPreferences?: boolean }) {
   const { profile, signOut, refreshProfile } = useAuth()
   const { language, setLanguage } = useLanguage()
   const theme = useTheme(state => state.theme)
@@ -323,7 +327,8 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
               {language === 'lo' ? 'ບັນຊີຂອງຂ້ອຍ' : 'My account'}
             </p>
-            <div className="flex flex-shrink-0 items-center gap-1.5">
+            {showPreferences && (
+              <div className="flex flex-shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
@@ -342,20 +347,8 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
                 >
                   {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleAccountAction}
-                  aria-label={profile ? 'Logout' : 'Sign in'}
-                  className={cn(
-                    'grid h-9 w-9 place-items-center rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
-                    profile
-                      ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-500/30 hover:scale-110 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-500/40 focus-visible:ring-red-500'
-                      : 'bg-amber-100 dark:bg-amber-500/15 text-amber-950 hover:bg-amber-200 dark:hover:bg-amber-500/25 focus-visible:ring-amber-500',
-                  )}
-                >
-                  {profile ? <LogOut className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-                </button>
-            </div>
+              </div>
+            )}
           </div>
 
           <div className={cn(
@@ -562,6 +555,23 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
           )}
+
+          {/* Pinned to the bottom of the panel so it stays in view when the panel scrolls on a phone. */}
+          <div className="sticky bottom-0 -mx-3 -mb-3 mt-3 rounded-b-[1.75rem] border-t border-slate-200 bg-[#fffdf8] px-3 pb-3 pt-3 dark:border-slate-700 dark:bg-gray-900">
+            <button
+              type="button"
+              onClick={handleAccountAction}
+              className={cn(
+                'flex w-full items-center justify-center gap-2.5 rounded-2xl px-4 py-3 text-sm font-black transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900',
+                profile
+                  ? 'border-2 border-red-200 bg-red-50 text-red-700 hover:border-red-600 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-500/30 focus-visible:ring-red-500 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300 dark:hover:border-red-600 dark:hover:bg-red-600 dark:hover:text-white'
+                  : 'bg-gradient-to-r from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_10px_26px_-10px_rgba(247,147,26,0.8)] hover:from-[#ffc766] hover:to-[#fbb040] focus-visible:ring-amber-500',
+              )}
+            >
+              {profile ? <LogOut className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+              {profile ? (language === 'lo' ? 'ອອກຈາກລະບົບ' : 'Sign out') : (language === 'lo' ? 'ເຂົ້າສູ່ລະບົບ' : 'Sign in')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -580,7 +590,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
       <Modal
         open={confirmingLogout}
         onClose={() => setConfirmingLogout(false)}
-        title={language === 'lo' ? 'ອອກຈາກລະບົບບໍ?' : 'Log out?'}
+        title={language === 'lo' ? 'ອອກຈາກລະບົບບໍ?' : 'Sign out?'}
         size="sm"
         footer={
           <>
@@ -588,7 +598,7 @@ export function PremiumProfileMenu({ variant = 'dark' }: { variant?: 'dark' | 'l
               {language === 'lo' ? 'ຍົກເລີກ' : 'Cancel'}
             </Button>
             <Button variant="danger" loading={signingOut} onClick={() => void confirmLogout()} icon={<LogOut className="h-4 w-4" />}>
-              {language === 'lo' ? 'ອອກຈາກລະບົບ' : 'Log out'}
+              {language === 'lo' ? 'ອອກຈາກລະບົບ' : 'Sign out'}
             </Button>
           </>
         }

@@ -90,7 +90,7 @@ export function Auth() {
   const copyright = t('auth.copyright', { year: new Date().getFullYear() })
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#fff7ec] via-white to-[#fff1e2] px-4 py-8 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 py-8 dark:bg-gray-950">
       <div className="w-full max-w-4xl">
         <div className="mb-4 flex items-center justify-between">
           <button
@@ -112,7 +112,7 @@ export function Auth() {
           </button>
         </div>
 
-        <div className="relative flex flex-col rounded-3xl bg-white shadow-[0_40px_90px_-35px_rgba(240,130,20,0.45)] dark:bg-gray-900 dark:shadow-[0_40px_90px_-40px_rgba(0,0,0,0.9)] md:h-[600px] md:flex-row">
+        <div className="relative flex flex-col rounded-3xl bg-white shadow-[0_40px_90px_-35px_rgba(15,23,42,0.3)] dark:bg-gray-900 dark:shadow-[0_40px_90px_-40px_rgba(0,0,0,0.9)] md:h-[600px] md:flex-row">
           {/* Left: brand panel with links and the vertical Sign in / Sign up tabs */}
           <aside className="relative hidden w-[46%] shrink-0 flex-col justify-between text-white md:flex">
             <div aria-hidden className="absolute inset-0 overflow-hidden rounded-l-3xl bg-gradient-to-br from-[#fbb040] via-[#f7931a] to-[#e2650f] dark:from-[#3a220f] dark:via-[#1f140b] dark:to-[#0f0a06]">

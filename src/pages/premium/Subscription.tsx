@@ -1103,7 +1103,7 @@ export function Subscription() {
   const headerButton = 'grid h-10 w-10 flex-none place-items-center rounded-full text-slate-700 transition hover:bg-slate-900/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-200 dark:hover:bg-white/10'
 
   return (
-    <div className="premium-i18n min-h-screen bg-gradient-to-br from-[#fff7ec] via-white to-[#fff1e2] text-slate-950 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950 dark:text-slate-100">
+    <div className="premium-i18n min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:h-[72px] sm:gap-3">
           <button type="button" onClick={goBack} aria-label={lo ? 'ກັບຄືນ' : 'Back'} className={headerButton}>
@@ -1132,7 +1132,7 @@ export function Subscription() {
               {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
             </button>
             {profile ? (
-              <PremiumProfileMenu variant="light" />
+              <PremiumProfileMenu variant="light" showPreferences={false} />
             ) : (
               <Link to="/auth" state={{ from: '/academy/subscription' }} className="ml-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#fbb040] to-[#f7931a] px-4 py-2.5 text-sm font-black text-[#1f1207] shadow-[0_8px_22px_-8px_rgba(247,147,26,0.8)] transition hover:from-[#ffc766] hover:to-[#fbb040]">
                 {lo ? 'ເຂົ້າສູ່ລະບົບ' : 'Sign in'}
@@ -1337,8 +1337,8 @@ export function Subscription() {
                 </span>
               </div>
 
-              <blockquote className="mt-5 rounded-2xl bg-gradient-to-br from-[#fbb040] via-[#f7931a] to-[#e2650f] p-5 text-[#1f1207] dark:from-[#3a220f] dark:via-[#1f140b] dark:to-[#0f0a06] dark:text-white">
-                <Sparkles className="mb-3 h-5 w-5 text-[#1f1207]/70 dark:text-amber-300" />
+              <blockquote className="mt-5 rounded-2xl bg-primary-900 p-5 text-white">
+                <Sparkles className="mb-3 h-5 w-5 text-amber-300" />
                 <p className="text-lg font-bold leading-7">"{todaysMotivation.quote}"</p>
               </blockquote>
 
@@ -2045,7 +2045,7 @@ function MemberDashboard({
             <button
               type="button"
               onClick={onOpenLearning}
-              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(31,20,11,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
+              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-[#1f140b] via-[#4a280e] to-[#1f140b] px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(31,20,11,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
             >
               <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-full" />
               <Sparkles className="relative h-4 w-4 text-amber-300" />
@@ -2188,7 +2188,7 @@ function MemberDashboard({
                     type="button"
                     disabled={!dailyDrafts[selectedItem.kind]?.trim() || savingDailyItem === selectedItem.kind}
                     onClick={() => void submitDailyReply()}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-900 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     {savingDailyItem === selectedItem.kind
@@ -2368,7 +2368,7 @@ function LifeConsultationCard({
           <button
             type="button"
             onClick={onSeePlans}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-900 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-700 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
           >
             {lo ? 'ເບິ່ງແຜນສະມາຊິກ' : 'See plans'} <ArrowRight className="h-4 w-4" />
           </button>
@@ -2430,7 +2430,7 @@ function MemberListSection({
             <button
               type="button"
               onClick={onUnlock}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-900 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-700 dark:bg-primary-500 px-4 py-2 text-xs font-black text-white transition hover:bg-primary-800 dark:hover:bg-primary-400"
             >
               See plans <ArrowRight className="h-4 w-4" />
             </button>
@@ -2463,7 +2463,7 @@ function MemberListSection({
                   href={item.action_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex items-center rounded-xl bg-primary-900 dark:bg-primary-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-800 dark:hover:bg-primary-400"
+                  className="mt-3 inline-flex items-center rounded-xl bg-primary-700 dark:bg-primary-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-primary-800 dark:hover:bg-primary-400"
                 >
                   Join
                 </a>

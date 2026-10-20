@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, BarChart3, BookOpen, ChevronLeft, ChevronRight, Compass, GraduationCap, Languages, Lightbulb, Moon, Sparkles, Sun, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useLanguage } from '@/context/LanguageContext'
@@ -24,9 +24,18 @@ export function PlatformSelector() {
   const t = landingCopy[language]
   const isAdmin = profile?.role !== undefined && profile.role !== 'CUSTOMER'
   const [activeBook, setActiveBook] = useState(1)
+  const [scrolled, setScrolled] = useState(false)
   const touchStart = useRef<number | null>(null)
   const bookstorePath = isAdmin ? '/admin' : '/bookstore'
   const academyPath = isAdmin ? '/academy-admin' : '/academy'
+
+  // The header floats over the page; once the page scrolls it gets a frosted background so it stays readable.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   function moveBook(direction: number) {
     setActiveBook(current => (current + direction + bookImages.length) % bookImages.length)
@@ -35,15 +44,10 @@ export function PlatformSelector() {
   return (
     <div className="living-library" lang={language}>
       <a className="library-skip" href="#library-main">{t.skip}</a>
-      <div className="library-hero">
-        <picture className="library-backdrop" aria-hidden="true">
-          <source media="(max-width: 767px)" srcSet={publicAsset('images/landing/library-room-mobile.webp')} />
-          <img src={publicAsset('images/landing/library-room.webp')} alt="" fetchPriority="high" />
-        </picture>
-        <div className="library-shade" aria-hidden="true" />
+      <div className="library-topbar" data-scrolled={scrolled}>
         <header className="library-header library-container">
           <Link to="/" className="library-brand" aria-label="Bitdoin">
-            <img src={publicAsset('icons/Bitdoin Logo H.png')} alt="" width="44" height="44" />
+            <span className="library-logo"><img src={publicAsset('icons/Bitdoin-Mark.png')} alt="" width="64" height="64" /></span>
             <span><strong>Bitdoin</strong><small>{t.tagline}</small></span>
           </Link>
           <nav className="library-nav" aria-label={t.navigation}>
@@ -56,11 +60,19 @@ export function PlatformSelector() {
             <button type="button" onClick={() => setLanguage(language === 'en' ? 'lo' : 'en')} aria-label={t.changeLanguage} className="library-language">
               <Languages size={17} aria-hidden="true" /><span>{language === 'en' ? 'EN' : 'ລາວ'}</span><span className="language-divider" aria-hidden="true">/</span><span>{language === 'en' ? 'ລາວ' : 'EN'}</span>
             </button>
-            <Link to={profile ? (isAdmin ? '/admin' : '/bookstore/profile') : '/auth'} className="library-signin">
+            <Link to={profile ? (isAdmin ? '/admin' : '/bookstore/profile') : '/auth'} className={profile ? 'library-signin library-signin-account' : 'library-signin'}>
               <UserRound size={15} aria-hidden="true" /><span>{profile ? t.account : t.signIn}</span>
             </Link>
           </div>
         </header>
+      </div>
+      <div className="library-hero">
+        <picture className="library-backdrop" aria-hidden="true">
+          <source media="(max-width: 767px)" srcSet={publicAsset('images/landing/library-room-mobile.webp')} />
+          <img src={publicAsset('images/landing/library-room.webp')} alt="" fetchPriority="high" />
+        </picture>
+        <div className="library-shade" aria-hidden="true" />
+        <div className="library-header-spacer" aria-hidden="true" />
         <section id="library-main" tabIndex={-1} className="library-hero-content library-container" aria-labelledby="library-title">
           <div className="library-intro">
             <p className="library-eyebrow">{t.eyebrow}</p>

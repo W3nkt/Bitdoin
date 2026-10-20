@@ -29,8 +29,9 @@
     --primary-600: 207 90 13;
     --primary-700: 178 74 10;
     --primary-800: 140 58 10;
-    --primary-900: 74 40 14;
-    --primary-950: 31 20 11;
+    /* 900 and 950 stay the original navy: they colour dark cards and panels, which should not turn brown. */
+    --primary-900: 15 31 53;
+    --primary-950: 7 15 28;
   }
 
   html {

@@ -279,7 +279,7 @@ export function AcademyLanding() {
   const gridMask = 'radial-gradient(ellipse 72% 62% at 50% 40%, black, transparent)'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fff7ec] via-white to-[#fff1e2] pb-24 text-slate-900 dark:from-gray-950 dark:via-gray-950 dark:to-gray-950 dark:text-white lg:pb-0">
+    <div className="min-h-screen bg-white pb-24 text-slate-900 dark:bg-gray-950 dark:text-white lg:pb-0">
       <header className={cn('sticky top-0 z-40 border-b transition-colors duration-300', scrolled ? 'border-slate-900/10 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/80' : 'border-transparent')}>
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
           <Link to="/academy" aria-label="Bitdoin Academy" className={cn('flex flex-none items-center gap-2.5 rounded-2xl sm:gap-3', focusRing)}>
@@ -310,8 +310,8 @@ export function AcademyLanding() {
 
       <main>
         <section className="relative overflow-hidden px-4 pb-14 pt-4 sm:px-6 sm:pb-24 sm:pt-10 lg:pt-14">
-          <div aria-hidden className="absolute -right-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-amber-300/40 blur-[110px] dark:bg-amber-400/15" />
-          <div aria-hidden className="absolute -left-52 top-1/3 h-[30rem] w-[30rem] rounded-full bg-orange-200/50 blur-[120px] dark:bg-indigo-500/15" />
+          <div aria-hidden className="absolute -right-40 -top-40 hidden h-[34rem] w-[34rem] rounded-full bg-amber-400/15 blur-[110px] dark:block" />
+          <div aria-hidden className="absolute -left-52 top-1/3 hidden h-[30rem] w-[30rem] rounded-full bg-indigo-500/15 blur-[120px] dark:block" />
           {/* One column on phones (intro, sign-up buttons, stage, quote); two on large screens (text left, stage right). */}
           <div className="relative mx-auto grid max-w-7xl items-center gap-x-12 gap-y-7 lg:grid-cols-[1.02fr_0.98fr] lg:gap-y-8">
             <div className="order-1 lg:order-none lg:col-start-1 lg:row-start-1">

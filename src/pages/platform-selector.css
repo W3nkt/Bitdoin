@@ -9,9 +9,16 @@
 .library-backdrop { z-index: -2; }
 .library-backdrop img { object-fit: cover; object-position: center; }
 .library-shade { background: rgb(3 10 18 / 22%); z-index: -1; }
-.library-header { height: 108px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.library-brand { display: flex; align-items: center; gap: 12px; }
-.library-brand img { width: 44px; height: 44px; padding: 5px; object-fit: contain; background: #fff; border-radius: 11px; }
+.library-topbar { position: fixed; z-index: 60; inset: 0 0 auto 0; border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s, box-shadow .25s; }
+.library-topbar[data-scrolled=true] { background: rgb(7 17 30 / 82%); border-bottom-color: #ffffff1c; box-shadow: 0 12px 32px -20px #000d; -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); }
+.library-header-spacer { height: 108px; }
+.library-header { height: 108px; display: flex; align-items: center; justify-content: space-between; gap: 24px; transition: height .25s; }
+.library-topbar[data-scrolled=true] .library-header { height: 76px; }
+.library-brand { display: flex; align-items: center; gap: 14px; }
+/* Bitdoin-Mark.png is the emblem alone (transparent), cropped so it sits centred in the white tile. */
+.library-logo { flex: none; width: 60px; height: 60px; overflow: hidden; border-radius: 15px; background: #fff; box-shadow: 0 6px 22px -8px #000a, 0 0 0 1px #ffffff40; transition: width .25s, height .25s; }
+.library-logo img { display: block; width: 100%; height: 100%; padding: 3px; object-fit: contain; }
+.library-topbar[data-scrolled=true] .library-logo { width: 52px; height: 52px; }
 .library-brand strong { display: block; font-size: 23px; line-height: 1.15; letter-spacing: -.6px; }
 .library-brand small { display: block; color: #c0ccdb; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.7px; margin-top: 7px; }
 .library-nav { display: flex; gap: 34px; margin-left: 10px; }
@@ -71,7 +78,7 @@
 .library-benefit p { margin-top: 7px; color: #c3cede; font-size: 14px; line-height: 1.65; max-width: 300px; }
 .library-destinations { background: #faf7f0; color: #091625; padding-block: 48px 56px; }
 .library-destinations-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 55px; align-items: stretch; }
-.library-bookstore, .library-academy { scroll-margin-top: 24px; }
+.library-bookstore, .library-academy { scroll-margin-top: 96px; }
 .library-bookstore { padding-top: 12px; }
 .library-bookstore .library-eyebrow { color: #c84c10; }
 .library-destinations h2 { font-size: clamp(30px, 3.5vw, 46px); line-height: 1.12; font-weight: 750; letter-spacing: -1.7px; text-wrap: balance; }
@@ -121,7 +128,8 @@
 }
 @media (max-width: 959px) {
   .library-brand small { display: none; }
-  .library-header { height: 90px; }
+  .library-header, .library-header-spacer { height: 90px; }
+  .library-topbar[data-scrolled=true] .library-header { height: 70px; }
   .library-nav { gap: 24px; }
   .library-hero-content { grid-template-columns: 48% 52%; }
   .library-intro h1 { font-size: 39px; letter-spacing: -1.5px; }
@@ -148,14 +156,22 @@
   .library-hero { min-height: 0; }
   .library-backdrop img { object-position: 63% center; }
   .library-shade { background: #030c1766; }
-  .library-header { height: 84px; gap: 10px; }
-  .library-brand { gap: 8px; }
-  .library-brand img { width: 35px; height: 35px; border-radius: 9px; }
+  .library-header, .library-header-spacer { height: 84px; }
+  .library-header { gap: 10px; }
+  .library-topbar[data-scrolled=true] .library-header { height: 66px; }
+  .library-brand { gap: 9px; }
+  .library-logo, .library-topbar[data-scrolled=true] .library-logo { width: 46px; height: 46px; border-radius: 12px; }
   .library-brand strong { font-size: 19px; }
   .library-nav { display: none; }
   .library-account { gap: 7px; }
-  .library-language, .library-signin, .library-theme { padding: 8px 10px; font-size: 11px; border-radius: 10px; gap: 5px; }
+  /* Phones: borderless frosted pills of equal height, nothing wraps. The signed-in account link is just the user icon. */
+  .library-language, .library-signin, .library-theme { min-height: 40px; padding: 8px 12px; font-size: 12px; border: 0; border-radius: 999px; gap: 6px; white-space: nowrap; background: #ffffff1f; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .library-language:hover, .library-signin:hover, .library-theme:hover { background: #ffffff33; }
+  .library-theme { min-width: 40px; padding-inline: 10px; }
   .library-signin svg { display: none; }
+  .library-signin-account { min-width: 40px; padding-inline: 10px; }
+  .library-signin-account svg { display: block; width: 18px; height: 18px; }
+  .library-signin-account span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .library-hero-content { display: flex; flex-direction: column; padding-top: 28px; padding-bottom: 20px; }
   .library-intro { width: 100%; padding: 0; text-align: center; }
   .library-intro h1 { font-size: clamp(37px, 8.6vw, 57px); line-height: 1.12; letter-spacing: -1.6px; margin-top: 17px; }
