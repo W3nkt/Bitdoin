@@ -68,9 +68,10 @@ export function PlatformSelector() {
         </header>
       </div>
       <div className="library-hero">
-        <picture className="library-backdrop" aria-hidden="true">
-          <source media="(max-width: 767px)" srcSet={publicAsset('images/landing/library-room-mobile.webp')} />
-          <img src={publicAsset('images/landing/library-room.webp')} alt="" fetchPriority="high" />
+        {/* Light mode shows the room by day, dark mode the same room at night. The key swaps the whole <picture>, since browsers don't re-pick a <source> when only its srcSet changes. */}
+        <picture key={dark ? 'night' : 'day'} className="library-backdrop" aria-hidden="true">
+          <source media="(max-width: 767px)" srcSet={publicAsset(`images/landing/library-room${dark ? '' : '-day'}-mobile.webp`)} />
+          <img src={publicAsset(`images/landing/library-room${dark ? '' : '-day'}.webp`)} alt="" fetchPriority="high" />
         </picture>
         <div className="library-shade" aria-hidden="true" />
         <div className="library-header-spacer" aria-hidden="true" />

@@ -8,7 +8,9 @@
 .library-backdrop, .library-backdrop img, .library-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
 .library-backdrop { z-index: -2; }
 .library-backdrop img { object-fit: cover; object-position: center; }
-.library-shade { background: rgb(3 10 18 / 22%); z-index: -1; }
+/* Light mode uses the daytime room: the bright sky sits behind the white headline, so the shade darkens the
+   left (text) side and fades out over the bookshelves. */
+.library-shade { background: linear-gradient(90deg, rgb(6 16 28 / 62%) 0%, rgb(6 16 28 / 40%) 38%, rgb(6 16 28 / 8%) 62%, rgb(6 16 28 / 0%) 100%), linear-gradient(180deg, rgb(6 16 28 / 30%) 0%, rgb(6 16 28 / 0%) 22%); z-index: -1; }
 .library-topbar { position: fixed; z-index: 60; inset: 0 0 auto 0; border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s, box-shadow .25s; }
 .library-topbar[data-scrolled=true] { background: rgb(7 17 30 / 82%); border-bottom-color: #ffffff1c; box-shadow: 0 12px 32px -20px #000d; -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); }
 .library-header-spacer { height: 108px; }
@@ -155,7 +157,7 @@
   .library-container { width: calc(100% - 40px); }
   .library-hero { min-height: 0; }
   .library-backdrop img { object-position: 63% center; }
-  .library-shade { background: #030c1766; }
+  .library-shade { background: rgb(6 16 28 / 52%); }
   .library-header, .library-header-spacer { height: 84px; }
   .library-header { gap: 10px; }
   .library-topbar[data-scrolled=true] .library-header { height: 66px; }
@@ -226,11 +228,10 @@
   .library-language svg { display: none; }
   .library-actions .library-button { padding-inline: 12px; gap: 8px; }
 }
-/* Dark mode (html.dark, from the header toggle): the hero and navy blocks are already dark, so they get a
-   stronger shade; the cream destinations section and footer turn into deep navy. */
+/* Dark mode (html.dark, from the header toggle): the hero shows the room at night, which is dark enough for a
+   light shade; the cream destinations section and footer turn into deep navy. */
 .dark .living-library { background: #050d18; }
-.dark .library-backdrop img { filter: brightness(.72) saturate(.92); }
-.dark .library-shade { background: rgb(3 10 18 / 46%); }
+.dark .library-shade { background: rgb(3 10 18 / 22%); }
 .dark .library-benefits { background: #08131f; }
 .dark .library-destinations { background: #0a1524; color: #f1ede4; }
 .dark .library-section-description { color: #b4c2d4; }
@@ -241,7 +242,7 @@
 .dark .library-small-shelf img { filter: brightness(.82) contrast(1.05); }
 .dark .library-academy { background: #11213a; border: 1px solid #ffffff1c; box-shadow: 0 24px 60px -30px #000c; }
 .dark .library-footer { background: #060d17; color: #8d9db2; border-top-color: #ffffff14; }
-@media (max-width: 767px) { .dark .library-shade { background: rgb(3 12 23 / 55%); } }
+@media (max-width: 767px) { .dark .library-shade { background: #030c1766; } }
 @media (prefers-reduced-motion: reduce) {
   html:has(.living-library) { scroll-behavior: auto; }
   .living-library *, .living-library *::before, .living-library *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
