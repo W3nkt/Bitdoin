@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { BookOpen, Check, Flame, GraduationCap, Languages, MessagesSquare, Zap } from 'lucide-react'
+import { Check, Flame, GraduationCap, Languages, MessagesSquare, Zap } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { cn } from '@/lib/utils'
 
 // Small building blocks for the Academy landing page (src/pages/academy/AcademyLanding.tsx):
@@ -102,7 +103,7 @@ export function LessonMock({ lo }: { lo: boolean }) {
   return (
     <div className={mockShell}>
       <div className="flex items-center justify-between text-[11px] font-bold">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-1 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"><BookOpen className="h-3 w-3" />{lo ? 'ສະຫຼຸບປຶ້ມ' : 'Reading summary'}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/15 px-2.5 py-1 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"><OpenBook className="h-3 w-3" />{lo ? 'ສະຫຼຸບປຶ້ມ' : 'Reading summary'}</span>
         <span className="text-slate-500 dark:text-slate-400">{lo ? '5 ນາທີ' : '5 min'}</span>
       </div>
       <p className={cn('mt-4 text-[15px]', mockTitle)}>{lo ? 'ແນວຄິດສຳຄັນ → ການນຳໄປໃຊ້' : 'Big ideas → practical actions'}</p>

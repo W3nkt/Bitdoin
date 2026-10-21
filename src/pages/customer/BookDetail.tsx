@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
-import { BookOpen, ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRight, GraduationCap, Heart } from 'lucide-react'
+import { ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRight, GraduationCap, Heart } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -252,7 +253,7 @@ export function BookDetail() {
             ) : (
               <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-primary-800">
-                  <BookOpen className="h-10 w-10 text-primary-200" />
+                  <OpenBook className="h-10 w-10 text-primary-200" />
                 </div>
               </div>
             )}

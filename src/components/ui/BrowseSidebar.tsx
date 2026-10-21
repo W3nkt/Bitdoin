@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { BookOpen, ChevronDown, Clock, Flame, Sparkles, Tag, X } from 'lucide-react'
+import { ChevronDown, Clock, Flame, Sparkles, Tag, X } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useTranslation } from 'react-i18next'
 import type { Category } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
@@ -106,7 +107,7 @@ export function BrowseSidebar({
                 : 'text-white/82 hover:bg-white/10 hover:text-white active:bg-white/20',
             )}
           >
-            <BookOpen className="h-3.5 w-3.5 flex-shrink-0 text-accent-400" />
+            <OpenBook className="h-3.5 w-3.5 flex-shrink-0 text-accent-400" />
             {t('sidebar.allBooks')}
           </button>
         </div>
@@ -189,7 +190,7 @@ export function BrowseSidebar({
           {/* Drawer header */}
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
             <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-accent-400" />
+              <OpenBook className="h-4 w-4 text-accent-400" />
               <span className="text-sm font-semibold">{t('sidebar.browse')}</span>
             </div>
             <button
@@ -228,7 +229,7 @@ export function BrowseSidebar({
         className="lg:hidden flex w-full items-center justify-between px-4 py-3.5 text-white"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <BookOpen className="h-4 w-4 text-accent-400 flex-shrink-0" />
+          <OpenBook className="h-4 w-4 text-accent-400 flex-shrink-0" />
           <span className="text-sm font-semibold">{t('sidebar.browse')}</span>
           {!expanded && activeLabel && (
             <span className="ml-1 truncate rounded-full bg-accent-500/20 px-2 py-0.5 text-[10px] font-bold text-accent-400 max-w-[130px]">

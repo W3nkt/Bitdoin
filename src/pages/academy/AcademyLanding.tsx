@@ -1,6 +1,7 @@
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, BookOpen, Box, Briefcase, Brain, Check, Compass, Gamepad2, GraduationCap, Languages, Lightbulb, ListChecks, Moon, Sparkles, Sun, Sunrise, Sunset, Target, Timer, Wallet, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Box, Briefcase, Brain, Check, Compass, Gamepad2, GraduationCap, Languages, Lightbulb, ListChecks, Moon, Sparkles, Sun, Sunrise, Sunset, Target, Timer, Wallet, type LucideIcon } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -32,7 +33,7 @@ function readVisitor() {
 }
 
 const PATH_ICONS: Record<string, LucideIcon> = {
-  'reading-summaries': BookOpen,
+  'reading-summaries': OpenBook,
   money: Wallet,
   'ai-skills': Sparkles,
   english: Languages,

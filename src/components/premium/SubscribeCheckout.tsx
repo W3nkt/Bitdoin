@@ -156,7 +156,8 @@ export function PaymentMethodModal({
   language: Language
   onChangeMethod: (method: CheckoutPaymentMethod) => void
   onClose: () => void
-  onConfirm: () => void
+  /** Gets the click, so the page can celebrate from the button once the request is created. */
+  onConfirm: (event: React.MouseEvent<HTMLButtonElement>) => void
 }) {
   const lo = language === 'lo'
   const options: Array<{ id: CheckoutPaymentMethod; title: string; detail: string; icon: ComponentType<{ className?: string }>; comingSoon?: boolean }> = [

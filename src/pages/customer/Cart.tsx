@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ShoppingCart, Trash2, Plus, Minus, BookOpen, ShieldCheck } from 'lucide-react'
+import { ShoppingCart, Trash2, Plus, Minus, ShieldCheck } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice } from '@/lib/utils'
@@ -66,7 +67,7 @@ export function Cart() {
               <img src={item.book.cover_image_url} alt={item.book.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                <OpenBook className="h-8 w-8 text-gray-300 dark:text-gray-600" />
               </div>
             )}
           </div>

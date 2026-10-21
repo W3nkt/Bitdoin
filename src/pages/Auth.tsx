@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input'
 import { EmailAuthForm, type EmailStep } from '@/components/auth/EmailAuthForm'
 import { publicAsset } from '@/lib/assets'
 import { resolvePostLoginDestination, sanitizeAuthReturnPath } from '@/lib/authRedirect'
+import { isCelebrating } from '@/lib/pageTransition'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { AuthIllustration } from '@/components/auth/AuthIllustration'
@@ -50,7 +51,8 @@ export function Auth() {
   const [otp, setOtp] = useState('')
 
   useEffect(() => {
-    if (!authLoading && profile) {
+    // Not while a successful sign-in's confetti plays: EmailAuthForm navigates when it is done.
+    if (!authLoading && profile && !isCelebrating()) {
       navigate(resolvePostLoginDestination(from, profile.role), { replace: true })
     }
   }, [authLoading, profile, from, navigate])
@@ -258,6 +260,7 @@ export function Auth() {
                   step={emailStep}
                   onStepChange={setEmailStep}
                   returnPath={from}
+                  celebrateSignIn
                   onSignedIn={role => navigate(resolvePostLoginDestination(from, role), { replace: true })}
                 />
               )}

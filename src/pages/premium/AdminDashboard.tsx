@@ -13,7 +13,6 @@ import {
   Flame,
   GraduationCap,
   BrainCircuit,
-  BookOpen,
   Gamepad2,
   LibraryBig,
   Languages,
@@ -42,6 +41,7 @@ import {
   Megaphone,
   type LucideIcon,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships } from '@/components/premium/ExpiringMembersPanel'
 import { VerifyMemberPanel } from '@/components/premium/VerifyMemberPanel'
 import { isMembershipExpired } from '@/lib/academyMembership'
@@ -2405,7 +2405,7 @@ function WeeklyContentForge({
     { key: 'roleplay_missions', label: 'Role-play', icon: <MessageSquareText className="h-4 w-4" />, target: 7 },
     { key: 'daily_mentor', label: 'Daily Mentor', icon: <Sparkles className="h-4 w-4" />, target: 7 },
     { key: 'prompt_library', label: 'Prompt Library', icon: <LibraryBig className="h-4 w-4" />, target: 7 },
-    { key: 'lessons', label: 'Hub Lessons', icon: <BookOpen className="h-4 w-4" />, target: lessonTarget ?? 8 },
+    { key: 'lessons', label: 'Hub Lessons', icon: <OpenBook className="h-4 w-4" />, target: lessonTarget ?? 8 },
   ]
   // Saved counts are updated after every step; show them against the weekly target until the week is ready.
   const hasRun = Boolean(run)

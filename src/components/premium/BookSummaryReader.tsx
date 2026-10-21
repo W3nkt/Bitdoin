@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Check, List, X } from 'lucide-react'
+import { Check, List, X } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 import { FlipBook, type FlipBookPage } from '@/components/premium/FlipBook'
@@ -456,7 +457,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
                     entry.index === clampedIndex ? 'text-primary-700 dark:text-primary-300' : 'text-slate-700 dark:text-slate-200 hover:text-primary-700 dark:hover:text-primary-300',
                   )}
                 >
-                  <span className="flex items-center gap-2 truncate"><BookOpen className="h-3.5 w-3.5 shrink-0 text-slate-300" />{entry.label}</span>
+                  <span className="flex items-center gap-2 truncate"><OpenBook className="h-3.5 w-3.5 shrink-0 text-slate-300" />{entry.label}</span>
                   {pages[entry.index]?.pageNumber != null && (
                     <span className="shrink-0 text-xs font-bold text-slate-400">{pages[entry.index].pageNumber}</span>
                   )}

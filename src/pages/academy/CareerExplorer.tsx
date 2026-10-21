@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, CheckCircle2, ChevronRight,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, ChevronRight,
   CircleDollarSign, CircleGauge, ExternalLink, Globe2, GraduationCap, Lock, MapPin, Search, Sparkles, Target, X,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import {
   careerPaths, certificatesForSkill, jobSearchPlatforms, organizationsByCareer, salaryByCareer,
   type CareerPath, type CareerRegion,
@@ -340,7 +341,7 @@ function CareerDetail({ career, language, locked }: { career: CareerPath; langua
           </div>
           <p className="mt-3 text-[11px] leading-4 text-slate-400">{text.certificateNote}</p>
         </DetailSection>
-        <DetailSection icon={BookOpen} title={text.pathway}>
+        <DetailSection icon={OpenBook} title={text.pathway}>
           <ol className="relative ml-2 border-l border-emerald-200 dark:border-emerald-500/30">
             {pathway.map((step, index) => <li key={step} className="relative pb-4 pl-6 last:pb-0"><span className="absolute -left-3 grid h-6 w-6 place-items-center rounded-full bg-emerald-700 text-[10px] font-black text-white">{index + 1}</span><p className="pt-0.5 text-sm font-semibold leading-5">{step}</p></li>)}
           </ol>

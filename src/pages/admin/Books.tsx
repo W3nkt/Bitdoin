@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
-import { Plus, Search, Edit2, Trash2, BookOpen, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting, Star } from 'lucide-react'
+import { Plus, Search, Edit2, Trash2, Upload, Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting, Star } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
 import { cn, formatDateTime } from '@/lib/utils'
@@ -343,7 +344,7 @@ export function AdminBooks() {
                           ? <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
                           : (
                             <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
-                              <BookOpen className="h-4 w-4 text-primary-300" />
+                              <OpenBook className="h-4 w-4 text-primary-300" />
                             </div>
                           )
                         }
@@ -432,7 +433,7 @@ export function AdminBooks() {
                 {coverPreview ? (
                   <img src={coverPreview} alt="Book cover preview" className="h-full w-full object-cover" />
                 ) : (
-                  <BookOpen className="h-6 w-6 text-gray-300 dark:text-gray-600" />
+                  <OpenBook className="h-6 w-6 text-gray-300 dark:text-gray-600" />
                 )}
               </div>
               <div className="space-y-2">

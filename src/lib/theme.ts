@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 
 // Dark mode covers the sections listed in isThemedPath(); everywhere else
@@ -78,6 +78,8 @@ export function useChartTheme() {
   }
 }
 
+let themeFadeTimer: number | undefined
+
 /** Puts the current theme on <html> while `enabled`; light otherwise. */
 export function useApplyTheme(enabled = true) {
   const theme = useTheme(state => state.theme)
@@ -93,9 +95,18 @@ export function useApplyTheme(enabled = true) {
     return () => query.removeEventListener('change', onChange)
   }, [explicit, enabled])
 
+  const lastTheme = useRef(theme)
   useEffect(() => {
     const dark = enabled && theme === 'dark'
     const root = document.documentElement
+    // A theme switch (not the first paint or a route into or out of the themed sections) eases every colour over 0.5s:
+    // see `.theme-fading` in index.css. Quick re-toggles restart the timer.
+    if (lastTheme.current !== theme && root.classList.contains('dark') !== dark) {
+      root.classList.add('theme-fading')
+      window.clearTimeout(themeFadeTimer)
+      themeFadeTimer = window.setTimeout(() => root.classList.remove('theme-fading'), 500)
+    }
+    lastTheme.current = theme
     root.classList.toggle('dark', dark)
     root.style.colorScheme = dark ? 'dark' : ''
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#111827' : '#1e3a5f')

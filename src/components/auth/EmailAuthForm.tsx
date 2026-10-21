@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { publicAsset } from '@/lib/assets'
+import { celebrateThen, whileCelebrating } from '@/lib/pageTransition'
 import type { UserRole } from '@/types'
 
 export type EmailStep = 'signin' | 'signup'
@@ -21,6 +22,8 @@ interface EmailAuthFormProps {
   onStepChange?: (step: EmailStep) => void
   /** 'card' (login modal): boxed inputs and tabs. 'split' (Auth page): underlined inputs, no tabs. */
   variant?: 'card' | 'split'
+  /** On a successful email sign-in, burst confetti from the button and fade into the next page before onSignedIn. */
+  celebrateSignIn?: boolean
 }
 
 const GOOGLE_ICON = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg'
@@ -42,7 +45,7 @@ function LineField({ icon, label, trailing, ...props }: React.InputHTMLAttribute
 }
 
 /** Email sign in / sign up plus Google, Facebook and Apple. Used by the Auth page and the login modal. */
-export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, variant = 'card' }: EmailAuthFormProps) {
+export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, variant = 'card', celebrateSignIn = false }: EmailAuthFormProps) {
   const { t } = useTranslation()
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth()
   const { error: showError, success } = useToast()
@@ -59,13 +62,17 @@ export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, vari
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
 
-  async function handleEmailSignIn(e: React.FormEvent) {
+  async function handleEmailSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const submit = (e.nativeEvent as SubmitEvent).submitter ?? e.currentTarget.querySelector('button[type="submit"]')
     setLoading(true)
-    const { error, role } = await signInWithEmail(email, password)
+    const signIn = () => signInWithEmail(email, password)
+    // Signed in: confetti on the button, then fade into the next page. Redirects wait for it (whileCelebrating).
+    const { error, role } = celebrateSignIn ? await whileCelebrating(signIn) : await signIn()
     setLoading(false)
     if (error) { showError(error); return }
-    onSignedIn(role)
+    if (celebrateSignIn) void celebrateThen(submit, () => onSignedIn(role))
+    else onSignedIn(role)
   }
 
   async function handleEmailSignUp(e: React.FormEvent) {

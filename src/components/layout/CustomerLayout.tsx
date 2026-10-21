@@ -1,7 +1,8 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Home, BookOpen, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap, Moon, Sun } from 'lucide-react'
+import { Home, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap, Moon, Sun } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { WhatsAppIcon, MessengerIcon, PhoneIcon, GmailIcon } from '@/components/ui/ContactIcons'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useCart } from '@/context/CartContext'
@@ -48,7 +49,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
   const navLinks = [
     { to: '/bookstore',           icon: Home,         label: t('nav.home'),      end: true  },
-    { to: '/bookstore/books',      icon: BookOpen,     label: t('nav.catalog'),   end: false },
+    { to: '/bookstore/books',      icon: OpenBook,     label: t('nav.catalog'),   end: false },
     { to: '/bookstore/knowledge',  icon: Lightbulb,    label: t('nav.knowledge'), end: false },
     { to: '/bookstore/cart',       icon: ShoppingCart, label: t('nav.cart'),      end: false, badge: cartCount },
     { to: '/bookstore/track',      icon: PackageSearch,label: t('nav.trackOrder'),end: false },

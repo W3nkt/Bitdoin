@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, Check, ChevronRight, Crown, GraduationCap, Globe2 } from 'lucide-react'
+import { Check, ChevronRight, Crown, GraduationCap, Globe2 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useLanguage } from '@/context/LanguageContext'
 import { publicAsset } from '@/lib/assets'
 
@@ -68,7 +69,7 @@ export function Landing() {
               </span>
 
               <div className="relative mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-400 to-accent-600 text-white shadow-md">
-                <BookOpen className="h-7 w-7" />
+                <OpenBook className="h-7 w-7" />
               </div>
 
               <h2 className="relative mt-5 text-2xl font-extrabold text-slate-900">

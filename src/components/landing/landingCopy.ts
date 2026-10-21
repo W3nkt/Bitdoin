@@ -2,7 +2,7 @@ export const landingCopy = {
   en: {
     tagline: 'One account, two platforms', navigation: 'Main navigation', skip: 'Skip to content',
     bookstore: 'Bookstore', academy: 'Academy', changeLanguage: 'Switch to Lao', signIn: 'Sign in', account: 'My account',
-    eyebrow: 'The living library', title: 'A world of ideas.', titleSecond: 'Yours to explore.',
+    eyebrow: 'The living library', title: 'Never Stop Learning, Because', titleSecond: 'Life Never Stops Teaching',
     subtitle: 'Great books and practical learning, together in one place.',
     browse: 'Browse books', explore: 'Explore Academy', discover: 'A little curiosity goes a long way',
     shelfLabel: 'Explore the featured books', previous: 'Previous book', next: 'Next book', chooseIdea: 'Choose a book', selectIdea: 'View',
@@ -32,7 +32,7 @@ export const landingCopy = {
   lo: {
     tagline: 'ບັນຊີດຽວ ສອງແພລດຟອມ', navigation: 'ເມນູຫຼັກ', skip: 'ຂ້າມໄປເນື້ອຫາ',
     bookstore: 'ຮ້ານປຶ້ມ', academy: 'Academy', changeLanguage: 'Switch to English', signIn: 'ເຂົ້າລະບົບ', account: 'ບັນຊີຂອງຂ້ອຍ',
-    eyebrow: 'ຫ້ອງສະໝຸດທີ່ມີຊີວິດ', title: 'ໂລກແຫ່ງຄວາມຄິດ.', titleSecond: 'ລໍຖ້າໃຫ້ທ່ານສຳຫຼວດ.',
+    eyebrow: 'ຫ້ອງສະໝຸດທີ່ມີຊີວິດ', title: 'ຢ່າຢຸດທີ່ຈະຮຽນຮູ້,', titleSecond: 'ເພາະຊີວິດບໍ່ເຄີຍຢຸດທີ່ຈະສອນ',
     subtitle: 'ປຶ້ມດີ ແລະ ການຮຽນທີ່ໃຊ້ໄດ້ຈິງ ລວມຢູ່ໃນບ່ອນດຽວ.',
     browse: 'ເລືອກຊື້ປຶ້ມ', explore: 'ສຳຫຼວດ Academy', discover: 'ຄວາມຢາກຮູ້ນ້ອຍໆ ພາເຮົາໄປໄດ້ໄກ',
     shelfLabel: 'ສຳຫຼວດປຶ້ມແນະນຳ', previous: 'ປຶ້ມກ່ອນໜ້າ', next: 'ປຶ້ມຕໍ່ໄປ', chooseIdea: 'ເລືອກປຶ້ມ', selectIdea: 'ເບິ່ງ',

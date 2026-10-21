@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRight,
-  BookOpen,
   Calculator,
   Edit2,
   Plus,
@@ -11,6 +10,7 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useForm } from 'react-hook-form'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
@@ -527,7 +527,7 @@ export function AdminPricing() {
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
-                              <BookOpen className="h-4 w-4 text-primary-300" />
+                              <OpenBook className="h-4 w-4 text-primary-300" />
                             </div>
                           )}
                         </div>
@@ -697,7 +697,7 @@ export function AdminPricing() {
                 <img src={selectedBookCover} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
-                  <BookOpen className="h-5 w-5 text-primary-300" />
+                  <OpenBook className="h-5 w-5 text-primary-300" />
                 </div>
               )}
             </div>

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText, BookOpen } from 'lucide-react'
+import { Search, Eye, ChevronDown, CreditCard, MessageCircle, CheckCircle, Clock, Upload, ReceiptText} from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
@@ -505,7 +506,7 @@ export function AdminOrders() {
                           <img src={item.book.cover_image_url} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-primary-50 dark:bg-primary-900/40">
-                            <BookOpen className="h-4 w-4 text-primary-300" />
+                            <OpenBook className="h-4 w-4 text-primary-300" />
                           </div>
                         )}
                       </div>

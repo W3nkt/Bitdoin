@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff, X, BookOpen,
+  Plus, Pencil, Trash2, Eye, EyeOff, Star, StarOff, X,
   Quote, Lightbulb, Sparkles, User
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { KnowledgeCategory, KnowledgePost, KnowledgePostType } from '@/types'
 import { useToast } from '@/components/ui/Toast'
 import { cn } from '@/lib/utils'
 
 const POST_TYPES: { value: KnowledgePostType; label: string; icon: React.ElementType }[] = [
-  { value: 'article',   label: 'Article',   icon: BookOpen },
+  { value: 'article',   label: 'Article',   icon: OpenBook },
   { value: 'quote',     label: 'Quote',     icon: Quote },
   { value: 'tip',       label: 'Tip',       icon: Lightbulb },
   { value: 'blog',      label: 'Blog',      icon: Sparkles },

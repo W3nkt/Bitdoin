@@ -495,3 +495,28 @@ label:has(input[data-invalid='true']) {
     animation: none;
   }
 }
+
+/* Switching between light and dark: useApplyTheme (src/lib/theme.ts) puts `theme-fading` on <html> for 0.5s around the
+   change, so every colour eases into the new theme instead of flipping. `!important` beats the short hover transitions
+   on buttons and links for that half second. The landing page is left out: it runs its own sunrise / sunset (platform-selector.css). */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-fading:not(:has(.living-library)),
+  html.theme-fading:not(:has(.living-library)) *,
+  html.theme-fading:not(:has(.living-library)) ::before,
+  html.theme-fading:not(:has(.living-library)) ::after {
+    transition: background-color .5s ease, color .5s ease, border-color .5s ease, outline-color .5s ease,
+      text-decoration-color .5s ease, fill .5s ease, stroke .5s ease, box-shadow .5s ease !important;
+  }
+}
+
+/* Page flight (src/lib/pageTransition.ts). fade: set on <html> while the browser cross-fades its snapshots of the
+   old and new page. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-flight=fade]::view-transition-group(root),
+  html[data-flight=fade]::view-transition-old(root),
+  html[data-flight=fade]::view-transition-new(root) { animation-duration: .35s; }
+}
+/* celebrate: the confetti burst from the clicked button, drawn above the page and animated from script. */
+.page-confetti { position: fixed; z-index: 2147483647; width: 0; height: 0; pointer-events: none; }
+.page-confetti i, .page-confetti b { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+.page-confetti b { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; border: 2px solid #ffc52f; box-shadow: 0 0 18px rgb(255 197 47 / 60%); }

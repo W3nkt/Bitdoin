@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, ShoppingCart } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import type { Book, BookPrice } from '@/types'
 import type { BittyBook } from '@/lib/bittyChat'
 import { supabase } from '@/lib/supabase'
@@ -72,7 +73,7 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
   return (
     <li className="flex gap-2 py-2.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-3">
       <span ref={iconRef} className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 sm:h-8 sm:w-8" aria-hidden="true">
-        <BookOpen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+        <OpenBook className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </span>
 
       <div className="min-w-0 flex-1">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { BookOpen, Check, Tag } from 'lucide-react'
+import { Check, Tag } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { getPendingBooksForToken, submitBookstorePrice, type PendingBook } from '@/lib/bookstorePricing'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -140,7 +141,7 @@ function BookPriceRow({
           </button>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-primary-50">
-            <BookOpen className="h-5 w-5 text-primary-300" />
+            <OpenBook className="h-5 w-5 text-primary-300" />
           </div>
         )}
       </div>

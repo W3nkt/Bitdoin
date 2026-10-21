@@ -1,4 +1,5 @@
-import { ArrowLeft, BookOpen, Brain, CreditCard, GraduationCap, Target, UserRound } from 'lucide-react'
+import { ArrowLeft, Brain, CreditCard, GraduationCap, Target, UserRound } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { TelegramReminderCard } from '@/components/premium/TelegramReminderCard'
@@ -30,7 +31,7 @@ export function AcademyProfile() {
           <div><h1 className="text-2xl font-black">{profile.name}</h1><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{profile.email || profile.phone}</p></div>
         </section>
         <nav className="mt-8 border-t border-slate-200 dark:border-slate-700">
-          <ProfileLink to="/academy/learn" icon={BookOpen} title={lo ? 'ການຮຽນຂອງຂ້ອຍ' : 'My learning'} />
+          <ProfileLink to="/academy/learn" icon={OpenBook} title={lo ? 'ການຮຽນຂອງຂ້ອຍ' : 'My learning'} />
           <ProfileLink to="/academy/progress" icon={Target} title={lo ? 'ຄວາມຄືບໜ້າ' : 'Progress and achievements'} />
           <ProfileLink to="/academy/coach" icon={Brain} title={lo ? 'AI Coach' : 'AI Coach conversations'} />
           <ProfileLink to="/academy/subscription" icon={CreditCard} title={lo ? 'ສະມາຊິກ ແລະ ການຈ່າຍ' : 'Membership and billing'} />
@@ -42,6 +43,6 @@ export function AcademyProfile() {
   )
 }
 
-function ProfileLink({ to, icon: Icon, title }: { to: string; icon: typeof BookOpen; title: string }) {
+function ProfileLink({ to, icon: Icon, title }: { to: string; icon: typeof OpenBook; title: string }) {
   return <Link to={to} className="flex items-center gap-4 border-b border-slate-200 dark:border-slate-700 py-5"><Icon className="h-5 w-5 text-amber-600 dark:text-amber-400" /><span className="font-black">{title}</span></Link>
 }

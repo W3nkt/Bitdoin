@@ -3,9 +3,10 @@ import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import {
-  ArrowLeft, ChevronLeft, ChevronRight, Clock, Eye, Tag, Quote, BookOpen, Lightbulb, Sparkles,
+  ArrowLeft, ChevronLeft, ChevronRight, Clock, Eye, Tag, Quote, Lightbulb, Sparkles,
   User, MapPin, Calendar, TrendingUp, Building2, Globe, Star,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { KnowledgePost, KnowledgePostType } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
@@ -15,7 +16,7 @@ import { BIOGRAPHY_PROFILES, splitBioTitle } from '@/data/biographyProfiles'
 import { BioAvatar } from '@/components/ui/BioAvatar'
 
 const TYPE_ICONS: Record<KnowledgePostType, React.ElementType> = {
-  article:   BookOpen,
+  article:   OpenBook,
   quote:     Quote,
   tip:       Lightbulb,
   blog:      Sparkles,

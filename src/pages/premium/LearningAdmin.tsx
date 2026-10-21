@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, BookOpen, CalendarRange, ExternalLink, FileEdit, Plus, Save, Search, Trash2, X, Moon, Sun } from 'lucide-react'
+import { ArrowLeft, CalendarRange, ExternalLink, FileEdit, Plus, Save, Search, Trash2, X, Moon, Sun } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useTheme } from '@/lib/theme'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -196,7 +197,7 @@ export function PremiumLearningAdmin() {
         <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-slate-700 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex gap-2">
-              <Tab active={tab === 'lessons'} onClick={() => setTab('lessons')} icon={BookOpen}>Lessons & opportunities</Tab>
+              <Tab active={tab === 'lessons'} onClick={() => setTab('lessons')} icon={OpenBook}>Lessons & opportunities</Tab>
               <Tab active={tab === 'challenges'} onClick={() => setTab('challenges')} icon={CalendarRange}>Weekly challenges</Tab>
             </div>
             <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">{tab === 'lessons' ? 'Publish bilingual lessons, summaries, scholarships, career guides, and business ideas.' : 'Schedule one clear member challenge at a time.'}</p>
@@ -313,7 +314,7 @@ export function PremiumLearningAdmin() {
   )
 }
 
-function Tab({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: typeof BookOpen; children: React.ReactNode }) {
+function Tab({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: typeof OpenBook; children: React.ReactNode }) {
   return <button onClick={onClick} className={cn('flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black', active ? 'bg-slate-950 text-white dark:bg-primary-600' : 'bg-white dark:bg-gray-900 text-slate-500 dark:text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700')}><Icon className="h-4 w-4" />{children}</button>
 }
 function Badge({ children, tone = 'blue' }: { children: React.ReactNode; tone?: 'blue' | 'green' | 'gray' }) {

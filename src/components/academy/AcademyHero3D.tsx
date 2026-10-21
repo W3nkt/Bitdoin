@@ -25,23 +25,33 @@ export default function AcademyHero3D({ orbs, selected, dark, insetBottom, onSel
   useEffect(() => {
     const stage = stageRef.current
     if (!stage) return
-    const first = latest.current
-    let scene: AcademyHeroScene
-    try {
-      scene = new AcademyHeroScene(stage, first.orbs, index => latest.current.onSelect(index), first.dark)
-    } catch (error) {
-      console.error('Academy hero could not start WebGL', error)
-      first.onUnavailable()
-      return
+    let scene: AcademyHeroScene | undefined
+    let visibility: IntersectionObserver | undefined
+    // Starting WebGL (shader compilation especially) blocks the page for ~0.3–1s, so do it after the page has
+    // painted: the page shows at once and, arriving from the landing page, its slide-in animation isn't held up.
+    function start() {
+      const first = latest.current
+      try {
+        scene = new AcademyHeroScene(stage!, first.orbs, index => latest.current.onSelect(index), first.dark)
+      } catch (error) {
+        console.error('Academy hero could not start WebGL', error)
+        first.onUnavailable()
+        return
+      }
+      scene.setInset(first.insetBottom)
+      scene.setSelected(first.selected)
+      sceneRef.current = scene
+      const started = scene
+      visibility = new IntersectionObserver(([entry]) => started.setActive(entry.isIntersecting))
+      visibility.observe(stage!)
     }
-    scene.setInset(first.insetBottom)
-    scene.setSelected(first.selected)
-    sceneRef.current = scene
-    const visibility = new IntersectionObserver(([entry]) => scene.setActive(entry.isIntersecting))
-    visibility.observe(stage)
+    let timer: number | undefined
+    const frame = requestAnimationFrame(() => { timer = window.setTimeout(start, 0) })
     return () => {
-      visibility.disconnect()
-      scene.dispose()
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+      visibility?.disconnect()
+      scene?.dispose()
       sceneRef.current = null
     }
   }, [])

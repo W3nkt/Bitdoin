@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Search, BookOpen, Lightbulb, Quote, Sparkles, Clock, Eye,
+  Search, Lightbulb, Quote, Sparkles, Clock, Eye,
   SlidersHorizontal, X, Tag, User, Building2, TrendingUp,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { KnowledgeCategory, KnowledgePost, KnowledgePostType } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
@@ -17,7 +18,7 @@ import { BioAvatar } from '@/components/ui/BioAvatar'
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TYPE_ICONS: Record<KnowledgePostType, React.ElementType> = {
-  article:   BookOpen,
+  article:   OpenBook,
   quote:     Quote,
   tip:       Lightbulb,
   blog:      Sparkles,
@@ -45,7 +46,7 @@ const TYPE_COLOR: Record<KnowledgePostType, string> = {
 const SIDEBAR_TYPES: { key: string; tKey: string; icon: React.ElementType }[] = [
   { key: 'all',       tKey: 'knowledge.allTypes',    icon: Sparkles },
   { key: 'biography', tKey: 'knowledge.biographies', icon: User },
-  { key: 'article',   tKey: 'knowledge.articles',    icon: BookOpen },
+  { key: 'article',   tKey: 'knowledge.articles',    icon: OpenBook },
   { key: 'quote',     tKey: 'knowledge.quotes',      icon: Quote },
   { key: 'tip',       tKey: 'knowledge.tips',        icon: Lightbulb },
   { key: 'blog',      tKey: 'knowledge.blogs',       icon: Sparkles },
@@ -238,7 +239,7 @@ export function Knowledge() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center text-gray-400">
-              <BookOpen className="h-12 w-12 opacity-30" />
+              <OpenBook className="h-12 w-12 opacity-30" />
               <p>{t('knowledge.noPostsFound')}</p>
             </div>
           ) : (
@@ -372,7 +373,7 @@ function KnowledgeSidebar({
       )}>
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
           <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-accent-400" />
+            <OpenBook className="h-4 w-4 text-accent-400" />
             <span className="text-sm font-semibold">{t('knowledge.filterLabel')}</span>
           </div>
           <button

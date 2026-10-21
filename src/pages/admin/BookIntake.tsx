@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import DOMPurify from 'dompurify'
-import {
-  BookOpen, CheckCircle2, Edit2, Plus, Rocket, Trash2, Upload,
+import { CheckCircle2, Edit2, Plus, Rocket, Trash2, Upload,
   Bold, Italic, Underline, List, ListOrdered, CornerDownLeft, RemoveFormatting,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import type { Book, Category } from '@/types'
@@ -300,7 +300,7 @@ export function AdminBookIntake() {
       {isLoading ? <LoadingSpinner /> : (
         (pendingBooks ?? []).length === 0 ? (
           <div className="rounded-2xl bg-white dark:bg-gray-900 p-12 text-center shadow-card">
-            <BookOpen className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />
+            <OpenBook className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />
             <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-200">No books waiting for a price</p>
             <p className="mt-1 text-xs text-gray-400">Add a book to start collecting prices from bookstores.</p>
           </div>
@@ -313,7 +313,7 @@ export function AdminBookIntake() {
                     <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-primary-50 dark:bg-primary-900/40">
-                      <BookOpen className="h-5 w-5 text-primary-300" />
+                      <OpenBook className="h-5 w-5 text-primary-300" />
                     </div>
                   )}
                 </div>
@@ -381,7 +381,7 @@ export function AdminBookIntake() {
                 {coverPreview ? (
                   <img src={coverPreview} alt="Book cover preview" className="h-full w-full object-cover" />
                 ) : (
-                  <BookOpen className="h-6 w-6 text-gray-300 dark:text-gray-600" />
+                  <OpenBook className="h-6 w-6 text-gray-300 dark:text-gray-600" />
                 )}
               </div>
               <div className="space-y-2">

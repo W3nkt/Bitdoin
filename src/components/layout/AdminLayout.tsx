@@ -2,9 +2,10 @@ import { type ReactNode, useState } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  LayoutDashboard, BookOpen, Store, Tag, ShoppingBag, ClipboardList,
+  LayoutDashboard, Store, Tag, ShoppingBag, ClipboardList,
   CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb, Moon, Sun
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { AdminNotificationsContext } from '@/context/AdminNotificationsContext'
@@ -36,7 +37,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { to: '/admin',              icon: LayoutDashboard, label: t('admin.dashboard'),  end: true },
-    { to: '/admin/books',        icon: BookOpen,        label: t('admin.books') },
+    { to: '/admin/books',        icon: OpenBook,        label: t('admin.books') },
     { to: '/admin/book-intake',  icon: ClipboardList,   label: 'Book Intake' },
     { to: '/admin/bookstores',   icon: Store,           label: t('admin.bookstores') },
     { to: '/admin/pricing',      icon: Tag,             label: t('admin.pricing') },

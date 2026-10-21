@@ -5,12 +5,44 @@
 .library-skip { position: fixed; z-index: 100; top: 12px; left: 16px; padding: 12px 20px; color: #091625; background: #ffc52f; border-radius: 8px; transform: translateY(-160%); }
 .library-skip:focus { transform: translateY(0); }
 .library-hero { position: relative; isolation: isolate; min-height: 750px; }
-.library-backdrop, .library-backdrop img, .library-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
-.library-backdrop { z-index: -2; }
+.library-backdrop, .library-backdrop picture, .library-backdrop img, .library-shade, .library-shade::before, .library-shade::after { position: absolute; inset: 0; width: 100%; height: 100%; }
+.library-backdrop { z-index: -2; overflow: hidden; background: #050d18; }
 .library-backdrop img { object-fit: cover; object-position: center; }
+/* Switching theme: the day photo fades over the night one, passing through a warm, dim golden-hour look. */
+.library-backdrop-day { transition: opacity 2.8s cubic-bezier(.45, 0, .25, 1), filter 2.8s cubic-bezier(.45, 0, .25, 1); }
+.library-backdrop[data-sky=night] .library-backdrop-day { opacity: 0; filter: brightness(.6) saturate(1.35) sepia(.3); }
+/* The sun rises over (or sinks behind) the mountains in the window, under a warm sky tint. Played once per toggle. */
+.library-sky-change, .library-sky-change svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* Golden-hour tint over the whole room while the light changes. */
+.library-sky-change::before { content: ""; position: absolute; inset: 0; opacity: 0; background: linear-gradient(180deg, rgb(255 150 70 / 55%) 0%, rgb(255 120 60 / 35%) 45%, rgb(110 40 70 / 35%) 100%); mix-blend-mode: soft-light; animation: library-sky-tint 3s ease-in-out; }
+.library-sky-change svg { mix-blend-mode: screen; }
+/* The sun starts just behind the peak (cy 374, ridge ~334, disc radius ~35) and travels 530 photo pixels up, past the top edge. */
+.library-sun { opacity: 0; }
+.library-sky-rise .library-sun { animation: library-sunrise 3s cubic-bezier(.4, 0, .6, 1) forwards; }
+.library-sky-set .library-sun { animation: library-sunset 3s cubic-bezier(.4, 0, .6, 1) forwards; }
+@keyframes library-sky-tint { 0%, 100% { opacity: 0; } 40%, 55% { opacity: 1; } }
+@keyframes library-sunrise {
+  0% { opacity: 0; transform: translateY(0); }
+  12%, 100% { opacity: 1; }
+  100% { transform: translateY(-530px); }
+}
+@keyframes library-sunset {
+  0% { opacity: 1; transform: translateY(-530px); }
+  88% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(0); }
+}
 /* Light mode uses the daytime room: the bright sky sits behind the white headline, so the shade darkens the
-   left (text) side and fades out over the bookshelves. */
-.library-shade { background: linear-gradient(90deg, rgb(6 16 28 / 62%) 0%, rgb(6 16 28 / 40%) 38%, rgb(6 16 28 / 8%) 62%, rgb(6 16 28 / 0%) 100%), linear-gradient(180deg, rgb(6 16 28 / 30%) 0%, rgb(6 16 28 / 0%) 22%); z-index: -1; }
+   left (text) side and fades out over the bookshelves. Dark mode needs only a light, even shade. The two are
+   separate layers so they can cross-fade with the photos. */
+.library-shade { z-index: -1; }
+.library-shade::before, .library-shade::after { content: ""; transition: opacity 2.8s cubic-bezier(.45, 0, .25, 1); }
+.library-shade::before { background: linear-gradient(90deg, rgb(6 16 28 / 62%) 0%, rgb(6 16 28 / 40%) 38%, rgb(6 16 28 / 8%) 62%, rgb(6 16 28 / 0%) 100%), linear-gradient(180deg, rgb(6 16 28 / 30%) 0%, rgb(6 16 28 / 0%) 22%); }
+.library-shade::after { background: rgb(3 10 18 / 22%); opacity: 0; }
+.dark .library-shade::before { opacity: 0; }
+.dark .library-shade::after { opacity: 1; }
+/* The rest of the page eases between its light and dark colours alongside the sky. */
+.living-library, .library-benefits, .library-destinations, .library-academy, .library-footer, .library-section-description, .library-bookstore .library-eyebrow { transition: background-color 2s ease, color 2s ease, border-color 2s ease, box-shadow 2s ease; }
+.library-small-shelf img { transition: filter 2s ease; }
 .library-topbar { position: fixed; z-index: 60; inset: 0 0 auto 0; border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s, box-shadow .25s; }
 .library-topbar[data-scrolled=true] { background: rgb(7 17 30 / 82%); border-bottom-color: #ffffff1c; box-shadow: 0 12px 32px -20px #000d; -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); }
 .library-header-spacer { height: 108px; }
@@ -33,15 +65,26 @@
 .library-language:hover, .library-signin:hover, .library-theme:hover { background: #203148; }
 .language-divider { color: #98a6b8; }
 .library-hero-content { display: grid; grid-template-columns: 47% 53%; align-items: start; min-height: 642px; padding-top: 60px; }
-.library-intro { position: relative; z-index: 2; padding-top: 8px; padding-bottom: 50px; }
+/* --library-title-line is the headline's line box in both languages: the Lao line (font × 1.5). English uses it too,
+   so the two-line headline is the same height in either language and switching language doesn't move the page. */
+.library-intro { position: relative; z-index: 2; padding-top: 8px; padding-bottom: 50px; container-type: inline-size; --library-title-line: calc(clamp(35px, 3.5vw, 51px) * 1.5); --library-subtitle-line: 34.5px; }
 .library-eyebrow { font-size: 11px; font-weight: 700; line-height: 1.7; text-transform: uppercase; letter-spacing: 2.3px; color: var(--library-gold); }
-.library-intro h1 { margin-top: 17px; font-size: clamp(40px, 4.85vw, 70px); line-height: 1.09; letter-spacing: -2.4px; font-weight: 750; text-wrap: balance; }
-.library-subtitle { margin-top: 23px; max-width: 470px; color: #e0e3e9; font-size: 23px; line-height: 1.5; text-wrap: pretty; }
+.library-intro h1 { margin-top: 17px; font-size: clamp(40px, 4.85vw, 70px); line-height: var(--library-title-line); letter-spacing: -2.4px; font-weight: 750; text-wrap: balance; }
+/* English: exactly two lines, like the Lao. "Never Stop Learning, Because" is 13.9em wide, so 7cqi (7% of the
+   headline's width) keeps each line on one row at every screen size. */
+.living-library[lang=en] .library-intro h1 { font-size: min(7cqi, 64px); letter-spacing: -.03em; white-space: nowrap; }
+/* The second line is a <span>; without this the global :lang(lo) line-height (index.css) makes the Lao line taller. */
+.library-intro h1 span { line-height: inherit; }
+/* Both languages reserve two subtitle lines of the same height, so the buttons below don't move when the language changes. */
+.library-subtitle { margin-top: 23px; max-width: 470px; color: #e0e3e9; font-size: 23px; line-height: var(--library-subtitle-line); min-height: calc(2 * var(--library-subtitle-line)); text-wrap: pretty; }
 .library-actions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 38px; }
 .library-button { display: inline-flex; justify-content: center; align-items: center; gap: 24px; min-height: 56px; padding: 15px 25px; border-radius: 12px; font-weight: 650; font-size: 15px; line-height: 1.5; transition: background .2s, transform .2s; }
 .library-button:hover { transform: translateY(-2px); }
 .library-button svg { flex-shrink: 0; transition: transform .2s; }
-.library-button:hover svg { transform: translateX(3px); }
+/* Only the trailing arrow nudges on hover; the leading icon sits with the label. */
+.library-button:hover > svg { transform: translateX(3px); }
+/* line-height: inherit keeps the global :lang(lo) line-height off the label, so the buttons are the same height in both languages. */
+.library-button .library-button-label { display: inline-flex; align-items: center; gap: 10px; line-height: inherit; }
 .library-button-orange { color: #fff; background: #cc4908; border: 1px solid #e56719; box-shadow: 0 6px 25px #1b0b0555; }
 .library-button-orange:hover { background: #c74506; }
 .library-button-outline { border: 1px solid #e8b629; color: #ffd25a; background: #06111b99; }
@@ -108,8 +151,8 @@
 .library-footer a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .library-footer a svg { transform: rotate(-90deg); }
 .living-library[lang=lo] .library-eyebrow, .living-library[lang=lo] .library-brand small { letter-spacing: .6px; }
-.living-library[lang=lo] h1 { font-size: clamp(35px, 3.5vw, 51px); letter-spacing: -.8px; line-height: 1.5; }
-.living-library[lang=lo] .library-subtitle { line-height: 1.8; font-size: 20px; }
+.living-library[lang=lo] h1 { font-size: clamp(35px, 3.5vw, 51px); letter-spacing: -.8px; }
+.living-library[lang=lo] .library-subtitle { font-size: 20px; }
 .living-library[lang=lo] h2 { line-height: 1.5; letter-spacing: -.5px; }
 .living-library[lang=lo] .library-benefit p, .living-library[lang=lo] .library-section-description, .living-library[lang=lo] .library-learning-steps p { line-height: 1.9; }
 @media (min-width: 1600px) { .library-hero { min-height: 800px; } .library-hero-content { padding-top: 90px; } }
@@ -117,8 +160,8 @@
   .library-container { width: calc(100% - 64px); }
   .library-hero { min-height: 608px; }
   .library-hero-content { padding-top: 34px; min-height: 500px; }
-  .library-intro h1 { font-size: 56px; }
   .library-subtitle { font-size: 20px; }
+  .library-intro { --library-subtitle-line: 30px; }
   .library-button { gap: 12px; padding-inline: 18px; font-size: 14px; }
   .library-actions { gap: 10px; }
   .library-books { height: 350px; }
@@ -134,8 +177,8 @@
   .library-topbar[data-scrolled=true] .library-header { height: 70px; }
   .library-nav { gap: 24px; }
   .library-hero-content { grid-template-columns: 48% 52%; }
-  .library-intro h1 { font-size: 39px; letter-spacing: -1.5px; }
   .library-subtitle { font-size: 18px; }
+  .library-intro { --library-subtitle-line: 28px; }
   .library-actions { flex-direction: column; align-items: flex-start; margin-top: 25px; }
   .library-actions .library-button { min-width: 200px; justify-content: space-between; }
   .library-books { height: 310px; }
@@ -152,12 +195,16 @@
   .library-academy-icon { width: 50px; height: 50px; border-radius: 13px; }
   .library-academy-heading { margin-bottom: 18px; }
   .living-library[lang=lo] h1 { font-size: 35px; }
+  .library-intro { --library-title-line: 52.5px; }
 }
 @media (max-width: 767px) {
   .library-container { width: calc(100% - 40px); }
   .library-hero { min-height: 0; }
   .library-backdrop img { object-position: 63% center; }
-  .library-shade { background: rgb(6 16 28 / 52%); }
+  .library-shade::before { background: rgb(6 16 28 / 52%); }
+  .library-shade::after { background: #030c1766; }
+  /* The phone crop shows the shelves, not the window, so there is no sun to see: just the light and the tint change. */
+  .library-sky-change svg { display: none; }
   .library-header, .library-header-spacer { height: 84px; }
   .library-header { gap: 10px; }
   .library-topbar[data-scrolled=true] .library-header { height: 66px; }
@@ -176,12 +223,16 @@
   .library-signin-account span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .library-hero-content { display: flex; flex-direction: column; padding-top: 28px; padding-bottom: 20px; }
   .library-intro { width: 100%; padding: 0; text-align: center; }
-  .library-intro h1 { font-size: clamp(37px, 8.6vw, 57px); line-height: 1.12; letter-spacing: -1.6px; margin-top: 17px; }
   .library-eyebrow { font-size: 10px; letter-spacing: 2px; }
   .library-subtitle { max-width: 400px; margin: 19px auto 0; font-size: 17px; }
   .library-actions { flex-direction: row; justify-content: center; align-items: stretch; margin-top: 24px; gap: 10px; }
   .library-actions .library-button { min-width: 0; min-height: 50px; padding: 13px 16px; gap: 12px; font-size: 13px; }
   .library-actions svg { width: 16px; }
+  /* Phones: the label icons replace the trailing arrows so both buttons fit on one row; on the narrowest
+     screens, where they still wrap, each stretches to the full width. */
+  .library-actions .library-button { flex: 1 1 auto; justify-content: center; }
+  .library-actions .library-button > svg { display: none; }
+  .library-button .library-button-label { gap: 7px; }
   .library-discover { margin-top: 17px; font-size: 11px; }
   .library-showcase { width: 100%; max-width: 540px; margin: 17px auto 0; }
   .library-books { height: clamp(250px, 67vw, 370px); }
@@ -210,7 +261,8 @@
   .library-learning-steps p { font-size: 14px; }
   .library-footer > div { flex-wrap: wrap; justify-content: space-between; gap: 5px 15px; padding-block: 17px; font-size: 11px; }
   .library-footer p { order: 3; width: 100%; }
-  .living-library[lang=lo] h1 { font-size: clamp(28px, 7.2vw, 43px); line-height: 1.55; letter-spacing: -.5px; }
+  .living-library[lang=lo] h1 { font-size: clamp(28px, 7.2vw, 43px); letter-spacing: -.5px; }
+  .library-intro { --library-title-line: calc(clamp(28px, 7.2vw, 43px) * 1.55); --library-subtitle-line: 26px; }
   .living-library[lang=lo] .library-subtitle { font-size: 16px; }
   .living-library[lang=lo] .library-destinations h2 { font-size: 29px; }
 }
@@ -218,6 +270,10 @@
   /* Room for the theme button: show only the language you would switch to, and keep Sign in on one line. */
   .library-language > span:nth-of-type(1), .library-language .language-divider { display: none; }
   .library-signin span { white-space: nowrap; }
+  /* Tighter hero buttons so both languages still fit side by side. */
+  .library-actions { gap: 6px; }
+  .library-actions .library-button { padding-inline: 12px; font-size: 12.5px; }
+  .library-button .library-button-label { gap: 5px; }
 }
 @media (max-width: 359px) {
   .library-container { width: calc(100% - 28px); }
@@ -226,12 +282,12 @@
   .library-language, .library-signin, .library-theme { padding-inline: 7px; }
   .library-theme { min-width: 40px; }
   .library-language svg { display: none; }
-  .library-actions .library-button { padding-inline: 12px; gap: 8px; }
+  /* Too narrow for two buttons side by side in English, so both languages stack them, keeping the layout the same. */
+  .library-actions .library-button { flex-basis: 100%; }
 }
 /* Dark mode (html.dark, from the header toggle): the hero shows the room at night, which is dark enough for a
    light shade; the cream destinations section and footer turn into deep navy. */
 .dark .living-library { background: #050d18; }
-.dark .library-shade { background: rgb(3 10 18 / 22%); }
 .dark .library-benefits { background: #08131f; }
 .dark .library-destinations { background: #0a1524; color: #f1ede4; }
 .dark .library-section-description { color: #b4c2d4; }
@@ -242,7 +298,6 @@
 .dark .library-small-shelf img { filter: brightness(.82) contrast(1.05); }
 .dark .library-academy { background: #11213a; border: 1px solid #ffffff1c; box-shadow: 0 24px 60px -30px #000c; }
 .dark .library-footer { background: #060d17; color: #8d9db2; border-top-color: #ffffff14; }
-@media (max-width: 767px) { .dark .library-shade { background: #030c1766; } }
 @media (prefers-reduced-motion: reduce) {
   html:has(.living-library) { scroll-behavior: auto; }
   .living-library *, .living-library *::before, .living-library *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }

@@ -49,6 +49,7 @@ import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
+import { celebrate } from '@/lib/pageTransition'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Modal } from '@/components/ui/Modal'
@@ -333,6 +334,8 @@ export function Subscription() {
   const { success, error } = useToast()
   const proofInputRef = useRef<HTMLInputElement>(null)
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null)
+  // The button that started the current subscribe flow; confetti bursts from it when the request succeeds.
+  const celebrateFrom = useRef<HTMLElement | null>(null)
   const [uploadingProof, setUploadingProof] = useState(false)
   const [completingChallenge, setCompletingChallenge] = useState(false)
   const [savingDailyItem, setSavingDailyItem] = useState<DailyChallengeKind | null>(null)
@@ -773,6 +776,8 @@ export function Subscription() {
       notifyAdminOfAcademySubscription(createdSubscription.id)
 
       await invalidatePremium()
+      celebrate(celebrateFrom.current)
+      celebrateFrom.current = null
       success('Your Free membership request was sent for admin approval.')
     } catch (err) {
       console.error(err)
@@ -823,6 +828,8 @@ export function Subscription() {
       notifyAdminOfAcademySubscription(createdSubscription.id)
 
       await invalidatePremium()
+      celebrate(celebrateFrom.current)
+      celebrateFrom.current = null
       setQrPlan(plan)
       setQrPaymentOpen(true)
       success('Premium subscription created. Scan the QR code to pay, then upload your proof.')
@@ -1448,7 +1455,7 @@ export function Subscription() {
                           type="button"
                           fullWidth
                           icon={<Rocket className="h-4 w-4" />}
-                          onClick={() => requestSubscribe(plan)}
+                          onClick={event => { celebrateFrom.current = event.currentTarget; requestSubscribe(plan) }}
                           loading={busyPlanId === plan.id}
                           disabled={isActiveCurrent}
                         >
@@ -1466,7 +1473,7 @@ export function Subscription() {
                           variant="outline"
                           fullWidth
                           icon={<CheckCircle2 className="h-4 w-4" />}
-                          onClick={() => requestSubscribe(plan)}
+                          onClick={event => { celebrateFrom.current = event.currentTarget; requestSubscribe(plan) }}
                           loading={busyPlanId === plan.id}
                           disabled={isCurrent || (Boolean(subscription) && !membershipExpired && subscription!.status !== 'CANCELLED' && subscription!.status !== 'EXPIRED')}
                         >
@@ -1675,7 +1682,7 @@ export function Subscription() {
         language={language}
         onChangeMethod={setCheckoutMethod}
         onClose={closeCheckout}
-        onConfirm={() => void confirmPaymentMethod()}
+        onConfirm={event => { celebrateFrom.current = event.currentTarget; void confirmPaymentMethod() }}
       />
 
       <Modal

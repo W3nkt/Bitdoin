@@ -1,20 +1,51 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { ArrowRight, BarChart3, BookOpen, ChevronLeft, ChevronRight, Compass, GraduationCap, Languages, Lightbulb, Moon, Sparkles, Sun, UserRound } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { ArrowRight, BarChart3, ChevronLeft, ChevronRight, Compass, GraduationCap, Languages, Lightbulb, Moon, Sparkles, Sun, UserRound } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { publicAsset } from '@/lib/assets'
+import { flyToPage } from '@/lib/pageTransition'
 import { landingCopy } from '@/components/landing/landingCopy'
 import './platform-selector.css'
 
 // The middle entry is the book shown in front when the page loads (activeBook starts at 1).
 const bookImages = ['book-bitcoin.webp', 'book-richdad.webp', 'book-pm.webp']
-const featureIcons = [BookOpen, Lightbulb, Compass]
-const stepIcons = [BookOpen, Sparkles, BarChart3]
+const featureIcons = [OpenBook, Lightbulb, Compass]
+const stepIcons = [OpenBook, Sparkles, BarChart3]
+
+// The page each platform link opens, loaded on hover / touch / focus so it is usually ready by the time of the click.
+const pageImports: Record<string, () => Promise<unknown>> = {
+  '/bookstore': () => import('@/pages/customer/Home'),
+  '/admin': () => import('@/pages/admin/Dashboard'),
+  '/academy': () => import('@/pages/academy/AcademyLanding'),
+  '/academy-admin': () => import('@/pages/premium/AdminDashboard'),
+}
+const pageLoads = new Map<string, Promise<unknown>>()
+function preloadPage(to: string) {
+  if (!pageLoads.has(to)) pageLoads.set(to, pageImports[to]?.() ?? Promise.resolve())
+  return pageLoads.get(to)!
+}
 
 function PlatformLink({ platform, to, children, className }: { platform: 'bookstore' | 'academy'; to: string; children: ReactNode; className?: string }) {
-  return <Link to={to} onClick={() => localStorage.setItem('bitdoin_last_platform', platform)} className={className}>{children}</Link>
+  const navigate = useNavigate()
+  const preload = () => { void preloadPage(to) }
+  return <Link to={to} className={className} onPointerEnter={preload} onTouchStart={preload} onFocus={preload}
+    onClick={event => {
+      localStorage.setItem('bitdoin_last_platform', platform)
+      // New-tab and modified clicks keep the browser's normal behaviour.
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      event.preventDefault()
+      // Into the bookstore: fade. To the academy: the button bursts into confetti, then the pages fade.
+      void flyToPage({
+        flight: platform === 'bookstore' ? 'fade' : 'celebrate',
+        from: event.currentTarget,
+        navigate: () => navigate(to),
+        leftPage: () => !document.querySelector('.living-library'),
+        ready: preloadPage(to),
+      })
+    }}>{children}</Link>
 }
 
 export function PlatformSelector() {
@@ -27,6 +58,9 @@ export function PlatformSelector() {
   const [activeBook, setActiveBook] = useState(1)
   const [scrolled, setScrolled] = useState(false)
   const touchStart = useRef<number | null>(null)
+  // Set when the theme is toggled on this page, to play the sunrise / sunset once. The id restarts the animation on quick re-toggles.
+  const [skyChange, setSkyChange] = useState<{ rise: boolean; id: number } | null>(null)
+  const lastDark = useRef(dark)
   const bookstorePath = isAdmin ? '/admin' : '/bookstore'
   const academyPath = isAdmin ? '/academy-admin' : '/academy'
 
@@ -37,6 +71,12 @@ export function PlatformSelector() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (lastDark.current === dark) return
+    lastDark.current = dark
+    setSkyChange(change => ({ rise: !dark, id: (change?.id ?? 0) + 1 }))
+  }, [dark])
 
   function moveBook(direction: number) {
     setActiveBook(current => (current + direction + bookImages.length) % bookImages.length)
@@ -68,11 +108,33 @@ export function PlatformSelector() {
         </header>
       </div>
       <div className="library-hero">
-        {/* Light mode shows the room by day, dark mode the same room at night. The key swaps the whole <picture>, since browsers don't re-pick a <source> when only its srcSet changes. */}
-        <picture key={dark ? 'night' : 'day'} className="library-backdrop" aria-hidden="true">
-          <source media="(max-width: 767px)" srcSet={publicAsset(`images/landing/library-room${dark ? '' : '-day'}-mobile.webp`)} />
-          <img src={publicAsset(`images/landing/library-room${dark ? '' : '-day'}.webp`)} alt="" fetchPriority="high" />
-        </picture>
+        {/* Light mode shows the room by day, dark mode the same room at night. Both photos stay mounted (the hidden one
+            loads at low priority) so the day photo can fade over the night one while the sun rises or sets. */}
+        <div className="library-backdrop" data-sky={dark ? 'night' : 'day'} aria-hidden="true">
+          {(['night', 'day'] as const).map(time => {
+            const file = `images/landing/library-room${time === 'day' ? '-day' : ''}`
+            return <picture key={time} className={`library-backdrop-${time}`}>
+              <source media="(max-width: 767px)" srcSet={publicAsset(`${file}-mobile.webp`)} />
+              <img src={publicAsset(`${file}.webp`)} alt="" fetchPriority={(time === 'night') === dark ? 'high' : 'low'} />
+            </picture>
+          })}
+          {skyChange && <div key={skyChange.id} className={`library-sky-change library-sky-${skyChange.rise ? 'rise' : 'set'}`}
+            onAnimationEnd={event => { if (event.animationName.startsWith('library-sky-tint')) setSkyChange(null) }}>
+            {/* Drawn in the photo's own pixels (1920×1000) and cropped like object-fit: cover, so the sun lines up with the
+                window. The clip is the sky in the main window pane above the mountain ridge: the ridge, the window frame
+                and the ceiling beam hide the sun as it rises past the top edge or sinks behind the peak. */}
+            <svg viewBox="0 0 1920 1000" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <clipPath id="library-sky-clip"><path d="M160 -10H780L918 32V370L902 372 883 365 864 358 845 355 826 343 816 336 801 332 787 336 768 334 749 335 730 340 710 337 701 333 691 333 672 338 653 345 634 353 614 360 595 370 576 380 557 384 538 390 518 395 480 393 384 395 288 400 192 405 160 405Z" /></clipPath>
+                <radialGradient id="library-sun-glow">
+                  <stop offset="0" stopColor="#fffef5" /><stop offset=".19" stopColor="#fff4c8" /><stop offset=".23" stopColor="#ffd98a" />
+                  <stop offset=".25" stopColor="#ffc46b" stopOpacity=".6" /><stop offset=".45" stopColor="#ff9e50" stopOpacity=".24" /><stop offset="1" stopColor="#ff8a40" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <g clipPath="url(#library-sky-clip)"><circle className="library-sun" cx="758" cy="374" r="150" fill="url(#library-sun-glow)" /></g>
+            </svg>
+          </div>}
+        </div>
         <div className="library-shade" aria-hidden="true" />
         <div className="library-header-spacer" aria-hidden="true" />
         <section id="library-main" tabIndex={-1} className="library-hero-content library-container" aria-labelledby="library-title">
@@ -81,10 +143,10 @@ export function PlatformSelector() {
             <h1 id="library-title">{t.title}<br /><span>{t.titleSecond}</span></h1>
             <p className="library-subtitle">{t.subtitle}</p>
             <div className="library-actions">
-              <PlatformLink platform="bookstore" to={bookstorePath} className="library-button library-button-orange">{t.browse}<ArrowRight size={19} aria-hidden="true" /></PlatformLink>
-              <PlatformLink platform="academy" to={academyPath} className="library-button library-button-outline">{t.explore}<ArrowRight size={19} aria-hidden="true" /></PlatformLink>
+              <PlatformLink platform="bookstore" to={bookstorePath} className="library-button library-button-orange"><span className="library-button-label"><OpenBook size={19} aria-hidden="true" />{t.browse}</span><ArrowRight size={19} aria-hidden="true" /></PlatformLink>
+              <PlatformLink platform="academy" to={academyPath} className="library-button library-button-outline"><span className="library-button-label"><GraduationCap size={19} aria-hidden="true" />{t.explore}</span><ArrowRight size={19} aria-hidden="true" /></PlatformLink>
             </div>
-            <a href="#bookstore" className="library-discover"><BookOpen size={15} strokeWidth={1.5} aria-hidden="true" />{t.discover}</a>
+            <a href="#bookstore" className="library-discover"><OpenBook size={15} strokeWidth={1.5} aria-hidden="true" />{t.discover}</a>
           </div>
           <section className="library-showcase" aria-roledescription="carousel" aria-label={t.shelfLabel}
             onKeyDown={event => {

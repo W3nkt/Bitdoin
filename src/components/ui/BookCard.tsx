@@ -1,5 +1,6 @@
 import { useRef } from 'react'
-import { BookOpen, ShoppingCart } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { Book } from '@/types'
@@ -41,7 +42,7 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
             <img src={book.cover_image_url} alt={book.title} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center">
-              <BookOpen className={cn('text-slate-400', compact ? 'h-7 w-7' : 'h-10 w-10')} />
+              <OpenBook className={cn('text-slate-400', compact ? 'h-7 w-7' : 'h-10 w-10')} />
             </div>
           )}
 

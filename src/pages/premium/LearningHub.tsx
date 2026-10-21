@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, Check, ChevronRight,
+  ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight,
   CalendarClock, CircleDollarSign, Copy, ExternalLink, Flame, GraduationCap, Image as ImageIcon, Languages,
   LayoutGrid, Lightbulb, ListChecks, Loader2, LockKeyhole, Plus, Sparkles,
   Target, Timer, Trash2, Trophy, Type as TypeIcon, Video, WalletCards,
 } from 'lucide-react'
+import { OpenBook } from '@/components/ui/OpenBook'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
@@ -75,7 +76,7 @@ type LibraryPrompt = {
 }
 
 const iconMap = {
-  'book-open': BookOpen, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
+  'book-open': OpenBook, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
   timer: Timer, briefcase: BriefcaseBusiness, 'graduation-cap': GraduationCap, lightbulb: Lightbulb,
 }
 const accents: Record<string, string> = {
@@ -425,7 +426,7 @@ export function LearningHub() {
               count={promptCatalogCount.data}
             />
             {(categories.data ?? []).map(category => {
-              const Icon = iconMap[category.icon as keyof typeof iconMap] ?? BookOpen
+              const Icon = iconMap[category.icon as keyof typeof iconMap] ?? OpenBook
               const lessonCount = lessons.data?.filter(item => item.category_id === category.id).length ?? 0
               return (
                 <Link key={category.id} to={`/academy/learn/${category.slug}`} className="group flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 py-5">
@@ -854,7 +855,7 @@ export function LessonReaderPage() {
                 {lesson.book.cover_image_url ? (
                   <img src={lesson.book.cover_image_url} alt={lesson.book.title} className="h-full w-full object-cover" />
                 ) : (
-                  <span className="grid h-full w-full place-items-center text-slate-400"><BookOpen className="h-6 w-6" /></span>
+                  <span className="grid h-full w-full place-items-center text-slate-400"><OpenBook className="h-6 w-6" /></span>
                 )}
               </span>
               <div className="min-w-0 flex-1">
