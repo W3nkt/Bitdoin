@@ -120,6 +120,21 @@ function dailySlice<T>(pool: T[], seedKey: string, today: string, itemsPerDay: n
   return permuted.slice(dayIndex * itemsPerDay, (dayIndex + 1) * itemsPerDay)
 }
 
+// Each learner's daily set is a slice of the weekly pool, so a pool without
+// repeats means no question or word repeats within a day. Pools saved before
+// the generator checked this may still hold repeats, so drop them here too.
+function uniquePool(activityType: ActivityType, pool: (BrainSprintItem | WordMatchItem)[]) {
+  const seen = new Set<string>()
+  return pool.filter(item => {
+    const keys = activityType === 'brain_sprint'
+      ? [`q:${(item as BrainSprintItem).prompt?.en ?? ''}`.toLowerCase().replace(/[^a-z0-9:]+/g, '')]
+      : [`e:${(item as WordMatchItem).english ?? ''}`.toLowerCase().trim().replace(/s$/, ''), `l:${(item as WordMatchItem).lao ?? ''}`.trim()]
+    if (keys.some(key => seen.has(key))) return false
+    keys.forEach(key => seen.add(key))
+    return true
+  })
+}
+
 function isNonEmptyString(value: unknown, maxLength: number) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength
 }
@@ -195,7 +210,7 @@ function validateWordMatchItems(value: unknown): WordMatchItem[] | null {
 
 function brainSprintPrompt(recent: string[]) {
   return `Create a pool of exactly ${POOL_SIZE.brain_sprint} short multiple-choice quiz questions for secondary/university students in Laos learning English and general study skills.
-Cover a healthy mix of categories across the set: percentage/word-problem math, English grammar and vocabulary, LAK currency financial literacy, study/exam habits, media literacy, and general knowledge. Keep each question solvable in under 20 seconds.
+Cover a healthy mix across the set: innovations and inventions, technology and how everyday tech works, English grammar and vocabulary (idioms, collocations, commonly confused words), science and interesting world knowledge, quick math tricks and mental-math shortcuts, and logic puzzles. Never ask about customs, traditions, festivals, public holidays, national days or school calendars of Laos or any other country. Every question must have a different topic. Keep each question solvable in under 20 seconds.
 Provide every text field in BOTH English and Lao (natural, fluent Lao — not a literal word-for-word translation).
 ${LAO_CONTENT_RULES}
 Return JSON only, with exactly one key "items" holding an array of exactly ${POOL_SIZE.brain_sprint} objects, each shaped exactly as:
@@ -395,7 +410,7 @@ serve(async req => {
 
     if (!pool) throw new Error('This week’s practice content is not available yet.')
 
-    const items = dailySlice(pool, `${user.id}:${activityType}:${poolWeek}`, today, ITEMS_PER_DAY[activityType])
+    const items = dailySlice(uniquePool(activityType, pool), `${user.id}:${activityType}:${poolWeek}`, today, ITEMS_PER_DAY[activityType])
     return json(req, { items, pool_week: poolWeek, generated_at: generatedAt, source: 'ai' })
   } catch (error) {
     console.error(error)

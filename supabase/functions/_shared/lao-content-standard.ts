@@ -10,7 +10,7 @@ export const LAO_CONTENT_RULES = `LAO LANGUAGE STANDARD (mandatory)
 4. Address the learner as ທ່ານ. Keep one word for one idea across the whole set (see glossary).
 5. Keep these English terms as-is in Lao text: AI, Prompt, AI Coach, XP, Pomodoro, Cornell, Outline, Mind Mapping, URL, PDF, Cloud, email, brand/product names, file names, passwords, code.
 6. Numbers, money and times: Arabic digits, "ກີບ" for LAK (e.g. 80,000 ກີບ), 24-hour or "5 ໂມງແລງ".
-7. Lao-context facts must be real and checkable (provinces, rivers, festivals, currency, the school year opening in September). If unsure, choose a different question — never invent a fact, date, statistic or "official" declaration.
+7. Facts must be real and checkable. If unsure, choose a different question — never invent a fact, date, statistic or "official" declaration.
 8. Lao names: ແມ່ນ້ຳຂອງ, ນ້ຳງື່ມ, ນ້ຳເທີນ, ນ້ຳຊອງ, ເຊບັ້ງໄຟ, ນະຄອນຫຼວງວຽງຈັນ, ແຂວງຫຼວງພະບາງ, ແຂວງຊຽງຂວາງ, ບຸນປີໃໝ່ລາວ, ບຸນທາດຫຼວງ.
 
 ENGLISH-PRACTICE QUESTIONS (grammar, vocabulary, prepositions, tenses, fill-in-the-blank, "what does X mean")
@@ -126,6 +126,18 @@ export function repairBrainSprintItem<T extends BrainItem>(item: T): T {
     options: item.options.map(fixLocalized),
   }
   if (hasEnglishPracticeOptions(repaired)) repaired.options = repaired.options.map(option => ({ ...option, lo: option.en.trim() }))
+  // The English sentence with the blank was translated in the Lao prompt: put
+  // the English one back in place of the translated sentence (or after the
+  // instruction when the translation can't be found).
+  const sentence = repaired.prompt.en.match(QUOTED_BLANK)?.[1].trim()
+  if (sentence && !repaired.prompt.lo.includes(sentence)) {
+    // The translated sentence is removed, not kept beside the English one: it
+    // would give the answer away (e.g. ໄປ for "went").
+    const quotedTranslation = /['‘’"“”][^'‘’"“”]*[຀-໿_][^'‘’"“”]*['‘’"“”]/
+    const lo = repaired.prompt.lo.replace(new RegExp(quotedTranslation.source, 'g'), '').trim()
+    const instruction = /[:：]/.test(lo) ? lo.split(/[:：]/)[0].trim() : quotedTranslation.test(repaired.prompt.lo) ? lo : ''
+    repaired.prompt = { ...repaired.prompt, lo: instruction ? `${instruction}: '${sentence}'` : `${repaired.prompt.lo.trim()} '${sentence}'` }
+  }
   return repaired
 }
 

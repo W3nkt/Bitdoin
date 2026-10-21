@@ -9,7 +9,7 @@ import {
   careerPaths, certificatesForSkill, jobSearchPlatforms, organizationsByCareer, salaryByCareer,
   type CareerPath, type CareerRegion,
 } from '@/data/careerPaths'
-import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
@@ -73,7 +73,7 @@ const copy = {
 }
 
 export function CareerExplorer() {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const { profile } = useAuth()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -134,20 +134,14 @@ export function CareerExplorer() {
     <div className="min-h-screen bg-[#f5f6f2] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 dark:border-white/10 bg-[#f5f6f2]/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
-          <button type="button" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-full hover:bg-slate-900/5" aria-label="Back to Academy">
+          <button type="button" onClick={goBack} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-slate-900/5" aria-label="Back to Academy">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Bitdoin Academy</p>
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">Bitdoin Academy</p>
             <h1 className="truncate text-base font-black sm:text-lg">{lo ? 'ສຳຫຼວດອາຊີບ' : 'Career Explorer'}</h1>
           </div>
-          {profile ? (
-            <PremiumProfileMenu variant="light" />
-          ) : (
-            <button onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 dark:border-white/10 px-3 py-2 text-xs font-black">
-              {lo ? 'EN' : 'ລາວ'}
-            </button>
-          )}
+          <AcademyHeaderActions />
         </div>
       </header>
 

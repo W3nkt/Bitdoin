@@ -1,3 +1,4 @@
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BookOpen, Box, Briefcase, Brain, Check, Compass, Gamepad2, GraduationCap, Languages, Lightbulb, ListChecks, Moon, Sparkles, Sun, Sunrise, Sunset, Target, Timer, Wallet, type LucideIcon } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
@@ -196,9 +197,8 @@ const bodyText = 'text-slate-600 dark:text-slate-400'
 
 export function AcademyLanding() {
   const { profile, loading } = useAuth()
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const dark = useTheme(state => state.theme) === 'dark'
-  const toggleTheme = useTheme(state => state.toggleTheme)
   const lo = language === 'lo'
   const t = copy[language]
 
@@ -284,7 +284,7 @@ export function AcademyLanding() {
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
           <Link to="/academy" aria-label="Bitdoin Academy" className={cn('flex flex-none items-center gap-2.5 rounded-2xl sm:gap-3', focusRing)}>
             <span className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-gradient-to-br from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_8px_20px_-8px_rgba(247,147,26,0.8)] sm:h-11 sm:w-11"><GraduationCap className="h-6 w-6" /></span>
-            <div className="max-[379px]:hidden">
+            <div className="hidden sm:block">
               <p className="whitespace-nowrap font-black leading-tight">Bitdoin Academy</p>
               <p className="hidden text-[10px] font-bold uppercase tracking-[0.18em] text-orange-700 dark:text-amber-300 sm:block">Learn · Practice · Grow</p>
             </div>
@@ -294,17 +294,10 @@ export function AcademyLanding() {
               <a key={href} href={href} className={cn('rounded-full px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white', focusRing)}>{label}</a>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-0.5 sm:gap-2">
-            <Link to="/" className="hidden rounded-full px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white xl:block">{t.switchPlatform}</Link>
-            <button type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} aria-label={lo ? 'English' : 'ລາວ'} className={cn('flex h-10 min-w-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-bold text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/5 sm:px-3', focusRing)}>
-              <Languages className="h-4 w-4" /><span className="hidden min-[420px]:inline">{lo ? 'English' : 'ລາວ'}</span>
-            </button>
-            <button type="button" onClick={toggleTheme} aria-label={dark ? t.lightMode : t.darkMode} title={dark ? t.lightMode : t.darkMode} className={cn('grid h-10 w-10 place-items-center rounded-full text-slate-600 transition hover:bg-slate-900/5 dark:text-amber-300 dark:hover:bg-white/10', focusRing)}>
-              {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-            </button>
+          <AcademyHeaderActions guestAction={<>
             <Link to="/auth" state={signinState} className={cn('hidden rounded-full px-4 py-2.5 text-sm font-black transition hover:bg-slate-900/5 dark:hover:bg-white/10 sm:block', focusRing)}>{t.signIn}</Link>
             <Link to="/auth" state={signupState} className={cn('whitespace-nowrap rounded-full bg-gradient-to-r from-[#fbb040] to-[#f7931a] px-3.5 py-2.5 sm:ml-1 sm:px-4 text-sm font-black text-[#1f1207] shadow-[0_8px_22px_-8px_rgba(247,147,26,0.8)] transition hover:from-[#ffc766] hover:to-[#fbb040]', focusRing)}>{t.startFree}</Link>
-          </div>
+          </>} />
         </div>
       </header>
 

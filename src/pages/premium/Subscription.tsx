@@ -37,9 +37,6 @@ import {
   ChevronDown,
   Gamepad2,
   Home,
-  Languages,
-  Moon,
-  Sun,
   X as XIcon,
   type LucideIcon,
 } from 'lucide-react'
@@ -50,7 +47,7 @@ import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting
 import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
 import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
-import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -65,7 +62,6 @@ import { firstRelation } from '@/lib/supabaseRelations'
 import { usePremiumTranslation } from '@/i18n/premium'
 import { EXPIRY_WARNING_DAYS, isMembershipExpired } from '@/lib/academyMembership'
 import { cn } from '@/lib/utils'
-import { useTheme } from '@/lib/theme'
 import { formatDate, formatPrice } from '@/lib/utils'
 import { adminWhatsAppLink } from '@/lib/whatsapp'
 import { formatMemberCode, memberCodePrefix } from '@/lib/memberCode'
@@ -326,9 +322,7 @@ export function Subscription() {
   const location = useLocation()
   const qc = useQueryClient()
   const { profile } = useAuth()
-  const { currency, language, setLanguage } = useLanguage()
-  const dark = useTheme(state => state.theme) === 'dark'
-  const toggleTheme = useTheme(state => state.toggleTheme)
+  const { currency, language } = useLanguage()
   usePremiumTranslation()
   // This page wears the warm orange palette of the sign-in page: the `primary` colour scale is swapped
   // on <html> (src/index.css) for as long as the page is open, so modals rendered in a portal match too.
@@ -1121,24 +1115,7 @@ export function Subscription() {
               {profile ? 'Learn, practice, and track your progress.' : (lo ? 'ເລີ່ມຟຣີ ແລ້ວຍົກລະດັບເມື່ອທ່ານພ້ອມ.' : 'Start free, upgrade when you are ready.')}
             </p>
           </div>
-          <div className="ml-auto flex items-center gap-0.5 sm:gap-1.5">
-            <Link to="/" className="hidden rounded-full px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white xl:block">
-              Switch platform
-            </Link>
-            <button type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} aria-label={lo ? 'English' : 'ລາວ'} className={cn(headerButton, 'w-auto min-w-10 gap-1.5 px-2.5 text-xs font-bold sm:px-3')} data-no-premium-translate>
-              <span className="flex items-center gap-1.5"><Languages className="h-4 w-4" /><span className="hidden min-[420px]:inline">{lo ? 'English' : 'ລາວ'}</span></span>
-            </button>
-            <button type="button" onClick={toggleTheme} aria-label={dark ? (lo ? 'ປ່ຽນເປັນໂໝດສະຫວ່າງ' : 'Switch to light mode') : (lo ? 'ປ່ຽນເປັນໂໝດມືດ' : 'Switch to dark mode')} className={cn(headerButton, 'dark:text-amber-300')}>
-              {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-            </button>
-            {profile ? (
-              <PremiumProfileMenu variant="light" showPreferences={false} />
-            ) : (
-              <Link to="/auth" state={{ from: '/academy/subscription' }} className="ml-1 whitespace-nowrap rounded-full bg-gradient-to-r from-[#fbb040] to-[#f7931a] px-4 py-2.5 text-sm font-black text-[#1f1207] shadow-[0_8px_22px_-8px_rgba(247,147,26,0.8)] transition hover:from-[#ffc766] hover:to-[#fbb040]">
-                {lo ? 'ເຂົ້າສູ່ລະບົບ' : 'Sign in'}
-              </Link>
-            )}
-          </div>
+          <AcademyHeaderActions />
         </div>
       </header>
 

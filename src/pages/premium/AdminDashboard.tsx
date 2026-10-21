@@ -274,6 +274,8 @@ function generationStepLabel(taskKey: string, categoryNames: Map<string, string>
     return `${batch[1] === 'brain_sprint' ? 'Daily Brain Sprint' : 'Word Match'} · Batch ${Number(batch[2]) + 1}/${total}`
   }
   if (taskKey.startsWith('lesson_research-')) return `Learning Hub · ${categoryNames.get(taskKey.slice('lesson_research-'.length)) ?? 'Lesson'} · research`
+  const chapter = taskKey.match(/^book_chapter-(.+)-(\d+)$/)
+  if (chapter) return `Learning Hub · ${categoryNames.get(chapter[1]) ?? 'Reading summary'} · chapter ${Number(chapter[2]) + 1}`
   if (taskKey === 'daily_mentor') return 'Daily Mentor'
   if (taskKey === 'roleplay_missions') return 'AI role-play missions'
   if (taskKey === 'prompt_library') return 'AI Prompt Library'

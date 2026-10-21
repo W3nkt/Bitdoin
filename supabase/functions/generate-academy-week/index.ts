@@ -1,41 +1,26 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
-import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, repairBrainSprintItem, repairLaoFields, wordMatchIssues } from '../_shared/lao-content-standard.ts'
+import {
+  BOOK_CHAPTERS, BRAIN_SPRINT_BATCHES, BRAIN_SPRINT_BATCH_SIZE, FAST_MODEL, MODEL, READING_SUMMARY_SLUG, SCHOLARSHIP_SLUG,
+  WORD_MATCH_BATCHES, WORD_MATCH_BATCH_SIZE, askQwen, bilingualRules, enforceLaoStandard, finishBookSummary,
+  generateBrainSprint, generateWordMatch, planBookSummary, requireArray, researchScholarship, withRetry,
+  writeBookChapter, writeScholarship,
+  type BookDraft, type BrainSprintItem, type ReaderChapter, type ScholarshipResearch, type WordMatchItem,
+} from './content.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
-const QWEN_BASE_URL = (Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')
-// Lessons, mentor, role-play and prompts need the stronger model; the short
-// quiz and vocabulary batches use a faster one.
-const MODEL = Deno.env.get('QWEN_CONTENT_MODEL') ?? Deno.env.get('QWEN_TEXT_MODEL') ?? 'qwen-plus'
-const FAST_MODEL = Deno.env.get('QWEN_FAST_MODEL') ?? 'qwen-flash'
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(v => v.trim()).filter(Boolean)
 const GENERATION_MINUTE_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_MINUTE_LIMIT', 30)
 const GENERATION_DAILY_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_DAILY_LIMIT', 50)
 const GENERATION_GLOBAL_DAILY_LIMIT = positiveIntEnv('AI_WEEKLY_GENERATION_GLOBAL_DAILY_LIMIT', 50)
 
-// Qwen answers are streamed, so a long but healthy answer is never cut off.
-// A step fails only when Qwen goes silent, or when it would outlive the
-// Edge Function's 150s background limit.
-const QWEN_IDLE_TIMEOUT_MS = positiveIntEnv('ACADEMY_QWEN_IDLE_TIMEOUT_MS', 30_000)
-const QWEN_FIRST_TOKEN_TIMEOUT_MS = positiveIntEnv('ACADEMY_QWEN_FIRST_TOKEN_TIMEOUT_MS', 60_000)
-const QWEN_TOTAL_TIMEOUT_MS = positiveIntEnv('ACADEMY_QWEN_TOTAL_TIMEOUT_MS', 110_000)
-
 // Must match the lease set by claim_academy_content_task; renewed while a step runs.
 const TASK_LEASE_MS = 3 * 60_000
 const TASK_HEARTBEAT_MS = 45_000
-
-// 35 Brain Sprint questions and 42 Word Match pairs per week, in small batches
-// so every request finishes well inside the time limit.
-const BRAIN_SPRINT_BATCHES = 7
-const BRAIN_SPRINT_BATCH_SIZE = 5
-// Extra questions asked for per batch, so a few rejected ones don't fail it.
-const BRAIN_SPRINT_SPARE_ITEMS = 3
-const WORD_MATCH_BATCHES = 6
-const WORD_MATCH_BATCH_SIZE = 7
 
 type Admin = ReturnType<typeof createClient>
 
@@ -52,7 +37,10 @@ type StepInput = {
   batchIndex?: number
   categoryId?: string
   lessonDay?: number
+  chapterIndex?: number
   research?: LessonResearch
+  scholarship?: ScholarshipResearch
+  book?: BookDraft
 }
 
 type RunRow = { id: string; week_start: string; content_counts: Record<string, number> | null }
@@ -78,174 +66,17 @@ function addDays(date: string, days: number) {
   return value.toISOString().slice(0, 10)
 }
 
-function nextMonday() {
-  const local = new Intl.DateTimeFormat('en-CA', {
+function localToday() {
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Vientiane', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date())
+}
+
+function nextMonday() {
+  const local = localToday()
   const value = new Date(`${local}T00:00:00Z`)
   const days = ((8 - value.getUTCDay()) % 7) || 7
   return addDays(local, days)
-}
-
-function parseObject(content: string) {
-  if (!content.trim()) throw new Error('Empty answer: Qwen returned no content.')
-  const cleaned = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  try {
-    return JSON.parse(cleaned) as Record<string, unknown>
-  } catch {
-    throw new Error('Invalid JSON: Qwen returned content that could not be read.')
-  }
-}
-
-// One streamed attempt. Retries are handled by the task queue with a backoff,
-// so a failing request is never immediately repeated with the same size.
-async function askQwen(prompt: string, options: { maxTokens: number; model?: string; enableSearch?: boolean }) {
-  const controller = new AbortController()
-  let abortReason = ''
-  let idleTimer: ReturnType<typeof setTimeout> | undefined
-  const armIdle = (ms: number) => {
-    clearTimeout(idleTimer)
-    idleTimer = setTimeout(() => {
-      abortReason = `Timed out: Qwen sent nothing for ${Math.round(ms / 1000)}s.`
-      controller.abort()
-    }, ms)
-  }
-  const totalTimer = setTimeout(() => {
-    abortReason = `Timed out: Qwen did not finish within ${Math.round(QWEN_TOTAL_TIMEOUT_MS / 1000)}s.`
-    controller.abort()
-  }, QWEN_TOTAL_TIMEOUT_MS)
-
-  try {
-    armIdle(QWEN_FIRST_TOKEN_TIMEOUT_MS)
-    const response = await fetch(`${QWEN_BASE_URL}/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${QWEN_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: options.model ?? MODEL,
-        messages: [
-          { role: 'system', content: 'You are the senior curriculum editor for Bitdoin Academy in Laos. Research current, reliable information when relevant. Create safe, original, practical bilingual learning content. Return valid JSON only.' },
-          { role: 'user', content: prompt },
-        ],
-        response_format: { type: 'json_object' },
-        ...(options.enableSearch ? { enable_search: true } : {}),
-        enable_thinking: false,
-        temperature: 0.6,
-        max_tokens: options.maxTokens,
-        stream: true,
-      }),
-    })
-    if (!response.ok) {
-      const result = await response.json().catch(() => null)
-      const message = result?.error?.message ?? `Qwen request failed (${response.status}).`
-      throw new Error(response.status === 429 ? `Rate limited: ${message}` : message)
-    }
-    if (!response.body) throw new Error('Empty answer: Qwen returned no stream.')
-
-    const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
-    let buffer = ''
-    let content = ''
-    let finishReason: string | null = null
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      armIdle(QWEN_IDLE_TIMEOUT_MS)
-      buffer += value
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const data = trimmed.slice(5).trim()
-        if (!data || data === '[DONE]') continue
-        let chunk: { error?: { message?: string }; choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }
-        try {
-          chunk = JSON.parse(data)
-        } catch {
-          continue
-        }
-        if (chunk.error) throw new Error(chunk.error.message ?? 'Qwen reported an error while writing.')
-        const choice = chunk.choices?.[0]
-        content += choice?.delta?.content ?? ''
-        if (choice?.finish_reason) finishReason = choice.finish_reason
-      }
-    }
-    if (finishReason === 'length') throw new Error('Too long: Qwen ran out of output space before finishing.')
-    return parseObject(content)
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(abortReason || 'Timed out: the Qwen request was stopped.')
-    throw error
-  } finally {
-    clearTimeout(totalTimer)
-    clearTimeout(idleTimer)
-  }
-}
-
-function requireArray(result: Record<string, unknown>, key: string, count: number) {
-  const value = result[key]
-  if (!Array.isArray(value) || value.length !== count) {
-    throw new Error(`Wrong shape: Qwen returned ${Array.isArray(value) ? value.length : 'no'} ${key} (expected ${count}).`)
-  }
-  return value as Record<string, unknown>[]
-}
-
-// Swaps stray Thai vowel/tone marks for their Lao twins, then throws (so the
-// queue retries the step) when the content still breaks the Lao content standard.
-function enforceLaoStandard<T>(value: T, extraIssues: string[] = []): T {
-  const repaired = repairLaoFields(value)
-  const issues = [...collectLaoIssues(repaired), ...extraIssues]
-  if (issues.length) throw new Error(`Lao content standard failed: ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
-  return repaired
-}
-
-const bilingualRules = `Every learner-facing text field must have natural English and natural Lao. Lao must use Lao script, not transliteration, and must not contain Thai script or Thai wording. For English grammar or vocabulary questions, keep the English target words and example sentences unchanged in the Lao version whenever translating them would defeat the learning objective; translate the instructions and explanations into natural Lao. Avoid invented facts, unsafe advice, cheating, politics, gambling, and financial promises. Content must be useful for secondary-school and university-age learners in Laos.
-${LAO_CONTENT_RULES}`
-
-type BrainSprintItem = Parameters<typeof brainSprintIssues>[0] & { id: string }
-
-const isLocalizedText = (value: unknown) => {
-  const text = value as { en?: unknown; lo?: unknown } | null
-  return typeof text?.en === 'string' && typeof text?.lo === 'string' && text.en.trim() !== '' && text.lo.trim() !== ''
-}
-
-const isBrainSprintShape = (value: Record<string, unknown>) =>
-  typeof value.id === 'string' && isLocalizedText(value.prompt) && isLocalizedText(value.explanation)
-  && Array.isArray(value.options) && value.options.length === 4 && value.options.every(isLocalizedText)
-  && Number.isInteger(value.answerIndex) && (value.answerIndex as number) >= 0 && (value.answerIndex as number) <= 3
-
-// Asks for a few spare questions, repairs the obvious slips (Thai vowel marks,
-// translated English-practice options) and drops any question that still breaks
-// the Lao standard, so one bad question no longer fails the whole batch.
-async function generateBrainSprint(batchIndex: number) {
-  const requested = BRAIN_SPRINT_BATCH_SIZE + BRAIN_SPRINT_SPARE_ITEMS
-  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${BRAIN_SPRINT_BATCHES} of a weekly Brain Sprint. ${bilingualRules}
-Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","prompt":{"en":"","lo":""},"options":[exactly 4 {"en":"","lo":""}],"answerIndex":0,"explanation":{"en":"one short sentence","lo":"one short sentence"}}. Mix quick math, English, study skills, digital literacy, Lao-context general knowledge, and practical money skills. Keep every option under 8 words. Be concise.`, { maxTokens: 4000, model: FAST_MODEL })
-  const raw = Array.isArray(result.items) ? result.items as Record<string, unknown>[] : []
-  const issues: string[] = []
-  const ids = new Set<string>()
-  const kept: BrainSprintItem[] = []
-  raw.forEach((value, index) => {
-    if (!value || typeof value !== 'object' || !isBrainSprintShape(value)) return void issues.push(`items[${index}]: wrong shape`)
-    const item = repairBrainSprintItem(value as unknown as BrainSprintItem)
-    const itemIssues = [...collectLaoIssues(item, `items[${index}]`), ...brainSprintIssues(item, `items[${index}]`)]
-    if (ids.has(item.id)) itemIssues.push(`items[${index}]: duplicate id`)
-    if (itemIssues.length) return void issues.push(...itemIssues)
-    ids.add(item.id)
-    kept.push(item)
-  })
-  if (kept.length < BRAIN_SPRINT_BATCH_SIZE) {
-    throw new Error(`Lao content standard failed: only ${kept.length} of ${raw.length} questions passed (need ${BRAIN_SPRINT_BATCH_SIZE}): ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
-  }
-  if (issues.length) console.warn(`[academy-forge] brain_sprint-${batchIndex}: dropped ${raw.length - kept.length} question(s): ${issues.slice(0, 5).join('; ')}`)
-  return kept.slice(0, BRAIN_SPRINT_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
-}
-
-async function generateWordMatch(batchIndex: number) {
-  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${WORD_MATCH_BATCHES} of a weekly Word Match set. ${bilingualRules}
-Return {"items":[${WORD_MATCH_BATCH_SIZE} items]}. Each item: {"id":"unique-kebab-slug","english":"real English word or short phrase","lao":"natural Lao translation"}. English must use Latin script, Lao must use Lao script. Be concise.`, { maxTokens: 1500, model: FAST_MODEL })
-  const items = repairLaoFields(requireArray(result, 'items', WORD_MATCH_BATCH_SIZE))
-  enforceLaoStandard(items, wordMatchIssues(items as unknown as Parameters<typeof wordMatchIssues>[0]))
-  return items.map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -265,23 +96,6 @@ const ROLEPLAY_THEMES = [
 ]
 const PROMPT_LIBRARY_CATEGORIES = ['study', 'research', 'writing', 'english', 'career', 'coding', 'productivity']
 const LONG_FIELD_WORDS = 120
-// A failed item is written again on its own (not the whole step), but only
-// while a new request can still finish inside the step's time limit.
-const ITEM_ATTEMPTS = 3
-const ITEM_RETRY_WINDOW_MS = 45_000
-
-async function withRetry<T>(label: string, stepStartedAt: number, write: () => Promise<T>): Promise<T> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await write()
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      if (attempt >= ITEM_ATTEMPTS || Date.now() - stepStartedAt > ITEM_RETRY_WINDOW_MS) throw new Error(`${label}: ${message}`)
-      console.warn(`[academy-forge] ${label} attempt ${attempt} failed, writing it again: ${message}`)
-    }
-  }
-}
-
 const generateCheckedItem = (label: string, prompt: string, stepStartedAt: number) => withRetry(label, stepStartedAt, async () => {
   const result = await askQwen(prompt, { maxTokens: 3000 })
   return enforceLaoStandard(requireArray(result, 'items', 1)[0])
@@ -375,6 +189,119 @@ Return {"title_lo":"","summary_lo":"one sentence","content_lo":[3 objects {"head
   }
 }
 
+const publishAt = (weekStart: string, lessonDay?: number) => `${addDays(weekStart, Math.max(0, Math.min(6, Number(lessonDay ?? 0))))}T00:00:00+07:00`
+
+const bookChapterKeys = (category: Category) =>
+  category.slug === READING_SUMMARY_SLUG ? Array.from({ length: BOOK_CHAPTERS }, (_, index) => `book_chapter-${category.id}-${index}`) : []
+
+// The writing step's task carries the notes every earlier step of this lesson
+// produced (research, book plan, chapters), so later steps can pick them up.
+async function lessonTask(admin: Admin, runId: string, categoryId: string) {
+  const { data: task } = await admin.from('premium_weekly_content_tasks').select('id,payload').eq('run_id', runId).eq('task_key', `lesson-${categoryId}`).maybeSingle()
+  if (!task) throw new Error('The lesson writing step is missing.')
+  return task as { id: string; payload: StepInput | null }
+}
+
+async function saveLessonTaskPayload(admin: Admin, runId: string, categoryId: string, change: (payload: StepInput) => StepInput) {
+  const task = await lessonTask(admin, runId, categoryId)
+  const { error } = await admin.from('premium_weekly_content_tasks').update({ payload: change(task.payload ?? { action: 'lesson' }) }).eq('id', task.id)
+  if (error) throw error
+}
+
+// Reading summaries: plan (choose a Bookstore book without a summary), one
+// step per chapter, then finish and publish onto that book's summary row.
+async function runBookStep(admin: Admin, run: RunRow, category: Category, input: StepInput) {
+  if (input.action === 'lesson_research') {
+    const [{ data: books, error: booksError }, { data: summaries, error: summariesError }] = await Promise.all([
+      admin.from('books').select('id,title,author').eq('is_active', true).not('cover_image_url', 'is', null),
+      admin.from('premium_lessons').select('book_id,title_en,book:books(title)').eq('lesson_type', 'READING_SUMMARY').eq('status', 'PUBLISHED'),
+    ])
+    if (booksError || summariesError) throw booksError ?? summariesError
+    const summarizedIds = new Set((summaries ?? []).map(row => row.book_id).filter(Boolean))
+    // Both the summary's English title and the catalog title, so another
+    // edition or translation of a summarized book is recognized.
+    const summarizedTitles = (summaries ?? []).flatMap(row => {
+      const book = (Array.isArray(row.book) ? row.book[0] : row.book) as { title?: string } | null
+      return [String(row.title_en ?? '').replace(/:\s*practical summary$/i, ''), book?.title ?? '']
+    }).filter(Boolean)
+    const plan = await planBookSummary((books ?? []).filter(book => !summarizedIds.has(book.id)), summarizedTitles)
+    await saveLessonTaskPayload(admin, run.id, category.id, payload => ({
+      ...payload, book: { plan, chapters_en: Array(BOOK_CHAPTERS).fill(null), chapters_lo: Array(BOOK_CHAPTERS).fill(null) },
+    }))
+    return
+  }
+
+  const draft = (await lessonTask(admin, run.id, category.id)).payload?.book
+  if (!draft?.plan) throw new Error('The book plan is missing: the reading summary research step must run first.')
+
+  if (input.action === 'book_chapter') {
+    const index = Number(input.chapterIndex)
+    if (!Number.isInteger(index) || index < 0 || index >= BOOK_CHAPTERS) throw new Error('Invalid book chapter.')
+    const chapter = await writeBookChapter(draft.plan, index)
+    await saveLessonTaskPayload(admin, run.id, category.id, payload => {
+      const book = payload.book ?? draft
+      const chapters_en = [...book.chapters_en]
+      const chapters_lo = [...book.chapters_lo]
+      chapters_en[index] = chapter.english
+      chapters_lo[index] = chapter.lao
+      return { ...payload, book: { ...book, chapters_en, chapters_lo } }
+    })
+    return
+  }
+
+  const chaptersEn = draft.chapters_en.filter((chapter): chapter is ReaderChapter => Boolean(chapter))
+  const chaptersLo = draft.chapters_lo.filter((chapter): chapter is ReaderChapter => Boolean(chapter))
+  if (chaptersEn.length < BOOK_CHAPTERS || chaptersLo.length < BOOK_CHAPTERS) throw new Error('Some book chapters are not written yet.')
+  const { plan } = draft
+  const finish = await finishBookSummary(plan, chaptersEn)
+  const fields = {
+    weekly_run_id: run.id, category_id: category.id, lesson_type: 'READING_SUMMARY',
+    title_en: `${plan.title}: practical summary`, title_lo: `${plan.title}: ສະຫຼຸບນຳໃຊ້`,
+    summary_en: finish.summary_en, summary_lo: finish.summary_lo, deck_en: plan.deck_en, deck_lo: finish.deck_lo,
+    content_en: chaptersEn, content_lo: chaptersLo,
+    key_takeaways_en: finish.key_takeaways_en, key_takeaways_lo: finish.key_takeaways_lo,
+    glossary_en: finish.glossary_en, glossary_lo: finish.glossary_lo,
+    reflection_questions_en: finish.reflection_questions_en, reflection_questions_lo: finish.reflection_questions_lo,
+    difficulty: plan.difficulty, estimated_minutes: plan.estimated_minutes,
+    status: 'PUBLISHED', published_at: publishAt(run.week_start, input.lessonDay), updated_at: new Date().toISOString(),
+  }
+  // Bookstore books get a draft summary row automatically (057); publish onto it.
+  const { data: existing } = await admin.from('premium_lessons').select('id').eq('book_id', plan.book_id).maybeSingle()
+  const slugBase = plan.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 56) || 'book'
+  const { data: saved, error } = existing
+    ? await admin.from('premium_lessons').update(fields).eq('id', existing.id).select('id').single()
+    : await admin.from('premium_lessons').insert({ ...fields, book_id: plan.book_id, slug: `${slugBase}-summary-${plan.book_id.slice(0, 8)}` }).select('id').single()
+  if (error || !saved) throw error ?? new Error('The reading summary could not be saved.')
+  await admin.from('premium_quiz_questions').delete().eq('lesson_id', saved.id)
+  const { error: quizError } = await admin.from('premium_quiz_questions').insert(finish.quiz.map((question, index) => ({ ...question, lesson_id: saved.id, sort_order: index + 1 })))
+  if (quizError) throw quizError
+}
+
+// Scholarships: research one open scholarship (its official link is checked),
+// then write it up as overview, who can apply, what to prepare, benefits and how to apply.
+async function runScholarshipStep(admin: Admin, run: RunRow, category: Category, input: StepInput) {
+  const research = async () => {
+    const { data: covered } = await admin.from('premium_lessons').select('title_en').eq('category_id', category.id).order('created_at', { ascending: false }).limit(150)
+    return researchScholarship(localToday(), (covered ?? []).map(row => String(row.title_en).replace(/\s*\([^)]*\)$/, '')))
+  }
+  if (input.action === 'lesson_research') {
+    const scholarship = await research()
+    await saveLessonTaskPayload(admin, run.id, category.id, payload => ({ ...payload, scholarship }))
+    return
+  }
+  const lesson = await writeScholarship(input.scholarship ?? await research())
+  await admin.from('premium_lessons').delete().eq('weekly_run_id', run.id).eq('category_id', category.id)
+  const slug = `${run.week_start}-${lesson.title_en.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`.slice(0, 100)
+  const { error } = await admin.from('premium_lessons').insert({
+    weekly_run_id: run.id, category_id: category.id, slug, lesson_type: 'SCHOLARSHIP',
+    title_en: lesson.title_en, title_lo: lesson.title_lo, summary_en: lesson.summary_en, summary_lo: lesson.summary_lo,
+    content_en: lesson.content_en, content_lo: lesson.content_lo, key_takeaways_en: lesson.key_takeaways_en, key_takeaways_lo: lesson.key_takeaways_lo,
+    difficulty: 'BEGINNER', estimated_minutes: 4, source_url: lesson.source_url, source_verified_at: new Date().toISOString(),
+    application_deadline: lesson.application_deadline, status: 'PUBLISHED', published_at: publishAt(run.week_start, input.lessonDay), sort_order: 1000,
+  })
+  if (error) throw error
+}
+
 function batchIsComplete(ids: string[], batchIndex: number, size: number) {
   const prefix = `b${batchIndex + 1}-`
   return ids.filter(id => id.startsWith(prefix)).length >= size
@@ -418,21 +345,23 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
   if (input.action === 'brain_sprint') {
     const batchIndex = Number(input.batchIndex)
     if (!Number.isInteger(batchIndex) || batchIndex < 0 || batchIndex >= BRAIN_SPRINT_BATCHES) throw new Error('Invalid Brain Sprint batch.')
-    const items = await generateBrainSprint(batchIndex)
     const { data: existing } = await admin.from('premium_arcade_content_pools').select('items').eq('activity_type', 'brain_sprint').eq('pool_week', weekStart).maybeSingle()
     const prefix = `b${batchIndex + 1}-`
-    const combined = [...((existing?.items as Record<string, unknown>[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix)), ...items]
+    const others = ((existing?.items as BrainSprintItem[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix))
+    const items = await generateBrainSprint(batchIndex, others)
+    const combined = [...others, ...items]
     const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'brain_sprint', pool_week: weekStart, items: combined, model: FAST_MODEL }, { onConflict: 'activity_type,pool_week' })
     if (error) throw error
     counts.brain_sprint = combined.length
   } else if (input.action === 'word_match') {
     const batchIndex = Number(input.batchIndex)
     if (!Number.isInteger(batchIndex) || batchIndex < 0 || batchIndex >= WORD_MATCH_BATCHES) throw new Error('Invalid Word Match batch.')
-    const items = await generateWordMatch(batchIndex)
     const { data: existing } = await admin.from('premium_arcade_content_pools').select('items').eq('activity_type', 'word_match').eq('pool_week', weekStart).maybeSingle()
     const prefix = `b${batchIndex + 1}-`
-    const combined = [...((existing?.items as Record<string, unknown>[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix)), ...items]
-    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'word_match', pool_week: weekStart, items: combined, model: FAST_MODEL }, { onConflict: 'activity_type,pool_week' })
+    const others = ((existing?.items as WordMatchItem[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix))
+    const items = await generateWordMatch(batchIndex, others)
+    const combined = [...others, ...items]
+    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'word_match', pool_week: weekStart, items: combined, model: MODEL }, { onConflict: 'activity_type,pool_week' })
     if (error) throw error
     counts.word_match = combined.length
   } else if (input.action === 'daily_mentor') {
@@ -463,11 +392,15 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     })))
     if (error) throw error
     counts.prompt_library = items.length
-  } else if (input.action === 'lesson_research' || input.action === 'lesson') {
+  } else if (input.action === 'lesson_research' || input.action === 'lesson' || input.action === 'book_chapter') {
     const { data: category } = await admin.from('premium_learning_categories').select('id,slug,name_en,name_lo').eq('id', input.categoryId ?? '').eq('is_active', true).maybeSingle()
     if (!category) throw new Error('Learning category not found.')
 
-    if (input.action === 'lesson_research') {
+    if (category.slug === READING_SUMMARY_SLUG) {
+      await runBookStep(admin, run, category, input)
+    } else if (category.slug === SCHOLARSHIP_SLUG) {
+      await runScholarshipStep(admin, run, category, input)
+    } else if (input.action === 'lesson_research') {
       // Hand the notes to this category's writing step, which runs next.
       const research = await researchLesson(category, weekStart)
       const { data: lessonTask } = await admin.from('premium_weekly_content_tasks').select('id,payload').eq('run_id', run.id).eq('task_key', `lesson-${category.id}`).maybeSingle()
@@ -475,19 +408,20 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
       const { error } = await admin.from('premium_weekly_content_tasks').update({ payload: { ...(lessonTask.payload ?? {}), research } }).eq('id', lessonTask.id)
       if (error) throw error
       return
+    } else {
+      const lesson = await generateLesson(category, weekStart, input.research)
+      await admin.from('premium_lessons').delete().eq('weekly_run_id', run.id).eq('category_id', category.id)
+      const { error } = await admin.from('premium_lessons').insert({
+        weekly_run_id: run.id, category_id: lesson.category_id, slug: String(lesson.slug).toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 100),
+        title_en: lesson.title_en, title_lo: lesson.title_lo, summary_en: lesson.summary_en, summary_lo: lesson.summary_lo,
+        content_en: lesson.content_en, content_lo: lesson.content_lo, key_takeaways_en: lesson.key_takeaways_en,
+        key_takeaways_lo: lesson.key_takeaways_lo, difficulty: lesson.difficulty, estimated_minutes: lesson.estimated_minutes,
+        lesson_type: 'LESSON', source_url: lesson.source_url || null, source_verified_at: lesson.source_url ? new Date().toISOString() : null,
+        status: 'PUBLISHED', published_at: publishAt(weekStart, input.lessonDay), sort_order: 1000 + (counts.lessons ?? 0),
+      })
+      if (error) throw error
     }
-
-    const lesson = await generateLesson(category, weekStart, input.research)
-    await admin.from('premium_lessons').delete().eq('weekly_run_id', run.id).eq('category_id', category.id)
-    const { error } = await admin.from('premium_lessons').insert({
-      weekly_run_id: run.id, category_id: lesson.category_id, slug: String(lesson.slug).toLowerCase().replace(/[^a-z0-9-]+/g, '-').slice(0, 100),
-      title_en: lesson.title_en, title_lo: lesson.title_lo, summary_en: lesson.summary_en, summary_lo: lesson.summary_lo,
-      content_en: lesson.content_en, content_lo: lesson.content_lo, key_takeaways_en: lesson.key_takeaways_en,
-      key_takeaways_lo: lesson.key_takeaways_lo, difficulty: lesson.difficulty, estimated_minutes: lesson.estimated_minutes,
-      lesson_type: 'LESSON', source_url: lesson.source_url || null, source_verified_at: lesson.source_url ? new Date().toISOString() : null,
-      status: 'PUBLISHED', published_at: `${addDays(weekStart, Math.max(0, Math.min(6, Number(input.lessonDay ?? 0))))}T00:00:00+07:00`, sort_order: 1000 + (counts.lessons ?? 0),
-    })
-    if (error) throw error
+    if (input.action !== 'lesson') return
     const { count: lessonCount } = await admin.from('premium_lessons').select('id', { count: 'exact', head: true }).eq('weekly_run_id', run.id)
     counts.lessons = lessonCount ?? 0
   } else {
@@ -632,6 +566,7 @@ serve(async req => {
         { run_id: run.id, task_key: 'prompt_library', action: 'prompt_library', payload: {} },
         ...categories.flatMap((category, index) => [
           { run_id: run.id, task_key: `lesson_research-${category.id}`, action: 'lesson_research', payload: { categoryId: category.id } },
+          ...bookChapterKeys(category).map((task_key, chapterIndex) => ({ run_id: run.id, task_key, action: 'book_chapter', payload: { categoryId: category.id, chapterIndex } })),
           { run_id: run.id, task_key: `lesson-${category.id}`, action: 'lesson', payload: { categoryId: category.id, lessonDay: index % 7 } },
         ]),
       ]
@@ -643,7 +578,8 @@ serve(async req => {
         ...(inspection.counts.daily_mentor >= 7 ? ['daily_mentor'] : []),
         ...(inspection.counts.roleplay_missions >= 7 ? ['roleplay_missions'] : []),
         ...(inspection.counts.prompt_library >= 7 ? ['prompt_library'] : []),
-        ...inspection.completedLessonCategoryIds.flatMap(id => [`lesson_research-${id}`, `lesson-${id}`]),
+        ...categories.filter(category => inspection.completedLessonCategoryIds.includes(category.id))
+          .flatMap(category => [`lesson_research-${category.id}`, ...bookChapterKeys(category), `lesson-${category.id}`]),
       ])
       // sort_order fixes the processing order; the worker runs one step at a time.
       const { error: tasksError } = await admin.from('premium_weekly_content_tasks').upsert(tasks.map((task, index) => ({

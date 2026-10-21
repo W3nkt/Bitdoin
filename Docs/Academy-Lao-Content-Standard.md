@@ -71,6 +71,8 @@ options.lo: ນາງໄປໂຮງຮຽນເມື່ອວານນີ້ /
 3. The explanation is one short sentence. It must match the answer.
 4. For math, show the working: ຄູນ (×), ຫານ (÷), ບວກ (+), ລົບ (−). Also: fraction = ເສດສ່ວນ, simplify = ທອນເສດສ່ວນ, greatest common factor = ຕົວຫານຮ່ວມໃຫຍ່ສຸດ.
 5. **Facts must be true and checkable.** Never invent an "official" declaration, statistic or date. If you're unsure, ask a different question. Past mistakes include "the Lao school year starts in May" (it starts in September), "the national fruit was declared in 2015" and "Wednesday is market day".
+   **Daily Brain Sprint topics:** innovations, technology, English grammar and vocabulary, science, interesting world knowledge, quick math tricks and logic. Never ask about customs, traditions, festivals, public holidays, national days or school calendars (no "When is Lao New Year?", no "Which month does school start?"). The generator rejects such questions, and any question that repeats a topic already in that week's set.
+   **Word Match:** no English word or Lao meaning appears twice in a week's set.
 6. Use the correct Lao place names:
 
    | English | Lao |

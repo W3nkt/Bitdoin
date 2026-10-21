@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Box, Crosshair, Orbit, Plus, RotateCcw, Trash2 } from 'lucide-react'
-import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
@@ -205,7 +205,7 @@ const copy = {
 }
 
 export function TopCornerLab() {
-  const { language, setLanguage } = useLanguage()
+  const { language } = useLanguage()
   const { profile } = useAuth()
   const navigate = useNavigate()
   const lo = language === 'lo'
@@ -348,20 +348,14 @@ export function TopCornerLab() {
     <div data-lang={language} className="min-h-screen bg-[#f5f6f2] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 dark:border-white/10 bg-[#f5f6f2]/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 sm:px-6">
-          <button type="button" onClick={goBack} className="grid h-10 w-10 place-items-center rounded-full hover:bg-slate-900/5 dark:hover:bg-white/10" aria-label={text.back}>
+          <button type="button" onClick={goBack} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-slate-900/5 dark:hover:bg-white/10" aria-label={text.back}>
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="min-w-0 flex-1">
-            <p className={cn('text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300', lo ? 'tracking-normal' : 'tracking-[0.22em]')}>{text.eyebrow}</p>
+            <p className={cn('truncate text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-300', lo ? 'tracking-normal' : 'tracking-[0.22em]')}>{text.eyebrow}</p>
             <h1 className="truncate text-base font-black sm:text-lg">{text.title}</h1>
           </div>
-          {profile ? (
-            <PremiumProfileMenu variant="light" />
-          ) : (
-            <button type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} className="rounded-full border border-slate-900/10 dark:border-white/10 px-3 py-2 text-xs font-black">
-              {lo ? 'EN' : 'ລາວ'}
-            </button>
-          )}
+          <AcademyHeaderActions />
         </div>
       </header>
 

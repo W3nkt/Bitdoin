@@ -3,12 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, BookOpen, BriefcaseBusiness, Check, ChevronRight,
-  CircleDollarSign, Copy, Flame, GraduationCap, Image as ImageIcon, Languages,
+  CalendarClock, CircleDollarSign, Copy, ExternalLink, Flame, GraduationCap, Image as ImageIcon, Languages,
   LayoutGrid, Lightbulb, ListChecks, Loader2, LockKeyhole, Plus, Sparkles,
   Target, Timer, Trash2, Trophy, Type as TypeIcon, Video, WalletCards,
 } from 'lucide-react'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
-import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui/Toast'
@@ -106,6 +106,22 @@ function countActiveDaysInRange(startDate: string, endDate: string, activeDates:
   return count
 }
 
+// Like countActiveDaysInRange, but counts Monday-to-Sunday weeks that had at
+// least one active day.
+function countActiveWeeksInRange(startDate: string, endDate: string, activeDates: Set<string>) {
+  const weeks = new Set<string>()
+  for (const date of activeDates) {
+    if (date < startDate || date > endDate) continue
+    const value = new Date(`${date}T00:00:00Z`)
+    value.setUTCDate(value.getUTCDate() - ((value.getUTCDay() + 6) % 7))
+    weeks.add(value.toISOString().slice(0, 10))
+  }
+  return weeks.size
+}
+
+// Reading summaries are long, so they unlock one per active week, not per day.
+const WEEKLY_UNLOCK_CATEGORY_SLUGS = new Set(['reading-summaries'])
+
 // Deterministic per-seed shuffle (FNV-1a hash -> xorshift32) so each user sees
 // a stable but different lesson order per category, without storing an explicit order.
 function seededShuffle<T>(items: T[], seed: string): T[] {
@@ -133,18 +149,21 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
 // pacing beyond that is a Premium benefit.
 const FREE_LESSON_CAP = 1
 
-// One new lesson unlocks per day per category, in the user's shuffled order —
-// but only for days the account was actually active. A day the account was
-// not active does not unlock a lesson; the next lesson waits until the user
-// logs in and is active again, it does not "catch up" all at once. Free
-// accounts stay capped at the first lesson regardless of active days.
+// One new lesson unlocks per day per category (per week for reading
+// summaries), in the user's shuffled order — but only for days the account was
+// actually active. A day the account was not active does not unlock a lesson;
+// the next lesson waits until the user logs in and is active again, it does
+// not "catch up" all at once. A lesson the user has already started stays
+// unlocked. Free accounts stay capped at the first lesson regardless of active days.
 function useCategoryLessonOrder(
   categoryId: string | undefined,
+  categorySlug: string | undefined,
   lessons: Lesson[] | undefined,
   userId: string | undefined,
   unlocks: CategoryUnlock[] | undefined,
   activeDays: ActiveDay[] | undefined,
   isPremium: boolean,
+  progress: Progress[] | undefined,
 ) {
   const ordered = useMemo(() => {
     const inCategory = (lessons ?? []).filter(lesson => lesson.category_id === categoryId)
@@ -152,9 +171,13 @@ function useCategoryLessonOrder(
   }, [lessons, categoryId, userId])
   const unlock = unlocks?.find(item => item.category_id === categoryId)
   const activeDates = useMemo(() => new Set((activeDays ?? []).map(item => item.active_date)), [activeDays])
-  const daysUnlocked = unlock ? countActiveDaysInRange(unlock.start_date, today(), activeDates) : 1
+  const countActive = WEEKLY_UNLOCK_CATEGORY_SLUGS.has(categorySlug ?? '') ? countActiveWeeksInRange : countActiveDaysInRange
+  const daysUnlocked = unlock ? countActive(unlock.start_date, today(), activeDates) : 1
   const cappedDaysUnlocked = isPremium ? daysUnlocked : Math.min(daysUnlocked, FREE_LESSON_CAP)
-  const unlockedCount = Math.min(ordered.length, Math.max(1, cappedDaysUnlocked))
+  // Keeps lessons unlocked under the old pace open after the pace changed.
+  const started = new Set((progress ?? []).map(item => item.lesson_id))
+  const lastStarted = isPremium ? ordered.reduce((last, lesson, index) => started.has(lesson.id) ? index + 1 : last, 0) : 0
+  const unlockedCount = Math.min(ordered.length, Math.max(1, cappedDaysUnlocked, lastStarted))
   const tierLocked = !isPremium && ordered.length > FREE_LESSON_CAP
   return { ordered, unlockedCount, tierLocked }
 }
@@ -215,30 +238,25 @@ function PremiumGate({ children, requireSubscription = true }: { children: React
   return <>{children}</>
 }
 
-function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', hideSwitchPlatform = false, requireSubscription = true }: {
+function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', requireSubscription = true }: {
   children: React.ReactNode; title: string; eyebrow: string; backTo?: string
-  hideSwitchPlatform?: boolean; requireSubscription?: boolean
+  requireSubscription?: boolean
 }) {
   const navigate = useNavigate()
   usePremiumTranslation()
   return (
     <PremiumGate requireSubscription={requireSubscription}>
       <div className="premium-i18n min-h-screen bg-[#f7f8fb] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-        <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl">
+        <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
-            <button onClick={() => navigate(backTo)} className="grid h-10 w-10 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
+            <button onClick={() => navigate(backTo)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">{eyebrow}</p>
+              <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">{eyebrow}</p>
               <h1 className="truncate text-lg font-black">{title}</h1>
             </div>
-            {!hideSwitchPlatform && (
-              <Link to="/" className="hidden rounded-full border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-black text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 sm:block">
-                Switch platform
-              </Link>
-            )}
-            <PremiumProfileMenu variant="light" />
+            <AcademyHeaderActions />
           </div>
         </header>
         {children}
@@ -340,7 +358,7 @@ export function LearningHub() {
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
   return (
-    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" hideSwitchPlatform requireSubscription={false}>
+    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
         <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 dark:ring-1 dark:ring-white/10 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
           <div className="relative max-w-2xl">
@@ -629,7 +647,7 @@ export function LearningCategoryPage() {
   const { categories, lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
   const isPremium = Boolean(access.data)
   const category = categories.data?.find(item => item.slug === categorySlug)
-  const { ordered, unlockedCount, tierLocked } = useCategoryLessonOrder(category?.id, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, isPremium)
+  const { ordered, unlockedCount, tierLocked } = useCategoryLessonOrder(category?.id, category?.slug, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, isPremium, progress.data)
 
   const ensureUnlock = useMutation({
     mutationFn: async () => {
@@ -651,7 +669,9 @@ export function LearningCategoryPage() {
     <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')} requireSubscription={false}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">{category && localize(language, category.description_en, category.description_lo)}</p>
-        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{localize(language, 'One new lesson unlocks each day you’re active', 'ປົດລັອກບົດຮຽນໃໝ່ 1 ບົດ ທຸກມື້ທີ່ທ່ານເຂົ້າມາຮຽນ')}</p>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
+          ? localize(language, 'One new book summary unlocks each week you’re active', 'ປົດລັອກສະຫຼຸບປຶ້ມໃໝ່ 1 ຫົວ ທຸກອາທິດທີ່ທ່ານເຂົ້າມາຮຽນ')
+          : localize(language, 'One new lesson unlocks each day you’re active', 'ປົດລັອກບົດຮຽນໃໝ່ 1 ບົດ ທຸກມື້ທີ່ທ່ານເຂົ້າມາຮຽນ')}</p>
         {tierLocked && (
           <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
@@ -703,7 +723,9 @@ export function LearningCategoryPage() {
                           </Link>
                         </>
                       ) : isNext ? (
-                        localize(language, 'Unlocks next time you’re active', 'ປົດລັອກເມື່ອທ່ານເຂົ້າມາຮຽນຄັ້ງຕໍ່ໄປ')
+                        WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
+                          ? localize(language, 'Unlocks when you’re active next week', 'ປົດລັອກເມື່ອທ່ານເຂົ້າມາຮຽນອາທິດໜ້າ')
+                          : localize(language, 'Unlocks next time you’re active', 'ປົດລັອກເມື່ອທ່ານເຂົ້າມາຮຽນຄັ້ງຕໍ່ໄປ')
                       ) : (
                         localize(language, 'Unlocks after that', 'ປົດລັອກຫຼັງຈາກນັ້ນ')
                       )}
@@ -739,7 +761,7 @@ export function LessonReaderPage() {
   const toast = useToast()
   const { lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
   const lesson = lessons.data?.find(item => item.slug === lessonSlug)
-  const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, Boolean(access.data))
+  const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lesson?.category?.slug, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, Boolean(access.data), progress.data)
   const questions = useQuery({
     queryKey: ['premium', 'lesson-quiz', lesson?.id],
     enabled: Boolean(lesson),
@@ -842,6 +864,19 @@ export function LessonReaderPage() {
                 <p className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary-700 dark:text-primary-300">{localize(language, 'View in Bookstore', 'ເບິ່ງໃນຮ້ານປຶ້ມ')} <ArrowRight className="h-3.5 w-3.5" /></p>
               </div>
             </Link>
+          )}
+          {lesson.lesson_type === 'SCHOLARSHIP' && lesson.source_url && (
+            <div className="mt-7 flex flex-col gap-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 ring-1 ring-slate-100 dark:ring-slate-800 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                <CalendarClock className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" />
+                {lesson.application_deadline
+                  ? `${localize(language, 'Deadline', 'ກຳນົດສົ່ງ')}: ${new Intl.DateTimeFormat(language === 'lo' ? 'lo-LA' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${lesson.application_deadline}T00:00:00Z`))}`
+                  : localize(language, 'Check the deadline on the official page', 'ກວດເບິ່ງກຳນົດສົ່ງໃນໜ້າທາງການ')}
+              </p>
+              <a href={lesson.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-black text-primary-700 dark:text-primary-300 hover:underline">
+                {localize(language, 'Official source', 'ແຫຼ່ງຂໍ້ມູນທາງການ')} <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </div>
           )}
         </header>
         <div className="space-y-12 py-10">

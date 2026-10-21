@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
-import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
+import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -338,7 +338,7 @@ export function PremiumCoach() {
 
   return (
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
-      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-900/90 px-4 backdrop-blur md:px-8">
+      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between gap-2">
           <Link
             to="/academy/home"
@@ -355,15 +355,15 @@ export function PremiumCoach() {
               <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Ready to coach</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {access.data ? (
-              <Crown className="h-5 w-5 text-amber-500" />
+              <Crown className="hidden h-5 w-5 text-amber-500 sm:block" />
             ) : (
-              <Link to="/academy/subscription#plans" className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25">
+              <Link to="/academy/subscription#plans" className="hidden items-center gap-1.5 whitespace-nowrap rounded-full sm:flex bg-amber-100 dark:bg-amber-500/15 px-3 py-1.5 text-[11px] font-black text-amber-900 dark:text-amber-300 transition hover:bg-amber-200 dark:hover:bg-amber-500/25">
                 <Crown className="h-3.5 w-3.5" /> Upgrade
               </Link>
             )}
-            <PremiumProfileMenu variant="light" />
+            <AcademyHeaderActions />
           </div>
         </div>
       </header>
