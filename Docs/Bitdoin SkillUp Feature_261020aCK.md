@@ -1,6 +1,6 @@
 Act as a world-class startup founder, venture capitalist, product strategist, McKinsey consultant, and Silicon Valley product leader.
 
-Your mission is to design a startup called "SkillUp Laos".
+Your mission is to design a startup called "FastLane Laos".
 
 Do NOT give generic advice.
 Think like the founders of Coursera, LinkedIn, Duolingo, Khan Academy, Upwork, and Udemy.
@@ -51,7 +51,7 @@ Career Discovery
 → Freelancing
 → Employment
 
-SkillUp Laos aims to become:
+FastLane Laos aims to become:
 
 "The Operating System for Student Employability in Laos"
 
@@ -137,7 +137,7 @@ For each competitor:
 - Strengths
 - Weaknesses
 - Market gap
-- Opportunities for SkillUp Laos
+- Opportunities for FastLane Laos
 
 Create competitor matrix.
 
@@ -185,7 +185,7 @@ Design:
 
 Identify:
 
-Why SkillUp Laos wins.
+Why FastLane Laos wins.
 
 Why global companies cannot easily replicate it.
 
@@ -566,4 +566,4 @@ OUTPUT REQUIREMENTS
 - Be critical and challenge weak assumptions
 - Produce actionable recommendations rather than theory
 
-The final output should be detailed enough that a founder could use it as the blueprint to build and launch SkillUp Laos.
+The final output should be detailed enough that a founder could use it as the blueprint to build and launch FastLane Laos.
