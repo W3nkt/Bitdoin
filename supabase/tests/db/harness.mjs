@@ -11,9 +11,9 @@ export const MIGRATIONS = join(SUPABASE, 'migrations')
 // Every My Scores migration, in order.
 export const ACADEMIC_MIGRATIONS = readdirSync(MIGRATIONS).filter((f) => /^\d+_academic_.*\.sql$/.test(f)).sort()
 
-// pg_cron is stubbed in bootstrap.sql; PGlite cannot install the extension.
+// pg_cron, pg_net and push_subscriptions are stubbed in bootstrap.sql.
 export const readMigration = (file) => readFileSync(join(MIGRATIONS, file), 'utf8')
-  .replace(/create extension if not exists pg_cron[^;]*;/gi, '')
+  .replace(/create extension if not exists pg_(cron|net)[^;]*;/gi, '')
 
 export const readSupabaseFile = (path) => readFileSync(join(SUPABASE, path), 'utf8')
 

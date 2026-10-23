@@ -59,3 +59,16 @@ $$;
 create function cron.unschedule(p_jobid bigint) returns boolean language sql as $$
   delete from cron.job where jobid = p_jobid returning true
 $$;
+
+-- pg_net stand-in and the core push_subscriptions table (migration 102).
+create schema if not exists net;
+create function net.http_post(url text, headers jsonb default '{}', body jsonb default '{}', timeout_milliseconds integer default 1000)
+returns bigint language sql as $$ select 1::bigint $$;
+create table public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  academy_enabled boolean not null default false
+);

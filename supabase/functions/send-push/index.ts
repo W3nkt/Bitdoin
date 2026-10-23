@@ -3,7 +3,9 @@ import webpush from 'npm:web-push@3.6.7'
 import {
   academyDailyMessage,
   newBooksMessage,
+  scoreReminderMessage,
   testMessage,
+  type ScoreReminderPayload,
   type Lang,
   type NewBook,
   type PushMessage,
@@ -20,6 +22,9 @@ import {
 //                  the last digest; nothing is sent when there are none.
 //   announcement   Staff only. { id } of a PENDING push_announcements row.
 //   test           Signed-in user. Sends a test to the caller's own devices.
+//   academic-reminders  pg_cron, every 15 min. Delivers My Scores reminders
+//                  claimed from academic_notifications (migration 118); the
+//                  database applies opt-in, quiet hours and caps.
 //
 // Dead subscriptions (404/410 from the push service) are deleted.
 //
@@ -98,11 +103,11 @@ async function languagesFor(admin: SupabaseClient, userIds: string[]) {
  * Sends one message per row. Returns counts; deletes subscriptions the push
  * service says are gone, and records the last successful delivery.
  */
-async function deliver(
+async function deliver<T extends SubscriptionRow>(
   admin: SupabaseClient,
-  rows: SubscriptionRow[],
-  messageFor: (row: SubscriptionRow) => PushMessage,
-  options: { ttl: number; onFailure?: (row: SubscriptionRow) => Promise<void> },
+  rows: T[],
+  messageFor: (row: T) => PushMessage,
+  options: { ttl: number; onFailure?: (row: T) => Promise<void>; onDelivered?: (row: T) => void },
 ) {
   let sent = 0
   let failed = 0
@@ -121,6 +126,7 @@ async function deliver(
         )
         sent += 1
         delivered.push(row.id)
+        options.onDelivered?.(row)
       } catch (error) {
         failed += 1
         const status = (error as { statusCode?: number }).statusCode
@@ -136,7 +142,7 @@ async function deliver(
 
   if (gone.length) await admin.from('push_subscriptions').delete().in('id', gone)
   if (delivered.length) {
-    await admin.from('push_subscriptions').update({ last_success_at: new Date().toISOString() }).in('id', delivered)
+    await admin.from('push_subscriptions').update({ last_success_at: new Date().toISOString() }).in('id', [...new Set(delivered)])
   }
   return { sent, failed, removed: gone.length }
 }
@@ -187,6 +193,49 @@ async function sendAcademyDaily(admin: SupabaseClient) {
     },
   })
   return { ...result, date: now.date }
+}
+
+// ─── academic-reminders ──────────────────────────────────────────────────────
+
+interface ClaimedNotification {
+  id: string
+  user_id: string
+  code: string
+  payload: ScoreReminderPayload
+  language: string | null
+}
+
+async function sendAcademicReminders(admin: SupabaseClient) {
+  // Claiming marks rows 'sending', so overlapping runs cannot double-send.
+  const { data: claimed, error } = await admin.rpc('academic_claim_push_notifications', { p_limit: 200 })
+  if (error) throw error
+  const notes = (claimed ?? []) as ClaimedNotification[]
+  if (!notes.length) return { sent: 0, notifications: 0 }
+
+  const userIds = [...new Set(notes.map(note => note.user_id))]
+  const { data: devices, error: devicesError } = await admin
+    .from('push_subscriptions')
+    .select('id,user_id,endpoint,p256dh,auth')
+    .in('user_id', userIds)
+  if (devicesError) throw devicesError
+
+  // One delivery per device per notification.
+  const rows = notes.flatMap(note => ((devices ?? []) as SubscriptionRow[])
+    .filter(device => device.user_id === note.user_id)
+    .map(device => ({ ...device, note })))
+  const sentIds = new Set<string>()
+  const result = await deliver(admin, rows, row => scoreReminderMessage(asLang(row.note.language), row.note.payload), {
+    ttl: 12 * 60 * 60,
+    onDelivered: row => sentIds.add(row.note.id),
+  })
+
+  const failedIds = notes.map(note => note.id).filter(id => !sentIds.has(id))
+  const { error: completeError } = await admin.rpc('academic_complete_push_notifications', {
+    p_sent: [...sentIds],
+    p_failed: failedIds,
+  })
+  if (completeError) throw completeError
+  return { sent: result.sent, failed: result.failed, removed: result.removed, notifications: notes.length, delivered: sentIds.size }
 }
 
 // ─── new-books ───────────────────────────────────────────────────────────────
@@ -361,6 +410,8 @@ Deno.serve(async req => {
         return json(req, await sendAcademyDaily(admin))
       case 'new-books':
         return json(req, await sendNewBooks(admin))
+      case 'academic-reminders':
+        return json(req, await sendAcademicReminders(admin))
       case 'announcement': {
         const user = await signedInUser(req)
         if (!user) return json(req, { error: 'Please sign in.' }, 401)

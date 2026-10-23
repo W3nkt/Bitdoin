@@ -86,6 +86,36 @@ export function newBooksMessage(books: NewBook[], total: number, lang: Lang): Pu
   }
 }
 
+// ─── My Scores reminders (migration 118) ─────────────────────────────────────
+
+export interface ScoreReminderPayload {
+  period_key?: string
+  period_label_lo?: string
+  period_label_en?: string
+}
+
+// DRAFT copy, pending the UX-005 Lao copy pack and native educator review.
+// Lock-screen text: no scores, no comparison, no pressure (NOTIF-004).
+export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload): PushMessage {
+  const tag = `my-scores-${payload.period_key ?? 'reminder'}`
+  if (lang === 'en') {
+    const month = payload.period_label_en?.trim()
+    return {
+      title: '📒 My Scores',
+      body: month ? `Whenever you're ready, add your ${month} scores.` : "Whenever you're ready, add this month's scores.",
+      url: '/academy/scores',
+      tag,
+    }
+  }
+  const month = payload.period_label_lo?.trim()
+  return {
+    title: '📒 ຄະແນນຂອງຂ້ອຍ',
+    body: month ? `ເມື່ອພ້ອມແລ້ວ ເພີ່ມຄະແນນເດືອນ${month.replace(/^ເດືອນ\s*/, '')}ຂອງເຈົ້າໄດ້ເລີຍ.` : 'ເມື່ອພ້ອມແລ້ວ ເພີ່ມຄະແນນປະຈຳເດືອນຂອງເຈົ້າໄດ້ເລີຍ.',
+    url: '/academy/scores',
+    tag,
+  }
+}
+
 // ─── Test message ────────────────────────────────────────────────────────────
 
 export function testMessage(lang: Lang, platform: 'BOOKSTORE' | 'ACADEMY'): PushMessage {
