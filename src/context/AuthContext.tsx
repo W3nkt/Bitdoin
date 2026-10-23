@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { rememberOAuthReturnPath } from '@/lib/authRedirect'
+import { clearAllDrafts } from '@/lib/academic/drafts'
 import type { User, UserRole } from '@/types'
 
 interface AuthResult {
@@ -149,6 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signOut() {
     await supabase.auth.signOut()
+    // Shared phones: My Scores drafts must not outlive the account session.
+    clearAllDrafts()
     setProfile(null)
   }
 

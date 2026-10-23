@@ -3,6 +3,7 @@ import { ArrowLeft, ClipboardList } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAcademicCopy } from '@/lib/academic/copy'
+import { cn } from '@/lib/utils'
 
 /** Page frame for every My Scores screen, matching the other Academy pages. */
 export function MyScoresShell({ subtitle, backTo = '/academy/home', children }: {
@@ -10,7 +11,7 @@ export function MyScoresShell({ subtitle, backTo = '/academy/home', children }: 
   backTo?: string
   children: ReactNode
 }) {
-  const { t } = useAcademicCopy()
+  const { t, lo } = useAcademicCopy()
   const navigate = useNavigate()
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
@@ -29,7 +30,8 @@ export function MyScoresShell({ subtitle, backTo = '/academy/home', children }: 
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-black">{t('shell.title')}</h1>
-            <p className="truncate text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">
+            {/* Letter-spacing suits Latin caps but breaks up Lao script. */}
+            <p className={cn('truncate font-bold text-indigo-700 dark:text-indigo-300', lo ? 'text-xs' : 'text-[10px] uppercase tracking-[0.18em]')}>
               {subtitle ?? t('shell.subtitle')}
             </p>
           </div>

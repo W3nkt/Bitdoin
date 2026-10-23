@@ -249,3 +249,81 @@ export function usePeriods(enrolmentId: string | null | undefined) {
     ),
   })
 }
+
+export interface EntryLine {
+  id: string
+  status: 'scored' | 'missing' | 'not_applicable' | 'exempt'
+  value: number | string | null
+  normalised_value: number | null
+  source: 'manual' | 'ocr_confirmed' | 'school_import'
+  verification: 'self_reported' | 'guardian_acknowledged' | 'school_verified'
+  edited: boolean
+  version: number
+}
+
+export interface ScoreEntryView {
+  enrolment_id: string
+  period: { id: string; key: string; period_type: string; term_no: number | null; sequence: number; label_lo: string; label_en: string; start_date: string; end_date: string }
+  scale: {
+    id: string; code: string; version: number; family: 'numeric_linear' | 'ordinal' | 'pass_fail'
+    min: number | null; max: number | null; step: number | null; decimals: number; pass_mark: number | null; normalisable: boolean
+    levels: { code: string; label_lo?: string; label_en?: string }[] | null
+  }
+  read_only: boolean
+  entry: { id: string; state: 'draft' | 'submitted'; version: number; source: string; submitted_at: string | null } | null
+  subjects: { subject_enrolment_id: string; code: string | null; name_lo: string; name_en: string; line: EntryLine | null }[]
+  replayed?: boolean
+}
+
+export interface WireLine {
+  subject_enrolment_id: string
+  status?: 'scored' | 'missing' | 'not_applicable' | 'exempt'
+  value?: string | number
+  clear?: boolean
+}
+
+export function useScoreEntry(enrolmentId: string | null | undefined, periodId: string | null | undefined) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'entry', enrolmentId, periodId],
+    enabled: !!enrolmentId && !!periodId,
+    retry: shouldRetryAcademic,
+    staleTime: 0,
+    queryFn: () => callAcademicRpc<ScoreEntryView>('academic_get_score_entry', { p_enrolment_id: enrolmentId, p_period_id: periodId }),
+  })
+}
+
+export const saveServerDraft = (enrolmentId: string, periodId: string, lines: WireLine[]) =>
+  callAcademicRpc<ScoreEntryView>('academic_save_draft', { p_enrolment_id: enrolmentId, p_period_id: periodId, p_lines: lines })
+
+export const submitScoreEntry = (enrolmentId: string, periodId: string, lines: WireLine[], idempotencyKey: string) =>
+  callAcademicRpc<ScoreEntryView>('academic_submit_score_entry', {
+    p_enrolment_id: enrolmentId, p_period_id: periodId, p_lines: lines, p_idempotency_key: idempotencyKey,
+  })
+
+export function useCorrectLine() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ lineId, version, line, reason }: { lineId: string; version: number; line: Pick<WireLine, 'status' | 'value'>; reason?: string }) =>
+      callAcademicRpc<EntryLine>('academic_correct_score_line', { p_line_id: lineId, p_expected_version: version, p_line: line, p_reason: reason ?? null }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+  })
+}
+
+export interface Revision {
+  old_value: number | string | null
+  new_value: number | string | null
+  old_status: string
+  new_status: string
+  changed_by: 'student' | 'admin' | 'system'
+  reason: string | null
+  changed_at: string
+}
+
+export function useLineRevisions(lineId: string | null) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'revisions', lineId],
+    enabled: !!lineId,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ score_line_id: string; revisions: Revision[] }>('academic_get_line_revisions', { p_line_id: lineId }),
+  })
+}

@@ -63,8 +63,61 @@ function backend(initial) {
       deletion: { status: 'active', deletion_scope: null, deletion_requested_at: null, deletion_scheduled_for: null },
     }),
     academic_update_profile: (args) => { state.version = (state.version ?? 1) + 1; state.name = args.p_changes.display_name; return { profile_id: 'p1', version: state.version } },
-    academic_list_periods: () => ({ enrolment_id: 'e1', read_only: false, suggested_period_id: 'm1', periods: [1, 2, 3].map(seq => ({ id: `m${seq}`, key: `2026-${8 + seq}`, period_type: 'monthly', sequence: seq, label_lo: `ເດືອນ ${seq}`, label_en: ['September', 'October', 'November'][seq - 1], state: 'empty', disabled: seq === 3 })) }),
+    academic_list_periods: () => ({ enrolment_id: 'e1', read_only: false, suggested_period_id: 'm1', periods: [1, 2, 3].map(seq => ({ id: `m${seq}`, key: `2026-${8 + seq}`, period_type: 'monthly', sequence: seq, label_lo: `ເດືອນ ${seq}`, label_en: ['September', 'October', 'November'][seq - 1], state: state.entries[`m${seq}`]?.state ?? 'empty', disabled: seq === 3 })) }),
+
+    // Score entry (FE-003): one entry per period, lines keyed by subject.
+    academic_get_score_entry: (args) => entryView(args.p_period_id),
+    academic_save_draft: (args) => {
+      const entry = state.entries[args.p_period_id] ??= { state: 'draft', version: 1, lines: {} }
+      if (entry.state === 'submitted') return pgError(409, 'ENTRY_SUBMITTED')
+      for (const line of args.p_lines) {
+        if (line.clear) delete entry.lines[line.subject_enrolment_id]
+        else entry.lines[line.subject_enrolment_id] = { status: line.status, value: line.value ?? null, version: 1, edited: false }
+      }
+      entry.version += 1
+      return entryView(args.p_period_id)
+    },
+    academic_submit_score_entry: (args) => {
+      const entry = state.entries[args.p_period_id] ??= { state: 'draft', version: 1, lines: {} }
+      if (entry.state === 'submitted') {
+        return entry.key === args.p_idempotency_key ? { ...entryView(args.p_period_id), replayed: true } : pgError(409, 'SCORE_DUPLICATE', { score_entry_id: 'x' })
+      }
+      entry.lines = Object.fromEntries(args.p_lines.map(line => [line.subject_enrolment_id, { status: line.status, value: line.value ?? null, version: 1, edited: false }]))
+      Object.assign(entry, { state: 'submitted', key: args.p_idempotency_key, submitted_at: '2026-10-20T03:00:00Z' })
+      return entryView(args.p_period_id)
+    },
+    academic_correct_score_line: (args) => {
+      const [periodId, seId] = args.p_line_id.split(':')
+      const line = state.entries[periodId].lines[seId]
+      if (args.p_expected_version !== line.version) return pgError(409, 'VERSION_CONFLICT')
+      state.revisions.push({ old_value: line.value, new_value: args.p_line.value ?? null, old_status: line.status, new_status: args.p_line.status, changed_by: 'student', reason: args.p_reason, changed_at: '2026-10-22T03:00:00Z' })
+      Object.assign(line, { status: args.p_line.status, value: args.p_line.value ?? null, version: line.version + 1, edited: true })
+      return { id: args.p_line_id, ...line }
+    },
+    academic_get_line_revisions: (args) => ({ score_line_id: args.p_line_id, revisions: [...state.revisions].reverse() }),
   }
+  state.entries ??= {}
+  state.revisions = []
+  state.abort ??= {}
+  function entryView(periodId) {
+    const entry = state.entries[periodId]
+    const seq = Number(periodId.slice(1))
+    return {
+      enrolment_id: 'e1',
+      period: { id: periodId, key: `2026-${8 + seq}`, period_type: 'monthly', term_no: 1, sequence: seq, label_lo: `ເດືອນ ${seq}`, label_en: ['September', 'October', 'November'][seq - 1], start_date: '2026-09-01', end_date: '2026-09-30' },
+      scale: { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null },
+      read_only: false,
+      entry: entry ? { id: `entry-${periodId}`, state: entry.state, version: entry.version, source: 'manual', submitted_at: entry.submitted_at ?? null } : null,
+      subjects: [['se-math', 'MATH', 'ຄະນິດສາດ', 'Mathematics'], ['se-lao', 'LAO', 'ພາສາລາວ', 'Lao Language'], ['se-phys', 'PHYS', 'ຟີຊິກສາດ', 'Physics']].map(([id, code, name_lo, name_en]) => {
+        const line = entry?.lines[id]
+        return {
+          subject_enrolment_id: id, code, name_lo, name_en,
+          line: line ? { id: `${periodId}:${id}`, status: line.status, value: line.value === null ? null : Number(line.value), normalised_value: null, source: 'manual', verification: 'self_reported', edited: line.edited, version: line.version } : null,
+        }
+      }),
+    }
+  }
+  const pgError = (status, code, details) => ({ __error: { status, body: { code: `PT${status}`, message: code, details: code, hint: details ? JSON.stringify(details) : '' } } })
   const tables = {
     academic_grades: GRADES,
     academic_subjects: SUBJECTS,
@@ -83,8 +136,15 @@ function backend(initial) {
     if (rpcMatch) {
       const args = request.postDataJSON() ?? {}
       state.calls.push({ fn: rpcMatch[1], args })
+      // Simulated dropped connection for the next N calls of a function.
+      if (state.abort[rpcMatch[1]] > 0) {
+        state.abort[rpcMatch[1]] -= 1
+        return route.abort('internetdisconnected')
+      }
       const handler = rpc[rpcMatch[1]]
-      return handler ? json(handler(args)) : json(null)
+      const result = handler ? handler(args) : null
+      if (result?.__error) return json(result.__error.body, result.__error.status)
+      return json(result)
     }
     const table = url.pathname.replace('/rest/v1/', '')
     if (table === 'academic_settings') {
@@ -102,10 +162,10 @@ async function isolate(context) {
   await context.route(url => !url.href.startsWith(base) && !url.href.startsWith(SUPABASE), route => route.abort())
 }
 
-async function openAs(browser, { device, lang, step, enrolment, consentState }) {
+async function openAs(browser, { device, lang, step, enrolment, consentState, entries }) {
   const context = await browser.newContext({ ...device, locale: lang === 'lo' ? 'lo-LA' : 'en-GB' })
   await isolate(context)
-  const mock = backend({ step, lang, enrolment, consentState })
+  const mock = backend({ step, lang, enrolment, consentState, entries })
   await context.route(`${SUPABASE}/**`, mock.handle)
   await context.addInitScript(({ token, userId, lang }) => {
     localStorage.setItem('pwen_lang', lang)
@@ -130,6 +190,7 @@ async function shot(page, name) {
 const lastCall = (mock, fn) => [...mock.state.calls].reverse().find(call => call.fn === fn)
 const browser = await chromium.launch()
 const results = []
+const pass = (line) => { results.push(line); console.log(`ok  ${line}`) }
 const MOBILE = devices['Pixel 7']
 const DESKTOP = { viewport: { width: 1280, height: 900 } }
 
@@ -144,7 +205,7 @@ try {
     await page.waitForURL(/\/auth/)
     assert.equal(await page.evaluate(() => window.history.state?.usr?.from), '/academy/scores')
     await context.close()
-    results.push('Signed out: redirected to /auth with return path /academy/scores')
+    pass('Signed out: redirected to /auth with return path /academy/scores')
   }
 
   // Full onboarding on Android Chrome in Lao, catalogue school.
@@ -200,7 +261,7 @@ try {
     })
     assert.deepEqual(errors, [])
     await context.close()
-    results.push('Android/Lao onboarding: notice gate, age, validation, school search, default subjects, custom subject, goals; payload exact')
+    pass('Android/Lao onboarding: notice gate, age, validation, school search, default subjects, custom subject, goals; payload exact')
   }
 
   // Unlisted school, skip goals, desktop English (PROFILE-002/006).
@@ -230,7 +291,7 @@ try {
     assert.deepEqual(input.subjects.map(s => s.subject_id), ['s-MATH', 's-PHYS', 's-LAO'])
     assert.deepEqual(errors, [])
     await context.close()
-    results.push('Desktop/English: unlisted school as free text, goals skipped, grade 12 defaults')
+    pass('Desktop/English: unlisted school as free text, goals skipped, grade 12 defaults')
   }
 
   // Under 13 is not supported (PRIV-002).
@@ -243,7 +304,7 @@ try {
     await page.getByRole('heading', { name: 'My Scores is for older students for now' }).waitFor()
     assert.equal(lastCall(mock, 'academic_create_profile'), undefined)
     await context.close()
-    results.push('Under 13: blocked before anything is stored')
+    pass('Under 13: blocked before anything is stored')
   }
 
   // Re-acknowledge after withdrawal (PRIV-001/003).
@@ -258,7 +319,7 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'module_processing', p_notice_version: '2026-10-draft' })
     assert.deepEqual(errors, [])
     await context.close()
-    results.push('Consent review: paused state, re-agreement sends module_processing with the current notice')
+    pass('Consent review: paused state, re-agreement sends module_processing with the current notice')
   }
 
   // New school year (PROFILE-004).
@@ -272,7 +333,7 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_transition_enrolment').args.p_input, { kind: 'promoted' })
     assert.deepEqual(errors, [])
     await context.close()
-    results.push('New school year: promotion to the next grade')
+    pass('New school year: promotion to the next grade')
   }
 
   // My data: counts, consents, edit with version, mid-year transfer (PROFILE-005/007).
@@ -303,10 +364,160 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_transition_enrolment').args.p_input, { kind: 'transferred', effective_period_seq: 2, school_id: 'school-1' })
     assert.deepEqual(errors, [])
     await context.close()
-    results.push('My data (Lao, desktop): counts, consents, profile edit with If-Match version, mid-year transfer')
+    pass('My data (Lao, desktop): counts, consents, profile edit with If-Match version, mid-year transfer')
   }
 
-  console.log(results.map(line => `ok  ${line}`).join('\n'))
+  // ─── Score entry (FE-003) ─────────────────────────────────────────────────
+
+  // Validation, Lao digits, statuses, review and exact submit (Android, Lao).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'ເພີ່ມຄະແນນ' }).click()
+    const math = page.getByLabel('ຄະນິດສາດ', { exact: true })
+    await math.fill('11')
+    await page.getByText('ຄະແນນຕ້ອງຢູ່ລະຫວ່າງ 0 ຫາ 10 ເທື່ອລະ 0.5').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'ກວດຄືນ' }).isDisabled(), true, 'review blocked while invalid')
+    await math.fill('7.3')
+    await page.getByText('ຄະແນນຕ້ອງຢູ່ລະຫວ່າງ 0 ຫາ 10 ເທື່ອລະ 0.5').waitFor()
+    await math.fill('abc')
+    await page.getByText('ປ້ອນຕົວເລກ').waitFor()
+    await math.fill('໗.໕')
+    await math.press('Enter')
+    assert.equal(await math.inputValue(), '7.5', 'Lao digits normalised')
+    assert.equal(await page.getByLabel('ພາສາລາວ', { exact: true }).evaluate(el => el === document.activeElement), true, 'Enter moves to the next subject')
+    await page.keyboard.type('10')
+    await page.getByLabel('ສະຖານະຂອງ ຟີຊິກສາດ').selectOption('exempt')
+    await page.getByText('ບັນທຶກຮ່າງແລ້ວ').waitFor()
+    await shot(page, 'my-scores-10-entry-lo-mobile')
+    const draftCall = lastCall(mock, 'academic_save_draft').args
+    assert.deepEqual(draftCall.p_lines, [
+      { subject_enrolment_id: 'se-math', status: 'scored', value: '7.5' },
+      { subject_enrolment_id: 'se-lao', status: 'scored', value: '10' },
+      { subject_enrolment_id: 'se-phys', status: 'exempt' },
+    ])
+    await page.getByRole('button', { name: 'ກວດຄືນ' }).click()
+    await shot(page, 'my-scores-11-review-lo-mobile')
+    await page.getByRole('button', { name: 'ຢືນຢັນ ແລະ ບັນທຶກ' }).click()
+    await page.getByText('ບັນທຶກເມື່ອ').waitFor()
+    const submit = lastCall(mock, 'academic_submit_score_entry').args
+    assert.equal(submit.p_period_id, 'm1')
+    assert.match(submit.p_idempotency_key, /^[0-9a-f-]{36}$/)
+    assert.deepEqual(submit.p_lines, draftCall.p_lines)
+    await shot(page, 'my-scores-12-submitted-lo-mobile')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Entry (Android/Lao): range/step/number errors, Lao digits, Enter to next, statuses, autosave, review, exact submit')
+  }
+
+  // Offline draft survives a closed tab; a lost submit retries with the same key.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.abort.academic_save_draft = 99
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByLabel('Mathematics', { exact: true }).fill('6')
+    await page.getByLabel('Lao Language', { exact: true }).fill('8.5')
+    await page.getByText('Offline: saved on this phone').waitFor()
+    await page.close()
+
+    const restored = await context.newPage()
+    restored.on('pageerror', error => errors.push(error.message))
+    await restored.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await restored.getByLabel('Mathematics', { exact: true }).waitFor()
+    await restored.waitForFunction(() => document.querySelector('#score-se-math')?.value === '6')
+    assert.equal(await restored.getByLabel('Lao Language', { exact: true }).inputValue(), '8.5', 'draft restored from this device')
+    await shot(restored, 'my-scores-13-offline-restored-en-desktop')
+
+    mock.state.abort.academic_save_draft = 0
+    await restored.getByLabel('Status for Physics').selectOption('missing')
+    await restored.getByRole('button', { name: 'Review' }).click()
+    mock.state.abort.academic_submit_score_entry = 1
+    await restored.getByRole('button', { name: 'Confirm and save' }).click()
+    await restored.getByText('You are offline. It will save automatically').waitFor()
+    await restored.evaluate(() => window.dispatchEvent(new Event('online')))
+    await restored.getByText('Saved 20 Oct 2026').waitFor()
+    const submits = mock.state.calls.filter(call => call.fn === 'academic_submit_score_entry')
+    assert.equal(submits.length, 2, 'one lost attempt and one retry')
+    assert.equal(submits[0].args.p_idempotency_key, submits[1].args.p_idempotency_key, 'retry reuses the idempotency key')
+    assert.equal(mock.state.entries.m1.state, 'submitted')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Offline: draft restored after closing the tab; lost submit retried once with the same idempotency key')
+  }
+
+  // Another device saved the period first: SCORE_DUPLICATE shows the saved scores.
+  {
+    const entries = { m1: { state: 'draft', version: 2, lines: { 'se-math': { status: 'scored', value: '5', version: 1, edited: false } } } }
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1', entries })
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByLabel('Lao Language', { exact: true }).fill('9')
+    await page.getByLabel('Status for Physics').selectOption('not_applicable')
+    await page.getByRole('button', { name: 'Review' }).click()
+    Object.assign(mock.state.entries.m1, { state: 'submitted', key: 'other-device', submitted_at: '2026-10-19T03:00:00Z' })
+    await page.getByRole('button', { name: 'Confirm and save' }).click()
+    await page.getByText('Scores for this month were already saved').waitFor()
+    await page.getByText('Saved 19 Oct 2026').waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Duplicate period: 409 SCORE_DUPLICATE opens the saved scores instead of a second record')
+  }
+
+  // Corrections keep history (SCORE-007).
+  {
+    const entries = { m1: { state: 'submitted', key: 'k', submitted_at: '2026-10-20T03:00:00Z', version: 3, lines: {
+      'se-math': { status: 'scored', value: '7.5', version: 1, edited: false },
+      'se-lao': { status: 'scored', value: '10', version: 1, edited: false },
+      'se-phys': { status: 'exempt', value: null, version: 1, edited: false },
+    } } }
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1', entries })
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: 'Correct Mathematics' }).click()
+    await page.getByLabel('Mathematics', { exact: true }).fill('8')
+    await page.getByLabel('Reason (optional)').fill('Teacher re-marked')
+    await page.getByRole('button', { name: 'Save correction' }).click()
+    await page.getByText('Edited').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_correct_score_line').args, { p_line_id: 'm1:se-math', p_expected_version: 1, p_line: { status: 'scored', value: '8' }, p_reason: 'Teacher re-marked' })
+    await page.getByRole('button', { name: 'History: Mathematics' }).click()
+    await page.getByText('7.5 → 8').waitFor()
+    await page.getByText('“Teacher re-marked”').waitFor()
+    await shot(page, 'my-scores-14-correction-history-en-mobile')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Correction: If-Match version and reason sent; Edited badge and old → new history shown')
+  }
+
+  // Shared phone: another account's local draft is purged on open.
+  {
+    const { context, page, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByLabel('Mathematics', { exact: true }).waitFor()
+    const countOthers = () => page.evaluate(() => new Promise(resolve => {
+      const request = indexedDB.open('bitdoin-my-scores')
+      request.onsuccess = () => {
+        const all = request.result.transaction('drafts').objectStore('drafts').getAll()
+        all.onsuccess = () => { resolve(all.result.filter(row => row.userId === 'someone-else').length); request.result.close() }
+      }
+    }))
+    await page.evaluate(() => new Promise(resolve => {
+      const request = indexedDB.open('bitdoin-my-scores')
+      request.onsuccess = () => {
+        const tx = request.result.transaction('drafts', 'readwrite')
+        tx.objectStore('drafts').put({ key: 'someone-else:e9:m1', userId: 'someone-else', enrolmentId: 'e9', periodId: 'm1', lines: { x: { status: 'scored', text: '9' } }, synced: false, updatedAt: 0 })
+        tx.oncomplete = () => { request.result.close(); resolve(null) }
+      }
+    }))
+    assert.equal(await countOthers(), 1)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.getByLabel('Mathematics', { exact: true }).waitFor()
+    await page.waitForTimeout(300)
+    assert.equal(await countOthers(), 0, 'other account draft removed')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Shared phone: drafts of another account are purged when My Scores opens')
+  }
+
+  console.log(`
+${results.length} scenarios passed`)
 } finally {
   await browser.close()
 }
