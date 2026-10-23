@@ -41,3 +41,20 @@ grant usage on schema public, auth, extensions to anon, authenticated, service_r
 grant all on all tables in schema public to anon, authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+
+-- auth.jwt() reads the full claims, as on Supabase.
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb, '{}'::jsonb)
+$$;
+
+-- pg_cron stand-in: records schedules so tests can assert on them.
+create schema if not exists cron;
+create table cron.job (jobid bigserial primary key, jobname text unique, schedule text, command text);
+create function cron.schedule(p_name text, p_schedule text, p_command text) returns bigint language sql as $$
+  insert into cron.job (jobname, schedule, command) values (p_name, p_schedule, p_command)
+  on conflict (jobname) do update set schedule = excluded.schedule, command = excluded.command
+  returning jobid
+$$;
+create function cron.unschedule(p_jobid bigint) returns boolean language sql as $$
+  delete from cron.job where jobid = p_jobid returning true
+$$;

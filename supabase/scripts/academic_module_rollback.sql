@@ -7,6 +7,10 @@ do $$
 declare
   r record;
 begin
+  if to_regclass('cron.job') is not null then
+    perform cron.unschedule(jobid) from cron.job where jobname like 'academic-%';
+  end if;
+
   for r in
     select tablename from pg_tables
     where schemaname = 'public' and tablename like 'academic\_%'

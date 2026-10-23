@@ -11,6 +11,10 @@ export const MIGRATIONS = join(SUPABASE, 'migrations')
 // Every My Scores migration, in order.
 export const ACADEMIC_MIGRATIONS = readdirSync(MIGRATIONS).filter((f) => /^\d+_academic_.*\.sql$/.test(f)).sort()
 
+// pg_cron is stubbed in bootstrap.sql; PGlite cannot install the extension.
+export const readMigration = (file) => readFileSync(join(MIGRATIONS, file), 'utf8')
+  .replace(/create extension if not exists pg_cron[^;]*;/gi, '')
+
 export const readSupabaseFile = (path) => readFileSync(join(SUPABASE, path), 'utf8')
 
 let failures = 0
@@ -21,7 +25,7 @@ export async function createDb(migrations) {
   await db.exec(readFileSync(join(here, 'bootstrap.sql'), 'utf8'))
   for (const file of migrations) {
     try {
-      await db.exec(readFileSync(join(MIGRATIONS, file), 'utf8'))
+      await db.exec(readMigration(file))
     } catch (e) {
       console.error(`Migration ${file} failed: ${e.message}`)
       process.exit(1)
@@ -57,8 +61,12 @@ export async function fails(db, name, sql, pattern) {
   }
 }
 
+// Key order does not matter (jsonb reorders keys); array order does.
+const canonical = (value) => JSON.stringify(value, (_key, v) =>
+  v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([x], [y]) => (x < y ? -1 : 1))) : v)
+
 export function eq(name, actual, expected) {
-  const a = JSON.stringify(actual), b = JSON.stringify(expected)
+  const a = canonical(actual), b = canonical(expected)
   if (a === b) passes++
   else { failures++; console.error(`FAIL ${name}: got ${a}, expected ${b}`) }
 }

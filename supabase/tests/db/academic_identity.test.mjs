@@ -85,10 +85,10 @@ eq('B is onboarding, not A', [(await session(B)).user.id, (await session(B)).pro
 // Profile guard for writes.
 eq('write as owner resolves own profile', (await as(A, `select (public.academic_require_profile(true)).id as id`, 'postgres'))[0].id, '20000000-0000-0000-0000-000000000001')
 eq('no profile -> 404', await errorOf(B, `select public.academic_require_profile(false)`, 'postgres'), { code: 'PROFILE_REQUIRED', sqlstate: 'PT404' })
-await ok(db, 'deletion pending', `update academic_student_profiles set status = 'deletion_pending', deletion_requested_at = now() where user_id = '${A}'`)
+await ok(db, 'deletion pending', `update academic_student_profiles set status = 'deletion_pending', deletion_requested_at = now(), deletion_scope = 'profile' where user_id = '${A}'`)
 eq('read-only profile refuses writes', await errorOf(A, `select public.academic_require_profile(true)`, 'postgres'), { code: 'PROFILE_READ_ONLY', sqlstate: 'PT409' })
 eq('read-only profile still readable', (await as(A, `select (public.academic_require_profile(false)).status as s`, 'postgres'))[0].s, 'deletion_pending')
-await ok(db, 'reactivate', `update academic_student_profiles set status = 'active', deletion_requested_at = null where user_id = '${A}'`)
+await ok(db, 'reactivate', `update academic_student_profiles set status = 'active', deletion_requested_at = null, deletion_scope = null where user_id = '${A}'`)
 await ok(db, 'module off again', `update academic_settings set value = 'false' where key = 'my_scores_enabled'`)
 eq('module off -> 403', await errorOf(A, `select public.academic_require_profile(false)`, 'postgres'), { code: 'MODULE_DISABLED', sqlstate: 'PT403' })
 await ok(db, 'module on', `update academic_settings set value = 'true' where key = 'my_scores_enabled'`)
