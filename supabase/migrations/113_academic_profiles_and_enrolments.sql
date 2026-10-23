@@ -17,8 +17,8 @@
 insert into public.academic_settings (key, value, description) values
   ('default_grading_scale_code', '"LA-0-10"', 'Scale used when the school has no default (PRD §23.1 assumption).'),
   ('allowed_grade_levels', '["upper_secondary"]', 'Phase 1 is Grades 10–12; lower secondary needs legal approval (PROFILE-008).'),
-  ('province_codes', '["AT","BK","BL","CH","HO","KH","LM","LP","OU","PH","SL","SV","VI","VT","XA","XE","XI","XS"]',
-   'Lao PDR provinces and Vientiane Capital (ISO 3166-2:LA subdivision codes).')
+  ('province_codes', '["vientiane-prefecture","phongsaly","luang-namtha","oudomxay","bokeo","luang-prabang","houaphanh","sainyabuli","xiangkhouang","vientiane-province","bolikhamsai","khammouane","savannakhet","salavan","sekong","champasak","attapeu","xaisomboun"]',
+   'Lao PDR provinces, using the ids of src/data/laosAdministrativeDivisions.ts (shared with checkout addresses).')
 on conflict (key) do nothing;
 
 -- ─── Admin review tasks (unverified schools, ADMIN-003) ──────────────────────
@@ -322,7 +322,7 @@ begin
   end if;
 
   if p_input ? 'district_code' then
-    if p_input->>'district_code' is not null and p_input->>'district_code' !~ '^[A-Z0-9-]{1,8}$' then
+    if p_input->>'district_code' is not null and p_input->>'district_code' !~ '^[0-9]{1,2}-[0-9]{2}$' then
       perform public.academic_invalid('district_code', 'Unknown district');
     end if;
     v_out := v_out || jsonb_build_object('district_code', p_input->'district_code');

@@ -49,8 +49,8 @@ export const CONFIG_SQL = `
   from (values ('1', '${ID.calendar}'::uuid, date '2026-09-01'), ('2', '${ID.nextCalendar}'::uuid, date '2027-09-01')) as y(n, cal, start),
        generate_series(1, 9) as m(seq);
   insert into academic_schools (id, name_lo, romanised_name, province_code) values
-    ('${ID.school}', 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', 'Matthayom Thotlong', 'VT'),
-    ('${ID.school50}', 'ໂຮງຮຽນ ສາກົນ', 'Sakon International', 'LP');
+    ('${ID.school}', 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', 'Matthayom Thotlong', 'vientiane-prefecture'),
+    ('${ID.school50}', 'ໂຮງຮຽນ ສາກົນ', 'Sakon International', 'luang-prabang');
   update academic_schools set default_scale_id = '${ID.scale50}' where id = '${ID.school50}';
   insert into academic_subjects (id, code, name_lo, name_en, grade_min, grade_max, is_default) values
     ('${ID.math}', 'MATH', 'ຄະນິດສາດ', 'Mathematics', 10, 12, true),

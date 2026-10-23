@@ -12,7 +12,7 @@ const students = Array.from({ length: 5 }, (_, i) => `00000000-0000-0000-0000-00
 await ok(db, 'users', `insert into public.users (id, name, role) values ('${A}', 'A', 'CUSTOMER'), ('${B}', 'B', 'CUSTOMER'), ('${OPS}', 'Ops', 'OPERATIONS'),
   ${students.map((s, i) => `('${s}', 'S${i}', 'CUSTOMER')`).join(', ')}`)
 await ok(db, 'config', CONFIG_SQL)
-const profile = { display_name: 'S', age_band: '18_plus', province_code: 'VT', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
+const profile = { display_name: 'S', age_band: '18_plus', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
 for (const u of [A, B, ...students]) await rpc(u, `public.academic_create_profile(${json(profile)})`)
 await ok(db, 'fresh counters', `delete from academic_rate_counters; delete from academic_audit_events`)
 

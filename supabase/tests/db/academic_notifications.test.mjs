@@ -12,7 +12,7 @@ await ok(db, 'config', CONFIG_SQL)
 const setToday = (d) => db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '${d}' $$`)
 await setToday('2026-10-05')
 
-const profile = { display_name: 'S', age_band: '16_17', province_code: 'VT', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
+const profile = { display_name: 'S', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
 const a = await rpc(A, `public.academic_create_profile(${json(profile)})`)
 const b = await rpc(B, `public.academic_create_profile(${json(profile)})`)
 const c = await rpc(C, `public.academic_create_profile(${json(profile)})`)

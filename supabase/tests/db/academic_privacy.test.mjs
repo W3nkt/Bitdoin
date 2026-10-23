@@ -11,7 +11,7 @@ await ok(db, 'users', `insert into public.users (id, name) values ('${A}', 'A'),
 await ok(db, 'config', CONFIG_SQL)
 
 const onboard = (user) => rpc(user, `public.academic_create_profile(${json({
-  display_name: 'S', age_band: '18_plus', province_code: 'VT', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft',
+  display_name: 'S', age_band: '18_plus', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft',
 })})`)
 const a = await onboard(A)
 const b = await onboard(B)

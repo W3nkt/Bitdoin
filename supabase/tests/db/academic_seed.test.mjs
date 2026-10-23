@@ -32,7 +32,7 @@ eq('last period ends with the year', (await db.query(`select p.end_date = y.end_
 await ok(db, 'student can use seed', `
   insert into public.users (id, name) values ('00000000-0000-0000-0000-0000000000a1', 'S');
   insert into academic_student_profiles (id, user_id, display_name, age_band, province_code)
-    values ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'Noy', '16_17', 'VT');
+    values ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'Noy', '16_17', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_free_text, school_verification, grading_scale_version_id, calendar_template_id)
     values ('20000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', md5('bitdoin.academic.year.2026-2027')::uuid,
             md5('bitdoin.academic.grade.LA-5-4-3.G11')::uuid, 'My school', 'unverified_school',

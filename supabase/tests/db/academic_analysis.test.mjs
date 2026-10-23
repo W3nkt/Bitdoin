@@ -20,7 +20,7 @@ await db.exec(`create or replace function public.academic_today() returns date l
 
 const r2 = (v) => (v === null || v === undefined ? null : Math.round(Number(v) * 100) / 100)
 const onboard = (user, subjects, extra = {}) => rpc(user, `public.academic_create_profile(${json({
-  display_name: 'Noy', age_band: '16_17', province_code: 'VT', grade_id: ID.g11, school_id: ID.school,
+  display_name: 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school,
   notice_version: '2026-10-draft', subjects, ...extra,
 })})`)
 const subjectIds = async (enrolment) => Object.fromEntries((await db.query(`select coalesce(s.code, se.custom_name) as code, se.id

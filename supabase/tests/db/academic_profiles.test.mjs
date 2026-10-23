@@ -10,7 +10,7 @@ await ok(db, 'users', `insert into public.users (id, name) values ('${A}', 'A'),
 await ok(db, 'config', CONFIG_SQL)
 
 const valid = {
-  display_name: '  Noy  ', age_band: '16_17', province_code: 'VT', grade_id: ID.g11,
+  display_name: '  Noy  ', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11,
   school_id: ID.school, notice_version: '2026-10-draft',
 }
 const create = (user, input) => rpc(user, `public.academic_create_profile(${json(input)})`)
@@ -68,7 +68,7 @@ const b = await create(B, { ...valid, school_id: undefined, school_free_text: ' 
 const bEnr = await one(`select school_free_text, school_verification, grading_scale_version_id from academic_enrolments where id = '${b.enrolment_id}'`)
 eq('free-text school', bEnr, { school_free_text: 'Ban Nong School', school_verification: 'unverified_school', grading_scale_version_id: ID.scaleV1 })
 eq('review task created', await one(`select kind, status, payload from academic_review_tasks where enrolment_id = '${b.enrolment_id}'`),
-  { kind: 'unverified_school', status: 'open', payload: { school_free_text: 'Ban Nong School', province_code: 'VT' } })
+  { kind: 'unverified_school', status: 'open', payload: { school_free_text: 'Ban Nong School', province_code: 'vientiane-prefecture' } })
 eq('custom subjects kept', (await subjects(b.enrolment_id)).map((r) => r.name), ['MATH', 'Robotics'])
 eq('students cannot see review tasks', Number(await rpc(B, `(select count(*) from academic_review_tasks)`)), 0)
 
@@ -77,10 +77,10 @@ eq('students cannot see review tasks', Number(await rpc(B, `(select count(*) fro
 const v = profile.version
 eq('stale version -> 409', (await rpcError(A, `public.academic_update_profile(${v - 1}, ${json({ display_name: 'Nok' })})`))?.code, 'VERSION_CONFLICT')
 eq('unknown field', (await rpcError(A, `public.academic_update_profile(${v}, ${json({ user_id: B })})`))?.code, 'VALIDATION_FAILED')
-const upd = await rpc(A, `public.academic_update_profile(${v}, ${json({ display_name: 'Nok', district_code: 'VT-01', goals: null })})`)
+const upd = await rpc(A, `public.academic_update_profile(${v}, ${json({ display_name: 'Nok', district_code: '1-01', goals: null })})`)
 eq('updated + version bumped', upd.version, v + 1)
 eq('edit applied', await one(`select display_name, district_code, goals, province_code from academic_student_profiles where id = '${profile.id}'`),
-  { display_name: 'Nok', district_code: 'VT-01', goals: null, province_code: 'VT' })
+  { display_name: 'Nok', district_code: '1-01', goals: null, province_code: 'vientiane-prefecture' })
 
 // ─── Subjects (PROFILE-003, SCORE-013) ───────────────────────────────────────
 
@@ -161,7 +161,7 @@ const search = async (q, province = null) => (await db.exec(`begin; select set_c
   select id from public.academic_search_schools('${q}', ${province ? `'${province}'` : 'null'}); commit;`)).at(-2).rows.map((r) => r.id)
 eq('Lao search', await search('ທົດລອງ'), [ID.school])
 eq('romanised search, typo tolerant', await search('matayom thotlong'), [ID.school])
-eq('province filter', await search('sakon', 'VT'), [])
+eq('province filter', await search('sakon', 'vientiane-prefecture'), [])
 eq('short query returns nothing', await search('m'), [])
 await fails(db, 'anon cannot search', `set local role anon; select * from public.academic_search_schools('school')`, 'permission denied')
 

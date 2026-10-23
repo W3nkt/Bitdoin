@@ -15,7 +15,7 @@ await ok(db, 'users', `insert into public.users (id, name, role) values
 await ok(db, 'config', CONFIG_SQL)
 await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-11-15' $$`)
 
-const a = await rpc(A, `public.academic_create_profile(${json({ display_name: 'Noy', age_band: '16_17', province_code: 'VT', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' })})`)
+const a = await rpc(A, `public.academic_create_profile(${json({ display_name: 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' })})`)
 const lines = (await db.query(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}'`)).rows.map((r) => ({ subject_enrolment_id: r.id, status: 'scored', value: 7 }))
 await rpc(A, `public.academic_submit_score_entry('${a.enrolment_id}', '${period(2)}', ${json(lines)}, 'k1')`)
 
@@ -66,11 +66,11 @@ eq('existing enrolment keeps v1; new ones get v2', [(await one(`select grading_s
 // ─── Schools: merge and review tasks (ADMIN-003) ─────────────────────────────
 
 const DUP = '10000000-0000-0000-0000-0000000000c9'
-await ok(db, 'duplicate school', `insert into academic_schools (id, name_lo, province_code) values ('${DUP}', 'ໂຮງຮຽນ ທົດລອງ (ຊ້ຳ)', 'VT')`)
+await ok(db, 'duplicate school', `insert into academic_schools (id, name_lo, province_code) values ('${DUP}', 'ໂຮງຮຽນ ທົດລອງ (ຊ້ຳ)', 'vientiane-prefecture')`)
 // A closed enrolment at the duplicate school (transfer in the past).
 await ok(db, 'student on duplicate', `
   insert into public.users (id, name) values ('00000000-0000-0000-0000-0000000000b1', 'B');
-  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1', 'B', '18_plus', 'VT');
+  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b1', 'B', '18_plus', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_id, grading_scale_version_id, calendar_template_id)
     values ('30000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', '${ID.year}', '${ID.g11}', '${DUP}', '${ID.scaleV1}', '${ID.calendar}');
   update academic_enrolments set state = 'closed', closed_reason = 'left' where id = '30000000-0000-0000-0000-000000000002';
@@ -103,8 +103,8 @@ const cal = await rpc(ADM, `public.academic_admin_create_school_calendar('${ID.s
 const periods = (await db.query(`select period_type, sequence, label_en, start_date::text from academic_reporting_periods where calendar_template_id = '${cal}' order by period_type, sequence`)).rows
 eq('only overridden periods differ', [periods.length, periods.find((p) => p.sequence === 1 && p.period_type === 'monthly'), periods.find((p) => p.sequence === 2).label_en, periods.some((p) => p.sequence === 9)],
   [9, { period_type: 'monthly', sequence: 1, label_en: 'September (from 5th)', start_date: '2027-09-05' }, 'Month 2', false])
-eq('new enrolments at that school use it', (await one(`select public.academic_resolve_calendar('${ID.nextYear}', '${ID.school}', 'VT') as c`)).c, cal)
-eq('other schools keep national', (await one(`select public.academic_resolve_calendar('${ID.nextYear}', '${ID.school50}', 'LP') as c`)).c, ID.nextCalendar)
+eq('new enrolments at that school use it', (await one(`select public.academic_resolve_calendar('${ID.nextYear}', '${ID.school}', 'vientiane-prefecture') as c`)).c, cal)
+eq('other schools keep national', (await one(`select public.academic_resolve_calendar('${ID.nextYear}', '${ID.school50}', 'luang-prabang') as c`)).c, ID.nextCalendar)
 eq('one school calendar per year', (await rpcError(ADM, `public.academic_admin_create_school_calendar('${ID.school}', '${ID.nextYear}')`, mfa))?.code, 'CALENDAR_EXISTS')
 eq('periods with scores cannot be deleted', await write(ADM, `delete from academic_reporting_periods where id = '${period(2)}'`, mfa), 'update or delete on table "academic_reporting_periods" violates foreign key constraint "academic_score_entries_reporting_period_id_fkey" on table "academic_score_entries"')
 

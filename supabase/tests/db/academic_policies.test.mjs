@@ -19,13 +19,13 @@ await ok(db, 'fixtures', `
   insert into academic_grading_scale_versions (id, grading_scale_id, version, scale_family, min_value, max_value, step, decimals, normalisable, status, approved_at) values
     ('10000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000004', 1, 'numeric_linear', 0, 10, 0.5, 1, true, 'approved', now()),
     ('10000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000004', 2, 'numeric_linear', 0, 10, 1, 0, true, 'draft', null);
-  insert into academic_schools (id, name_lo, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ', 'VT');
+  insert into academic_schools (id, name_lo, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ', 'vientiane-prefecture');
   insert into academic_calendar_templates (id, name, academic_year_id, scope) values ('10000000-0000-0000-0000-00000000000a', 'Nat', '10000000-0000-0000-0000-000000000003', 'national');
   insert into academic_reporting_periods (id, calendar_template_id, period_type, sequence, label_lo, label_en, start_date, end_date) values ('10000000-0000-0000-0000-00000000000b', '10000000-0000-0000-0000-00000000000a', 'monthly', 1, 'ຕຸລາ', 'Oct', '2026-10-01', '2026-10-31');
   insert into academic_subjects (id, code, name_lo, name_en, grade_min, grade_max) values ('10000000-0000-0000-0000-00000000000d', 'MATH', 'ຄະນິດ', 'Math', 10, 12);
 `)
 const seedStudent = (n, user) => `
-  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('${n}0000000-0000-0000-0000-000000000001', '${user}', 'S${n}', '16_17', 'VT');
+  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('${n}0000000-0000-0000-0000-000000000001', '${user}', 'S${n}', '16_17', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_id, grading_scale_version_id, calendar_template_id)
     values ('${n}0000000-0000-0000-0000-000000000002', '${n}0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-00000000000a');
   insert into academic_subject_enrolments (id, enrolment_id, subject_id) values ('${n}0000000-0000-0000-0000-000000000003', '${n}0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-00000000000d');
@@ -98,7 +98,7 @@ await fails(db, 'anon cannot read config', `set local role anon; select * from a
 
 // Students cannot write their own records directly (RPCs only).
 const asUser = (user, sql) => `select set_config('request.jwt.claim.sub', '${user}', true); select set_config('request.jwt.claims', '{"aal":"aal2"}', true); set local role authenticated; ${sql}`
-await fails(db, 'student direct insert profile', asUser(G, `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${G}', 'G', '18_plus', 'VT')`), 'permission denied')
+await fails(db, 'student direct insert profile', asUser(G, `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${G}', 'G', '18_plus', 'vientiane-prefecture')`), 'permission denied')
 await fails(db, 'student direct update score', asUser(A, `update academic_score_lines set raw_value = 10 where id = '20000000-0000-0000-0000-000000000005'`), 'permission denied')
 await fails(db, 'student direct delete entry', asUser(A, `delete from academic_score_entries`), 'permission denied')
 await fails(db, 'student direct consent insert', asUser(A, `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('20000000-0000-0000-0000-000000000001', '${A}', 'student', 'push', 'v1', 'in_app_checkbox')`), 'permission denied')

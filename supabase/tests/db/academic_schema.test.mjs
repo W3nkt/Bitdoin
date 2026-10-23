@@ -24,7 +24,7 @@ await ok(db, 'config', `
     ('10000000-0000-0000-0000-000000000008', '10000000-0000-0000-0000-000000000004', 2, 'numeric_linear', 0, 10, 1, 0, 5, true, 'draft', null);
   insert into academic_grading_scale_versions (id, grading_scale_id, version, scale_family, ordinal_levels, status, approved_at) values
     ('10000000-0000-0000-0000-000000000017', '10000000-0000-0000-0000-000000000016', 1, 'ordinal', '[{"code":"C"},{"code":"B"},{"code":"A"}]', 'approved', now());
-  insert into academic_schools (id, name_lo, romanised_name, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', 'Hongherien Matthayom Thotlong', 'VT');
+  insert into academic_schools (id, name_lo, romanised_name, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', 'Hongherien Matthayom Thotlong', 'vientiane-prefecture');
   insert into academic_calendar_templates (id, name, academic_year_id, scope) values
     ('10000000-0000-0000-0000-00000000000a', 'National 2026-27', '10000000-0000-0000-0000-000000000003', 'national'),
     ('10000000-0000-0000-0000-00000000001a', 'National 2027-28', '10000000-0000-0000-0000-000000000013', 'national');
@@ -51,10 +51,10 @@ eq('school search hit', found.length, 1)
 // Profile and enrolment.
 const P = '20000000-0000-0000-0000-000000000001'
 const E = '20000000-0000-0000-0000-000000000002'
-await ok(db, 'profile', `insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('${P}', '${U}', 'Noy', '16_17', 'VT')`)
-await fails(db, 'second profile for user', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${U}', 'X', '16_17', 'VT')`, 'duplicate')
-await fails(db, 'under 13 not supported', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${ADMIN}', 'X', 'u13', 'VT')`, 'check')
-await fails(db, 'blank display name', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${ADMIN}', '  ', '18_plus', 'VT')`, 'check')
+await ok(db, 'profile', `insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('${P}', '${U}', 'Noy', '16_17', 'vientiane-prefecture')`)
+await fails(db, 'second profile for user', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${U}', 'X', '16_17', 'vientiane-prefecture')`, 'duplicate')
+await fails(db, 'under 13 not supported', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${ADMIN}', 'X', 'u13', 'vientiane-prefecture')`, 'check')
+await fails(db, 'blank display name', `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${ADMIN}', '  ', '18_plus', 'vientiane-prefecture')`, 'check')
 
 const enrol = (id, extra = {}) => {
   const f = {
@@ -107,7 +107,7 @@ await fails(db, 'duplicate current line', line(8), 'duplicate')
 
 // Subject from another enrolment is rejected.
 await ok(db, 'other user', `insert into public.users (id, name) values ('00000000-0000-0000-0000-00000000000c', 'Other');
-  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000c', 'Ola', '18_plus', 'VT');
+  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('30000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000c', 'Ola', '18_plus', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_id, grading_scale_version_id, calendar_template_id)
     values ('30000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000007', '10000000-0000-0000-0000-00000000000a');
   insert into academic_subject_enrolments (id, enrolment_id, subject_id) values ('30000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-00000000000d');

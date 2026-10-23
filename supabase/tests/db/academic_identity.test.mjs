@@ -56,14 +56,14 @@ await ok(db, 'config', `
   insert into academic_grading_scales (id, code, name_lo, name_en) values ('10000000-0000-0000-0000-000000000004', 'S1', 'ສ', 'S');
   insert into academic_grading_scale_versions (id, grading_scale_id, version, scale_family, min_value, max_value, step, decimals, normalisable, status, approved_at) values ('10000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000004', 1, 'numeric_linear', 0, 10, 0.5, 1, true, 'approved', now());
   insert into academic_calendar_templates (id, name, academic_year_id, scope) values ('10000000-0000-0000-0000-00000000000a', 'Nat', '10000000-0000-0000-0000-000000000003', 'national');
-  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('20000000-0000-0000-0000-000000000001', '${A}', 'Noy', '16_17', 'VT');`)
+  insert into academic_student_profiles (id, user_id, display_name, age_band, province_code) values ('20000000-0000-0000-0000-000000000001', '${A}', 'Noy', '16_17', 'vientiane-prefecture');`)
 s = await session(A)
 eq('profile without consent -> consent', [s.next_step, s.profile.display_name, s.consent.module_processing], ['consent', 'Noy', false])
 eq('write without consent -> 403', await errorOf(A, `select public.academic_require_profile(true)`, 'postgres'), { code: 'CONSENT_REQUIRED', sqlstate: 'PT403' })
 
 await ok(db, 'consent', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('20000000-0000-0000-0000-000000000001', '${A}', 'student', 'module_processing', '2026-10-draft', 'in_app_checkbox')`)
 eq('consent but no enrolment -> new_school_year', (await session(A)).next_step, 'new_school_year')
-await ok(db, 'enrolment', `insert into academic_schools (id, name_lo, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ', 'VT');
+await ok(db, 'enrolment', `insert into academic_schools (id, name_lo, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_id, grading_scale_version_id, calendar_template_id)
   values ('20000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-00000000000a')`)
 s = await session(A)
