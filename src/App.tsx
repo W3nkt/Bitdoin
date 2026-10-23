@@ -51,6 +51,7 @@ const PlatformSelector = lazy(() => import('@/pages/PlatformSelector').then(m =>
 const AcademyLanding = lazy(() => import('@/pages/academy/AcademyLanding').then(m => ({ default: m.AcademyLanding })))
 const AcademyProfile = lazy(() => import('@/pages/academy/AcademyProfile').then(m => ({ default: m.AcademyProfile })))
 const CareerExplorer = lazy(() => import('@/pages/academy/CareerExplorer').then(m => ({ default: m.CareerExplorer })))
+const MyScores = lazy(() => import('@/pages/academy/MyScores').then(m => ({ default: m.MyScores })))
 const TopCornerLab = lazy(() => import('@/pages/academy/TopCornerLab').then(m => ({ default: m.TopCornerLab })))
 
 // Admin pages
@@ -200,6 +201,7 @@ export function App() {
                     <Route path="/academy/prompts" element={<PromptLibraryPage />} />
                     <Route path="/academy/profile" element={<AcademyProfile />} />
                     <Route path="/academy/careers" element={<CareerExplorer />} />
+                    <Route path="/academy/scores" element={<MyScores />} />
                     <Route path="/academy/top-corner-lab" element={<TopCornerLab />} />
 
                     {/* Legacy route compatibility */}

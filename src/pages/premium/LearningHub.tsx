@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
 import { careerPaths } from '@/data/careerPaths'
+import { useAcademicSession } from '@/lib/academic/session'
 
 // Legacy sections carry a single "body" string. Full-depth summaries instead
 // use an ordered "blocks" list, so a section can mix paragraphs, bullet
@@ -347,6 +348,7 @@ export function LearningHub() {
   const { categories, lessons, progress, access } = useLearningData()
   const lo = language === 'lo'
   const completedIds = new Set((progress.data ?? []).filter(item => item.completed_at).map(item => item.lesson_id))
+  const academicSession = useAcademicSession()
   const promptCatalogCount = useQuery({
     queryKey: ['premium', 'prompt-library-count'],
     queryFn: async () => {
@@ -396,6 +398,7 @@ export function LearningHub() {
           isPremium={access.isLoading ? null : Boolean(access.data)}
           careersCount={careerPaths.length}
           promptCount={promptCatalogCount.data}
+          showMyScores={Boolean(academicSession.data?.module_enabled)}
         />
       </main>
     </LearningShell>

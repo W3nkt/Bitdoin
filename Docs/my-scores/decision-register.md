@@ -13,7 +13,8 @@ draft recommendation as a proposal, not an approval.
 | OD-13a | Four-eyes approval | Scale versions record creator and approver. Requiring a different approver is the setting `scale_four_eyes_required`, off until there are two or more content admins. | Owner | 2026-10-23 |
 | OD-01c | Student-data reads | Supersedes the read half of OD-01a: student records are read only through RPCs (rate-limited, denials audited). Direct SELECT on student tables is revoked; RLS policies remain as a backstop. Configuration tables stay directly readable. | Owner | 2026-10-23 |
 | OD-02 | MVP grade scope and platform | Open. Draft: Grades 10–12, responsive web/PWA. The schema supports any grade. | — | — |
-| OD-04 | Navigation, routes, digits | Open. Draft: "My Scores" in Academy nav, Arabic digits. | — | — |
+| OD-04 | Navigation and routes | Route `/academy/scores`. Entry points: a 4th Learning Hub "My space" tile and a link on `/academy/profile`, both shown only while the module is enabled for the user. Arabic digits on screen; Lao digits accepted on input. | Owner | 2026-10-23 |
+| UX-005 (interim) | Lao copy | Draft Lao strings are written now and kept in `src/lib/academic/copy.ts` (UI) and `send-push/messages.ts` (push) for one native-educator review before launch. | Owner | 2026-10-23 |
 | OD-13 | Admin MFA | Open. No MFA exists today (discovery D5). | — | — |
 | OD-16 | Retention periods | Open; waits for counsel. | — | — |
 | OD-03, 05, 06, 08–12, 14, 15, 17–20 | Later-phase decisions | Open; each is due at the phase the PRD states. | — | — |

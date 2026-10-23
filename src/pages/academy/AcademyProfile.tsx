@@ -1,4 +1,4 @@
-import { ArrowLeft, Brain, CreditCard, GraduationCap, Target, UserRound } from 'lucide-react'
+import { ArrowLeft, Brain, ClipboardList, CreditCard, GraduationCap, Target, UserRound } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
@@ -6,11 +6,13 @@ import { TelegramReminderCard } from '@/components/premium/TelegramReminderCard'
 import { PushNotificationCard } from '@/components/notifications/PushNotificationCard'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
+import { useAcademicSession } from '@/lib/academic/session'
 
 export function AcademyProfile() {
   const { profile, loading } = useAuth()
   const { language } = useLanguage()
   const navigate = useNavigate()
+  const academicSession = useAcademicSession()
   const lo = language === 'lo'
   if (loading) return null
   if (!profile) return <Navigate to="/auth" replace />
@@ -33,6 +35,7 @@ export function AcademyProfile() {
         <nav className="mt-8 border-t border-slate-200 dark:border-slate-700">
           <ProfileLink to="/academy/learn" icon={OpenBook} title={lo ? 'ການຮຽນຂອງຂ້ອຍ' : 'My learning'} />
           <ProfileLink to="/academy/progress" icon={Target} title={lo ? 'ຄວາມຄືບໜ້າ' : 'Progress and achievements'} />
+          {academicSession.data?.module_enabled && <ProfileLink to="/academy/scores" icon={ClipboardList} title={lo ? 'ຄະແນນຂອງຂ້ອຍ' : 'My Scores'} />}
           <ProfileLink to="/academy/coach" icon={Brain} title={lo ? 'AI Coach' : 'AI Coach conversations'} />
           <ProfileLink to="/academy/subscription" icon={CreditCard} title={lo ? 'ສະມາຊິກ ແລະ ການຈ່າຍ' : 'Membership and billing'} />
         </nav>
