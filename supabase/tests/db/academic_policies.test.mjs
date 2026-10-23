@@ -58,6 +58,11 @@ async function visible(user, role) {
 }
 const all = (n) => Object.fromEntries(STUDENT_TABLES.map((t) => [t, n]))
 
+// Student data is RPC-only (OD-01c): direct reads are refused outright.
+await fails(db, 'direct reads revoked', `select set_config('request.jwt.claim.sub', '${A}', true); set local role authenticated; select * from academic_score_lines`, 'permission denied')
+// Re-grant here only, to prove the RLS policies still hold as a backstop.
+await ok(db, 'grant for backstop tests', STUDENT_TABLES.map((t) => `grant select on ${t} to authenticated;`).join(' '))
+
 const setFlag = (on) => db.exec(`update academic_settings set value = '${on}' where key = 'my_scores_enabled'`)
 
 // Module off: even owners see nothing; admins still can (for their own testing).

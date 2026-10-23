@@ -90,8 +90,11 @@ eq('reverting to the same inputs reuses nothing stale', r2((await dashboard(A)).
 
 // Snapshot rows: owner only.
 const asUser = async (user, sql) => (await db.exec(`begin; select set_config('request.jwt.claim.sub', '${user}', true); set local role authenticated; ${sql}; commit;`)).at(-2).rows
-eq('owner reads own snapshots', (await asUser(A, `select count(*)::int as n from academic_analysis_snapshots`))[0].n, 7)
-eq('others read none', (await asUser(B, `select count(*)::int as n from academic_analysis_snapshots`))[0].n, 0)
+await fails(db, 'snapshots are RPC-only (OD-01c)', `select set_config('request.jwt.claim.sub', '${A}', true); set local role authenticated; select * from academic_analysis_snapshots`, 'permission denied')
+await ok(db, 'grant for backstop test', `grant select on academic_analysis_snapshots to authenticated`)
+eq('RLS backstop: owner reads own snapshots', (await asUser(A, `select count(*)::int as n from academic_analysis_snapshots`))[0].n, 7)
+eq('RLS backstop: others read none', (await asUser(B, `select count(*)::int as n from academic_analysis_snapshots`))[0].n, 0)
+await ok(db, 'revoke again', `revoke select on academic_analysis_snapshots from authenticated`)
 eq('no profile -> 404', (await rpcError(C, `public.academic_get_dashboard()`))?.code, 'PROFILE_REQUIRED')
 
 // ─── C4: only three months ───────────────────────────────────────────────────

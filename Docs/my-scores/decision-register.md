@@ -21,7 +21,8 @@ draft recommendation as a proposal, not an approval.
 ## Implementation notes (not owner decisions)
 
 - **Error contract over PostgREST** (migration 111): RPCs raise SQLSTATE `PT<status>` with the code as the message. Denied object access returns `{"error":{"code":"NOT_FOUND","status":404}}` as data, so the `access_denied` audit event is committed rather than rolled back. `src/lib/academic/errors.ts` maps both into `AcademicError`.
-- **AUTH-002 coverage gap:** direct RLS table reads of another student's ID return an empty result (safe, 404-equivalent) but cannot write an audit event. Every object-by-ID access that must be audited goes through an RPC; SEC-002 should test both paths.
+- **AUTH-002 coverage:** closed by OD-01c (migration 117). Student data is read only through RPCs, so every denied by-ID access writes an `access_denied` event. RLS policies remain as a backstop and are tested separately.
+- **Rate limits** (migration 117): counted per user in the database on every RPC (read 120/min, write 30/min; `rate_limits` setting). Supabase Auth and Storage keep their own platform limits; PostgREST itself has no per-user limiter.
 
 ## Calculation decisions (BE-004)
 

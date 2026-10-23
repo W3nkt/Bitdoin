@@ -180,8 +180,8 @@ const rls = await ok(db, 'rls', `select c.relname from pg_class c join pg_namesp
 eq('every academic table has RLS', rls, [])
 const anon = await ok(db, 'anon grants', `select table_name from information_schema.role_table_grants where grantee = 'anon' and table_name like 'academic\\_%'`)
 eq('anon has no grants', anon, [])
-await ok(db, 'authenticated sees nothing', `begin; set local role authenticated; select set_config('request.jwt.claim.sub', '${U}', true);
-  create temp table seen as select count(*)::int as n from academic_student_profiles; commit;`)
+await fails(db, 'no direct reads of student tables (OD-01c)', `set local role authenticated; select set_config('request.jwt.claim.sub', '${U}', true);
+  select count(*) from academic_student_profiles`, 'permission denied')
 
 // Deleting the account removes the student's data but keeps consent evidence.
 await ok(db, 'delete user', `delete from public.users where id = '${U}'`)
