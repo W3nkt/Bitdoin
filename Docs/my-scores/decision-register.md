@@ -20,12 +20,15 @@ draft recommendation as a proposal, not an approval.
 - **Error contract over PostgREST** (migration 111): RPCs raise SQLSTATE `PT<status>` with the code as the message. Denied object access returns `{"error":{"code":"NOT_FOUND","status":404}}` as data, so the `access_denied` audit event is committed rather than rolled back. `src/lib/academic/errors.ts` maps both into `AcademicError`.
 - **AUTH-002 coverage gap:** direct RLS table reads of another student's ID return an empty result (safe, 404-equivalent) but cannot write an audit event. Every object-by-ID access that must be audited goes through an RPC; SEC-002 should test both paths.
 
-## Calculation contradictions (needed before BE-004 golden fixtures)
+## Calculation decisions (BE-004)
 
-Open:
-1. "About the same" band: §19.3 says half a display unit, §20.3 says 0.25.
-2. A six-period window cannot reach the eight observations required for high trend confidence.
-3. §20.8 filters valid means, but F2 describes the last six submitted periods.
+| ID | Topic | Decision | Owner | Date |
+|----|-------|----------|-------|------|
+| CALC-1 | "About the same" band (§19.3 vs §20.3) | A change counts as "about the same" when \|Δ\| < 0.25 points on a 0–10 scale, scaled by (max − min)/10 for other scales. Versioned in the analysis config. | Owner | 2026-10-23 |
+| CALC-2 | F2 window (§20.8 vs F2) | Subject means use the last 6 **submitted** monthly periods of the enrolment, including periods whose overall mean is hidden for low coverage. | Owner | 2026-10-23 |
+| CALC-3 | F3/F4 comparison period | Changes compare with the last earlier **valid** period (for F4: the last earlier period with a value for that subject). The response says which period was used and whether months were skipped. | Owner | 2026-10-23 |
+
+Still open (Phase 2, P2-ANL): a six-period window cannot reach the eight observations that §20.6 requires for high trend confidence.
 
 ## Other open reconciliations
 

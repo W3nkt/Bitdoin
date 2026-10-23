@@ -686,6 +686,20 @@ $$;
 
 -- ─── Subject changes (PROFILE-003, SCORE-013) ────────────────────────────────
 
+-- Called whenever submitted scores or the subject list of an enrolment
+-- change. A no-op here; the analysis engine (migration 115) replaces it.
+create or replace function public.academic_on_scores_changed(p_enrolment_id uuid)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  return;
+end;
+$$;
+
 -- p_effective_period_seq: first period the change applies to (default: the
 -- current month). Dropped subjects keep earlier scores.
 create or replace function public.academic_set_subjects(
@@ -719,6 +733,7 @@ begin
     coalesce(p_effective_period_seq, public.academic_current_period_seq(v_enrolment.calendar_template_id))
   );
   perform public.academic_apply_subjects(v_enrolment.id, p_subjects, v_seq);
+  perform public.academic_on_scores_changed(v_enrolment.id);
   perform public.academic_audit('enrolment.subjects', 'enrolment', v_enrolment.id, v_profile.id);
 
   return jsonb_build_object('enrolment_id', v_enrolment.id, 'subjects', public.academic_subjects_json(v_enrolment.id));
@@ -956,6 +971,7 @@ revoke all on function public.academic_clean_profile_fields(jsonb, boolean) from
 revoke all on function public.academic_default_subject_items(uuid) from public, anon, authenticated;
 revoke all on function public.academic_apply_subjects(uuid, jsonb, smallint) from public, anon, authenticated;
 revoke all on function public.academic_subjects_json(uuid) from public, anon, authenticated;
+revoke all on function public.academic_on_scores_changed(uuid) from public, anon, authenticated;
 revoke all on function public.academic_open_enrolment(public.academic_student_profiles, uuid, uuid, jsonb, smallint, boolean, jsonb) from public, anon, authenticated;
 
 revoke all on function public.academic_create_profile(jsonb) from public, anon;

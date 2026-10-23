@@ -561,6 +561,7 @@ begin
   set state = 'submitted', submitted_at = now(), source = 'manual', idempotency_key = v_key
   where id = v_entry.id;
 
+  perform public.academic_on_scores_changed((v_found.enrolment).id);
   perform public.academic_audit('score_entry.submit', 'score_entry', v_entry.id, v_profile.id);
   return public.academic_entry_json(v_found.enrolment, v_found.period) || jsonb_build_object('replayed', false);
 end;
@@ -634,6 +635,7 @@ begin
     -- Same value as before: nothing to record.
     select * into v_line from public.academic_score_lines where id = p_line_id;
   else
+    perform public.academic_on_scores_changed(v_enrolment.id);
     perform public.academic_audit('score_line.correct', 'score_line', v_line.id, v_profile.id);
   end if;
   return public.academic_line_json(v_line);
