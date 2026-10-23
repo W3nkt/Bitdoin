@@ -1,6 +1,6 @@
-import { createDb, ok, fails, eq, done, readSupabaseFile } from './harness.mjs'
+import { createDb, ok, fails, eq, done, readSupabaseFile, ACADEMIC_MIGRATIONS } from './harness.mjs'
 
-const db = await createDb(['109_academic_module_schema.sql', '110_academic_access_policies.sql'])
+const db = await createDb(ACADEMIC_MIGRATIONS)
 const seed = readSupabaseFile('seeds/academic_draft_seed.sql')
 
 await fails(db, 'refuses without opt-in', seed, 'unverified')

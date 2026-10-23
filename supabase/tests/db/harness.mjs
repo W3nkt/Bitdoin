@@ -1,12 +1,15 @@
 import { PGlite } from '@electric-sql/pglite'
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 export const SUPABASE = join(here, '..', '..')
 export const MIGRATIONS = join(SUPABASE, 'migrations')
+
+// Every My Scores migration, in order.
+export const ACADEMIC_MIGRATIONS = readdirSync(MIGRATIONS).filter((f) => /^\d+_academic_.*\.sql$/.test(f)).sort()
 
 export const readSupabaseFile = (path) => readFileSync(join(SUPABASE, path), 'utf8')
 
@@ -33,6 +36,7 @@ export async function ok(db, name, sql) {
     passes++
     return r.at(-1)?.rows ?? []
   } catch (e) {
+    await db.exec('rollback').catch(() => {})
     failures++
     console.error(`FAIL ${name}: expected success, got: ${e.message}`)
     return []

@@ -1,6 +1,6 @@
-import { createDb, ok, fails, eq, done } from './harness.mjs'
+import { createDb, ok, fails, eq, done, ACADEMIC_MIGRATIONS } from './harness.mjs'
 
-const db = await createDb(['109_academic_module_schema.sql', '110_academic_access_policies.sql'])
+const db = await createDb(ACADEMIC_MIGRATIONS)
 
 const A = '00000000-0000-0000-0000-0000000000a1' // student A
 const B = '00000000-0000-0000-0000-0000000000b1' // student B
@@ -113,7 +113,8 @@ await fails(db, 'admin still bound by scale immutability', asUser(ADM, `update a
 await fails(db, 'admin cannot delete period with scores', asUser(ADM, `delete from academic_reporting_periods where id = '10000000-0000-0000-0000-00000000000b'`), 'foreign key')
 
 // Audit log.
-eq('admin reads all audit events', (await as(ADM, `select count(*)::int as n from academic_audit_events`))[0].n, 3)
+// 3 seeded events + the admin's audited subject insert.
+eq('admin reads all audit events', (await as(ADM, `select count(*)::int as n from academic_audit_events`))[0].n, 4)
 eq('operations reads own actions only', (await as(OPS, `select actor_user_id from academic_audit_events`)).map((r) => r.actor_user_id), [OPS])
 eq('student reads no audit events', (await as(A, `select count(*)::int as n from academic_audit_events`))[0].n, 0)
 

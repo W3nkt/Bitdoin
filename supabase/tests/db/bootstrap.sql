@@ -19,7 +19,11 @@ create type user_role as enum ('CUSTOMER', 'ADMIN', 'OPERATIONS', 'FINANCE');
 create table public.users (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  phone text unique,
+  email text unique,
   role user_role not null default 'CUSTOMER',
+  language text not null default 'lo',
+  currency text not null default 'LAK',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

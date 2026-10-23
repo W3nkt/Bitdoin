@@ -1,6 +1,6 @@
-import { createDb, ok, fails, eq, done } from './harness.mjs'
+import { createDb, ok, fails, eq, done, ACADEMIC_MIGRATIONS } from './harness.mjs'
 
-const db = await createDb(['109_academic_module_schema.sql'])
+const db = await createDb(ACADEMIC_MIGRATIONS)
 
 const U = '00000000-0000-0000-0000-00000000000a'
 const ADMIN = '00000000-0000-0000-0000-00000000000b'
@@ -171,7 +171,7 @@ await ok(db, 'consent again after withdrawal', `insert into academic_consent_rec
 // Audit events.
 await ok(db, 'audit', `insert into academic_audit_events (actor_user_id, actor_role, action, target_type, target_id, student_profile_id) values ('${U}', 'student', 'score_entry.submit', 'score_entry', '${SC}', '${P}')`)
 await fails(db, 'audit update', `update academic_audit_events set outcome = 'denied'`, 'append-only')
-await ok(db, 'audit delete as user is a no-op', `begin; select set_config('request.jwt.claim.role', 'authenticated', true); set local role authenticated; delete from academic_audit_events; commit;`)
+await fails(db, 'audit delete as user', `select set_config('request.jwt.claim.role', 'authenticated', true); set local role authenticated; delete from academic_audit_events`, 'permission denied')
 eq('audit row survives', (await ok(db, 'audit count', `select count(*)::int as n from academic_audit_events`))[0].n, 1)
 
 // RLS is on for every module table and anon has no privileges.
