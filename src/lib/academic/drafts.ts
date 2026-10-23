@@ -1,4 +1,5 @@
-// Offline drafts and the submission queue for score entry (SCORE-005).
+// Offline drafts, the submission queue (SCORE-005) and the last loaded
+// dashboard for offline viewing (DASH-006).
 //
 // Stored in IndexedDB, scoped to the signed-in account: every key starts
 // with the user id, records of other accounts are purged when the module
@@ -9,7 +10,7 @@
 import type { LineStatus } from './scoreInput'
 
 export const DRAFT_DB_NAME = 'bitdoin-my-scores'
-const VERSION = 1
+const VERSION = 2
 
 export interface DraftLine {
   status: LineStatus | null
@@ -39,7 +40,14 @@ export interface QueuedSubmit {
 
 export const draftKey = (userId: string, enrolmentId: string, periodId: string) => `${userId}:${enrolmentId}:${periodId}`
 
-const memory = { drafts: new Map<string, LocalDraft>(), queue: new Map<string, QueuedSubmit>() }
+export interface CachedValue<T = unknown> {
+  key: string
+  userId: string
+  value: T
+  savedAt: number
+}
+
+const memory = { drafts: new Map<string, LocalDraft>(), queue: new Map<string, QueuedSubmit>(), cache: new Map<string, CachedValue>() }
 let opening: Promise<IDBDatabase | null> | null = null
 
 function open(): Promise<IDBDatabase | null> {
@@ -52,6 +60,8 @@ function open(): Promise<IDBDatabase | null> {
         const db = request.result
         if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', { keyPath: 'key' })
         if (!db.objectStoreNames.contains('queue')) db.createObjectStore('queue', { keyPath: 'key' })
+        // v2: last loaded read models (dashboard) for offline viewing.
+        if (!db.objectStoreNames.contains('cache')) db.createObjectStore('cache', { keyPath: 'key' })
       }
       request.onsuccess = () => {
         const db = request.result
@@ -68,7 +78,7 @@ function open(): Promise<IDBDatabase | null> {
   return opening
 }
 
-type StoreName = 'drafts' | 'queue'
+type StoreName = 'drafts' | 'queue' | 'cache'
 
 async function run<T>(store: StoreName, mode: IDBTransactionMode, action: (objects: IDBObjectStore) => IDBRequest<T>): Promise<T | undefined> {
   const db = await open()
@@ -117,9 +127,19 @@ export async function queuedSubmits(userId: string) {
   return (await all<QueuedSubmit>('queue')).filter(item => item.userId === userId)
 }
 
+export async function saveCached<T>(entry: CachedValue<T>) {
+  memory.cache.set(entry.key, entry)
+  await run('cache', 'readwrite', objects => objects.put(entry))
+}
+
+export async function loadCached<T>(key: string, userId: string): Promise<CachedValue<T> | undefined> {
+  const entry = (await run<CachedValue<T>>('cache', 'readonly', objects => objects.get(key))) ?? (memory.cache.get(key) as CachedValue<T> | undefined)
+  return entry?.userId === userId ? entry : undefined
+}
+
 /** Removes anything that belongs to another account on this device. */
 export async function purgeOtherAccounts(userId: string) {
-  for (const store of ['drafts', 'queue'] as const) {
+  for (const store of ['drafts', 'queue', 'cache'] as const) {
     for (const row of await all<{ key: string; userId: string }>(store)) {
       if (row.userId !== userId) {
         memory[store].delete(row.key)
@@ -133,6 +153,7 @@ export async function purgeOtherAccounts(userId: string) {
 export function clearAllDrafts() {
   memory.drafts.clear()
   memory.queue.clear()
+  memory.cache.clear()
   opening = null
   try {
     if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase(DRAFT_DB_NAME)

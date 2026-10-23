@@ -327,3 +327,82 @@ export function useLineRevisions(lineId: string | null) {
     queryFn: () => callAcademicRpc<{ score_line_id: string; revisions: Revision[] }>('academic_get_line_revisions', { p_line_id: lineId }),
   })
 }
+
+// ─── Dashboard (BE-004 snapshot, FE-005) ─────────────────────────────────────
+
+export type Direction = 'up' | 'down' | 'same'
+export interface Change { value: number; direction: Direction; compared_period_id: string; skipped_periods?: number }
+
+export interface DashboardPeriod {
+  period_id: string
+  sequence: number
+  key: string
+  label_lo: string
+  label_en: string
+  recorded: number
+  active: number
+  missing: number
+  coverage: number | null
+  mean: number | null
+  change: Change | null
+  rolling_mean: number | null
+}
+
+export interface DashboardSubject {
+  subject_enrolment_id: string
+  code: string | null
+  name_lo: string
+  name_en: string
+  display_order: number
+  active: boolean
+  series: { period_id: string; sequence: number; status: EntryLine['status']; value: number | string | null }[]
+  window_n: number
+  mean: number | null
+  latest: { period_id: string; sequence: number; status: EntryLine['status']; value: number | string | null } | null
+  change: Change | null
+}
+
+export interface DashboardView {
+  snapshot_id: string
+  snapshot_created_at: string
+  enrolment: {
+    id: string; academic_year: string; state: 'active' | 'closed'; read_only: boolean
+    grade: { code: string; label_lo: string; label_en: string }
+    school: { name_lo: string | null; name_en: string | null; verification: string }
+    closed_reason: string | null; start_period_seq: number; end_period_seq: number | null
+  }
+  engine_version: string
+  numeric: boolean
+  scale: ScoreEntryView['scale']
+  about_same_band: number
+  periods: DashboardPeriod[]
+  subjects: DashboardSubject[]
+  summary: { latest_period_id: string; mean: number | null; coverage: { recorded: number; active: number }; missing: number; change: Change | null; rolling_mean: number | null } | null
+  /** Set when shown from this device's cache because the network failed. */
+  stale_since?: number
+}
+
+/**
+ * The current analysis snapshot. When the network fails, the last copy
+ * loaded on this device (same account) is returned with stale_since.
+ */
+export function useDashboard(userId: string, enrolmentId: string | null) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'dashboard', enrolmentId],
+    retry: shouldRetryAcademic,
+    queryFn: async (): Promise<DashboardView> => {
+      const cacheKey = `${userId}:dashboard:${enrolmentId ?? 'current'}`
+      const { loadCached, saveCached } = await import('./drafts')
+      try {
+        const view = await callAcademicRpc<DashboardView>('academic_get_dashboard', { p_enrolment_id: enrolmentId })
+        void saveCached({ key: cacheKey, userId, value: view, savedAt: Date.now() })
+        return view
+      } catch (error) {
+        const offline = !navigator.onLine || (error instanceof Error && 'code' in error && (error as { code: string }).code === 'UNKNOWN')
+        const cached = offline ? await loadCached<DashboardView>(cacheKey, userId) : undefined
+        if (cached) return { ...cached.value, stale_since: cached.savedAt }
+        throw error
+      }
+    },
+  })
+}

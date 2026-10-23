@@ -95,6 +95,7 @@ function backend(initial) {
       return { id: args.p_line_id, ...line }
     },
     academic_get_line_revisions: (args) => ({ score_line_id: args.p_line_id, revisions: [...state.revisions].reverse() }),
+    academic_get_dashboard: () => state.dashboard ?? emptyDashboard(),
   }
   state.entries ??= {}
   state.revisions = []
@@ -155,6 +156,49 @@ function backend(initial) {
     return json(single ? rows[0] ?? null : rows)
   }
   return { state, handle }
+}
+
+const SCALE_10 = { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null }
+const ENROLMENT = { id: 'e1', academic_year: '2026-2027', state: 'active', read_only: false, grade: { code: 'G11', label_lo: 'ມ.6', label_en: 'Grade 11' }, school: { name_lo: 'ໂຮງຮຽນ', name_en: 'School', verification: 'verified' }, closed_reason: null, start_period_seq: 1, end_period_seq: null }
+
+function emptyDashboard() {
+  return { snapshot_id: 's0', snapshot_created_at: '2026-10-23T00:00:00Z', enrolment: ENROLMENT, engine_version: 'f1-f5@1.0.0', numeric: true, scale: SCALE_10, about_same_band: 0.25, periods: [], subjects: [], summary: null }
+}
+
+/** PRD §20.9 worked example as the engine returns it (values recomputed independently). */
+function workedExampleDashboard() {
+  const months = ['September', 'October', 'November', 'December', 'January', 'February']
+  const monthsLo = ['ກັນຍາ', 'ຕຸລາ', 'ພະຈິກ', 'ທັນວາ', 'ມັງກອນ', 'ກຸມພາ']
+  const table = {
+    MATH: ['ຄະນິດສາດ', 'Mathematics', [6, 7, 6.5, 5.5, 5, 5.5], 5.9167],
+    PHYS: ['ຟີຊິກສາດ', 'Physics', [7, 6, 6.5, 6, null, 6], 6.3],
+    CHEM: ['ເຄມີສາດ', 'Chemistry', [7.5, 8, 8, 8.5, 8, 8.5], 8.0833],
+    BIO: ['ຊີວະສາດ', 'Biology', [8.5, 9, 8.5, 9, 9, 9.5], 8.9167],
+    LAO: ['ພາສາລາວ', 'Lao Language', [8, 8, 7.5, 8, 8, 8], 7.9167],
+    ENG: ['ພາສາອັງກິດ', 'English', [6, 7, 5, 8, 6, 7.5], 6.5833],
+  }
+  const means = [7.1667, 7.5, 7.0, 7.5, 7.2, 7.5]
+  const rolling = [null, null, 7.2222, 7.3333, 7.2333, 7.4]
+  const periods = months.map((label_en, i) => ({
+    period_id: `p${i + 1}`, sequence: i + 1, key: `2026-${9 + i}`, label_lo: monthsLo[i], label_en,
+    recorded: i === 4 ? 5 : 6, active: 6, missing: i === 4 ? 1 : 0, coverage: i === 4 ? 0.8333 : 1, mean: means[i],
+    change: i === 0 ? null : { value: means[i] - means[i - 1], direction: Math.abs(means[i] - means[i - 1]) < 0.25 ? 'same' : means[i] > means[i - 1] ? 'up' : 'down', compared_period_id: `p${i}`, skipped_periods: 0 },
+    rolling_mean: rolling[i],
+  }))
+  const subjects = Object.entries(table).map(([code, [name_lo, name_en, values, mean]], index) => {
+    const series = values.map((value, i) => ({ period_id: `p${i + 1}`, sequence: i + 1, status: value === null ? 'missing' : 'scored', value }))
+    const prior = [...values.slice(0, 5)].reverse().find(value => value !== null)
+    const change = values[5] - prior
+    return {
+      subject_enrolment_id: `se-${code.toLowerCase()}`, code, name_lo, name_en, display_order: index, active: true, series,
+      window_n: values.filter(value => value !== null).length, mean, latest: series[5],
+      change: { value: change, direction: Math.abs(change) < 0.25 ? 'same' : change > 0 ? 'up' : 'down', compared_period_id: values[4] === null ? 'p4' : 'p5' },
+    }
+  })
+  return {
+    ...emptyDashboard(), snapshot_id: 's1', periods, subjects,
+    summary: { latest_period_id: 'p6', mean: 7.5, coverage: { recorded: 6, active: 6 }, missing: 0, change: periods[5].change, rolling_mean: 7.4 },
+  }
 }
 
 // Only the preview server and the mocked Supabase are reachable.
@@ -514,6 +558,97 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Shared phone: drafts of another account are purged when My Scores opens')
+  }
+
+  // ─── Dashboard (FE-005) ───────────────────────────────────────────────────
+
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    // Empty state before the first month.
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'Add your first month' }).waitFor()
+
+    mock.state.dashboard = workedExampleDashboard()
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.getByText('Up 0.3 since January').waitFor()
+    const summary = await page.locator('section').first().innerText()
+    assert.match(summary, /February · 2026-2027/)
+    assert.match(summary, /7\.5\s*\/ 10/)
+    assert.match(summary, /6 of 6 subjects recorded/)
+    // Trend: 6 points, rolling line present, gaps none here.
+    assert.equal(await page.locator('.recharts-line').count(), 2, 'average + 3-month average lines')
+    assert.equal(await page.locator('.recharts-line-dots circle').count(), 6)
+    // Latest month bars sorted by score, values labelled.
+    const barLabels = await page.locator('.recharts-bar .recharts-label').evaluateAll(els => els.map(el => el.textContent))
+    assert.deepEqual(barLabels, ['9.5', '8.5', '8', '7.5', '6', '5.5'])
+    const yTicks = await page.locator('.recharts-yAxis .recharts-cartesian-axis-tick-value').evaluateAll(els => els.map(el => el.textContent))
+    assert.deepEqual(yTicks.slice(-6), ['Biology', 'Chemistry', 'Lao Language', 'English', 'Physics', 'Mathematics'])
+    await shot(page, 'my-scores-15-dashboard-en-mobile')
+
+    // Table view of the trend (DASH-008).
+    await page.getByRole('button', { name: 'View as table' }).first().click()
+    const rows = await page.locator('table').first().locator('tbody tr').allInnerTexts()
+    assert.equal(rows.length, 6)
+    assert.match(rows[0], /September\s+7\.2\s+—\s+6\/6/)
+    assert.match(rows[4], /January\s+7\.2\s+7\.2\s+5\/6/)
+    await page.getByRole('button', { name: 'View as chart' }).click()
+
+    // Accessibility: no serious or critical axe violations.
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    const axe = await page.evaluate(async () => {
+      const result = await window.axe.run(document, { resultTypes: ['violations'] })
+      return result.violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => `${v.id}: ${v.nodes.map(n => `${n.target.join(' ')} [${n.any?.[0]?.message ?? ''}] ${n.html.slice(0, 120)}`).join(' | ')}`)
+    })
+    assert.deepEqual(axe, [], `axe violations: ${axe.join(', ')}`)
+
+    // Per-subject view with the mean reference line (DASH-003).
+    await page.getByRole('button', { name: /^Mathematics/ }).click()
+    await page.getByRole('heading', { name: 'Mathematics by month' }).waitFor()
+    await page.getByText('Average 5.9 over 6 months').waitFor()
+    await page.getByText('Up 0.5 since January').waitFor()
+    assert.equal(await page.locator('.recharts-reference-line').count(), 1)
+    await shot(page, 'my-scores-16-subject-en-mobile')
+    await page.getByRole('button', { name: 'All subjects' }).click()
+
+    // Physics was missing in January: its change compares with December.
+    await page.getByRole('button', { name: /^Physics/ }).click()
+    await page.getByText('About the same as December').waitFor()
+    await page.getByRole('button', { name: 'View as table' }).click()
+    assert.match(await page.locator('table').innerText(), /January\s+Not recorded yet/)
+    await page.getByRole('button', { name: 'All subjects' }).click()
+
+    // Offline: the copy loaded on this device is shown with a stale marker.
+    mock.state.abort.academic_get_dashboard = 99
+    mock.state.abort.academic_get_session = 0
+    const offline = await context.newPage()
+    offline.on('pageerror', error => errors.push(error.message))
+    await offline.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await offline.getByText(/Offline: showing what was loaded on/).waitFor()
+    await offline.getByText('Up 0.3 since January').waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Dashboard: empty state, summary, trend with rolling mean, sorted bars, table views, axe clean, subject detail, offline stale copy')
+  }
+
+  // Lao dashboard on desktop, with a gap month and low coverage.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    const view = workedExampleDashboard()
+    view.periods[2].mean = null
+    view.periods[2].recorded = 2
+    view.periods[2].coverage = 0.33
+    view.periods[3].change = { value: 0, direction: 'same', compared_period_id: 'p2', skipped_periods: 1 }
+    // As the engine does: no rolling mean without 3 consecutive valid months.
+    for (const i of [2, 3, 4]) view.periods[i].rolling_mean = null
+    mock.state.dashboard = view
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('ເພີ່ມຂຶ້ນ 0.3 ຈາກ ມັງກອນ').waitFor()
+    await page.getByText('ບ່ອນຫວ່າງ ແມ່ນເດືອນທີ່ບໍ່ມີຄ່າສະເລ່ຍ.').waitFor()
+    assert.equal(await page.locator('.recharts-line-dots circle').count(), 5, 'gap month has no point')
+    await shot(page, 'my-scores-17-dashboard-lo-desktop')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Dashboard (Lao, desktop): gap month not interpolated, Lao change text')
   }
 
   console.log(`
