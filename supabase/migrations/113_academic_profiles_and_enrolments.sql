@@ -475,8 +475,10 @@ begin
     where enrolment_id = p_enrolment_id and not (id = any (v_keep)) and end_period_seq is null
   loop
     if exists (select 1 from public.academic_score_lines where subject_enrolment_id = v_row.id) then
+      -- Ended subjects sort after the current ones.
       update public.academic_subject_enrolments
-      set end_period_seq = greatest(v_row.start_period_seq, p_effective_seq - 1)
+      set end_period_seq = greatest(v_row.start_period_seq, p_effective_seq - 1),
+          display_order = 1000 + v_row.display_order
       where id = v_row.id;
     else
       delete from public.academic_subject_enrolments where id = v_row.id;
