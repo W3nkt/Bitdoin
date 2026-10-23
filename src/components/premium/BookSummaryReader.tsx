@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, List, X } from 'lucide-react'
+import './bookReader.css'
 import { OpenBook } from '@/components/ui/OpenBook'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
@@ -38,6 +39,9 @@ interface BookSummaryReaderProps {
   completing: boolean
   allAnswered: boolean
   onComplete: () => void
+  /** Shows a Close button beside Contents (the reader is a dialog). */
+  onClose?: () => void
+  closeLabel?: string
 }
 
 const STRINGS: Record<string, { en: string; lo: string }> = {
@@ -166,15 +170,22 @@ function splitIntoSentences(text: string): string[] {
 
 type PageSpec = { id: string; numbered: boolean; paper?: 'cover' | 'sheet'; render: ReactNode; toc?: string }
 
-function CoverImage({ src }: { src: string }) {
+// The cover is shown exactly as on the closet: no overlays, so the book flying in from the shelf hands over seamlessly.
+function CoverImage({ src, fallback }: { src?: string | null; fallback: ReactNode }) {
   const [failed, setFailed] = useState(false)
-  if (failed) return <div className="absolute inset-0 bg-gradient-to-br from-primary-900 via-primary-950 to-black" />
+  if (!src || failed) return <>{fallback}</>
   return <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" onError={() => setFailed(true)} />
+}
+
+function hueOf(text: string) {
+  let hash = 0
+  for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0
+  return hash % 360
 }
 
 export function BookSummaryReader(props: BookSummaryReaderProps) {
   const {
-    language, title, deck, estimatedMinutes, difficulty, bookTitle, bookAuthor, coverImageUrl, bookHref,
+    language, deck, estimatedMinutes, coverImageUrl, bookHref, bookTitle, bookAuthor, title, onClose, closeLabel,
     sections, takeaways, glossary, reflectionQuestions, quiz, answers, onAnswer, completed, completing, allAnswered, onComplete,
   } = props
   const t = useBookReaderStrings(language)
@@ -211,37 +222,31 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
     specs.push({
       id: 'cover', numbered: false, paper: 'cover', toc: t('Cover'),
       render: (
-        <div className="relative flex h-full flex-col">
-          {coverImageUrl ? (
-            <CoverImage src={coverImageUrl} />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary-900 via-primary-950 to-black" />
-          )}
-          <div className="absolute -right-24 -top-28 h-72 w-72 rounded-full border-[44px] border-primary-500/10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-black/40" />
-          <div className="relative mt-auto flex flex-col p-7 text-white">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary-200">{t('Book Summary')}</p>
-            <h1 className="mt-3 text-3xl font-black leading-[1.05]">{bookTitle ?? title}</h1>
-            {bookAuthor && <p className="mt-2 text-sm font-semibold text-white/70">{bookAuthor}</p>}
-            <p className="mt-6 text-xs font-bold uppercase tracking-wide text-white/50">
-              {estimatedMinutes} {t('min read')} · {difficulty.toLowerCase()} · {sections.length} {t('chapters')}
-            </p>
-          </div>
+        <div className="relative h-full">
+          <CoverImage
+            src={coverImageUrl}
+            fallback={(
+              <div
+                className="absolute inset-0 flex flex-col justify-between p-8 pl-12 text-[#fbf1da]"
+                style={{ background: `linear-gradient(145deg, hsl(${hueOf(title)} 42% 34%), hsl(${hueOf(title)} 48% 18%))` }}
+              >
+                <p className="text-3xl font-black leading-[1.1]">{title}</p>
+                {bookAuthor && <p className="text-xs font-bold uppercase tracking-widest opacity-75">{bookAuthor}</p>}
+              </div>
+            )}
+          />
         </div>
       ),
     })
 
     if (deck) {
       const sentences = splitIntoSentences(deck)
-      const aboutTitle = bookTitle ?? title
-      const groups = paginateWeighted(sentences, s => linesFor(s) * lineHeight, makeBudgetFor(aboutTitle, Boolean(bookAuthor)))
+      const groups = paginateWeighted(sentences, s => linesFor(s) * lineHeight, makeBudgetFor())
       groups.forEach((group, gi) => specs.push({
         id: `about-${gi}`, numbered: true, toc: gi === 0 ? t('A summary of') : undefined,
         render: (
           <FlowPage
             eyebrow={`${t('A summary of')}${gi > 0 ? ` · ${t('continued')}` : ''}`}
-            title={gi === 0 ? (bookTitle ?? title) : undefined}
-            subtitle={gi === 0 && bookAuthor ? `${t('by')} ${bookAuthor}` : undefined}
           >
             <p className="text-[13px] leading-6 text-slate-600 dark:text-slate-300">{group.join(' ')}</p>
           </FlowPage>
@@ -381,7 +386,6 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
           </span>
           <div>
             <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">{completed ? t('Lesson completed') : t('You reached the end')}</h3>
-            <p className="mx-auto mt-2 max-w-[28ch] text-[13px] leading-6 text-slate-500 dark:text-slate-400">{title}</p>
           </div>
           <div className="w-full max-w-[240px]">
             <Button
@@ -411,7 +415,7 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
       .filter((entry): entry is { index: number; label: string } => Boolean(entry.label))
 
     return { pages: flipPages, toc: tocEntries }
-  }, [language, title, deck, estimatedMinutes, difficulty, bookTitle, bookAuthor, coverImageUrl, bookHref, sections, takeaways, glossary, reflectionQuestions, quiz, answers, completed, completing, allAnswered, charsPerLine, lineHeight, continuationBudget, firstPageBudgetFor])
+  }, [language, deck, estimatedMinutes, coverImageUrl, bookHref, bookTitle, bookAuthor, title, sections, takeaways, glossary, reflectionQuestions, quiz, answers, completed, completing, allAnswered, charsPerLine, lineHeight, continuationBudget, firstPageBudgetFor])
 
   useEffect(() => {
     if (pageIndex > pages.length - 1) setPageIndex(0)
@@ -422,31 +426,41 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
 
   return (
     <div className="flex flex-col items-center px-4 py-6">
-      <div className="mb-4 flex w-full max-w-[460px] justify-end">
-        <button
-          type="button"
-          onClick={() => setTocOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-gray-900 px-3.5 py-2 text-xs font-black text-slate-600 dark:text-slate-300 shadow-sm ring-1 ring-slate-200 dark:ring-slate-700 transition hover:text-primary-700 dark:hover:text-primary-300"
-        >
-          <List className="h-3.5 w-3.5" /> {t('Contents')}
-        </button>
-      </div>
-
-      <FlipBook pages={pages} totalPages={totalPages} index={clampedIndex} onNavigate={setPageIndex} />
-
-      {tocOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={() => setTocOpen(false)}>
-          <div
-            className="max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white dark:bg-gray-900 p-5 shadow-2xl sm:rounded-3xl"
-            onClick={e => e.stopPropagation()}
+      <div className="relative z-20 mb-4 w-full max-w-[460px]">
+        <div className="relative z-20 flex items-center gap-2">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={closeLabel}
+              title={closeLabel}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accent-500 px-2.5 py-2 text-xs font-black text-white shadow-sm ring-1 ring-accent-600/40 transition hover:bg-accent-600 active:scale-95 sm:px-3.5"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={3} /><span className="hidden sm:inline">{closeLabel}</span>
+            </button>
+          )}
+          <p className="ml-auto min-w-0 truncate text-[10.5px] font-black uppercase tracking-wide text-white/85">
+            {estimatedMinutes} {t('min read')} · {sections.length} {t('chapters')}
+          </p>
+          <button
+            type="button"
+            onClick={() => setTocOpen(open => !open)}
+            aria-expanded={tocOpen}
+            className={cn(
+              'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-black shadow-sm ring-1 transition',
+              tocOpen
+                ? 'bg-primary-700 text-white ring-primary-700'
+                : 'bg-white dark:bg-gray-900 text-slate-600 dark:text-slate-300 ring-slate-200 dark:ring-slate-700 hover:text-primary-700 dark:hover:text-primary-300',
+            )}
           >
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{t('Contents')}</h3>
-              <button type="button" onClick={() => setTocOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+            <List className="h-3.5 w-3.5" /> {t('Contents')}
+          </button>
+        </div>
+
+        {tocOpen && <div className="fixed inset-0 z-10" onClick={() => setTocOpen(false)} />}
+        <div className="bk-toc" data-open={tocOpen} aria-hidden={!tocOpen}>
+          <div className="bk-toc-sheet">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {toc.map(entry => (
                 <button
                   key={entry.index}
@@ -466,7 +480,9 @@ export function BookSummaryReader(props: BookSummaryReaderProps) {
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      <FlipBook pages={pages} totalPages={totalPages} index={clampedIndex} onNavigate={setPageIndex} />
     </div>
   )
 }

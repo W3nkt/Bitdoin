@@ -1,0 +1,132 @@
+/* The reader's Contents list (BookSummaryReader.tsx): it slides down from the toolbar and slides back up on close.
+   The sheet is revealed with clip-path (no height to measure); the shadow is a drop-shadow on the wrapper so it follows
+   the clipped shape. */
+.bk-toc {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-14px);
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, .4));
+  transition: transform .38s cubic-bezier(.2, .8, .2, 1), opacity .25s ease, visibility 0s linear .38s;
+}
+
+.bk-toc[data-open='true'] {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: none;
+  transition-delay: 0s;
+}
+
+.bk-toc-sheet {
+  max-height: min(58vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 18px;
+  border-radius: 20px;
+  background: #fff;
+  clip-path: inset(0 0 100% 0 round 20px);
+  transition: clip-path .38s cubic-bezier(.2, .8, .2, 1);
+}
+
+.bk-toc[data-open='true'] .bk-toc-sheet {
+  clip-path: inset(0 0 0 0 round 20px);
+}
+
+.dark .bk-toc-sheet {
+  background: #111827;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-toc, .bk-toc-sheet { transition: none; }
+}
+
+/* ── The turning leaf (FlipBook.tsx) ── */
+.fb-leaf {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.fb-slice {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* A face reaches 1px into the next strip so the strips never show hairline gaps while they bend. */
+.fb-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: calc(100% + 1px);
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.fb-back { transform: rotateY(180deg); }
+
+.fb-shade {
+  position: absolute;
+  inset: 0;
+  background: #0b0703;
+  opacity: 0;
+}
+
+/* The back of a sheet is blank paper, a touch darker than the page. */
+.fb-verso {
+  position: absolute;
+  inset: 0;
+  background: #f1e9d6;
+}
+
+.fb-leaf[data-paper='cover'] .fb-verso {
+  background: #e3d6b6;
+}
+
+.dark .fb-verso {
+  background: #0f1622;
+}
+
+.dark .fb-leaf[data-paper='cover'] .fb-verso {
+  background: #30251a;
+}
+
+/* Shadows on the page under the leaf, kept inside the page's rounded outline. */
+.fb-shadows {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  pointer-events: none;
+}
+
+.fb-cast {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 42%;
+  background: linear-gradient(90deg, rgba(8, 5, 2, .42), rgba(8, 5, 2, .16) 40%, transparent);
+  opacity: 0;
+}
+
+.fb-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 22%;
+  background: linear-gradient(90deg, rgba(8, 5, 2, .34), transparent);
+  opacity: 0;
+}

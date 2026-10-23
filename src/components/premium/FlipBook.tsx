@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,26 +16,23 @@ interface FlipBookProps {
   onNavigate: (index: number) => void
 }
 
-type FlipState = { dir: 1 | -1; from: number; to: number; phase: 'start' | 'go' }
+type FlipState = { dir: 1 | -1; from: number; to: number }
 
-// Single flip layer with two backface-hidden faces (leaving page in front,
-// destination page mirrored on the back) rotated around the left spine —
-// avoids animating through every intermediate page on long jumps, which
-// reads fine as a single "turn" even for a table-of-contents jump.
+// A page turn is one paper leaf hinged on the left spine (PageLeaf below). Going forward the leaf is the page being
+// left: it lifts, bends and swings over the spine while the next page is revealed under it. Going back the leaf is the
+// previous page: it swings in from the left and settles on top of the current one. A long jump (contents) is one turn too.
 export function FlipBook({ pages, totalPages, index, onNavigate }: FlipBookProps) {
   const [flip, setFlip] = useState<FlipState | null>(null)
   const total = pages.length
 
   const goTo = useCallback((to: number) => {
     if (flip || to === index || to < 0 || to >= total) return
-    setFlip({ dir: to > index ? 1 : -1, from: index, to, phase: 'start' })
-  }, [flip, index, total])
-
-  useEffect(() => {
-    if (flip?.phase !== 'start') return
-    const id = requestAnimationFrame(() => setFlip(f => (f ? { ...f, phase: 'go' } : f)))
-    return () => cancelAnimationFrame(id)
-  }, [flip?.phase])
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onNavigate(to)
+      return
+    }
+    setFlip({ dir: to > index ? 1 : -1, from: index, to })
+  }, [flip, index, total, onNavigate])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -68,46 +65,27 @@ export function FlipBook({ pages, totalPages, index, onNavigate }: FlipBookProps
     goTo(dx < 0 ? index + 1 : index - 1)
   }
 
-  const resting = pages[flip ? flip.to : index]
-  const angle = flip ? (flip.phase === 'go' ? (flip.dir === 1 ? -179.9 : 179.9) : 0) : 0
+  // Under the leaf: the page being revealed (forward) or the page about to be covered (back).
+  const resting = pages[flip ? (flip.dir === 1 ? flip.to : flip.from) : index]
 
   return (
     <div className="mx-auto" style={{ width: 'min(92vw, 460px)' }}>
       <div className="relative flex items-center justify-center">
         <NavEdge dir="prev" onClick={() => goTo(index - 1)} disabled={index === 0 || !!flip} />
         <div
+          data-reader-book
           className="relative touch-pan-y select-none"
-          style={{ width: '100%', height: 'min(70vh, 600px)', perspective: '2400px' }}
+          style={{ width: '100%', height: 'min(70vh, 600px)', perspective: '2200px' }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
           <PageFace page={resting} />
           {flip && (
-            <div
-              className="absolute inset-0"
-              style={{
-                transformStyle: 'preserve-3d',
-                transformOrigin: '0% 50%',
-                transform: `rotateY(${angle}deg)`,
-                transition: flip.phase === 'go' ? 'transform 520ms cubic-bezier(.4,.05,.2,1)' : 'none',
-              }}
-              onTransitionEnd={handleFlipEnd}
-            >
-              <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden' }}>
-                <PageFace page={pages[flip.from]} />
-                <div
-                  className="pointer-events-none absolute inset-0 rounded-[1.25rem] transition-opacity"
-                  style={{ background: 'linear-gradient(90deg, rgba(15,23,42,0.28), transparent 45%)', opacity: flip.phase === 'go' ? 1 : 0 }}
-                />
-              </div>
-              <div className="absolute inset-0" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                <PageFace page={pages[flip.to]} />
-                <div
-                  className="pointer-events-none absolute inset-0 rounded-[1.25rem] transition-opacity"
-                  style={{ background: 'linear-gradient(270deg, rgba(15,23,42,0.28), transparent 45%)', opacity: flip.phase === 'go' ? 1 : 0 }}
-                />
-              </div>
-            </div>
+            <PageLeaf
+              page={pages[flip.dir === 1 ? flip.from : flip.to]}
+              forward={flip.dir === 1}
+              onDone={handleFlipEnd}
+            />
           )}
         </div>
         <NavEdge dir="next" onClick={() => goTo(index + 1)} disabled={index === total - 1 || !!flip} />
@@ -140,8 +118,125 @@ function PageFace({ page }: { page?: FlipBookPage }) {
           {page.pageNumber}
         </span>
       )}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/10 to-transparent" />
+      {page.paper !== 'cover' && <div className="pointer-events-none absolute inset-y-0 left-0 w-2 bg-gradient-to-r from-black/10 to-transparent" />}
     </div>
+  )
+}
+
+// ── The turning leaf ────────────────────────────────────────────────────────────────────────────────────────────────
+// The leaf is SLICES thin vertical strips nested one inside the next, so each strip can bend a little against the one
+// before it and the paper curls instead of swinging stiffly. Every strip shows its own window onto the page (front) and
+// plain paper (back), and is shaded by how far it has turned away from the light. Each frame sets only the strips'
+// rotations and a few shadow opacities directly on the elements, so React does not re-render during the turn.
+const SLICES = 14
+const TURN_MS = 900
+const BEND_PER_SLICE = 4.4 // degrees the strips lag behind each other at the most curled moment
+
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+const rad = (deg: number) => (deg * Math.PI) / 180
+
+/** How far the spine has turned: 0 = flat on the page, 180 = flat on the left. Curl lags most while it is in the air. */
+function leafPose(turn: number) {
+  const curl = Math.sin(rad(turn)) * (1.1 - turn / 180)
+  const lag = BEND_PER_SLICE * curl
+  const angles: number[] = []
+  let reach = 0
+  for (let i = 0; i < SLICES; i++) {
+    const angle = turn - i * lag
+    angles.push(angle)
+    reach += Math.cos(rad(angle)) / SLICES
+  }
+  return { lag, angles, reach }
+}
+
+type LeafRefs = {
+  leaf: HTMLElement | null
+  slices: (HTMLElement | null)[]
+  front: (HTMLElement | null)[]
+  back: (HTMLElement | null)[]
+  cast: HTMLElement | null
+  gutter: HTMLElement | null
+}
+
+function Slice({ index, page, refs }: { index: number; page: FlipBookPage; refs: LeafRefs }) {
+  return (
+    <div
+      ref={el => { refs.slices[index] = el }}
+      className="fb-slice"
+      style={index === 0 ? { left: 0, width: `${100 / SLICES}%` } : { left: '100%', width: '100%' }}
+    >
+      <div className="fb-face fb-front">
+        <div style={{ position: 'absolute', top: 0, height: '100%', left: `${-index * 100}%`, width: `${SLICES * 100}%` }}>
+          <PageFace page={page} />
+        </div>
+        <div ref={el => { refs.front[index] = el }} className="fb-shade" />
+      </div>
+      <div className="fb-face fb-back">
+        <div className="fb-verso" />
+        <div ref={el => { refs.back[index] = el }} className="fb-shade" />
+      </div>
+      {index < SLICES - 1 && <Slice index={index + 1} page={page} refs={refs} />}
+    </div>
+  )
+}
+
+function PageLeaf({ page, forward, onDone }: { page: FlipBookPage; forward: boolean; onDone: () => void }) {
+  const refs = useRef<LeafRefs>({ leaf: null, slices: [], front: [], back: [], cast: null, gutter: null })
+  const done = useRef(onDone)
+  done.current = onDone
+
+  useLayoutEffect(() => {
+    const r = refs.current
+
+    function apply(turn: number) {
+      const { lag, angles, reach } = leafPose(turn)
+      r.slices.forEach((el, i) => {
+        if (el) el.style.transform = i === 0 ? `rotateY(${-turn}deg)` : `rotateY(${lag}deg)`
+      })
+      angles.forEach((angle, i) => {
+        const c = Math.cos(rad(angle))
+        // Facing us, a strip darkens as it turns edge-on; seen from behind it brightens again as it lies flat.
+        const front = r.front[i]
+        const back = r.back[i]
+        if (front) front.style.opacity = angle < 90 ? String(0.5 * (1 - c)) : '0'
+        if (back) back.style.opacity = angle >= 90 ? String(0.42 * (1 + c)) : '0'
+      })
+      // The leaf fades in over the last stretch of its swing to the left, so it never pops in or out.
+      if (r.leaf) r.leaf.style.opacity = turn > 164 ? String(Math.max(0, (180 - turn) / 16)) : '1'
+      // Shadow the leaf throws on the page under it, just past its free edge, and a soft gutter by the spine.
+      if (r.cast) {
+        const edge = Math.max(0, reach)
+        r.cast.style.left = `${edge * 100}%`
+        r.cast.style.opacity = reach > 0 ? String(Math.min(1, reach * 2.5) * Math.min(1, (180 - turn) / 60)) : '0'
+      }
+      if (r.gutter) r.gutter.style.opacity = String(Math.sin(rad(turn)) * 0.6)
+    }
+
+    const from = forward ? 0 : 180
+    const to = forward ? 180 : 0
+    apply(from)
+    const start = performance.now()
+    let frame = 0
+    function tick() {
+      const t = Math.min(1, (performance.now() - start) / TURN_MS)
+      apply(from + (to - from) * easeInOut(t))
+      if (t < 1) frame = requestAnimationFrame(tick)
+      else done.current()
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [forward])
+
+  return (
+    <>
+      <div className="fb-shadows" aria-hidden="true">
+        <div ref={el => { refs.current.gutter = el }} className="fb-gutter" />
+        <div ref={el => { refs.current.cast = el }} className="fb-cast" />
+      </div>
+      <div ref={el => { refs.current.leaf = el }} className="fb-leaf" data-paper={page.paper ?? 'sheet'} aria-hidden="true">
+        <Slice index={0} page={page} refs={refs.current} />
+      </div>
+    </>
   )
 }
 

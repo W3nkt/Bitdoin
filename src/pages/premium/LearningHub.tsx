@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight,
   CalendarClock, CircleDollarSign, Copy, ExternalLink, Flame, GraduationCap, Image as ImageIcon, Languages,
@@ -10,6 +10,8 @@ import {
 import { OpenBook } from '@/components/ui/OpenBook'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
+import { BookCloset, markReturningFromBook, type ClosetBook } from '@/components/academy/BookCloset'
+import { BookModal } from '@/components/academy/BookModal'
 import { Button } from '@/components/ui/Button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useToast } from '@/components/ui/Toast'
@@ -122,6 +124,13 @@ function countActiveWeeksInRange(startDate: string, endDate: string, activeDates
 
 // Reading summaries are long, so they unlock one per active week, not per day.
 const WEEKLY_UNLOCK_CATEGORY_SLUGS = new Set(['reading-summaries'])
+
+// How far through the current Monday-to-Sunday week it is (0..1), in Laos time. Reading summaries unlock
+// per active week, so this is the bar on the next locked book in the closet.
+function weekElapsed() {
+  const day = (new Date(`${today()}T00:00:00Z`).getUTCDay() + 6) % 7
+  return (day + 1) / 7
+}
 
 // Deterministic per-seed shuffle (FNV-1a hash -> xorshift32) so each user sees
 // a stable but different lesson order per category, without storing an explicit order.
@@ -640,8 +649,11 @@ function WorkspaceLink({ to, icon: Icon, title }: { to: string; icon: typeof Tar
   )
 }
 
-export function LearningCategoryPage() {
-  const { categorySlug } = useParams()
+// `slug`, `underModal` and `awayId` are for a reading summary's dialog: it shows this page's closet behind itself so the
+// book can be put back, with that book's slot left empty while it is out.
+export function LearningCategoryPage({ slug, underModal, awayId }: { slug?: string; underModal?: boolean; awayId?: string } = {}) {
+  const params = useParams()
+  const categorySlug = slug ?? params.categorySlug
   const { language } = useLanguage()
   const { profile } = useAuth()
   const qc = useQueryClient()
@@ -666,9 +678,24 @@ export function LearningCategoryPage() {
 
   if (!categories.isLoading && !category) return <Navigate to="/academy/learn" replace />
   if (access.isLoading) return <LoadingSpinner />
+  const isCloset = WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
+  const closetBooks: ClosetBook[] = isCloset ? ordered.map((lesson, index) => {
+    const done = Boolean(progress.data?.find(item => item.lesson_id === lesson.id)?.completed_at)
+    const locked = index >= unlockedCount
+    const state: ClosetBook['state'] = locked ? (tierLocked ? 'premium' : 'locked') : done ? 'done' : index === unlockedCount - 1 ? 'today' : 'open'
+    return {
+      id: lesson.id,
+      title: localize(language, lesson.title_en, lesson.title_lo),
+      author: lesson.book?.author,
+      coverUrl: lesson.book?.cover_image_url,
+      href: locked ? (tierLocked ? '/academy/subscription#plans' : undefined) : `/academy/lesson/${lesson.slug}`,
+      state,
+      progress: state === 'locked' && index === unlockedCount ? weekElapsed() : undefined,
+    }
+  }) : []
   return (
     <LearningShell title={category ? localize(language, category.name_en, category.name_lo) : 'Loading…'} eyebrow={localize(language, 'Learning path', 'ເສັ້ນທາງການຮຽນ')} requireSubscription={false}>
-      <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
+      <main className={cn('mx-auto px-4 py-10 pb-24', isCloset ? 'max-w-4xl' : 'max-w-3xl')}>
         <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">{category && localize(language, category.description_en, category.description_lo)}</p>
         <p className="mt-3 text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">{WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
           ? localize(language, 'One new book summary unlocks each week you’re active', 'ປົດລັອກສະຫຼຸບປຶ້ມໃໝ່ 1 ຫົວ ທຸກອາທິດທີ່ທ່ານເຂົ້າມາຮຽນ')
@@ -687,6 +714,25 @@ export function LearningCategoryPage() {
             </Link>
           </div>
         )}
+        {isCloset ? (
+          <div className="mt-10">
+            <BookCloset
+              books={closetBooks}
+              loading={lessons.isLoading || categories.isLoading}
+              quiet={underModal}
+              awayId={awayId}
+              labels={{
+                title: category ? localize(language, category.name_en, category.name_lo) : '',
+                subtitle: localize(language, `${Math.min(unlockedCount, ordered.length)} of ${ordered.length} on your shelf`, `${Math.min(unlockedCount, ordered.length)} ຈາກ ${ordered.length} ຫົວ ຢູ່ເທິງຊັ້ນຂອງທ່ານ`),
+                today: localize(language, 'Today', 'ມື້ນີ້'),
+                locked: localize(language, 'Locked', 'ລັອກ'),
+                next: localize(language, 'Next week', 'ອາທິດໜ້າ'),
+                premium: localize(language, 'Premium', 'ສະມາຊິກ'),
+                completed: localize(language, 'Completed', 'ສຳເລັດແລ້ວ'),
+              }}
+            />
+          </div>
+        ) : (
         <div className="mt-10 border-t border-slate-200 dark:border-slate-700">
           {ordered.map((lesson, index) => {
             const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
@@ -749,6 +795,7 @@ export function LearningCategoryPage() {
           })}
           {!lessons.isLoading && ordered.length === 0 && <Empty text={localize(language, 'New lessons are being prepared.', 'ກຳລັງກະກຽມບົດຮຽນໃໝ່.')} />}
         </div>
+        )}
       </main>
     </LearningShell>
   )
@@ -760,6 +807,8 @@ export function LessonReaderPage() {
   const { language } = useLanguage()
   const qc = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
   const lesson = lessons.data?.find(item => item.slug === lessonSlug)
   const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lesson?.category?.slug, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, Boolean(access.data), progress.data)
@@ -811,35 +860,47 @@ export function LessonReaderPage() {
   const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
   const allAnswered = !questions.data?.length || questions.data.every(q => answers[q.id] !== undefined)
   if (lesson.lesson_type === 'READING_SUMMARY') {
+    const backTo = `/academy/learn/${lesson.category?.slug ?? ''}`
+    // From the closet the dialog is one step on top of it, so closing steps back; opened by link it goes to the closet.
+    const exit = () => {
+      markReturningFromBook()
+      if ((location.state as { fromCloset?: boolean } | null)?.fromCloset) navigate(-1)
+      else navigate(backTo, { replace: true })
+    }
     return (
-      <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={`/academy/learn/${lesson.category?.slug ?? ''}`}>
-        <BookSummaryReader
-          language={language}
-          title={localize(language, lesson.title_en, lesson.title_lo)}
-          deck={localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}
-          estimatedMinutes={lesson.estimated_minutes}
-          difficulty={lesson.difficulty}
-          bookTitle={lesson.book?.title}
-          bookAuthor={lesson.book?.author}
-          coverImageUrl={lesson.book?.cover_image_url}
-          bookHref={lesson.book ? `/bookstore/books/${lesson.book.id}` : undefined}
-          sections={sections}
-          takeaways={takeaways}
-          glossary={glossary}
-          reflectionQuestions={reflectionQuestions}
-          quiz={(questions.data ?? []).map(q => ({
-            id: q.id,
-            prompt: localize(language, q.prompt_en, q.prompt_lo),
-            options: language === 'lo' ? q.options_lo : q.options_en,
-          }))}
-          answers={answers}
-          onAnswer={(id, optionIndex) => setAnswers(old => ({ ...old, [id]: optionIndex }))}
-          completed={Boolean(itemProgress?.completed_at)}
-          completing={complete.isPending}
-          allAnswered={allAnswered}
-          onComplete={() => complete.mutate()}
-        />
-      </LearningShell>
+      <PremiumGate>
+        <LearningCategoryPage slug={lesson.category?.slug} underModal awayId={lesson.id} />
+        <BookModal bookId={lesson.id} onExit={exit}>
+          {close => <BookSummaryReader
+            onClose={close}
+            closeLabel={localize(language, 'Close', 'ປິດ')}
+            language={language}
+            title={localize(language, lesson.title_en, lesson.title_lo)}
+            deck={localize(language, lesson.deck_en ?? '', lesson.deck_lo ?? '') || localize(language, lesson.summary_en, lesson.summary_lo)}
+            estimatedMinutes={lesson.estimated_minutes}
+            difficulty={lesson.difficulty}
+            bookTitle={lesson.book?.title}
+            bookAuthor={lesson.book?.author}
+            coverImageUrl={lesson.book?.cover_image_url}
+            bookHref={lesson.book ? `/bookstore/books/${lesson.book.id}` : undefined}
+            sections={sections}
+            takeaways={takeaways}
+            glossary={glossary}
+            reflectionQuestions={reflectionQuestions}
+            quiz={(questions.data ?? []).map(q => ({
+              id: q.id,
+              prompt: localize(language, q.prompt_en, q.prompt_lo),
+              options: language === 'lo' ? q.options_lo : q.options_en,
+            }))}
+            answers={answers}
+            onAnswer={(id, optionIndex) => setAnswers(old => ({ ...old, [id]: optionIndex }))}
+            completed={Boolean(itemProgress?.completed_at)}
+            completing={complete.isPending}
+            allAnswered={allAnswered}
+            onComplete={() => complete.mutate()}
+          />}
+        </BookModal>
+      </PremiumGate>
     )
   }
   return (
