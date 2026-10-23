@@ -109,10 +109,16 @@ serve(async () => {
   }
   if (!due?.length) return new Response(JSON.stringify({ sent: 0, webhook }))
 
-  const [{ data: mentor }, { data: members }] = await Promise.all([
+  const [{ data: mentor }, { data: members }, { data: surveys }] = await Promise.all([
     admin.from('premium_daily_motivations').select('quote,challenge').eq('publish_date', now.date).eq('is_active', true).maybeSingle(),
     admin.from('users').select('id,name,language').in('id', due.map(row => row.user_id)),
+    admin.from('premium_onboarding_responses').select('user_id,responses').in('user_id', due.map(row => row.user_id)),
   ])
+  // The name each member asked to be called in the subscription survey.
+  const preferredByUser = new Map((surveys ?? []).map(row => {
+    const value = (row.responses as Record<string, unknown> | null)?.preferred_name
+    return [row.user_id as string, typeof value === 'string' ? value.trim() : '']
+  }))
   const memberById = new Map((members ?? []).map(member => [member.id, member]))
 
   let sent = 0
@@ -129,7 +135,7 @@ serve(async () => {
 
     const member = memberById.get(row.user_id)
     const lao = (member?.language ?? 'lo') === 'lo'
-    const name = member?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there')
+    const name = preferredByUser.get(row.user_id) || member?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there')
     const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

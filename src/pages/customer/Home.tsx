@@ -9,7 +9,7 @@ import { BookCard } from '@/components/ui/BookCard'
 import { BrowseSidebar } from '@/components/ui/BrowseSidebar'
 import { QuoteCarousel } from '@/components/ui/QuoteCarousel'
 import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { BookGridSkeleton } from '@/components/ui/Skeleton'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
 
@@ -149,7 +149,7 @@ export function Home() {
             onViewAll={() => navigate('/bookstore/books')}
           />
           {loadingFeatured ? (
-            <div className="flex justify-center py-10"><LoadingSpinner /></div>
+            <BookGridSkeleton count={6} />
           ) : (
             <BookGrid books={featuredBooks ?? []} onAddToCart={handleAddToCart} />
           )}
@@ -163,7 +163,7 @@ export function Home() {
             onViewAll={() => navigate('/bookstore/books')}
           />
           {loadingTrending ? (
-            <div className="flex justify-center py-10"><LoadingSpinner /></div>
+            <BookGridSkeleton count={6} />
           ) : (
             <BookGrid books={trendingBooks ?? []} onAddToCart={handleAddToCart} />
           )}

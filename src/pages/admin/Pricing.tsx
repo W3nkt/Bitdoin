@@ -18,7 +18,7 @@ import type { BookPrice, Category, MarginRule } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 import { SortableHeader, type SortDirection } from '@/components/ui/SortableHeader'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
@@ -479,7 +479,7 @@ export function AdminPricing() {
       </div>
 
       {tab === 'prices' && (
-        isLoading ? <LoadingSpinner /> : (
+        isLoading ? <TableSkeleton rows={10} cols={5} /> : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-card">
             <div className="flex flex-shrink-0 flex-col gap-2 border-b border-gray-100 dark:border-gray-800 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="w-full sm:max-w-sm">

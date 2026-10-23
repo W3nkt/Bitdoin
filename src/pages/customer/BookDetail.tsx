@@ -7,7 +7,7 @@ import { ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRigh
 import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { DetailSkeleton } from '@/components/ui/Skeleton'
 import { BookCard } from '@/components/ui/BookCard'
 import { CtaButton } from '@/components/ui/CtaButton'
 import { useCart } from '@/context/CartContext'
@@ -111,7 +111,7 @@ export function BookDetail() {
     })
   }, [book?.id])
 
-  if (isLoading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>
+  if (isLoading) return <DetailSkeleton />
   if (!book) return <div className="py-16 text-center text-gray-400">{t('book.notFound')}</div>
 
   const isAdmin = profile?.role === 'ADMIN'

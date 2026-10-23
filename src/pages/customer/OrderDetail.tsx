@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload, CheckCircle, Clock, XCircle, CreditCard, Smartphone, ZoomIn, Download } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Order, PaymentAccount } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { PanelSkeleton } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Receipt } from '@/components/ui/Receipt'
@@ -57,7 +57,7 @@ export function OrderDetail() {
     },
   })
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <div className="space-y-4"><PanelSkeleton lines={3} /><PanelSkeleton lines={5} /></div>
   if (!order) return <div className="py-12 text-center text-gray-400">{t('orders.notFound')}</div>
 
   const payment = order.payments?.[0]

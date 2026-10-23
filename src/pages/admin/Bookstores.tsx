@@ -11,7 +11,7 @@ import type { Bookstore } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 
 interface BookstoreForm {
@@ -289,7 +289,7 @@ export function AdminBookstores() {
         </Button>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <CardGridSkeleton count={6} /> : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {bookstores?.map(store => (
             <div key={store.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-card p-5 flex min-w-0 flex-col gap-3">

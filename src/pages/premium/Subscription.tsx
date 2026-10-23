@@ -51,7 +51,7 @@ import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
 import { celebrate } from '@/lib/pageTransition'
 import { Card } from '@/components/ui/Card'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { Skeleton, PanelSkeleton, ListSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { useToast } from '@/components/ui/Toast'
@@ -1145,7 +1145,10 @@ export function Subscription() {
       )}
 
       {pageLoading ? (
-        <LoadingSpinner />
+        <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+          <Skeleton className="h-56 w-full rounded-[2rem]" />
+          <div className="grid gap-4 md:grid-cols-2"><PanelSkeleton lines={4} /><PanelSkeleton lines={4} /></div>
+        </div>
       ) : (
         <div className="mx-auto max-w-6xl px-4 py-6 pb-32">
           <div className="flex min-w-0 flex-col gap-6">
@@ -2205,7 +2208,7 @@ function MemberDashboard({
               </div>
 
               {historyLoading ? (
-                <div className="flex min-h-44 items-center justify-center"><LoadingSpinner /></div>
+                <ListSkeleton rows={3} className="min-h-44" />
               ) : historyItems.length === 0 ? (
                 <div className="py-10 text-center">
                   <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300"><History className="h-5 w-5" /></span>

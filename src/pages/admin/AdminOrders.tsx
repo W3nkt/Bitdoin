@@ -10,7 +10,7 @@ import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { BookstorePayment, Order, OrderItem, OrderStatus } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { TableSkeleton, ReceiptSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
@@ -390,7 +390,7 @@ export function AdminOrders() {
         </div>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <TableSkeleton rows={10} cols={6} /> : (
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
@@ -664,7 +664,7 @@ export function AdminOrders() {
               </div>
             )}
           </div>
-        ) : <LoadingSpinner />}
+        ) : <ReceiptSkeleton rows={8} />}
       </Modal>
 
       <Modal

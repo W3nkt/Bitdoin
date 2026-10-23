@@ -8,7 +8,7 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ChatSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { supabase } from '@/lib/supabase'
@@ -333,7 +333,7 @@ export function PremiumCoach() {
     setHistoryOpen(false)
   }
 
-  if (authLoading || access.isLoading || conversations.isLoading) return <LoadingSpinner className="min-h-screen" />
+  if (authLoading || access.isLoading || conversations.isLoading) return <ChatSkeleton />
   if (!profile) return <Navigate to="/auth" replace />
 
   return (

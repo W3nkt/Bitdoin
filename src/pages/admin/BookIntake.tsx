@@ -12,7 +12,7 @@ import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
 import { formatPrice } from '@/lib/utils'
@@ -297,7 +297,7 @@ export function AdminBookIntake() {
         </div>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <ListSkeleton rows={4} /> : (
         (pendingBooks ?? []).length === 0 ? (
           <div className="rounded-2xl bg-white dark:bg-gray-900 p-12 text-center shadow-card">
             <OpenBook className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600" />

@@ -1,0 +1,196 @@
+/* Learning Hub (LearnHubView.tsx): topic cards, the continue banner and its book. Motion is off for prefers-reduced-motion. */
+
+/* ── Cards ── */
+.lh-card {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A light sweep crosses the card on hover / focus. */
+.lh-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .3) 50%, transparent 62%);
+  transform: translateX(-130%);
+  transition: transform .9s cubic-bezier(.2, .7, .2, 1);
+}
+
+.lh-card:hover::after,
+.lh-card:focus-visible::after {
+  transform: translateX(130%);
+}
+
+.lh-card:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+/* Big soft rings behind the art. */
+.lh-ring {
+  position: absolute;
+  top: -22%;
+  right: -22%;
+  width: 78%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 26px solid rgba(255, 255, 255, .13);
+  pointer-events: none;
+}
+
+.lh-ring-2 {
+  top: auto;
+  right: auto;
+  bottom: -30%;
+  left: -18%;
+  width: 52%;
+  border-width: 18px;
+  border-color: rgba(255, 255, 255, .08);
+}
+
+.lh-art {
+  transform-origin: 60% 85%;
+  transition: transform .55s cubic-bezier(.2, .9, .3, 1.25);
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .25));
+}
+
+.lh-card:hover .lh-art,
+.lh-card:focus-visible .lh-art {
+  transform: translateY(-8px) rotate(-4deg) scale(1.08);
+}
+
+.lh-arrow {
+  transition: transform .3s ease, background-color .3s ease, color .3s ease;
+}
+
+.lh-card:hover .lh-arrow,
+.lh-card:focus-visible .lh-arrow {
+  transform: translateX(3px);
+  background-color: #fff;
+  color: #0f172a;
+}
+
+/* ── Fan of real book covers on the reading-summaries card ── */
+.lh-fan {
+  position: absolute;
+  right: 2%;
+  bottom: -10%;
+  width: 50%;
+  height: 100%;
+}
+
+.lh-fan > span {
+  position: absolute;
+  bottom: 10%;
+  left: 50%;
+  width: 40%;
+  aspect-ratio: 3 / 4.25;
+  overflow: hidden;
+  border-radius: 3px 6px 6px 3px;
+  background: #1f2937;
+  box-shadow: 0 14px 22px -6px rgba(20, 8, 40, .55), 0 2px 4px rgba(0, 0, 0, .35);
+  transform-origin: 50% 100%;
+  transition: transform .55s cubic-bezier(.2, .9, .3, 1.2);
+}
+
+.lh-fan > span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .3) 0, rgba(255, 255, 255, .22) 4%, transparent 12%),
+    linear-gradient(115deg, rgba(255, 255, 255, .22), transparent 40%);
+}
+
+.lh-fan img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lh-fan > span:nth-child(1) { transform: translateX(-132%) rotate(-14deg); }
+.lh-fan > span:nth-child(2) { transform: translateX(-50%) translateY(-6%) rotate(0deg); z-index: 1; }
+.lh-fan > span:nth-child(3) { transform: translateX(32%) rotate(14deg); }
+
+.lh-card:hover .lh-fan > span:nth-child(1) { transform: translateX(-150%) translateY(-4%) rotate(-20deg); }
+.lh-card:hover .lh-fan > span:nth-child(2) { transform: translateX(-50%) translateY(-14%) rotate(0deg) scale(1.05); }
+.lh-card:hover .lh-fan > span:nth-child(3) { transform: translateX(50%) translateY(-4%) rotate(20deg); }
+
+/* ── Continue banner ── */
+.lh-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.lh-book {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4.25;
+  overflow: hidden;
+  border-radius: 4px 8px 8px 4px;
+  background: #1f2937;
+  box-shadow: 0 30px 40px -12px rgba(10, 4, 40, .6), 0 4px 8px rgba(0, 0, 0, .35);
+  transform: perspective(900px) rotateY(-16deg) rotateX(3deg);
+  transform-origin: 20% 60%;
+  transition: transform .6s cubic-bezier(.2, .9, .3, 1.15);
+}
+
+.lh-book::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .34) 0, rgba(255, 255, 255, .24) 3%, rgba(0, 0, 0, .08) 7%, transparent 14%),
+    linear-gradient(115deg, rgba(255, 255, 255, .22), transparent 40%);
+}
+
+.lh-hero:hover .lh-book {
+  transform: perspective(900px) rotateY(-6deg) rotateX(1deg) translateY(-6px);
+}
+
+.lh-book img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lh-shimmer {
+  background: linear-gradient(100deg, rgba(255, 255, 255, .08) 30%, rgba(255, 255, 255, .22) 50%, rgba(255, 255, 255, .08) 70%) 0 0 / 220% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lh-art svg { animation: lh-float 6s ease-in-out infinite; animation-delay: var(--d, 0s); }
+  .lh-orb-1 { animation: lh-drift 14s ease-in-out infinite alternate; }
+  .lh-orb-2 { animation: lh-drift 18s ease-in-out -6s infinite alternate-reverse; }
+  .lh-cta-arrow { animation: lh-nudge 1.6s ease-in-out infinite; }
+  .lh-shimmer { animation: lh-shimmer 1.4s linear infinite; }
+  .lh-ring-fill { transition: stroke-dashoffset 1.2s cubic-bezier(.2, .8, .2, 1) .3s; }
+}
+
+@keyframes lh-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes lh-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(30px, 20px) scale(1.15); }
+}
+
+@keyframes lh-nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes lh-shimmer {
+  to { background-position: -220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lh-card, .lh-card::after, .lh-art, .lh-fan > span, .lh-book, .lh-arrow { transition: none; }
+}

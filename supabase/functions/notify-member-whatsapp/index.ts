@@ -175,13 +175,15 @@ serve(async (req) => {
 
     const [{ data: member }, { data: onboarding }] = await Promise.all([
       admin.from('users').select('name,phone,language').eq('id', subscription.user_id).maybeSingle(),
-      admin.from('premium_onboarding_responses').select('whatsapp_number').eq('user_id', subscription.user_id).maybeSingle(),
+      admin.from('premium_onboarding_responses').select('whatsapp_number,responses').eq('user_id', subscription.user_id).maybeSingle(),
     ])
 
     const plan = Array.isArray(subscription.plan) ? subscription.plan[0] : subscription.plan
     const lao = (member?.language ?? 'lo') === 'lo'
+    // The name the member asked to be called in the subscription survey comes first.
+    const preferred = (onboarding?.responses as Record<string, unknown> | null)?.preferred_name
     const vars = {
-      name: member?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there'),
+      name: (typeof preferred === 'string' ? preferred.trim() : '') || member?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there'),
       plan: plan?.name ?? 'Academy',
       reason: subscription.rejection_reason ?? '',
       link: outcome === 'APPROVED'

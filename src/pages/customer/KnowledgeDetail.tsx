@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 import type { KnowledgePost, KnowledgePostType } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn, formatDate } from '@/lib/utils'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ArticleSkeleton } from '@/components/ui/Skeleton'
 import { BIOGRAPHY_PROFILES, splitBioTitle } from '@/data/biographyProfiles'
 import { BioAvatar } from '@/components/ui/BioAvatar'
 
@@ -632,7 +632,7 @@ export function KnowledgeDetail() {
   }, [post?.id])
 
   if (isLoading) {
-    return <div className="flex justify-center py-24"><LoadingSpinner /></div>
+    return <ArticleSkeleton />
   }
 
   if (!post) {

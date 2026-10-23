@@ -11,7 +11,7 @@ import type { Book, Category } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
 import { SortableHeader, type SortDirection } from '@/components/ui/SortableHeader'
 import { useToast } from '@/components/ui/Toast'
@@ -316,7 +316,7 @@ export function AdminBooks() {
         />
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <TableSkeleton rows={10} cols={6} /> : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white dark:bg-gray-900 shadow-card">
           {/* Only this box scrolls, so `sticky top-0` pins the header to the card. */}
           <div className="min-h-0 flex-1 overflow-auto">

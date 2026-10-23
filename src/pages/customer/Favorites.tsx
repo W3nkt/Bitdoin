@@ -11,7 +11,7 @@ import { BookCard } from '@/components/ui/BookCard'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FavoriteHeartButton } from '@/components/ui/FavoriteHeartButton'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { BookGridSkeleton } from '@/components/ui/Skeleton'
 
 // Same rule as the book page: customers get the cheapest AVAILABLE price.
 function bestPrice(prices: BookPrice[] = []): BookPrice | undefined {
@@ -74,7 +74,7 @@ export function Favorites() {
   }
 
   if (authLoading || (userId && isLoading)) {
-    return <div className="flex justify-center py-20"><LoadingSpinner /></div>
+    return <BookGridSkeleton count={6} />
   }
 
   if (!userId) {

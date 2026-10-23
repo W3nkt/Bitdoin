@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, Check, Loader2, Send, Unlink } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -128,7 +129,7 @@ export function TelegramReminderCard({ lo }: { lo: boolean }) {
       </div>
 
       {isLoading ? (
-        <div className="mt-5 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+        <div className="mt-5 space-y-3" aria-busy="true"><Skeleton className="h-14 w-full rounded-2xl" /><Skeleton className="h-10 w-1/2 rounded-xl" /></div>
       ) : !connected ? (
         <div className="mt-5 space-y-3">
           <button

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Bell, BellOff, BellRing, Loader2, Smartphone } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Bell, BellOff, BellRing, Smartphone } from 'lucide-react'
 import { InstallAppButton } from '@/components/notifications/InstallAppButton'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
@@ -118,7 +119,7 @@ export function PushNotificationCard({ platform, lo, className }: { platform: Pu
           {lo ? 'ບຣາວເຊີນີ້ບໍ່ຮອງຮັບການແຈ້ງເຕືອນ. ລອງໃຊ້ Chrome, Edge, Firefox ຫຼື Safari.' : "This browser can't receive notifications. Try Chrome, Edge, Firefox or Safari."}
         </p>
       ) : push.loading ? (
-        <div className="mt-5 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+        <div className="mt-5 space-y-3" aria-busy="true"><Skeleton className="h-14 w-full rounded-2xl" /><Skeleton className="h-10 w-1/2 rounded-xl" /></div>
       ) : (
         <div className="mt-5 space-y-4">
           <label className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 px-4 py-3">

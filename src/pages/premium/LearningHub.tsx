@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowLeft, ArrowRight, BriefcaseBusiness, Check, ChevronRight,
-  CalendarClock, CircleDollarSign, Copy, ExternalLink, Flame, GraduationCap, Image as ImageIcon, Languages,
-  LayoutGrid, Lightbulb, ListChecks, Loader2, LockKeyhole, Plus, Sparkles,
-  Target, Timer, Trash2, Trophy, Type as TypeIcon, Video, WalletCards,
+  ArrowLeft, ArrowRight, Check, ChevronRight,
+  CalendarClock, CircleDollarSign, Copy, ExternalLink, Flame, Image as ImageIcon, LayoutGrid, LockKeyhole, Plus, Sparkles,
+  Trash2, Type as TypeIcon, Video,
 } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
 import { BookSummaryReader } from '@/components/premium/BookSummaryReader'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { BookCloset, markReturningFromBook, type ClosetBook } from '@/components/academy/BookCloset'
 import { BookModal } from '@/components/academy/BookModal'
+import { LearnHubView, type HubResume, type HubTopic } from '@/components/academy/LearnHubView'
 import { Button } from '@/components/ui/Button'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { AcademyPageSkeleton, PanelSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -75,17 +75,6 @@ type LibraryPrompt = {
   example_output_en?: string | null; example_output_lo?: string | null
   source_url?: string | null; tags?: string[]; preview_url?: string | null
   source_name?: string | null; source_license?: string | null; source_language?: string | null
-}
-
-const iconMap = {
-  'book-open': OpenBook, wallet: WalletCards, sparkles: Sparkles, languages: Languages,
-  timer: Timer, briefcase: BriefcaseBusiness, 'graduation-cap': GraduationCap, lightbulb: Lightbulb,
-}
-const accents: Record<string, string> = {
-  violet: 'bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300', emerald: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  blue: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300', amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  rose: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300', cyan: 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300',
-  indigo: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300', orange: 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300',
 }
 
 export function localize(language: 'lo' | 'en', en: string, lo: string) {
@@ -155,16 +144,17 @@ function seededShuffle<T>(items: T[], seed: string): T[] {
   return result
 }
 
-// Free accounts get the first lesson of every category; the daily-unlock
-// pacing beyond that is a Premium benefit.
-const FREE_LESSON_CAP = 1
+// Free accounts unlock lessons at the same pace as Premium (one per active day,
+// one per active week for reading summaries) but only the first FREE_LESSON_CAP
+// of every category; going on after that is a Premium benefit.
+const FREE_LESSON_CAP = 3
 
 // One new lesson unlocks per day per category (per week for reading
 // summaries), in the user's shuffled order — but only for days the account was
 // actually active. A day the account was not active does not unlock a lesson;
 // the next lesson waits until the user logs in and is active again, it does
 // not "catch up" all at once. A lesson the user has already started stays
-// unlocked. Free accounts stay capped at the first lesson regardless of active days.
+// unlocked. Free accounts unlock the same way, but stop at FREE_LESSON_CAP lessons.
 function useCategoryLessonOrder(
   categoryId: string | undefined,
   categorySlug: string | undefined,
@@ -242,7 +232,7 @@ function usePaidPremiumAccess() {
 function PremiumGate({ children, requireSubscription = true }: { children: React.ReactNode; requireSubscription?: boolean }) {
   const { profile, loading } = useAuth()
   const { data: active, isLoading } = usePremiumAccess()
-  if (loading || isLoading) return <LoadingSpinner />
+  if (loading || isLoading) return <AcademyPageSkeleton />
   if (!profile) return <Navigate to="/auth" replace />
   if (requireSubscription && !active) return <Navigate to="/academy/subscription#plans" replace />
   return <>{children}</>
@@ -355,8 +345,8 @@ function useLearningData() {
 export function LearningHub() {
   const { language } = useLanguage()
   const { categories, lessons, progress, access } = useLearningData()
-  const isPremium = Boolean(access.data)
-  const completed = progress.data?.filter(item => item.completed_at).length ?? 0
+  const lo = language === 'lo'
+  const completedIds = new Set((progress.data ?? []).filter(item => item.completed_at).map(item => item.lesson_id))
   const promptCatalogCount = useQuery({
     queryKey: ['premium', 'prompt-library-count'],
     queryFn: async () => {
@@ -367,113 +357,48 @@ export function LearningHub() {
   })
   const inProgress = progress.data?.find(item => item.progress_percent > 0 && !item.completed_at)
   const continueLesson = lessons.data?.find(item => item.id === inProgress?.lesson_id) ?? lessons.data?.[0]
+
+  const topics: HubTopic[] = (categories.data ?? []).map(category => {
+    const inCategory = (lessons.data ?? []).filter(lesson => lesson.category_id === category.id)
+    return {
+      id: category.id,
+      slug: category.slug,
+      name: localize(language, category.name_en, category.name_lo),
+      description: localize(language, category.description_en, category.description_lo),
+      icon: category.icon,
+      accent: category.accent,
+      lessons: inCategory.length,
+      done: inCategory.filter(lesson => completedIds.has(lesson.id)).length,
+      covers: inCategory.map(lesson => lesson.book?.cover_image_url).filter((url): url is string => Boolean(url)).slice(0, 3),
+    }
+  })
+  const resume: HubResume | null = continueLesson ? {
+    slug: continueLesson.slug,
+    title: localize(language, continueLesson.title_en, continueLesson.title_lo),
+    minutes: continueLesson.estimated_minutes,
+    cover: continueLesson.book?.cover_image_url,
+    icon: continueLesson.category?.icon ?? 'book-open',
+    topic: continueLesson.category ? localize(language, continueLesson.category.name_en, continueLesson.category.name_lo) : '',
+    started: Boolean(inProgress),
+  } : null
+
   return (
     <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
-        <section className="grid min-h-[310px] items-end overflow-hidden bg-primary-950 dark:ring-1 dark:ring-white/10 px-6 py-8 text-white sm:mx-0 sm:mt-6 sm:min-h-[340px] sm:rounded-[2rem] sm:px-10">
-          <div className="relative max-w-2xl">
-            <div className="absolute -right-36 -top-44 h-80 w-80 rounded-full border-[52px] border-primary-700/30" />
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-primary-300">
-              {localize(language, 'Your next useful skill', 'ທັກສະທີ່ເປັນປະໂຫຍດຕໍ່ໄປຂອງທ່ານ')}
-            </p>
-            <h2 className="relative mt-4 max-w-xl text-4xl font-black leading-[1.04] sm:text-6xl">
-              {localize(language, 'Learn something you can use today.', 'ຮຽນສິ່ງທີ່ນຳໄປໃຊ້ໄດ້ມື້ນີ້.')}
-            </h2>
-            {continueLesson && (
-              <Link to={`/academy/lesson/${continueLesson.slug}`} className="relative mt-7 inline-flex items-center gap-2 rounded-full bg-white dark:bg-gray-900 px-5 py-3 text-sm font-black text-primary-950 dark:text-primary-300 transition hover:translate-x-1">
-                {inProgress ? localize(language, 'Continue lesson', 'ຮຽນຕໍ່') : localize(language, 'Start first lesson', 'ເລີ່ມບົດຮຽນທຳອິດ')}
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            )}
-          </div>
-        </section>
-
-        {!access.isLoading && !isPremium && (
-          <section className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
-              {localize(
-                language,
-                'Free plan: 1 lesson unlocked per path. Subscribe to unlock a new lesson every active day.',
-                'ແຜນຟຣີ: ປົດລັອກໄດ້ 1 ບົດຮຽນຕໍ່ເສັ້ນທາງ. ສະໝັກສະມາຊິກ ເພື່ອປົດລັອກບົດຮຽນໃໝ່ທຸກມື້ທີ່ທ່ານເຂົ້າມາຮຽນ.',
-              )}
-            </p>
-            <Link to="/academy/subscription#plans" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
-              {localize(language, 'Upgrade', 'ອັບເກຣດ')}
-            </Link>
-          </section>
-        )}
-
-        <section className="grid grid-cols-3 border-b border-slate-200 dark:border-slate-700 py-6">
-          <Metric value={String(completed)} label={localize(language, 'Lessons done', 'ບົດຮຽນສຳເລັດ')} />
-          <Metric value={String(lessons.data?.length ?? '—')} label={localize(language, 'Available', 'ບົດຮຽນທັງໝົດ')} />
-          <Metric value={`${completed * 20}`} label="XP" />
-        </section>
-
-        <section className="py-10">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{localize(language, 'Explore', 'ສຳຫຼວດ')}</p>
-              <h2 className="mt-2 text-2xl font-black">{localize(language, 'Choose a direction', 'ເລືອກທິດທາງ')}</h2>
-            </div>
-            {(categories.isLoading || lessons.isLoading) && <Loader2 className="h-5 w-5 animate-spin text-primary-600 dark:text-primary-400" />}
-          </div>
-          <div className="mt-7 grid gap-x-8 md:grid-cols-2">
-            <DirectionLink
-              to="/academy/careers"
-              icon={BriefcaseBusiness}
-              accent="cyan"
-              title={localize(language, 'Career explorer', 'ສຳຫຼວດອາຊີບ')}
-              description={localize(language, 'Explore careers, required skills, and practical next steps.', 'ສຳຫຼວດອາຊີບ, ທັກສະທີ່ຕ້ອງການ ແລະ ຂັ້ນຕອນຕໍ່ໄປທີ່ເຮັດໄດ້ຈິງ.')}
-              count={careerPaths.length}
-            />
-            <DirectionLink
-              to="/academy/prompts"
-              icon={Sparkles}
-              accent="violet"
-              title="AI Prompt Library"
-              description={localize(language, 'Useful AI prompts for daily life, work, study, and creative images.', 'Prompt AI ທີ່ເປັນປະໂຫຍດສຳລັບຊີວິດປະຈຳວັນ, ການເຮັດວຽກ, ການຮຽນ ແລະ ການສ້າງຮູບພາບ.')}
-              count={promptCatalogCount.data}
-            />
-            {(categories.data ?? []).map(category => {
-              const Icon = iconMap[category.icon as keyof typeof iconMap] ?? OpenBook
-              const lessonCount = lessons.data?.filter(item => item.category_id === category.id).length ?? 0
-              return (
-                <Link key={category.id} to={`/academy/learn/${category.slug}`} className="group flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 py-5">
-                  <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[category.accent] ?? accents.indigo)}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-black">{localize(language, category.name_en, category.name_lo)}</h3>
-                    <p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{localize(language, category.description_en, category.description_lo)}</p>
-                  </div>
-                  <span className="text-xs font-bold text-slate-400">{lessonCount}</span>
-                  <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-
-        <nav className="grid gap-3 border-t border-slate-200 dark:border-slate-700 py-8 sm:grid-cols-3">
-          <WorkspaceLink to="/academy/challenges" icon={Target} title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} />
-          <WorkspaceLink to="/academy/habits" icon={ListChecks} title={localize(language, 'Habit tracker', 'ຕິດຕາມນິໄສ')} />
-          <WorkspaceLink to="/academy/progress" icon={Trophy} title={localize(language, 'My progress', 'ຄວາມຄືບໜ້າ')} />
-        </nav>
+        <LearnHubView
+          lo={lo}
+          topics={topics}
+          resume={resume}
+          loading={categories.isLoading || lessons.isLoading}
+          done={completedIds.size}
+          total={lessons.data?.length ?? 0}
+          xp={completedIds.size * 20}
+          isPremium={access.isLoading ? null : Boolean(access.data)}
+          careersCount={careerPaths.length}
+          promptCount={promptCatalogCount.data}
+        />
       </main>
     </LearningShell>
-  )
-}
-
-function DirectionLink({ to, icon: Icon, accent, title, description, count }: {
-  to: string; icon: typeof Sparkles; accent: keyof typeof accents; title: string; description: string; count?: number
-}) {
-  return (
-    <Link to={to} className="group flex items-center gap-4 border-t border-slate-200 dark:border-slate-700 py-5">
-      <span className={cn('grid h-12 w-12 shrink-0 place-items-center rounded-2xl', accents[accent])}><Icon className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1"><h3 className="font-black">{title}</h3><p className="mt-1 line-clamp-1 text-sm text-slate-500 dark:text-slate-400">{description}</p></div>
-      {typeof count === 'number' && <span className="text-xs font-bold text-slate-400">{count}</span>}
-      <ChevronRight className="h-5 w-5 text-slate-300 transition group-hover:translate-x-1 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
-    </Link>
   )
 }
 
@@ -604,7 +529,7 @@ export function PromptLibraryPage() {
           </div>
         )}
 
-        {prompts.isLoading ? <LoadingSpinner /> : prompts.isError ? (
+        {prompts.isLoading ? <div className="mt-6 grid gap-4"><PanelSkeleton lines={5} /><PanelSkeleton lines={5} /><PanelSkeleton lines={5} /></div> : prompts.isError ? (
           <div className="mt-6 rounded-3xl bg-red-50 dark:bg-red-500/10 p-6 text-center ring-1 ring-red-100 dark:ring-red-500/30">
             <p className="font-black text-red-900 dark:text-red-300">{localize(language, 'Could not load the prompt library', 'ບໍ່ສາມາດໂຫຼດຄັງ Prompt ໄດ້')}</p>
             <p className="mt-2 text-sm text-red-700 dark:text-red-300">{localize(language, 'Please retry. If this continues, the prompt-library database migration may be missing.', 'ກະລຸນາລອງໃໝ່. ຖ້າຍັງມີບັນຫາ ອາດຈະຍັງບໍ່ໄດ້ຕິດຕັ້ງການປ່ຽນແປງຖານຂໍ້ມູນຂອງຄັງ Prompt.')}</p>
@@ -641,14 +566,6 @@ function Metric({ value, label }: { value: string; label: string }) {
   return <div className="text-center"><p className="text-2xl font-black sm:text-3xl">{value}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p></div>
 }
 
-function WorkspaceLink({ to, icon: Icon, title }: { to: string; icon: typeof Target; title: string }) {
-  return (
-    <Link to={to} className="group flex items-center gap-3 rounded-2xl bg-white dark:bg-gray-900 p-4 shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 transition hover:-translate-y-0.5 hover:shadow-md">
-      <Icon className="h-5 w-5 text-primary-600 dark:text-primary-400" /><span className="flex-1 text-sm font-black">{title}</span><ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-primary-600 dark:group-hover:text-primary-400" />
-    </Link>
-  )
-}
-
 // `slug`, `underModal` and `awayId` are for a reading summary's dialog: it shows this page's closet behind itself so the
 // book can be put back, with that book's slot left empty while it is out.
 export function LearningCategoryPage({ slug, underModal, awayId }: { slug?: string; underModal?: boolean; awayId?: string } = {}) {
@@ -677,18 +594,19 @@ export function LearningCategoryPage({ slug, underModal, awayId }: { slug?: stri
   }, [profile, category, categoryUnlocks.data, categoryUnlocks.isLoading])
 
   if (!categories.isLoading && !category) return <Navigate to="/academy/learn" replace />
-  if (access.isLoading) return <LoadingSpinner />
+  if (access.isLoading) return <AcademyPageSkeleton />
   const isCloset = WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
   const closetBooks: ClosetBook[] = isCloset ? ordered.map((lesson, index) => {
     const done = Boolean(progress.data?.find(item => item.lesson_id === lesson.id)?.completed_at)
     const locked = index >= unlockedCount
-    const state: ClosetBook['state'] = locked ? (tierLocked ? 'premium' : 'locked') : done ? 'done' : index === unlockedCount - 1 ? 'today' : 'open'
+    const premiumLocked = !isPremium && index >= FREE_LESSON_CAP
+    const state: ClosetBook['state'] = locked ? (premiumLocked ? 'premium' : 'locked') : done ? 'done' : index === unlockedCount - 1 ? 'today' : 'open'
     return {
       id: lesson.id,
       title: localize(language, lesson.title_en, lesson.title_lo),
       author: lesson.book?.author,
       coverUrl: lesson.book?.cover_image_url,
-      href: locked ? (tierLocked ? '/academy/subscription#plans' : undefined) : `/academy/lesson/${lesson.slug}`,
+      href: locked ? (premiumLocked ? '/academy/subscription#plans' : undefined) : `/academy/lesson/${lesson.slug}`,
       state,
       progress: state === 'locked' && index === unlockedCount ? weekElapsed() : undefined,
     }
@@ -703,11 +621,23 @@ export function LearningCategoryPage({ slug, underModal, awayId }: { slug?: stri
         {tierLocked && (
           <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl bg-amber-50 dark:bg-amber-500/10 px-5 py-4 ring-1 ring-amber-200 dark:ring-amber-500/30 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-bold text-amber-900 dark:text-amber-300">
-              {localize(
-                language,
-                'You’ve reached the free lesson for this path. Subscribe to keep unlocking new lessons every active day.',
-                'ທ່ານໄດ້ຮັບບົດຮຽນຟຣີສຳລັບເສັ້ນທາງນີ້ແລ້ວ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ຕໍ່ໄປ.',
-              )}
+              {unlockedCount >= FREE_LESSON_CAP
+                ? localize(
+                  language,
+                  `You’ve unlocked the ${FREE_LESSON_CAP} free lessons for this path. Subscribe to keep unlocking new ones.`,
+                  `ທ່ານໄດ້ປົດລັອກບົດຮຽນຟຣີ ${FREE_LESSON_CAP} ບົດຂອງເສັ້ນທາງນີ້ຄົບແລ້ວ. ສະໝັກສະມາຊິກເພື່ອປົດລັອກບົດຮຽນໃໝ່ຕໍ່ໄປ.`,
+                )
+                : WEEKLY_UNLOCK_CATEGORY_SLUGS.has(category?.slug ?? '')
+                  ? localize(
+                    language,
+                    `Free plan: ${FREE_LESSON_CAP} book summaries, one unlocking each week you’re active. Subscribe to keep going after that.`,
+                    `ແຜນຟຣີ: ${FREE_LESSON_CAP} ຫົວ, ປົດລັອກອາທິດລະ 1 ຫົວ ທີ່ທ່ານເຂົ້າມາຮຽນ. ສະໝັກສະມາຊິກເພື່ອຮຽນຕໍ່ຫຼັງຈາກນັ້ນ.`,
+                  )
+                  : localize(
+                    language,
+                    `Free plan: ${FREE_LESSON_CAP} lessons, one unlocking each day you’re active. Subscribe to keep going after that.`,
+                    `ແຜນຟຣີ: ${FREE_LESSON_CAP} ບົດ, ປົດລັອກມື້ລະ 1 ບົດ ທີ່ທ່ານເຂົ້າມາຮຽນ. ສະໝັກສະມາຊິກເພື່ອຮຽນຕໍ່ຫຼັງຈາກນັ້ນ.`,
+                  )}
             </p>
             <Link to="/academy/subscription#plans" className="shrink-0 rounded-full bg-amber-900 px-4 py-2 text-xs font-black text-white transition hover:bg-amber-800">
               {localize(language, 'Upgrade', 'ອັບເກຣດ')}
@@ -762,7 +692,7 @@ export function LearningCategoryPage({ slug, underModal, awayId }: { slug?: stri
                   </div>
                   {locked ? (
                     <p className="mt-2 flex flex-wrap items-center gap-x-2 text-sm font-semibold text-slate-400">
-                      {tierLocked ? (
+                      {!isPremium && index >= FREE_LESSON_CAP ? (
                         <>
                           {localize(language, 'Premium lesson', 'ບົດຮຽນສະມາຊິກ')}
                           <Link to="/academy/subscription#plans" className="font-black text-amber-700 dark:text-amber-300 hover:underline">
@@ -849,7 +779,7 @@ export function LessonReaderPage() {
     },
     onError: () => toast.error('Could not save lesson progress.'),
   })
-  if (lessons.isLoading || access.isLoading) return <LoadingSpinner />
+  if (lessons.isLoading || access.isLoading) return <AcademyPageSkeleton />
   if (!lesson) return <Navigate to="/academy/learn" replace />
   const lessonIndex = ordered.findIndex(item => item.id === lesson.id)
   if (lessonIndex >= unlockedCount) return <Navigate to={`/academy/learn/${lesson.category?.slug ?? ''}`} replace />
@@ -1076,7 +1006,7 @@ export function WeeklyChallengesPage() {
   return (
     <LearningShell title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} eyebrow={localize(language, 'Build momentum', 'ສ້າງແຮງສົ່ງ')}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
-        {challenge.isLoading ? <LoadingSpinner /> : data ? (
+        {challenge.isLoading ? <PanelSkeleton lines={5} /> : data ? (
           <>
             <div className="flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400"><Flame className="h-5 w-5" /> {data.points} XP</div>
             <h2 className="mt-4 text-4xl font-black">{localize(language, data.title_en, data.title_lo)}</h2>

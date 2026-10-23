@@ -11,7 +11,7 @@ import { supabase } from '@/lib/supabase'
 import type { KnowledgeCategory, KnowledgePost, KnowledgePostType } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { BIOGRAPHY_PROFILES, splitBioTitle } from '@/data/biographyProfiles'
 import { BioAvatar } from '@/components/ui/BioAvatar'
 
@@ -234,9 +234,7 @@ export function Knowledge() {
 
           {/* All Posts */}
           {loadingPosts ? (
-            <div className="flex justify-center py-16">
-              <LoadingSpinner />
-            </div>
+            <CardGridSkeleton count={6} />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16 text-center text-gray-400">
               <OpenBook className="h-12 w-12 opacity-30" />

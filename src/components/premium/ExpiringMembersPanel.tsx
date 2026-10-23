@@ -53,7 +53,7 @@ export function useExpiringMemberships() {
       if (rows.length === 0) return []
 
       const userIds = [...new Set(rows.map(row => row.user_id as string))]
-      const [{ data: newer, error: newerError }, { data: reminders, error: remindersError }] = await Promise.all([
+      const [{ data: newer, error: newerError }, { data: reminders, error: remindersError }, { data: surveys }] = await Promise.all([
         supabase
           .from('premium_subscriptions')
           .select('user_id,created_at')
@@ -68,7 +68,13 @@ export function useExpiringMemberships() {
           .in('subject', EXPIRY_REMINDER_SUBJECTS)
           .eq('status', 'SENT')
           .order('created_at', { ascending: false }),
+        // What each member asked to be called in the subscription survey.
+        supabase.from('premium_onboarding_responses').select('user_id,responses').in('user_id', userIds),
       ])
+      const preferredNames = new Map((surveys ?? []).map(row => {
+        const value = (row.responses as Record<string, unknown> | null)?.preferred_name
+        return [row.user_id as string, typeof value === 'string' ? value.trim() : '']
+      }))
       if (newerError) throw newerError
       if (remindersError) throw remindersError
 
@@ -95,7 +101,7 @@ export function useExpiringMemberships() {
             userId: row.user_id as string,
             endsAt: row.ends_at as string,
             planName: row.plan?.name ?? 'Premium',
-            memberName: row.user?.name ?? 'Unknown member',
+            memberName: preferredNames.get(row.user_id as string) || row.user?.name || 'Unknown member',
             contact: row.user?.phone ?? row.user?.email ?? null,
             daysLeft: Math.ceil((endsMs - now) / DAY_MS),
             reminderSentAt: reminder ? (reminder.sent_at ?? reminder.created_at) : null,

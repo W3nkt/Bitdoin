@@ -48,7 +48,11 @@ function parseObject(content: string) {
 
 // One streamed attempt. Retries are handled by the task queue with a backoff,
 // so a failing request is never immediately repeated with the same size.
-export async function askQwen(prompt: string, options: { maxTokens: number; model?: string; enableSearch?: boolean; forceSearch?: boolean }) {
+export type SearchSource = { url: string; title: string }
+
+// `sources`, when given, is filled with the pages the web search really returned, so a caller can check what the model
+// says against them instead of trusting URLs it may have invented.
+export async function askQwen(prompt: string, options: { maxTokens: number; model?: string; enableSearch?: boolean; forceSearch?: boolean; sources?: SearchSource[] }) {
   const controller = new AbortController()
   let abortReason = ''
   let idleTimer: ReturnType<typeof setTimeout> | undefined
@@ -77,7 +81,7 @@ export async function askQwen(prompt: string, options: { maxTokens: number; mode
           { role: 'user', content: prompt },
         ],
         response_format: { type: 'json_object' },
-        ...(options.enableSearch ? { enable_search: true, ...(options.forceSearch ? { search_options: { forced_search: true } } : {}) } : {}),
+        ...(options.enableSearch ? { enable_search: true, ...(options.forceSearch || options.sources ? { search_options: { ...(options.forceSearch ? { forced_search: true } : {}), ...(options.sources ? { enable_source: true } : {}) } } : {}) } : {}),
         enable_thinking: false,
         temperature: 0.6,
         max_tokens: options.maxTokens,
@@ -87,6 +91,10 @@ export async function askQwen(prompt: string, options: { maxTokens: number; mode
     if (!response.ok) {
       const result = await response.json().catch(() => null)
       const message = result?.error?.message ?? `Qwen request failed (${response.status}).`
+      // A model that does not accept the source list still answers without it.
+      if (response.status === 400 && options.sources && /enable_source|search_options/i.test(message)) {
+        return askQwen(prompt, { ...options, sources: undefined })
+      }
       throw new Error(response.status === 429 ? `Rate limited: ${message}` : message)
     }
     if (!response.body) throw new Error('Empty answer: Qwen returned no stream.')
@@ -107,13 +115,16 @@ export async function askQwen(prompt: string, options: { maxTokens: number; mode
         if (!trimmed.startsWith('data:')) continue
         const data = trimmed.slice(5).trim()
         if (!data || data === '[DONE]') continue
-        let chunk: { error?: { message?: string }; choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }
+        let chunk: { error?: { message?: string }; choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>; search_info?: { search_results?: Array<{ url?: string; title?: string }> } }
         try {
           chunk = JSON.parse(data)
         } catch {
           continue
         }
         if (chunk.error) throw new Error(chunk.error.message ?? 'Qwen reported an error while writing.')
+        for (const found of chunk.search_info?.search_results ?? []) {
+          if (options.sources && found.url && !options.sources.some(source => source.url === found.url)) options.sources.push({ url: found.url, title: found.title ?? '' })
+        }
         const choice = chunk.choices?.[0]
         content += choice?.delta?.content ?? ''
         if (choice?.finish_reason) finishReason = choice.finish_reason
@@ -543,29 +554,79 @@ const SOFT_NOT_FOUND = /page not found|survey not found|404 error|error 404|page
 // Application forms and file hosts are not the scholarship's own page.
 const NOT_A_SOURCE_PAGE = /(?:^|\.)(?:qualtrics\.com|forms\.gle|docs\.google\.com|drive\.google\.com|forms\.office\.com|typeform\.com|bit\.ly)$/i
 
-// Opens a page and returns its readable text, or null when it is dead, blocked,
-// a "not found" page or not an HTML page.
-export async function fetchPageText(url: string): Promise<string | null> {
+// Opens a page. `text` is its readable text; otherwise `why` says what went wrong (dead link, blocked, a "not found"
+// page, not an HTML page, too little text), so a rejected answer can be explained to the model and to the admin.
+export async function inspectPage(url: string): Promise<{ text?: string; why?: string }> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 15_000)
   try {
-    if (NOT_A_SOURCE_PAGE.test(new URL(url).hostname)) return null
-    const response = await fetch(url, { redirect: 'follow', signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BitdoinAcademyBot/1.0)', Accept: 'text/html' } })
-    if (!response.ok || !/html/i.test(response.headers.get('content-type') ?? '')) {
+    if (NOT_A_SOURCE_PAGE.test(new URL(url).hostname)) return { why: 'an application form or file host, not the scholarship page' }
+    // Some official sites turn away anything that does not look like a browser.
+    const response = await fetch(url, {
+      redirect: 'follow', signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36 BitdoinAcademyBot/1.0',
+        Accept: 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9',
+      },
+    })
+    if (!response.ok) {
       await response.body?.cancel()
-      return null
+      return { why: `HTTP ${response.status}` }
+    }
+    if (!/html/i.test(response.headers.get('content-type') ?? '')) {
+      await response.body?.cancel()
+      return { why: 'not a web page' }
     }
     const text = (await response.text())
       .replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
       .replace(/\s+/g, ' ').trim()
-    if (text.length < 400 || SOFT_NOT_FOUND.test(text.slice(0, 2000))) return null
-    return text
-  } catch {
-    return null
+    if (SOFT_NOT_FOUND.test(text.slice(0, 2000))) return { why: 'a "page not found" page' }
+    if (text.length < 400) return { why: 'almost no text (the page loads its content with scripts)' }
+    return { text }
+  } catch (error) {
+    return { why: controller.signal.aborted ? 'no answer within 15 seconds' : error instanceof Error ? error.message : 'could not be opened' }
   } finally {
     clearTimeout(timer)
+  }
+}
+
+export async function fetchPageText(url: string): Promise<string | null> {
+  return (await inspectPage(url)).text ?? null
+}
+
+// The organisation a host belongs to (nstda.or.th for tigp.nstda.or.th), so a page found on one of the provider's own
+// sites counts as official even when the model named a different page on it.
+function orgDomain(url: string) {
+  try {
+    const labels = new URL(url).hostname.toLowerCase().split('.')
+    const generic = new Set(['co', 'com', 'or', 'org', 'go', 'gov', 'ac', 'edu', 'net'])
+    return labels.slice(labels.length > 2 && generic.has(labels[labels.length - 2]) ? -3 : -2).join('.')
+  } catch {
+    return ''
+  }
+}
+
+// Shorter versions of a link's path (a/b/c/ -> a/b/, a/), for when the exact page has moved but its section is there.
+function parentPages(url: string) {
+  try {
+    const parsed = new URL(url)
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const parents: string[] = []
+    for (let keep = segments.length - 1; keep >= 1; keep--) parents.push(`${parsed.origin}/${segments.slice(0, keep).join('/')}/`)
+    return parents
+  } catch {
+    return []
+  }
+}
+
+// Thrown when none of a scholarship's links opens a page about it. `seen` are the pages the web search really returned.
+class LinkRejected extends Error {
+  seen: string[]
+  constructor(message: string, seen: string[]) {
+    super(message)
+    this.seen = seen
   }
 }
 
@@ -591,7 +652,9 @@ export async function researchScholarship(today: string, coveredNames: string[])
       const message = error instanceof Error ? error.message : String(error)
       if (attempt >= ITEM_ATTEMPTS || Date.now() - startedAt > 70_000) throw error
       console.warn(`[academy-forge] scholarship research attempt ${attempt} rejected: ${message}`)
-      rejected.push(message)
+      rejected.push(error instanceof LinkRejected && error.seen.length
+        ? `${message}\nPages that really exist (returned by the web search): ${error.seen.slice(0, 8).join(', ')}`
+        : message)
     }
   }
 }
@@ -604,19 +667,32 @@ async function researchScholarshipOnce(today: string, coveredNames: string[], re
 YOUR EARLIER ANSWERS WERE REJECTED:
 ${rejected.join('\n')}
 Copy each URL exactly from a page you found in the search results; never build or guess a URL. If you cannot find a working official page, choose a different scholarship.` : ''
+  const sources: SearchSource[] = []
   const found = await askQwen(`Search the web for ONE scholarship that students from Laos can apply for now or in the coming months: the application deadline must be after ${today} (or the next round must open after ${today}). Prefer fully or largely funded scholarships for bachelor's, master's or short programs (government, university or foundation scholarships, e.g. in Japan, Korea, China, Australia, New Zealand, Thailand, Europe, the US or ASEAN).
 Do not choose any scholarship already covered:
 ${coveredNames.join('\n') || '(none)'}
-Return {"name":"official scholarship name","official_urls":["up to 3 URLs of the provider's own web pages that describe this scholarship, most specific first (not application forms, PDFs, news or aggregator sites)"]}. Copy every URL exactly from a search result.${feedback}`, { maxTokens: 800, enableSearch: true, forceSearch: true })
+Return {"name":"official scholarship name","official_urls":["up to 3 URLs of the provider's own web pages that describe this scholarship, most specific first (not application forms, PDFs, news or aggregator sites)"]}. Copy every URL exactly from a search result.${feedback}`, { maxTokens: 800, enableSearch: true, forceSearch: true, sources })
   const name = String(found.name ?? '').trim()
   const urls = (Array.isArray(found.official_urls) ? found.official_urls : []).map(String).map(url => url.trim()).filter(url => /^https:\/\//.test(url)).slice(0, 3)
   if (!name || !urls.length) throw new Error('Wrong shape: the scholarship needs a name and an https official link.')
   if (coveredNames.some(covered => normalizeText(covered) === normalizeText(name))) throw new Error(`${name} was already covered.`)
 
-  const pages = await Promise.all(urls.map(fetchPageText))
-  const index = pages.findIndex(text => text !== null && pageNamesScholarship(text, name))
-  if (index < 0) throw new Error(`${name}: none of its links (${urls.join(', ')}) opens a live page that describes it.`)
-  const officialUrl = urls[index]
+  // The model's links first, then other pages of those sections, then pages the search returned from the provider's own
+  // sites (same organisation domain). The first one that opens and names the scholarship is the source.
+  const orgs = new Set(urls.map(orgDomain))
+  const candidates = [...new Set([
+    ...urls,
+    ...urls.flatMap(parentPages),
+    ...sources.map(source => source.url).filter(url => /^https:\/\//.test(url) && orgs.has(orgDomain(url))),
+  ])].slice(0, 9)
+  const inspected = await Promise.all(candidates.map(inspectPage))
+  const index = inspected.findIndex(page => page.text !== undefined && pageNamesScholarship(page.text, name))
+  if (index < 0) {
+    const reasons = candidates.map((url, i) => `${url} (${inspected[i].text !== undefined ? 'opens, but does not describe it' : inspected[i].why})`)
+    throw new LinkRejected(`${name}: none of its links opens a live page that describes it: ${reasons.slice(0, 5).join('; ')}.`, sources.map(source => source.url))
+  }
+  const officialUrl = candidates[index]
+  const pages = inspected.map(page => page.text ?? null)
 
   const result = await askQwen(`Below is the text of the official page for the "${name}" scholarship (${officialUrl}). Using ONLY facts stated in this text, describe it for students in Laos. Do not add anything the page does not say; leave a list short rather than guess. Today is ${today}.
 PAGE TEXT: ${(pages[index] as string).slice(0, 14_000)}

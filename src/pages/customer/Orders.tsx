@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Package, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Order } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { OrderListSkeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -35,7 +35,7 @@ export function Orders() {
     return <TrackOrder />
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (isLoading) return <OrderListSkeleton />
 
   if (!orders || orders.length === 0) {
     return (

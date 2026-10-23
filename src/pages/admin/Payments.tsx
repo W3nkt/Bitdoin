@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { Order, Payment } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { TableSkeleton, ReceiptSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -410,7 +410,7 @@ export function AdminPayments() {
         </button>
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <TableSkeleton rows={10} cols={6} /> : (
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
@@ -800,7 +800,7 @@ export function AdminPayments() {
       >
         {receiptPayment && (
           loadingReceiptOrder ? (
-            <LoadingSpinner />
+            <ReceiptSkeleton rows={7} />
           ) : receiptOrder ? (
             <Receipt
               order={receiptOrder}

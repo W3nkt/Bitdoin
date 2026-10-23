@@ -5,7 +5,7 @@ import { ArrowRight, DollarSign, TrendingUp, CreditCard, Truck, ShoppingBag } fr
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { StatCard } from '@/components/ui/Card'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { DashboardSkeleton } from '@/components/ui/Skeleton'
 import { formatPrice, formatDate, orderStatusLabel, orderStatusColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -104,7 +104,7 @@ export function AdminDashboard() {
 
   const firstName = profile?.name?.split(' ')[0] ?? 'there'
 
-  if (loadingStats) return <LoadingSpinner />
+  if (loadingStats) return <DashboardSkeleton />
 
   return (
     <div className="space-y-6">

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { logAudit } from '@/lib/audit'
 import { useMarkSeen } from '@/context/AdminNotificationsContext'
 import type { Delivery, DeliveryStatus } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -198,7 +198,7 @@ export function AdminDeliveries() {
         ))}
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <ListSkeleton rows={4} /> : (
         <div className="space-y-3">
           {deliveries?.map(delivery => (
             <div key={delivery.id} className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-hidden flex">

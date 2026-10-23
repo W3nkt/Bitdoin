@@ -6,7 +6,7 @@ import {
   CartesianGrid, Legend, LabelList,
 } from 'recharts'
 import { supabase } from '@/lib/supabase'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { DashboardSkeleton } from '@/components/ui/Skeleton'
 import { StatCard } from '@/components/ui/Card'
 import { formatPrice, formatCompactPrice, formatDateTime } from '@/lib/utils'
 import { DollarSign, TrendingUp, ShoppingBag, Users, TrendingDown, Repeat, CalendarClock, Wallet } from 'lucide-react'
@@ -193,7 +193,7 @@ export function AdminAnalytics() {
     }
   }, [orders])
 
-  if (loadingOrders) return <LoadingSpinner />
+  if (loadingOrders) return <DashboardSkeleton />
 
   const summary = insights
   const monthly = insights.customerMix

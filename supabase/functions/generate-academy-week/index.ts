@@ -143,7 +143,7 @@ type Category = { id: string; slug: string; name_en: string; name_lo: string }
 // Step 1 of a lesson: the slow web search, with a short English-only answer.
 async function researchLesson(category: Category, weekStart: string): Promise<LessonResearch> {
   const result = await askQwen(`Research one new, practical Learning Hub lesson topic for category "${category.name_en}" for learners in Laos, for the week of ${weekStart}. Prefer durable, verifiable ideas. Do not summarize copyrighted books.
-Return {"topic":"short lesson title","angle":"one sentence on what the learner will be able to do","outline":[3 section headings],"facts":[3-5 short verified facts or tips],"source_url":"a real authoritative URL you used, or null"}. English only. Be concise.`, { maxTokens: 900, enableSearch: true })
+Return {"topic":"short lesson title","angle":"one sentence on what the learner will be able to do","outline":[3 section headings],"facts":[3-5 short verified facts or tips, each at most 25 words],"source_url":"a real authoritative URL you used, or null"}. English only. Be concise: no explanations, citations or text outside the JSON.`, { maxTokens: 2000, enableSearch: true })
   return {
     topic: String(result.topic ?? ''),
     angle: String(result.angle ?? ''),

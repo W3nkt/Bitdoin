@@ -52,7 +52,7 @@ import { useTheme } from '@/lib/theme'
 import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { DashboardSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
@@ -231,9 +231,15 @@ function laosToday() {
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
-function paymentReminderMessage(subscription: PremiumSubscription) {
+/** The name a member asked to be called in the subscription survey, or '' when they gave none. */
+function preferredNameOf(onboarding: Pick<PremiumOnboarding, 'responses'> | undefined) {
+  const value = onboarding?.responses?.preferred_name
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function paymentReminderMessage(subscription: PremiumSubscription, displayName: string) {
   const lao = (subscription.user?.language ?? 'lo') !== 'en'
-  const name = subscription.user?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there')
+  const name = displayName.trim() || (lao ? 'ສະມາຊິກ' : 'there')
   const plan = subscription.plan?.name ?? 'Premium'
   const price = Number(subscription.plan?.price_lak ?? 0).toLocaleString('en-US')
   const link = `${window.location.origin}/academy/subscription`
@@ -243,9 +249,9 @@ function paymentReminderMessage(subscription: PremiumSubscription) {
 }
 
 // Same content as the Telegram daily reminder (telegram-daily-reminder), in WhatsApp formatting.
-function dailyReminderMessage(subscription: PremiumSubscription, mentor: Pick<DailyMotivation, 'quote' | 'challenge'> | null) {
+function dailyReminderMessage(subscription: PremiumSubscription, mentor: Pick<DailyMotivation, 'quote' | 'challenge'> | null, displayName: string) {
   const lao = (subscription.user?.language ?? 'lo') !== 'en'
-  const name = subscription.user?.name?.trim() || (lao ? 'ສະມາຊິກ' : 'there')
+  const name = displayName.trim() || (lao ? 'ສະມາຊິກ' : 'there')
   const greeting = lao
     ? `🌱 *ສະບາຍດີ ${name}!* ເຖິງເວລາຮຽນປະຈຳວັນຂອງທ່ານແລ້ວ.`
     : `🌱 *Hi ${name}!* It's time for today's learning.`
@@ -711,6 +717,10 @@ export function PremiumAdminDashboard() {
     () => new Map((onboardingResponses ?? []).map(response => [response.user_id, response])),
     [onboardingResponses],
   )
+  // What the member asked to be called (subscription survey); their account name when they gave none.
+  function memberDisplayName(subscription: Pick<PremiumSubscription, 'user_id' | 'user'>) {
+    return preferredNameOf(onboardingByUser.get(subscription.user_id)) || subscription.user?.name?.trim() || 'Unknown user'
+  }
   // Requests that can be decided now (proof uploaded, or a Free plan awaiting
   // approval) come first; ones still waiting for payment follow. Newest first
   // within each group, as loaded.
@@ -977,12 +987,12 @@ export function PremiumAdminDashboard() {
   function openMemberWhatsApp(subscription: PremiumSubscription, outcome: 'PAYMENT_REMINDER' | 'DAILY_REMINDER' | 'DIRECT') {
     setWhatsAppDraft({
       outcome,
-      memberName: subscription.user?.name ?? 'Unknown user',
+      memberName: memberDisplayName(subscription),
       recipient: memberWhatsAppNumber(subscription),
       userId: subscription.user_id,
       message: outcome === 'PAYMENT_REMINDER'
-        ? paymentReminderMessage(subscription)
-        : outcome === 'DAILY_REMINDER' ? dailyReminderMessage(subscription, todayMentor) : '',
+        ? paymentReminderMessage(subscription, memberDisplayName(subscription))
+        : outcome === 'DAILY_REMINDER' ? dailyReminderMessage(subscription, todayMentor, memberDisplayName(subscription)) : '',
     })
   }
 
@@ -1074,7 +1084,7 @@ export function PremiumAdminDashboard() {
       if (signedUrlError) throw signedUrlError
       setProofPreview({
         url: data.signedUrl,
-        userName: payment.user?.name ?? 'Unknown user',
+        userName: preferredNameOf(onboardingByUser.get(payment.user_id)) || payment.user?.name || 'Unknown user',
         planName: payment.plan?.name ?? 'Premium',
         amountLak: payment.amount_lak,
         createdAt: payment.created_at,
@@ -1271,11 +1281,11 @@ export function PremiumAdminDashboard() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <MemberAvatar
-                name={subscription.user?.name}
+                name={memberDisplayName(subscription)}
                 avatarUrl={subscription.user?.avatar_url}
               />
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{subscription.user?.name ?? 'Unknown user'}</p>
+                <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100" title={subscription.user?.name}>{memberDisplayName(subscription)}</p>
                 <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
                   Requested {formatDate(subscription.created_at, language)}
                 </p>
@@ -1305,7 +1315,7 @@ export function PremiumAdminDashboard() {
               onDeclineWithReason={reason => {
                 setRejectingRequest({
                   subscriptionId: subscription.id,
-                  userName: subscription.user?.name ?? 'Unknown user',
+                  userName: memberDisplayName(subscription),
                 })
                 setRejectReason(reason)
               }}
@@ -1337,7 +1347,7 @@ export function PremiumAdminDashboard() {
                     event.stopPropagation()
                     setRejectingRequest({
                       subscriptionId: subscription.id,
-                      userName: subscription.user?.name ?? 'Unknown user',
+                      userName: memberDisplayName(subscription),
                     })
                     // Start from the AI's drafted reason when it has one; the admin can edit it.
                     const aiReview = paymentAiReviews?.get(payment.id)
@@ -1376,7 +1386,7 @@ export function PremiumAdminDashboard() {
                     icon={<XCircle className="h-4 w-4" />}
                     onClick={event => {
                       event.stopPropagation()
-                      setRejectingRequest({ subscriptionId: subscription.id, userName: subscription.user?.name ?? 'Unknown user' })
+                      setRejectingRequest({ subscriptionId: subscription.id, userName: memberDisplayName(subscription) })
                       setRejectReason('')
                     }}
                   >
@@ -1596,7 +1606,7 @@ export function PremiumAdminDashboard() {
       </div>
 
       {loading ? (
-        <LoadingSpinner />
+        <div className="mx-auto max-w-7xl px-4 py-6"><DashboardSkeleton /></div>
       ) : (
         <main className="mx-auto max-w-7xl px-4 py-6 pb-28">
 
@@ -1678,6 +1688,7 @@ export function PremiumAdminDashboard() {
                          limit={MEMBERS_PREVIEW}
                          onOpenProfile={setSelectedSubscription}
                          whatsAppNumber={memberWhatsAppNumber}
+                         displayName={memberDisplayName}
                          onWhatsApp={subscription => openMemberWhatsApp(subscription, memberWhatsAppAction(subscription))}
                        />
                      ) : memberRows.length > 0 ? (
@@ -1989,6 +2000,7 @@ export function PremiumAdminDashboard() {
             pageSize={MEMBERS_PAGE_SIZE}
             onOpenProfile={setSelectedSubscription}
             whatsAppNumber={memberWhatsAppNumber}
+            displayName={memberDisplayName}
             onWhatsApp={subscription => openMemberWhatsApp(subscription, memberWhatsAppAction(subscription))}
           />
         </div>
@@ -2077,18 +2089,21 @@ export function PremiumAdminDashboard() {
                 {selectedSubscription.user?.avatar_url ? (
                   <img src={selectedSubscription.user.avatar_url} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <span>{selectedSubscription.user?.name?.charAt(0).toUpperCase() ?? '?'}</span>
+                  <span>{memberDisplayName(selectedSubscription).charAt(0).toUpperCase()}</span>
                 )}
               </div>
               <div className="flex min-h-24 items-center py-4 pl-28 pr-4">
                 <div className="min-w-0 text-white">
-                  <p className="truncate text-lg font-black">{selectedSubscription.user?.name ?? 'Unknown user'}</p>
+                  <p className="truncate text-lg font-black">{memberDisplayName(selectedSubscription)}</p>
                   <p className="truncate text-xs text-primary-200">{selectedSubscription.user?.email ?? 'No email address'}</p>
                 </div>
               </div>
             </div>
 
             <MemberDetailSection icon={<Users className="h-4 w-4" />} title="Account and membership">
+              {memberDisplayName(selectedSubscription) !== selectedSubscription.user?.name && (
+                <MemberDetail label="Account name" value={selectedSubscription.user?.name} />
+              )}
               <MemberDetail label="Plan" value={selectedSubscription.plan?.name} />
               <MemberDetail label="Status" value={statusLabel(effectiveStatus(selectedSubscription))} />
               <MemberDetail label="Requested" value={formatDate(selectedSubscription.created_at, language)} />
@@ -2294,9 +2309,9 @@ export function PremiumAdminDashboard() {
                 {language === 'lo' ? 'ປິດຄຳຂໍນີ້ບໍ?' : 'Dismiss this request?'}
               </h3>
               <div className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-left dark:border-gray-800 dark:bg-gray-900">
-                <MemberAvatar name={dismissingRequest.user?.name} avatarUrl={dismissingRequest.user?.avatar_url} />
+                <MemberAvatar name={memberDisplayName(dismissingRequest)} avatarUrl={dismissingRequest.user?.avatar_url} />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{dismissingRequest.user?.name ?? 'Unknown user'}</p>
+                  <p className="truncate text-sm font-black text-gray-950 dark:text-gray-100">{memberDisplayName(dismissingRequest)}</p>
                   <p className="mt-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
                     {dismissingRequest.plan?.name ?? 'Premium'} · {language === 'lo' ? 'ສະໝັກ' : 'Requested'} {formatDate(dismissingRequest.created_at, language)}
                   </p>
@@ -2648,6 +2663,7 @@ function MemberSubscriptionList({
   members,
   onOpenProfile,
   whatsAppNumber,
+  displayName,
   onWhatsApp,
   limit,
   pageSize,
@@ -2655,6 +2671,8 @@ function MemberSubscriptionList({
   members: MemberRow[]
   onOpenProfile: (subscription: PremiumSubscription) => void
   whatsAppNumber: (subscription: PremiumSubscription) => string | null
+  /** The name the member asked to be called, or their account name. */
+  displayName: (subscription: PremiumSubscription) => string
   /** Drafts the member's WhatsApp message (payment nudge, daily reminder or blank). */
   onWhatsApp: (subscription: PremiumSubscription) => void
   /** Show only the first N members (preview). */
@@ -2687,7 +2705,7 @@ function MemberSubscriptionList({
       {visibleMembers.map(({ userId, history, current }) => {
         const open = expanded.has(userId)
         const status = effectiveStatus(current)
-        const memberName = current.user?.name ?? 'Unknown user'
+        const memberName = displayName(current)
         const hasWhatsApp = Boolean(whatsAppNumber(current))
         const whatsAppLabel = status === 'PENDING_PAYMENT'
           ? 'Remind to pay on WhatsApp'
@@ -2702,7 +2720,7 @@ function MemberSubscriptionList({
                 title="View profile"
                 className="flex-shrink-0 rounded-full transition hover:scale-105 hover:ring-2 hover:ring-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               >
-                <MemberAvatar name={current.user?.name} avatarUrl={current.user?.avatar_url} />
+                <MemberAvatar name={memberName} avatarUrl={current.user?.avatar_url} />
               </button>
               <button
                 type="button"
@@ -2712,7 +2730,7 @@ function MemberSubscriptionList({
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-2">
-                    <p className="min-w-0 truncate text-sm font-black text-gray-950 dark:text-gray-100">{memberName}</p>
+                    <p className="min-w-0 truncate text-sm font-black text-gray-950 dark:text-gray-100" title={current.user?.name}>{memberName}</p>
                     <PlanTierBadge subscription={current} />
                   </div>
                   <p className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">

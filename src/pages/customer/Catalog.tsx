@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import type { Book, Category, SearchFilters } from '@/types'
 import { BookCard } from '@/components/ui/BookCard'
 import { BrowseSidebar } from '@/components/ui/BrowseSidebar'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { BookGridSkeleton } from '@/components/ui/Skeleton'
 import { Pagination } from '@/components/ui/Pagination'
 import { useCart } from '@/context/CartContext'
 import { useToast } from '@/components/ui/Toast'
@@ -257,7 +257,7 @@ export function Catalog() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center py-16"><LoadingSpinner /></div>
+          <BookGridSkeleton count={18} />
         ) : data?.data.length === 0 ? (
           <div className="py-16 text-center text-slate-400">
             <p className="text-sm">{t('catalog.noResults')}</p>

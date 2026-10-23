@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, Eye, ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { AuditLog } from '@/types'
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { TableSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Pagination } from '@/components/ui/Pagination'
@@ -149,7 +149,7 @@ export function AdminAuditLogs() {
         )}
       </div>
 
-      {isLoading ? <LoadingSpinner /> : (
+      {isLoading ? <TableSkeleton rows={10} cols={5} /> : (
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50/80 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
