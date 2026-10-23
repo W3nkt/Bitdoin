@@ -24,6 +24,7 @@ create table public.users (
   role user_role not null default 'CUSTOMER',
   language text not null default 'lo',
   currency text not null default 'LAK',
+  member_code text unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

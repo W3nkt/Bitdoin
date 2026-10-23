@@ -12,7 +12,11 @@ const files = readdirSync(here).filter((f) => f.endsWith('.test.mjs') && f.inclu
 let failed = 0
 for (const file of files) {
   const result = spawnSync(process.execPath, [join(here, file)], { encoding: 'utf8' })
-  const output = `${result.stdout}${result.stderr}`.trim()
+  // Drop stack frames and minified library source that crashes echo.
+  const output = `${result.stdout}${result.stderr}`
+    .split('\n')
+    .filter((line) => line.length < 400 && !/^\s+at /.test(line) && line.trim() !== '')
+    .join('\n')
   console.log(`${result.status === 0 ? 'ok  ' : 'FAIL'} ${file}\n${output.replace(/^/gm, '     ')}`)
   if (result.status !== 0) failed++
 }

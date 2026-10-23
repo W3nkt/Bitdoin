@@ -12,6 +12,7 @@ const HEADERS = JSON.stringify({ 'x-forwarded-for': '203.0.113.7, 10.0.0.1', 'us
 const caller = (user, role = 'authenticated') => `
   select set_config('request.jwt.claim.sub', '${user ?? ''}', true);
   select set_config('request.jwt.claim.role', '${role}', true);
+    select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
   select set_config('request.headers', '${HEADERS}', true);
   set local role ${role};`
 

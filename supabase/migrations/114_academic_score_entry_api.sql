@@ -681,15 +681,13 @@ $$;
 
 -- History grouped by academic year > term > period (SCORE-010). Includes
 -- closed enrolments (read-only) and labels drafts so the UI can hide them.
-create or replace function public.academic_get_history()
+create or replace function public.academic_history_json(p_profile_id uuid)
 returns jsonb
 language plpgsql
-volatile
+stable
 security definer
 set search_path = ''
 as $$
-declare
-  v_profile public.academic_student_profiles := public.academic_require_profile(false);
 begin
   return jsonb_build_object('enrolments', coalesce((
     select jsonb_agg(jsonb_build_object(
@@ -735,8 +733,22 @@ begin
     join public.academic_years y on y.id = e.academic_year_id
     join public.academic_grades g on g.id = e.grade_id
     left join public.academic_schools sc on sc.id = e.school_id
-    where e.student_profile_id = v_profile.id
+    where e.student_profile_id = p_profile_id
   ), '[]'::jsonb));
+end;
+$$;
+
+create or replace function public.academic_get_history()
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_profile public.academic_student_profiles := public.academic_require_profile(false);
+begin
+  return public.academic_history_json(v_profile.id);
 end;
 $$;
 
@@ -755,6 +767,7 @@ revoke all on function public.academic_period_json(public.academic_reporting_per
 revoke all on function public.academic_scale_json(uuid) from public, anon, authenticated;
 revoke all on function public.academic_line_json(public.academic_score_lines) from public, anon, authenticated;
 revoke all on function public.academic_entry_json(public.academic_enrolments, public.academic_reporting_periods) from public, anon, authenticated;
+revoke all on function public.academic_history_json(uuid) from public, anon, authenticated;
 
 revoke all on function public.academic_list_periods(uuid) from public, anon;
 revoke all on function public.academic_get_score_entry(uuid, uuid) from public, anon;

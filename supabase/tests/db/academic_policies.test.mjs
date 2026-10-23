@@ -45,6 +45,7 @@ async function as(user, sql, role = 'authenticated') {
   const res = await db.exec(`begin;
     select set_config('request.jwt.claim.sub', '${user ?? ''}', true);
     select set_config('request.jwt.claim.role', '${role}', true);
+    select set_config('request.jwt.claims', '{"aal":"aal2"}', true);
     set local role ${role};
     ${sql};
     commit;`)
@@ -91,7 +92,7 @@ await fails(db, 'anon cannot read profiles', `set local role anon; select * from
 await fails(db, 'anon cannot read config', `set local role anon; select * from academic_subjects`, 'permission denied')
 
 // Students cannot write their own records directly (RPCs only).
-const asUser = (user, sql) => `select set_config('request.jwt.claim.sub', '${user}', true); set local role authenticated; ${sql}`
+const asUser = (user, sql) => `select set_config('request.jwt.claim.sub', '${user}', true); select set_config('request.jwt.claims', '{"aal":"aal2"}', true); set local role authenticated; ${sql}`
 await fails(db, 'student direct insert profile', asUser(G, `insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('${G}', 'G', '18_plus', 'VT')`), 'permission denied')
 await fails(db, 'student direct update score', asUser(A, `update academic_score_lines set raw_value = 10 where id = '20000000-0000-0000-0000-000000000005'`), 'permission denied')
 await fails(db, 'student direct delete entry', asUser(A, `delete from academic_score_entries`), 'permission denied')

@@ -63,8 +63,9 @@ export const CONFIG_SQL = `
 export const HEADERS = JSON.stringify({ 'x-forwarded-for': '203.0.113.7', 'user-agent': 'test' })
 
 // signedInAt: seconds since epoch put in the JWT amr claim (default: now).
-export function callerSql(user, { role = 'authenticated', signedInAt } = {}) {
-  const claims = JSON.stringify({ sub: user ?? undefined, role, amr: [{ method: 'password', timestamp: signedInAt ?? Math.floor(Date.now() / 1000) }] })
+// aal: 'aal2' for an MFA-verified session (required for academic admin).
+export function callerSql(user, { role = 'authenticated', signedInAt, aal = 'aal1' } = {}) {
+  const claims = JSON.stringify({ sub: user ?? undefined, role, aal, amr: [{ method: 'password', timestamp: signedInAt ?? Math.floor(Date.now() / 1000) }] })
   return `
     select set_config('request.jwt.claim.sub', '${user ?? ''}', true);
     select set_config('request.jwt.claim.role', '${role}', true);
