@@ -207,3 +207,45 @@ export function useUpdateProfile() {
     onSuccess: invalidate,
   })
 }
+
+export interface HistoryEnrolment {
+  enrolment_id: string
+  academic_year: string
+  grade: { code: string; label_lo: string; label_en: string }
+  school: { id: string | null; name_lo: string | null; name_en: string | null; verification: 'verified' | 'unverified_school' }
+  state: 'active' | 'closed'
+  closed_reason: string | null
+  read_only: boolean
+}
+
+/** Every school year the student recorded, newest first (SCORE-010). */
+export function useAcademicHistory(enabled = true) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'history'],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ enrolments: HistoryEnrolment[] }>('academic_get_history'),
+  })
+}
+
+export interface PeriodOption {
+  id: string
+  key: string
+  period_type: string
+  sequence: number
+  label_lo: string
+  label_en: string
+  state: 'empty' | 'draft' | 'submitted'
+  disabled: boolean
+}
+
+export function usePeriods(enrolmentId: string | null | undefined) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'periods', enrolmentId],
+    enabled: !!enrolmentId,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ enrolment_id: string; read_only: boolean; periods: PeriodOption[]; suggested_period_id: string | null }>(
+      'academic_list_periods', { p_enrolment_id: enrolmentId },
+    ),
+  })
+}

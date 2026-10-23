@@ -1,23 +1,20 @@
-import { AlertTriangle, ClipboardList, Hourglass } from 'lucide-react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { AlertTriangle, ClipboardList, Hourglass, ShieldCheck } from 'lucide-react'
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { MyScoresNotice, MyScoresShell } from '@/components/academic/MyScoresShell'
+import { Onboarding } from '@/components/academic/Onboarding'
+import { ConsentReview } from '@/components/academic/ConsentReview'
+import { NewSchoolYear } from '@/components/academic/NewSchoolYear'
+import { MyData } from '@/components/academic/MyData'
 import { useAuth } from '@/context/AuthContext'
-import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
+import { useAcademicCopy } from '@/lib/academic/copy'
 import { AcademicError } from '@/lib/academic/errors'
-import { useAcademicSession, type AcademicNextStep } from '@/lib/academic/session'
-
-const STEP_TITLES: Record<Exclude<AcademicNextStep, 'unavailable'>, AcademicCopyKey> = {
-  onboarding: 'state.next.onboarding',
-  consent: 'state.next.consent',
-  new_school_year: 'state.next.newSchoolYear',
-  ready: 'state.next.ready',
-}
+import { useAcademicSession, type AcademicSession } from '@/lib/academic/session'
 
 /**
- * /academy/scores — entry to My Scores (FE-001). Uses the existing Bitdoin
- * session (AUTH-001): signed-out visitors go to /auth and come back here.
- * The database decides which screen comes next.
+ * /academy/scores/* — My Scores (FE-001). Uses the existing Bitdoin session
+ * (AUTH-001): signed-out visitors go to /auth and come back here. The
+ * database decides which screen comes next.
  */
 export function MyScores() {
   const { profile, loading } = useAuth()
@@ -51,8 +48,8 @@ export function MyScores() {
     )
   }
 
-  const step = session.data.next_step
-  if (step === 'unavailable') {
+  const data = session.data
+  if (data.next_step === 'unavailable') {
     return (
       <MyScoresShell>
         <MyScoresNotice icon={<Hourglass className="h-7 w-7" />} title={t('state.unavailable.title')} body={t('state.unavailable.body')} />
@@ -60,11 +57,41 @@ export function MyScores() {
     )
   }
 
-  // Each step gets its own screen in FE-002 (onboarding, consent, new year)
-  // and FE-005 (dashboard).
   return (
-    <MyScoresShell>
-      <MyScoresNotice icon={<ClipboardList className="h-7 w-7" />} title={t(STEP_TITLES[step])} body={t('state.placeholder')} />
-    </MyScoresShell>
+    <Routes>
+      <Route
+        path="data"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('data.title')} backTo="/academy/scores"><MyData activeEnrolmentId={data.active_enrolment_id} /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route path="*" element={<MyScoresShell><StepScreen session={data} /></MyScoresShell>} />
+    </Routes>
   )
+}
+
+function StepScreen({ session }: { session: AcademicSession }) {
+  const { t } = useAcademicCopy()
+  switch (session.next_step) {
+    case 'onboarding':
+      return <Onboarding noticeVersion={session.notice_version ?? ''} />
+    case 'consent':
+      return <ConsentReview session={session} />
+    case 'new_school_year':
+      return <NewSchoolYear hasEnrolment={!!session.active_enrolment_id} />
+    default:
+      // The dashboard arrives with FE-005; until then, link to My data.
+      return (
+        <MyScoresNotice
+          icon={<ClipboardList className="h-7 w-7" />}
+          title={t('state.next.ready')}
+          body={t('state.placeholder')}
+          action={(
+            <Link to="/academy/scores/data" className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:bg-white dark:text-slate-900">
+              <ShieldCheck className="h-4 w-4" />{t('data.link')}
+            </Link>
+          )}
+        />
+      )
+  }
 }

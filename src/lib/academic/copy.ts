@@ -182,6 +182,7 @@ function interpolate(text: string, vars?: Record<string, string | number>) {
 export function useAcademicCopy() {
   const { language } = useLanguage()
   const lo = language === 'lo'
-  const t = (key: AcademicCopyKey, vars?: Record<string, string | number>) => interpolate(copy[key][lo ? 'lo' : 'en'], vars)
+  // Unknown keys (e.g. a consent purpose added later) fall back to the key itself.
+  const t = (key: AcademicCopyKey, vars?: Record<string, string | number>) => interpolate((copy[key] as { en: string; lo: string } | undefined)?.[lo ? 'lo' : 'en'] ?? key, vars)
   return { t, lo, language }
 }

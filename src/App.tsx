@@ -201,7 +201,7 @@ export function App() {
                     <Route path="/academy/prompts" element={<PromptLibraryPage />} />
                     <Route path="/academy/profile" element={<AcademyProfile />} />
                     <Route path="/academy/careers" element={<CareerExplorer />} />
-                    <Route path="/academy/scores" element={<MyScores />} />
+                    <Route path="/academy/scores/*" element={<MyScores />} />
                     <Route path="/academy/top-corner-lab" element={<TopCornerLab />} />
 
                     {/* Legacy route compatibility */}

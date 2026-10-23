@@ -19,3 +19,17 @@ export function formatMean(value: number | string | null | undefined, scale: { m
   const decimals = meanDecimals(scale)
   return roundHalfAwayFromZero(Number(value), decimals).toFixed(decimals)
 }
+
+const MONTHS = {
+  lo: ['ມັງກອນ', 'ກຸມພາ', 'ມີນາ', 'ເມສາ', 'ພຶດສະພາ', 'ມິຖຸນາ', 'ກໍລະກົດ', 'ສິງຫາ', 'ກັນຍາ', 'ຕຸລາ', 'ພະຈິກ', 'ທັນວາ'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+}
+
+/**
+ * "1 ຕຸລາ 2026" / "1 Oct 2026" in Vientiane time. Browsers often lack lo-LA
+ * locale data (Chromium prints "2026 M10 1"), so months are spelled here.
+ */
+export function formatDate(value: string | Date, language: 'lo' | 'en') {
+  const local = new Date(new Date(value).getTime() + 7 * 60 * 60 * 1000)
+  return `${local.getUTCDate()} ${MONTHS[language][local.getUTCMonth()]} ${local.getUTCFullYear()}`
+}
