@@ -14,6 +14,8 @@ if (!process.env.QA_SKIP_BUILD) {
   // Set before Vite loads .env files, so these win over any real project keys.
   process.env.VITE_SUPABASE_URL = 'https://example.supabase.co'
   process.env.VITE_SUPABASE_ANON_KEY = 'test'
+  // A dummy Web Push key (not a real one) so push settings render like production.
+  process.env.VITE_VAPID_PUBLIC_KEY = 'BAcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc'
   await build({ build: { outDir, emptyOutDir: true }, logLevel: 'warn' })
 }
 
