@@ -31,6 +31,7 @@ await invalid('no school', { ...valid, school_id: undefined }, 'school_id')
 await invalid('both schools', { ...valid, school_free_text: 'Other' }, 'school_id')
 await invalid('unknown school', { ...valid, school_id: ID.math }, 'school_id')
 await invalid('goals too many chips', { ...valid, goals: { chips: ['a', 'b', 'c', 'd'] } }, 'goals')
+eq('unknown goal chip refused by the table (S-03)', (await rpcError(A, `public.academic_create_profile(${json({ ...valid, goals: { chips: ['x'.repeat(5000)] } })})`))?.status, '23514')
 await invalid('goal text too long', { ...valid, goals: { text: 'x'.repeat(201) } }, 'goals')
 await invalid('unknown interest', { ...valid, interest_subject_codes: ['MATH', 'NOPE'] }, 'interest_subject_codes')
 await invalid('lower secondary gated (PROFILE-008)', { ...valid, grade_id: ID.g9 }, 'grade_id', 'GRADE_NOT_SUPPORTED')
@@ -44,11 +45,11 @@ await ok(db, 'module on', `update academic_settings set value = 'true' where key
 
 // ─── Onboarding creates profile + consent + enrolment + default subjects ────
 
-const created = await create(A, { ...valid, goals: { chips: ['University'], text: '  Pass exams ' }, interest_subject_codes: ['MATH', 'MATH'] })
+const created = await create(A, { ...valid, goals: { chips: ['university'], text: '  Pass exams ' }, interest_subject_codes: ['MATH', 'MATH'] })
 eq('created', created.created, true)
 const profile = await one(`select * from academic_student_profiles where user_id = '${A}'`)
 eq('profile fields', [profile.display_name, profile.age_band, profile.consent_state, profile.status, profile.goals, profile.interest_subject_codes],
-  ['Noy', '16_17', 'active', 'active', { chips: ['University'], text: 'Pass exams' }, ['MATH']])
+  ['Noy', '16_17', 'active', 'active', { chips: ['university'], text: 'Pass exams' }, ['MATH']])
 const consent = await one(`select purpose, notice_version, grantor_user_id, method from academic_consent_records where student_profile_id = '${profile.id}'`)
 eq('consent recorded before data', consent, { purpose: 'module_processing', notice_version: '2026-10-draft', grantor_user_id: A, method: 'in_app_checkbox' })
 const enr = await one(`select * from academic_enrolments where id = '${created.enrolment_id}'`)

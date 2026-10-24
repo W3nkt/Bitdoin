@@ -107,28 +107,51 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
 
 // ─── Export (PRIV-004) ───────────────────────────────────────────────────────
 
+/** Export and delete need a recent sign-in (PRD §29.6 T3); this sends the student to sign in and back. */
+function ReauthNotice({ body }: { body: AcademicCopyKey }) {
+  const { t } = useAcademicCopy()
+  const navigate = useNavigate()
+  const { signOut } = useAuth()
+  return (
+    <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
+      <p className="font-black">{t('privacy.delete.reauthTitle')}</p>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t(body)}</p>
+      <Button className="mt-3" icon={<LogIn className="h-4 w-4" />}
+        onClick={async () => { await signOut(); navigate('/auth', { state: { from: '/academy/scores/data' } }) }}>
+        {t('privacy.delete.reauthButton')}
+      </Button>
+    </div>
+  )
+}
+
+const needsSignIn = (error: unknown) => error instanceof AcademicError && error.code === 'REAUTH_REQUIRED'
+
 export function ExportCard() {
   const { t } = useAcademicCopy()
   const toast = useToast()
   const [busy, setBusy] = useState(false)
+  const [reauth, setReauth] = useState(false)
   return (
     <PrivacyCard icon={<Download className="h-5 w-5" />} title={t('privacy.export.title')}>
       <p className="text-sm text-slate-600 dark:text-slate-400">{t('privacy.export.body')}</p>
-      <Button className="mt-4" variant="outline" icon={<Download className="h-4 w-4" />} loading={busy}
-        onClick={async () => {
-          setBusy(true)
-          try {
-            const data = await exportMyData()
-            downloadExport(data, `my-scores-${new Date().toISOString().slice(0, 10)}.zip`)
-            toast.success(t('privacy.export.done'))
-          } catch (error) {
-            toast.error(academicErrorText(t, error))
-          } finally {
-            setBusy(false)
-          }
-        }}>
-        {t('privacy.export.button')}
-      </Button>
+      {reauth ? <ReauthNotice body="privacy.export.reauthBody" /> : (
+        <Button className="mt-4" variant="outline" icon={<Download className="h-4 w-4" />} loading={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              const data = await exportMyData()
+              downloadExport(data, `my-scores-${new Date().toISOString().slice(0, 10)}.zip`)
+              toast.success(t('privacy.export.done'))
+            } catch (error) {
+              if (needsSignIn(error)) setReauth(true)
+              else toast.error(academicErrorText(t, error))
+            } finally {
+              setBusy(false)
+            }
+          }}>
+          {t('privacy.export.button')}
+        </Button>
+      )}
     </PrivacyCard>
   )
 }
@@ -138,12 +161,10 @@ export function ExportCard() {
 export function DeleteCard() {
   const { t } = useAcademicCopy()
   const toast = useToast()
-  const navigate = useNavigate()
-  const { signOut } = useAuth()
   const request = useRequestDeletion()
   const [scope, setScope] = useState<'scores' | 'profile' | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [needsSignIn, setNeedsSignIn] = useState(false)
+  const [reauth, setReauth] = useState(false)
 
   const option = (value: 'scores' | 'profile', title: AcademicCopyKey, body: AcademicCopyKey) => (
     <label className={cn('flex cursor-pointer gap-3 rounded-2xl p-4 ring-1 transition', scope === value ? 'bg-red-50 ring-red-300 dark:bg-red-500/10 dark:ring-red-500/40' : 'ring-slate-200 dark:ring-slate-700')}>
@@ -164,23 +185,14 @@ export function DeleteCard() {
       </div>
       <p className="mt-3 text-xs text-slate-500">{t('privacy.delete.grace')}</p>
 
-      {needsSignIn ? (
-        <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
-          <p className="font-black">{t('privacy.delete.reauthTitle')}</p>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('privacy.delete.reauthBody')}</p>
-          <Button className="mt-3" icon={<LogIn className="h-4 w-4" />}
-            onClick={async () => { await signOut(); navigate('/auth', { state: { from: '/academy/scores/data' } }) }}>
-            {t('privacy.delete.reauthButton')}
-          </Button>
-        </div>
-      ) : confirming && scope ? (
+      {reauth ? <ReauthNotice body="privacy.delete.reauthBody" /> : confirming && scope ? (
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Button variant="ghost" onClick={() => setConfirming(false)}>{t('common.cancel')}</Button>
           <Button variant="danger" loading={request.isPending}
             onClick={() => request.mutate(scope, {
               onSuccess: () => { setConfirming(false); setScope(null) },
               onError: error => {
-                if (error instanceof AcademicError && error.code === 'REAUTH_REQUIRED') setNeedsSignIn(true)
+                if (needsSignIn(error)) setReauth(true)
                 else toast.error(academicErrorText(t, error))
               },
             })}>

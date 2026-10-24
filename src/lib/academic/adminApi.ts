@@ -416,3 +416,32 @@ export function useAuditEvents(filters: AuditFilters, page: number) {
 
 /** Up to 5,000 rows with the current filters, for the CSV export. */
 export const auditExportRows = (filters: AuditFilters) => auditQuery(filters, 0, 4999)
+
+// ─── Anomaly alerts (T6, T12; migration 117) ─────────────────────────────────
+
+export interface AcademicAlert {
+  id: string
+  kind: 'multi_profile_access' | 'access_denied_burst'
+  actor_user_id: string | null
+  details: { profiles_24h?: number; denied_1h?: number; threshold?: number; actor_role?: string }
+  status: 'open' | 'acknowledged'
+  acknowledged_at: string | null
+  created_at: string
+}
+
+export function useAlerts() {
+  return useQuery({
+    queryKey: [...adminKey, 'alerts'],
+    queryFn: () => rows<AcademicAlert[]>(supabase.from('academic_alerts')
+      .select('id,kind,actor_user_id,details,status,acknowledged_at,created_at')
+      .order('status', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(50)),
+  })
+}
+
+export function useAcknowledgeAlert() {
+  return useAdminMutation(({ id, userId }: { id: string; userId: string }) => rows(supabase.from('academic_alerts')
+    .update({ status: 'acknowledged', acknowledged_by: userId, acknowledged_at: new Date().toISOString() })
+    .eq('id', id).eq('status', 'open')))
+}

@@ -58,6 +58,9 @@ function fixtures(role) {
       ],
     }],
     academic_reporting_periods: [],
+    academic_alerts: [
+      { id: 'al1', kind: 'multi_profile_access', actor_user_id: 'u-ops', details: { profiles_24h: 4, threshold: 3, actor_role: 'support' }, status: 'open', acknowledged_at: null, created_at: '2026-10-23T09:00:00Z' },
+    ],
     academic_audit_events: [
       { id: 'ev1', occurred_at: '2026-10-23T08:00:00Z', actor_user_id: USER_ID, actor_role: 'admin', action: 'config.update', target_type: 'subjects', target_id: 's-math', student_profile_id: null, outcome: 'success', reason: null },
       { id: 'ev2', occurred_at: '2026-10-23T07:00:00Z', actor_user_id: 'u-ops', actor_role: 'support', action: 'support.lookup', target_type: 'student_profile', target_id: 'prof-1', student_profile_id: 'prof-1', outcome: 'success', reason: null },
@@ -406,9 +409,10 @@ try {
     await page.getByRole('button', { name: 'Audit log' }).click()
     await page.getByRole('heading', { name: 'Audit log' }).waitFor()
     assert.equal(await page.getByRole('button', { name: 'Export CSV' }).count(), 0)
+    assert.equal(await page.getByRole('heading', { name: 'Alerts to review' }).count(), 0)
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Support (Operations): two tabs only, lookup without scores, emergency access needs 10+ char reason, 30-min countdown, no CSV export')
+    pass('Support (Operations): two tabs only, lookup without scores, emergency access needs 10+ char reason, 30-min countdown, no CSV export or alerts')
   }
 
   // Audit (ADMIN): filters reach the query; CSV export neutralises formulas.
@@ -416,6 +420,13 @@ try {
     const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores?tab=audit`, { waitUntil: 'domcontentloaded' })
     await page.getByText('3 entries · page 1 of 1').waitFor()
+    await page.getByText("Opened 4 students' records in 24 hours").waitFor()
+    await page.getByText('1 open').waitFor()
+    await page.getByRole('button', { name: 'Mark reviewed' }).click()
+    await page.getByText('All reviewed').waitFor()
+    const ack = lastWrite(mock, 'academic_alerts', 'PATCH')
+    assert.equal(ack.query, '?id=eq.al1&status=eq.open')
+    assert.deepEqual([ack.body.status, ack.body.acknowledged_by], ['acknowledged', USER_ID])
     await page.getByLabel('Action').selectOption('support.')
     await page.getByRole('button', { name: 'Apply' }).click()
     await page.getByText('2 entries · page 1 of 1').waitFor()
@@ -428,7 +439,7 @@ try {
     assert.equal(csv.trim().split('\r\n').length, 3)
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Audit: action filter applied, actor names shown, CSV export with formula cells neutralised')
+    pass('Audit: alert reviewed (who and when saved), action filter applied, actor names shown, CSV export with formula cells neutralised')
   }
 
   // Finance: no access; phone width has no horizontal scroll.

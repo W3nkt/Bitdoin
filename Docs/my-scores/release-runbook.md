@@ -54,9 +54,10 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration `120_academic_push_devices.sql` (device switch for score reminders,
-  reminders settle on submit).
-- `send-push` redeploy (device filter, and the edited test message).
+- Migration `121_academic_security_hardening.sql` (security review fixes S-01 to
+  S-04, see `security-review.md`). No Edge Function changes.
+- Applied 2026-10-24: migration `120_academic_push_devices.sql` and the
+  `send-push` redeploy.
 
 ## Feature flag
 

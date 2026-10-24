@@ -285,6 +285,7 @@ const copy = {
   'privacy.export.body': { en: 'A ZIP file with your profile, school years, scores, corrections and permissions. It is made on this device right now.', lo: 'ໄຟລ໌ ZIP ທີ່ມີໂປຣໄຟລ໌, ສົກຮຽນ, ຄະແນນ, ການແກ້ໄຂ ແລະ ການອະນຸຍາດຂອງເຈົ້າ. ສ້າງຢູ່ໃນອຸປະກອນນີ້ທັນທີ.' },
   'privacy.export.button': { en: 'Download ZIP', lo: 'ດາວໂຫຼດ ZIP' },
   'privacy.export.done': { en: 'Your data was downloaded.', lo: 'ດາວໂຫຼດຂໍ້ມູນແລ້ວ.' },
+  'privacy.export.reauthBody': { en: 'To protect your data, downloading it needs a fresh sign-in. You will come back here.', lo: 'ເພື່ອປົກປ້ອງຂໍ້ມູນ ການດາວໂຫຼດຕ້ອງເຂົ້າສູ່ລະບົບໃໝ່. ເຈົ້າຈະກັບມາໜ້ານີ້.' },
   'privacy.delete.title': { en: 'Delete', lo: 'ລຶບ' },
   'privacy.delete.scores': { en: 'Delete my scores only', lo: 'ລຶບສະເພາະຄະແນນ' },
   'privacy.delete.scoresBody': { en: 'Removes every saved score, draft and correction. Your profile and school years stay, so you can start recording again.', lo: 'ລຶບຄະແນນ, ຮ່າງ ແລະ ການແກ້ໄຂທັງໝົດ. ໂປຣໄຟລ໌ ແລະ ສົກຮຽນຍັງຢູ່ ເພື່ອໃຫ້ເລີ່ມບັນທຶກໃໝ່ໄດ້.' },

@@ -72,7 +72,7 @@ function backend(initial) {
       if (args.p_purpose === 'module_processing') state.profileStatus = 'read_only'
       return { consents: state.consents }
     },
-    academic_export_my_data: () => ({
+    academic_export_my_data: () => state.exportReauth ? pgError(401, 'REAUTH_REQUIRED', { max_age_minutes: 15 }) : ({
       format_version: 1, generated_at: '2026-10-23T05:00:00Z',
       profile: { id: 'p1', display_name: 'Noy' }, enrolments: [{ id: 'e1', academic_year: '2026-2027' }],
       scores: [{ academic_year: '2026-2027', period: 'October', subject_code: 'MATH', subject: 'ຄະນິດສາດ', status: 'scored', raw_value: 7.5 }],
@@ -789,6 +789,21 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json')
+  }
+
+  // Export on an old session asks for a fresh sign-in first (PRD §29.6 T3, S-02).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    mock.state.exportReauth = true
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: 'ດາວໂຫຼດ ZIP' }).click()
+    await page.getByText('ການດາວໂຫຼດຕ້ອງເຂົ້າສູ່ລະບົບໃໝ່').waitFor()
+    await page.getByRole('button', { name: 'ເຂົ້າສູ່ລະບົບອີກຄັ້ງ' }).click()
+    await page.waitForURL(/\/auth/)
+    assert.equal(await page.evaluate(() => window.history.state?.usr?.from), '/academy/scores/data')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Export (Lao): old session asks for a fresh sign-in, then returns to My data')
   }
 
   // Deletion: needs a fresh sign-in, then a cancellable 14-day grace period (PRIV-005).

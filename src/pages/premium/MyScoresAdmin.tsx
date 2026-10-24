@@ -81,7 +81,7 @@ export function MyScoresAdmin() {
               {active.id === 'calendars' && <CalendarsAdmin />}
               {active.id === 'roles' && <RolesAdmin />}
               {active.id === 'support' && <SupportAdmin />}
-              {active.id === 'audit' && <AuditAdmin canExport={role === 'ADMIN'} />}
+              {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
             </MfaGate>
           </>
         )}
