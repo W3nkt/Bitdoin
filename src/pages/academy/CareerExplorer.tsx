@@ -125,10 +125,7 @@ export function CareerExplorer() {
   const selected = filtered.find(item => item.id === selectedId) ?? filtered[0]
 
   function goBack() {
-    // Go back in history (preserves the Learning Hub's scroll position) when we
-    // arrived from within the app; otherwise fall back to the Learning Hub itself.
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate('/academy/learn')
+    navigate('/academy/learn')
   }
 
   return (

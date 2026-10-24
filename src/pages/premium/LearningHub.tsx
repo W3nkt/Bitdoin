@@ -22,7 +22,6 @@ import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { cn } from '@/lib/utils'
 import { careerPaths } from '@/data/careerPaths'
-import { useAcademicSession } from '@/lib/academic/session'
 
 // Legacy sections carry a single "body" string. Full-depth summaries instead
 // use an ordered "blocks" list, so a section can mix paragraphs, bullet
@@ -240,7 +239,7 @@ function PremiumGate({ children, requireSubscription = true }: { children: React
 }
 
 function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', requireSubscription = true }: {
-  children: React.ReactNode; title: string; eyebrow: string; backTo?: string
+  children: React.ReactNode; title: string; eyebrow: string; backTo?: string | null
   requireSubscription?: boolean
 }) {
   const navigate = useNavigate()
@@ -250,9 +249,9 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', re
       <div className="premium-i18n min-h-screen bg-[#f7f8fb] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
         <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
-            <button onClick={() => navigate(backTo)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
+            {backTo && <button onClick={() => navigate(backTo)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />
-            </button>
+            </button>}
             <div className="min-w-0 flex-1">
               <p className="truncate text-[10px] font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">{eyebrow}</p>
               <h1 className="truncate text-lg font-black">{title}</h1>
@@ -348,7 +347,6 @@ export function LearningHub() {
   const { categories, lessons, progress, access } = useLearningData()
   const lo = language === 'lo'
   const completedIds = new Set((progress.data ?? []).filter(item => item.completed_at).map(item => item.lesson_id))
-  const academicSession = useAcademicSession()
   const promptCatalogCount = useQuery({
     queryKey: ['premium', 'prompt-library-count'],
     queryFn: async () => {
@@ -385,7 +383,7 @@ export function LearningHub() {
   } : null
 
   return (
-    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo="/academy/home" requireSubscription={false}>
+    <LearningShell title={localize(language, 'Learning Hub', 'ສູນການຮຽນຮູ້')} eyebrow="Bitdoin Academy" backTo={null} requireSubscription={false}>
       <main className="mx-auto max-w-6xl px-4 pb-24">
         <LearnHubView
           lo={lo}
@@ -398,7 +396,6 @@ export function LearningHub() {
           isPremium={access.isLoading ? null : Boolean(access.data)}
           careersCount={careerPaths.length}
           promptCount={promptCatalogCount.data}
-          showMyScores={Boolean(academicSession.data?.module_enabled)}
         />
       </main>
     </LearningShell>
@@ -837,7 +834,7 @@ export function LessonReaderPage() {
     )
   }
   return (
-    <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={`/academy/learn/${lesson.category?.slug ?? ''}`}>
+    <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`}>
       <article className="mx-auto max-w-3xl px-4 py-10 pb-28">
         <header className="border-b border-slate-200 dark:border-slate-700 pb-10">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{lesson.lesson_type.replace('_', ' ')}</p>

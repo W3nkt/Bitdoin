@@ -53,7 +53,7 @@ export async function flyToPage({ flight, from, navigate, leftPage, ready = Prom
     if (leftPage()) done()
     else observer.observe(document.body, { childList: true, subtree: true })
   }))
-  transition.finished.finally(() => { delete root.dataset.flight })
+  await transition.finished.catch(() => undefined).finally(() => { delete root.dataset.flight })
 }
 
 let celebrating = 0

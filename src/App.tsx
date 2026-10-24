@@ -1,3 +1,4 @@
+import { AcademyMenu } from '@/components/academy/AcademyMenu'
 import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -162,6 +163,7 @@ export function App() {
                 <OAuthReturnHandler />
                 <PushSubscriptionSync />
                 <MembershipExpiryBanner />
+                <AcademyMenu />
                 <PullToRefresh />
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
@@ -190,7 +192,12 @@ export function App() {
 
                     {/* Bitdoin Academy */}
                     <Route path="/academy" element={<AcademyLanding />} />
-                    <Route path="/academy/home" element={<Subscription />} />
+                    <Route path="/academy/home" element={<Subscription page="home" />} />
+                    <Route path="/academy/play" element={<Subscription page="play" />} />
+                    <Route path="/academy/mentor" element={<Subscription page="mentor" />} />
+                    <Route path="/academy/community" element={<Subscription page="community" />} />
+                    <Route path="/academy/plans" element={<LegacyRedirect to="/academy/membership" />} />
+                    <Route path="/academy/membership" element={<Subscription page="membership" />} />
                     <Route path="/academy/subscription" element={<Subscription />} />
                     <Route path="/academy/coach" element={<PremiumCoach />} />
                     <Route path="/academy/learn" element={<LearningHub />} />

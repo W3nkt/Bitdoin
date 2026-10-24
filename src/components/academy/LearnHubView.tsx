@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BookOpen, Check, ClipboardList, Crown, ListChecks, Play, Target, Trophy, Zap } from 'lucide-react'
+import { ArrowRight, BookOpen, Check, Crown, ListChecks, Play, Target, Trophy, Zap } from 'lucide-react'
 import { Reveal } from '@/components/academy/landingVisuals'
 import { TopicArt } from '@/components/academy/TopicArt'
 import { cn } from '@/lib/utils'
@@ -228,7 +228,7 @@ function SpaceTile({ to, icon: Icon, label, tint }: { to: string; icon: typeof T
   )
 }
 
-export function LearnHubView({ lo, topics, resume, loading, done, total, xp, isPremium, careersCount, promptCount, showMyScores = false }: {
+export function LearnHubView({ lo, topics, resume, loading, done, total, xp, isPremium, careersCount, promptCount }: {
   lo: boolean
   topics: HubTopic[]
   resume: HubResume | null
@@ -240,8 +240,6 @@ export function LearnHubView({ lo, topics, resume, loading, done, total, xp, isP
   isPremium: boolean | null
   careersCount: number
   promptCount?: number
-  /** My Scores tile; shown only while the module is enabled for this user. */
-  showMyScores?: boolean
 }) {
   const t = (en: string, laos: string) => (lo ? laos : en)
   const featured = topics.find(topic => topic.slug === 'reading-summaries')
@@ -270,11 +268,10 @@ export function LearnHubView({ lo, topics, resume, loading, done, total, xp, isP
 
       <section>
         <h2 className="mb-4 text-2xl font-black sm:text-3xl">{t('My space', 'ພື້ນທີ່ຂອງຂ້ອຍ')}</h2>
-        <div className={cn('grid gap-3 sm:gap-4', showMyScores ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')}>
+        <div className="grid grid-cols-3 gap-3 sm:gap-4">
           <SpaceTile to="/academy/challenges" icon={Target} label={t('Challenge', 'ທ້າທາຍ')} tint="bg-gradient-to-br from-orange-400 to-rose-500" />
           <SpaceTile to="/academy/habits" icon={ListChecks} label={t('Habits', 'ນິໄສ')} tint="bg-gradient-to-br from-emerald-400 to-teal-600" />
           <SpaceTile to="/academy/progress" icon={Trophy} label={t('Progress', 'ຄວາມຄືບໜ້າ')} tint="bg-gradient-to-br from-amber-400 to-orange-500" />
-          {showMyScores && <SpaceTile to="/academy/scores" icon={ClipboardList} label={t('My Scores', 'ຄະແນນ')} tint="bg-gradient-to-br from-sky-400 to-indigo-600" />}
         </div>
       </section>
     </div>

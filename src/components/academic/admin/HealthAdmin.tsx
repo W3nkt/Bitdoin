@@ -9,7 +9,7 @@ import { useChartTheme, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { Empty, Panel, adminErrorText, formatDateTime } from './AdminKit'
 
-// Service levels for My Scores (OPS-002, NFR-001/002/005/017; migration 122).
+// Service levels for Schooling (OPS-002, NFR-001/002/005/017; migration 122).
 // Colours are the validated dataviz pair already used by the student charts.
 const SERIES = {
   light: { read: '#2a78d6', write: '#eb6834', grid: '#e5e7eb' },
@@ -72,7 +72,7 @@ function LatencyChart({ view }: { view: HealthView }) {
   )
   return (
     <ChartPanel title="Server response time, last 48 hours" description={`Estimated p95 per hour. Targets: reads ${view.targets.read_p95_ms} ms, writes ${view.targets.write_p95_ms} ms (dashed).`} table={table}>
-      {!hasData ? <Empty>No server timings yet. They appear within 10 minutes of students using My Scores.</Empty> : (
+      {!hasData ? <Empty>No server timings yet. They appear within 10 minutes of students using Schooling.</Empty> : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke={colors.grid} />

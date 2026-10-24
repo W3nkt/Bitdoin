@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, BookOpenCheck, CalendarDays, ClipboardList, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BookOpenCheck, CalendarDays, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -27,7 +27,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[
 ]
 
 /**
- * /academy-admin/scores — My Scores configuration and support (FE-007, #34).
+ * /academy-admin/scores — Schooling configuration and support (FE-007, #34).
  * ADMIN configures; OPERATIONS gets support and their own audit entries
  * (OD-01b). Everything sits behind an authenticator-app check (OD-13).
  */
@@ -48,7 +48,7 @@ export function MyScoresAdmin() {
           <button type="button" onClick={() => navigate('/academy-admin')} aria-label="Back to Academy admin" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p>
-            <h1 className="flex items-center gap-2 text-xl font-black"><ClipboardList className="h-5 w-5" />My Scores</h1>
+            <h1 className="flex items-center gap-2 text-xl font-black"><School className="h-5 w-5" />Schooling</h1>
           </div>
           <a href="/academy/scores" target="_blank" rel="noreferrer" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Student view <ExternalLink className="h-4 w-4" /></a>
           <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -61,12 +61,12 @@ export function MyScoresAdmin() {
       <main className="mx-auto max-w-7xl px-4 py-8">
         {!active ? (
           <section className="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-700">
-            <h2 className="text-xl font-black">No My Scores access</h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Your role does not include My Scores admin or support. Ask an admin if you need it.</p>
+            <h2 className="text-xl font-black">No Schooling access</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Your role does not include Schooling admin or support. Ask an admin if you need it.</p>
           </section>
         ) : (
           <>
-            <nav aria-label="My Scores admin sections" className="mb-6 flex gap-2 overflow-x-auto pb-1">
+            <nav aria-label="Schooling admin sections" className="mb-6 flex gap-2 overflow-x-auto pb-1">
               {tabs.map(tab => (
                 <button key={tab.id} type="button" aria-current={tab.id === active.id ? 'page' : undefined}
                   onClick={() => setParams({ tab: tab.id })}

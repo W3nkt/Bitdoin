@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeft, ClipboardList } from 'lucide-react'
+import { ArrowLeft, School } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAcademicCopy } from '@/lib/academic/copy'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { InboxButton } from './Inbox'
 
 /** Page frame for every My Scores screen, matching the other Academy pages. */
-export function MyScoresShell({ subtitle, backTo = '/academy/home', inbox = false, children }: {
+export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
   subtitle?: string
   backTo?: string
   /** Show the reminders bell (students with a profile). */
@@ -20,16 +20,16 @@ export function MyScoresShell({ subtitle, backTo = '/academy/home', inbox = fals
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/90">
         <div className="mx-auto flex h-20 max-w-4xl items-center gap-3 px-4">
-          <button
+          {backTo && <button
             type="button"
             onClick={() => navigate(backTo)}
-            aria-label={t('shell.back')}
+            aria-label={t('common.back')}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-slate-900/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:hover:bg-white/10"
           >
             <ArrowLeft className="h-5 w-5" />
-          </button>
+          </button>}
           <span className="hidden h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 text-white sm:grid">
-            <ClipboardList className="h-6 w-6" />
+            <School className="h-6 w-6" />
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-black">{t('shell.title')}</h1>

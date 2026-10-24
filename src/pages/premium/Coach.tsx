@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Brain, Crown, History, MessageSquare, Plus, Send, Sparkles, X } from 'lucide-react'
+import { Brain, Crown, History, MessageSquare, Plus, Send, Sparkles, X } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -340,13 +340,6 @@ export function PremiumCoach() {
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
       <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between gap-2">
-          <Link
-            to="/academy/home"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-600 dark:text-gray-300 transition hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-950 dark:hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-            aria-label="Back to Premium"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
           {/* In the flow (not absolutely centered) so the buttons beside it can never overlap it on narrow screens. */}
           <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
             <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-900 text-white sm:flex"><Brain className="h-5 w-5" /></span>

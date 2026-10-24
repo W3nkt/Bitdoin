@@ -1,4 +1,4 @@
-// End-to-end checks for the My Scores onboarding and profile screens
+// End-to-end checks for the Schooling onboarding and profile screens
 // (FE-001/FE-002) on Android Chrome (Pixel 7 emulation, Lao) and desktop
 // (English), against a mocked Supabase so no real data is touched.
 //
@@ -396,7 +396,7 @@ try {
     await page.getByLabel('I have read this and agree').check()
     await page.getByRole('button', { name: 'Agree and continue' }).click()
     await page.getByRole('button', { name: 'Under 13' }).click()
-    await page.getByRole('heading', { name: 'My Scores is for older students for now' }).waitFor()
+    await page.getByRole('heading', { name: 'Schooling is for older students for now' }).waitFor()
     assert.equal(lastCall(mock, 'academic_create_profile'), undefined)
     await context.close()
     pass('Under 13: blocked before anything is stored')
@@ -406,7 +406,7 @@ try {
   {
     const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'consent', enrolment: 'e1', consentState: 'withdrawn' })
     await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: 'My Scores is paused' }).waitFor()
+    await page.getByRole('heading', { name: 'Schooling is paused' }).waitFor()
     await shot(page, 'my-scores-7-consent-paused-en-mobile')
     await page.getByLabel('I have read this and agree').check()
     await page.getByRole('button', { name: 'Agree and continue' }).click()
@@ -435,9 +435,9 @@ try {
   {
     const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'lo', step: 'ready', enrolment: 'e1' })
     await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: 'ຂໍ້ມູນທີ່ ຄະແນນຂອງຂ້ອຍ ເກັບໄວ້' }).waitFor()
+    await page.getByRole('heading', { name: 'ຂໍ້ມູນທີ່ ໂຮງຮຽນ ເກັບໄວ້' }).waitFor()
     assert.match(await page.locator('dl').nth(1).innerText(), /ຄະແນນ\s*6/)
-    await page.getByText('ເກັບຄະແນນໄວ້ໃນ ຄະແນນຂອງຂ້ອຍ').waitFor()
+    await page.getByText('ເກັບຄະແນນໄວ້ໃນ ໂຮງຮຽນ').waitFor()
     await page.getByText('ໃຫ້ເມື່ອ 1 ຕຸລາ 2026').waitFor()
     await shot(page, 'my-scores-9-my-data-lo-desktop')
     await page.getByRole('button', { name: 'ແກ້ໄຂ' }).click()
@@ -610,7 +610,7 @@ try {
     assert.equal(await countOthers(), 0, 'other account draft removed')
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Shared phone: drafts of another account are purged when My Scores opens')
+    pass('Shared phone: drafts of another account are purged when Schooling opens')
   }
 
   // ─── Dashboard (FE-005) ───────────────────────────────────────────────────
@@ -812,7 +812,7 @@ try {
     mock.state.reauth = true
     await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
     assert.equal(await page.getByRole('button', { name: 'Continue' }).isDisabled(), true, 'a scope must be chosen first')
-    await page.getByLabel(/Delete my whole My Scores profile/).check()
+    await page.getByLabel(/Delete my whole Schooling profile/).check()
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Yes, delete in 14 days' }).click()
     await page.getByText('Please sign in again').waitFor()

@@ -12,7 +12,7 @@ const HEIGHT_VAR = '--academy-banner-h'
 
 // The Academy home/membership page shows its own "expires soon" card with a
 // direct renew button, so this banner only covers the expired case there.
-const PAGES_WITH_OWN_WARNING = new Set(['/academy/home', '/academy/subscription'])
+const PAGES_WITH_OWN_WARNING = new Set(['/academy/home'])
 
 // Expired members are on the Free plan and may be happy there, so they can
 // hide the notice. Remembered per expiry (by its date): a later expiry shows again.

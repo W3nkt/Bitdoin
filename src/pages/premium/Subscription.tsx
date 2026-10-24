@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from '
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft,
   ArrowRight,
   AlertTriangle,
   Brain,
@@ -35,17 +34,14 @@ import {
   XCircle,
   Zap,
   ChevronDown,
-  Gamepad2,
-  Home,
   X as XIcon,
-  type LucideIcon,
 } from 'lucide-react'
 import { OnboardingChat } from '@/components/premium/OnboardingChat'
 import { PlayLearnArcade } from '@/components/premium/PlayLearnArcade'
 import { WeeklyMastery } from '@/components/premium/WeeklyMastery'
 import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting'
 import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
-import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
+import { academyNavigation, academySectionPath, type AcademySectionId } from '@/components/academy/academyMenuItems'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { Button } from '@/components/ui/Button'
@@ -290,27 +286,7 @@ const featureModules = [
   { icon: HeartHandshake, title: 'Personal life consultation', detail: 'Consult your personal issues or life with the Bitdoin Team.' },
 ]
 
-type MemberSectionId = 'home' | 'learn' | 'play' | 'mentor' | 'community' | 'plans' | 'membership'
-
-// Member home sections, in page order. The floating menu scrolls between them.
-// The section lives in the URL hash so links like /academy/home#plans keep working.
-const MEMBER_SECTIONS: Array<{ id: MemberSectionId; en: string; lo: string; icon: LucideIcon }> = [
-  { id: 'home', en: 'Member home', lo: 'ໜ້າຫຼັກສະມາຊິກ', icon: Home },
-  { id: 'learn', en: 'Learning Hub', lo: 'ສູນການຮຽນຮູ້', icon: GraduationCap },
-  { id: 'play', en: 'Play & Learn', lo: 'ຮຽນຮູ້ຜ່ານການຫຼິ້ນ', icon: Gamepad2 },
-  { id: 'mentor', en: 'Daily Mentor', lo: 'ຜູ້ແນະນຳປະຈຳວັນ', icon: Sparkles },
-  { id: 'community', en: 'Events & Communities', lo: 'ກິດຈະກຳ ແລະ ຊຸມຊົນ', icon: Users },
-  { id: 'plans', en: 'Plans', lo: 'ແຜນສະມາຊິກ', icon: Crown },
-  { id: 'membership', en: 'Membership & billing', lo: 'ສະມາຊິກ ແລະ ການຊຳລະ', icon: ReceiptText },
-]
-
-function parseMemberSection(hash: string): MemberSectionId {
-  const id = hash.replace(/^#/, '')
-  return MEMBER_SECTIONS.find(section => section.id === id)?.id ?? 'home'
-}
-
-// Clears the fixed header (104px) plus the expiry banner when it's showing.
-const SECTION_SCROLL_MARGIN = 'scroll-mt-[calc(var(--academy-banner-h,0px)+7.5rem)]'
+type MemberPage = Extract<AcademySectionId, 'home' | 'play' | 'mentor' | 'community' | 'membership'>
 
 // An event or community is only shown once it has a place to join; until then
 // the section reads "Coming soon".
@@ -318,7 +294,7 @@ function hasJoinLink(item: { action_url?: string | null }) {
   return !!item.action_url?.trim()
 }
 
-export function Subscription() {
+export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
   const navigate = useNavigate()
   const location = useLocation()
   const qc = useQueryClient()
@@ -476,6 +452,7 @@ export function Subscription() {
 
   const { data: motivation } = useQuery({
     queryKey: ['premium', 'daily-motivation', profile?.id, isPaidPremium],
+    enabled: page === 'home' || page === 'mentor',
     queryFn: async () => {
       if (profile && isPaidPremium) {
         const { data: generated, error: generationError } = await supabase.functions.invoke('premium-daily-mentor')
@@ -523,7 +500,7 @@ export function Subscription() {
 
   const { data: dailyHistory, isLoading: dailyHistoryLoading } = useQuery({
     queryKey: ['premium', 'daily-history', profile?.id],
-    enabled: Boolean(profile && subscription?.status === 'ACTIVE' && !membershipExpired),
+    enabled: Boolean(profile && subscription?.status === 'ACTIVE' && !membershipExpired && (page === 'home' || page === 'mentor')),
     queryFn: async () => {
       const { data, error: historyError } = await supabase
         .from('premium_challenge_completions')
@@ -552,7 +529,7 @@ export function Subscription() {
 
   const { data: memberEvents } = useQuery({
     queryKey: ['premium', 'member-events', profile?.id],
-    enabled: premiumMemberContentEnabled,
+    enabled: premiumMemberContentEnabled && page === 'community',
     queryFn: async () => {
       const { data, error: eventsError } = await supabase
         .from('premium_member_events')
@@ -568,7 +545,7 @@ export function Subscription() {
 
   const { data: memberCommunities } = useQuery({
     queryKey: ['premium', 'communities', profile?.id],
-    enabled: premiumMemberContentEnabled,
+    enabled: premiumMemberContentEnabled && page === 'community',
     queryFn: async () => {
       const { data, error: communitiesError } = await supabase
         .from('premium_communities')
@@ -584,7 +561,7 @@ export function Subscription() {
 
   const { data: memberProgress } = useQuery({
     queryKey: ['premium', 'member-progress', profile?.id],
-    enabled: memberHomeEnabled,
+    enabled: memberHomeEnabled && page === 'home',
     queryFn: async () => {
       const { data, error: progressError } = await supabase
         .rpc('get_premium_member_dashboard', { p_limit: 5 })
@@ -1027,44 +1004,20 @@ export function Subscription() {
 
   const pageLoading = plansLoading || (!!profile && subscriptionLoading)
 
-  // The floating menu highlights whatever section is scrolled into view.
-  const [navSection, setNavSection] = useState<MemberSectionId>(() => parseMemberSection(location.hash))
-
-  // React Router doesn't auto-scroll to URL hashes on client-side navigation,
-  // so "Upgrade"/"Subscribe" links from other pages (which land here as
-  // /academy/subscription#plans) and sidebar picks need an explicit scroll
-  // once the section has actually rendered.
+  // Old bookmarks and upgrade links now open the corresponding dedicated page.
   useEffect(() => {
-    if (!location.hash || pageLoading) return
-    document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [location.hash, pageLoading])
+    const target = academySectionPath(location.hash.slice(1))
+      ?? (location.pathname === '/academy/subscription' ? '/academy/membership' : undefined)
+    if (target) navigate({ pathname: target, search: location.search }, { replace: true })
+  }, [location.hash, location.pathname, location.search, navigate])
 
-  // Scroll spy for the sidebar highlight.
   useEffect(() => {
-    if (!isMemberActive || pageLoading) return
-    const update = () => {
-      let current: MemberSectionId = 'home'
-      for (const section of MEMBER_SECTIONS) {
-        const el = document.getElementById(section.id)
-        if (el && el.getBoundingClientRect().top <= 180) current = section.id
-      }
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
-        current = MEMBER_SECTIONS[MEMBER_SECTIONS.length - 1].id
-      }
-      setNavSection(current)
-    }
-    update()
-    window.addEventListener('scroll', update, { passive: true })
-    return () => window.removeEventListener('scroll', update)
-  }, [isMemberActive, pageLoading])
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [page])
 
-
-  function selectMemberSection(id: MemberSectionId) {
-    if (location.hash === `#${id}`) {
-      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      return
-    }
-    navigate({ pathname: location.pathname, search: location.search, hash: `#${id}` })
+  function selectMemberSection(id: AcademySectionId) {
+    const path = academySectionPath(id)
+    if (path) navigate(path)
   }
 
   // "Subscribe again" on the expiry banner / profile menu lands here as
@@ -1075,7 +1028,7 @@ export function Subscription() {
     // Wait for onboarding too: requestSubscribe opens the onboarding chat when it looks unfinished.
     if (!new URLSearchParams(location.search).has('renew') || pageLoading || onboardingLoading || !profile || renewHandledRef.current) return
     renewHandledRef.current = true
-    navigate({ pathname: location.pathname, hash: '#plans' }, { replace: true })
+    navigate('/academy/membership', { replace: true })
     void (async () => {
       const { data } = await supabase
         .from('premium_subscriptions')
@@ -1086,62 +1039,35 @@ export function Subscription() {
         .limit(5)
       const lastPaid = (data ?? []).find(row => (firstRelation(row.plan)?.price_lak ?? 0) > 0)
       const plan = activePlans.find(candidate => candidate.id === lastPaid?.plan_id && candidate.price_lak > 0)
-      // No earlier paid plan (or it was retired): the #plans scroll lets them pick one.
+      // No earlier paid plan (or it was retired): the Plans page lets them pick one.
       if (plan) requestSubscribe(plan)
       // ?renew is gone from the URL by now, so a later tap can run this again.
       renewHandledRef.current = false
     })()
   }, [location.search, pageLoading, onboardingLoading, profile])
 
-  // Back to where they came from; opened directly, members go to the platform picker and visitors to the landing page.
-  function goBack() {
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate(profile ? '/' : '/academy')
-  }
-
   const lo = language === 'lo'
-  const headerButton = 'grid h-10 w-10 flex-none place-items-center rounded-full text-slate-700 transition hover:bg-slate-900/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-200 dark:hover:bg-white/10'
+  const pageInfo = academyNavigation.find(item => item.id === page)!
 
   return (
     <div className="premium-i18n min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:h-[72px] sm:gap-3">
-          <button type="button" onClick={goBack} aria-label={lo ? 'ກັບຄືນ' : 'Back'} className={headerButton}>
-            <ArrowLeft className="h-5 w-5" />
-          </button>
           <Link to="/academy" aria-label="Bitdoin Academy" className="flex flex-none items-center gap-2.5 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
             <span className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-gradient-to-br from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_8px_20px_-8px_rgba(247,147,26,0.8)]"><GraduationCap className="h-6 w-6" /></span>
             <span className="hidden whitespace-nowrap font-black leading-tight sm:block" data-no-premium-translate>Bitdoin Academy</span>
           </Link>
           <div className="hidden min-w-0 flex-1 text-center md:block">
             <h1 className="truncate text-lg font-black lg:text-xl">
-              {profile ? 'Your Academy home' : (lo ? 'ແພັກເກັດສະມາຊິກ' : 'Membership plans')}
+              {lo ? pageInfo.lo : pageInfo.en}
             </h1>
             <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 lg:text-sm">
-              {profile ? 'Learn, practice, and track your progress.' : (lo ? 'ເລີ່ມຟຣີ ແລ້ວຍົກລະດັບເມື່ອທ່ານພ້ອມ.' : 'Start free, upgrade when you are ready.')}
+              {lo ? pageInfo.detailLo : pageInfo.detail}
             </p>
           </div>
           <AcademyHeaderActions />
         </div>
       </header>
-
-      {!pageLoading && isMemberActive && (
-        <FloatingOrbitMenu
-          menuLabel={language === 'lo' ? 'ເມນູ Academy' : 'Academy menu'}
-          openLabel={language === 'lo' ? 'ເປີດເມນູ' : 'Open menu'}
-          closeLabel={language === 'lo' ? 'ປິດເມນູ' : 'Close menu'}
-          items={[
-            ...MEMBER_SECTIONS.map(section => ({
-              key: section.id,
-              label: language === 'lo' ? section.lo : section.en,
-              icon: section.icon,
-              onClick: () => selectMemberSection(section.id),
-              active: section.id === navSection,
-            })),
-            { key: 'coach', label: 'AI Coach', icon: Brain, onClick: () => navigate('/academy/coach'), accent: true },
-          ]}
-        />
-      )}
 
       {pageLoading ? (
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
@@ -1151,9 +1077,13 @@ export function Subscription() {
       ) : (
         <div className="mx-auto max-w-6xl px-4 py-6 pb-32">
           <div className="flex min-w-0 flex-col gap-6">
+          <div data-no-premium-translate className="flex items-center gap-3 md:hidden">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white shadow-sm dark:bg-slate-900" style={{ color: pageInfo.color }}><pageInfo.icon className="h-5 w-5" /></span>
+            <div><h1 className="text-xl font-black">{lo ? pageInfo.lo : pageInfo.en}</h1><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{lo ? pageInfo.detailLo : pageInfo.detail}</p></div>
+          </div>
           {isMemberActive ? (
             <>
-              {showExpiryWarning && subscription?.plan && (
+              {page === 'home' && showExpiryWarning && subscription?.plan && (
                 <section
                   role="alert"
                   className={cn('animate-slide-up overflow-hidden rounded-2xl border border-red-300 bg-red-600 text-white shadow-[0_12px_30px_-16px_rgba(220,38,38,0.8)]')}
@@ -1188,7 +1118,7 @@ export function Subscription() {
                   </div>
                 </section>
               )}
-              {!isPaidPremium && (
+              {page === 'home' && !isPaidPremium && (
                 <section className="flex flex-col gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-primary-950 via-primary-900 to-primary-950 p-6 text-white shadow-card sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-4">
                     <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-amber-300/40 dark:ring-amber-500/40">
@@ -1204,7 +1134,7 @@ export function Subscription() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => selectMemberSection('plans')}
+                    onClick={() => selectMemberSection('membership')}
                     className="inline-flex shrink-0 items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-black text-primary-950 transition hover:bg-amber-300"
                   >
                     See plans <ArrowRight className="h-4 w-4" />
@@ -1212,6 +1142,7 @@ export function Subscription() {
                 </section>
               )}
               <MemberDashboard
+                page={page}
                 profileId={profile!.id}
                 profileName={profile?.name ?? 'Premium member'}
                 memberCode={memberCode}
@@ -1223,12 +1154,11 @@ export function Subscription() {
                 savingDailyItem={savingDailyItem}
                 onSubmitDailyReply={saveDailyReply}
                 onOpenCoach={() => navigate('/academy/coach')}
-                onOpenLearning={() => navigate('/academy/learn')}
                 onStartRoleplay={mission => navigate(`/academy/coach?mission=${encodeURIComponent(mission)}`)}
                 events={(memberEvents ?? []).filter(hasJoinLink)}
                 communities={(memberCommunities ?? []).filter(hasJoinLink)}
                 communityLocked={!isPaidPremium}
-                onSeePlans={() => selectMemberSection('plans')}
+                onSeePlans={() => selectMemberSection('membership')}
                 memberStats={memberProgress?.member}
                 leaderboard={memberProgress?.leaderboard ?? []}
                 personalization={onboarding?.responses ?? {}}
@@ -1238,6 +1168,7 @@ export function Subscription() {
             </>
            ) : (
              <>
+          {(page === 'home' || page === 'membership') && <>
           {showRejectedNotice && rejectedPayment && (
             <RejectedPaymentNotice
               payment={rejectedPayment}
@@ -1292,6 +1223,8 @@ export function Subscription() {
             onChange={uploadPaymentProof}
           />
 
+          </>}
+          {page === 'home' && <>
           {!profile && (
             <section data-no-premium-translate className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#fbb040] via-[#f7931a] to-[#e2650f] px-6 py-8 text-[#1f1207] dark:from-[#3a220f] dark:via-[#1f140b] dark:to-[#0f0a06] dark:text-white sm:px-10 sm:py-10">
               <GraduationCap aria-hidden className="absolute -bottom-8 -right-4 h-48 w-48 rotate-[-12deg] text-white/25 dark:text-amber-300/10 sm:h-64 sm:w-64" strokeWidth={1.2} />
@@ -1303,7 +1236,7 @@ export function Subscription() {
                   <Link to="/auth" state={{ from: '/academy/subscription', mode: 'signup' }} className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#1f1207] px-6 py-3.5 text-sm font-black text-amber-200 shadow-[0_16px_40px_-12px_rgba(31,18,7,0.7)] transition hover:bg-[#2c1a0b] dark:bg-gradient-to-r dark:from-[#fbb040] dark:to-[#f7931a] dark:text-[#1f1207] sm:w-auto">
                     {lo ? 'ສ້າງບັນຊີຟຣີ' : 'Create free account'}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
-                  <button type="button" onClick={() => document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex w-full items-center justify-center rounded-full border-2 border-[#1f1207]/30 px-6 py-3.5 text-sm font-black transition hover:bg-[#1f1207]/10 dark:border-white/25 dark:hover:bg-white/10 sm:w-auto">
+                  <button type="button" onClick={() => selectMemberSection('membership')} className="inline-flex w-full items-center justify-center rounded-full border-2 border-[#1f1207]/30 px-6 py-3.5 text-sm font-black transition hover:bg-[#1f1207]/10 dark:border-white/25 dark:hover:bg-white/10 sm:w-auto">
                     {lo ? 'ປຽບທຽບແພັກເກັດ' : 'Compare plans'}
                   </button>
                 </div>
@@ -1380,10 +1313,20 @@ export function Subscription() {
               </div>
             </section>
           </div>
+          <AcademyPageLinks language={language} />
+          </>}
+          {(page === 'play' || page === 'mentor' || page === 'community') && (
+            <section data-no-premium-translate className="rounded-3xl bg-white p-8 text-center shadow-card dark:bg-gray-900">
+              <Lock className="mx-auto h-8 w-8 text-amber-500" />
+              <h2 className="mt-4 text-xl font-black">{lo ? 'ເປີດໃຊ້ສະມາຊິກຂອງທ່ານ' : 'Activate your membership'}</h2>
+              <p className="mt-2 text-sm text-slate-500">{lo ? 'ເລືອກແຜນສະມາຊິກເພື່ອເລີ່ມຮຽນຮູ້.' : 'Choose a membership plan to start learning.'}</p>
+              <Button className="mt-5" onClick={() => selectMemberSection('membership')}>{lo ? 'ເບິ່ງແຜນ' : 'See plans'}</Button>
+            </section>
+          )}
              </>
            )}
 
-          <section id="plans" className={SECTION_SCROLL_MARGIN}>
+          {page === 'membership' && <section id="plans">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400">Plans</p>
@@ -1487,9 +1430,9 @@ export function Subscription() {
                 )
               })}
             </div>
-          </section>
+          </section>}
 
-          <div id="membership" className={SECTION_SCROLL_MARGIN}>
+          {page === 'membership' && <div id="membership">
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
             <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
               <div className="flex items-center justify-between gap-3">
@@ -1653,7 +1596,7 @@ export function Subscription() {
               </div>
             </section>
           </div>
-          </div>
+          </div>}
           </div>
         </div>
       )}
@@ -1841,7 +1784,32 @@ export function Subscription() {
   )
 }
 
+function AcademyPageLinks({ language }: { language: Language }) {
+  const lo = language === 'lo'
+  return (
+    <section data-no-premium-translate className="mt-6">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{lo ? 'ກ້າວຕໍ່ໄປ' : 'YOUR NEXT STEP'}</p>
+          <h2 className="mt-1 text-xl font-black">{lo ? 'ສ້າງເວລາໃຫ້ຕົນເອງ' : 'Make a little time for you.'}</h2>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {academyNavigation.filter(item => item.id !== 'home').map(item => {
+          const Icon = item.icon
+          return <Link key={item.id} to={item.path} className="group flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-primary-500 dark:border-white/10 dark:bg-gray-900">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-50 dark:bg-slate-800" style={{ color: item.color }}><Icon className="h-5 w-5" /></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-black">{lo ? item.lo : item.en}</span><span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">{lo ? item.detailLo : item.detail}</span></span>
+            <ArrowRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-1" />
+          </Link>
+        })}
+      </div>
+    </section>
+  )
+}
+
 function MemberDashboard({
+  page,
   profileId,
   profileName,
   memberCode,
@@ -1853,7 +1821,6 @@ function MemberDashboard({
   savingDailyItem,
   onSubmitDailyReply,
   onOpenCoach,
-  onOpenLearning,
   onStartRoleplay,
   events,
   communities,
@@ -1865,6 +1832,7 @@ function MemberDashboard({
   memberSince,
   onSetGoal,
 }: {
+  page: MemberPage
   profileId: string
   profileName: string
   memberCode: string | null
@@ -1876,7 +1844,6 @@ function MemberDashboard({
   savingDailyItem: DailyChallengeKind | null
   onSubmitDailyReply: (kind: DailyChallengeKind, reply: string) => Promise<void>
   onOpenCoach: () => void
-  onOpenLearning: () => void
   onStartRoleplay: (mission: string) => void
   events: MemberEvent[]
   communities: MemberCommunity[]
@@ -1929,8 +1896,9 @@ function MemberDashboard({
 
   return (
     <>
+      {page === 'home' && <>
       <PushOptInPrompt platform="ACADEMY" lo={language === 'lo'} className="mb-6" />
-      <div id="home" className={cn(SECTION_SCROLL_MARGIN, 'grid gap-6 lg:grid-cols-2')}>
+      <div id="home" className="grid gap-6 lg:grid-cols-2">
       <section className="flex flex-col gap-3 rounded-3xl bg-primary-900 p-5 text-white shadow-card">
         <MemberGreeting
           language={language}
@@ -2010,71 +1978,14 @@ function MemberDashboard({
         </section>
       </div>
 
-      <div id="learn" className={SECTION_SCROLL_MARGIN}>
-      <section
-        data-no-premium-translate
-        className="group overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-card ring-1 ring-slate-900/5 dark:ring-white/10 transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-      >
-        <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="flex flex-col justify-center p-6 sm:p-8 lg:p-10">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-primary-600 dark:text-primary-400">
-              {language === 'lo' ? 'ສູນການຮຽນຮູ້' : 'Learning Hub'}
-            </p>
-            <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight text-slate-950 dark:text-slate-100 sm:text-4xl">
-              {language === 'lo' ? 'ສ້າງທັກສະທີ່ພາຊີວິດທ່ານກ້າວໜ້າ.' : 'Build skills that move your life forward.'}
-            </h2>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
-              {language === 'lo'
-                ? 'ບົດຮຽນທີ່ນຳໄປໃຊ້ໄດ້ຈິງດ້ານການເງິນ, AI, ພາສາອັງກິດ, ການເຮັດວຽກຢ່າງມີປະສິດທິພາບ, ອາຊີບ, ທຶນການສຶກສາ ແລະ ທຸລະກິດ—ພ້ອມທັງຄວາມທ້າທາຍປະຈຳອາທິດ ແລະ ນິໄສປະຈຳວັນ.'
-                : 'Practical lessons in money, AI, English, productivity, careers, scholarships, and business—plus weekly challenges and habits.'}
-            </p>
-            <button
-              type="button"
-              onClick={onOpenLearning}
-              className="group/cta relative mt-7 inline-flex w-fit items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-[#1f140b] via-[#4a280e] to-[#1f140b] px-7 py-4 text-sm font-black text-white shadow-[0_14px_34px_-10px_rgba(31,20,11,0.65)] ring-1 ring-amber-300/40 transition duration-300 hover:shadow-[0_20px_44px_-10px_rgba(9,20,38,0.75)] hover:ring-amber-300/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2"
-            >
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-full" />
-              <Sparkles className="relative h-4 w-4 text-amber-300" />
-              <span className="relative">{language === 'lo' ? 'ເປີດສູນການຮຽນຮູ້' : 'Open Learning Hub'}</span>
-              <ArrowRight className="relative h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-hover/cta:translate-x-1.5" />
-            </button>
-          </div>
-          <div className="relative overflow-hidden bg-primary-950 p-6 sm:p-8 lg:p-10">
-            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary-500/20 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-20 left-1/3 h-48 w-48 rounded-full bg-amber-400/10 blur-3xl" />
-            <div className="relative flex h-full flex-col justify-center">
-              <p className="mb-5 text-xs font-black uppercase tracking-[0.2em] text-primary-200">
-                {language === 'lo' ? 'ຮຽນຕາມຈັງຫວະຂອງທ່ານ' : 'Learn at your pace'}
-              </p>
-              <div className="grid grid-cols-1 divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:grid-cols-1 lg:divide-x-0 lg:divide-y">
-                <LearningHubStat
-                  label={language === 'lo' ? 'ບົດຮຽນ' : 'Lessons'}
-                  value={language === 'lo' ? '8 ເສັ້ນທາງ' : '8 paths'}
-                  icon={<GraduationCap className="h-5 w-5" />}
-                />
-                <LearningHubStat
-                  label={language === 'lo' ? 'ຄວາມທ້າທາຍ' : 'Challenge'}
-                  value={language === 'lo' ? 'ປະຈຳອາທິດ' : 'Weekly'}
-                  icon={<Target className="h-5 w-5" />}
-                />
-                <LearningHubStat
-                  label={language === 'lo' ? 'ນິໄສ' : 'Habits'}
-                  value={language === 'lo' ? 'ປະຈຳວັນ' : 'Daily'}
-                  icon={<CalendarCheck className="h-5 w-5" />}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AcademyPageLinks language={language} />
+      </>}
 
-      </div>
-
-      <div id="play" className={SECTION_SCROLL_MARGIN}>
+      {page === 'play' && <div id="play">
         <PlayLearnArcade profileId={profileId} onStartRoleplay={onStartRoleplay} />
-      </div>
+      </div>}
 
-      <div id="mentor" className={SECTION_SCROLL_MARGIN}>
+      {page === 'mentor' && <div id="mentor">
         <section className="rounded-3xl bg-white dark:bg-gray-900 p-5 shadow-card">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -2270,9 +2181,9 @@ function MemberDashboard({
           locked={communityLocked}
           onSeePlans={onSeePlans}
         />
-      </div>
+      </div>}
 
-      <div id="community" className={cn(SECTION_SCROLL_MARGIN, 'space-y-6')}>
+      {page === 'community' && <div id="community" className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <MemberListSection
           eyebrow="Events"
@@ -2295,7 +2206,7 @@ function MemberDashboard({
           onUnlock={onSeePlans}
         />
       </div>
-      </div>
+      </div>}
     </>
   )
 }
@@ -2469,20 +2380,6 @@ function ProfileMenuStat({ label, value, icon }: { label: string; value: string;
       <div className="min-w-0">
         <p className="truncate text-sm font-black leading-5 text-white">{value}</p>
         <p className="truncate text-[10px] font-semibold leading-4 text-primary-200">{label}</p>
-      </div>
-    </div>
-  )
-}
-
-function LearningHubStat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-4 py-4 first:pt-0 last:pb-0 sm:px-5 sm:first:pl-0 sm:last:pr-0 lg:px-0 lg:first:pt-0 lg:last:pb-0">
-      <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-primary-200 ring-1 ring-white/15">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-lg font-black leading-tight text-white">{value}</p>
-        <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-primary-200">{label}</p>
       </div>
     </div>
   )

@@ -23,7 +23,7 @@ export function AcademyHeaderActions({ guestAction }: { guestAction?: ReactNode 
     : (lo ? 'ປ່ຽນເປັນໂໝດມືດ' : 'Switch to dark mode')
 
   return (
-    <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5">
+    <div className={cn('ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5', profile && location.pathname.startsWith('/academy/') && 'lg:mr-16')}>
       <Link data-no-premium-translate to="/" aria-label={switchPlatform} title={switchPlatform} className={cn(controlClass, 'px-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white lg:px-3')}>
         <ArrowLeftRight className="h-[18px] w-[18px] lg:hidden" />
         <span className="hidden whitespace-nowrap lg:inline">{switchPlatform}</span>

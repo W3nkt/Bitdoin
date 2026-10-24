@@ -286,8 +286,7 @@ export function TopCornerLab() {
   }, [text.topLabel])
 
   function goBack() {
-    if (window.history.state?.idx > 0) navigate(-1)
-    else navigate('/academy/home')
+    navigate('/academy/play')
   }
 
   function addAxis() {

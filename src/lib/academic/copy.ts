@@ -1,6 +1,6 @@
 import { useLanguage } from '@/context/LanguageContext'
 
-// Every My Scores interface string, in one place.
+// Every Schooling interface string, in one place.
 //
 // Lao copy reviewed and confirmed by the owner (UX-005, #14, 2026-10-23).
 // New or changed `lo` strings need the same review before release.
@@ -9,23 +9,23 @@ import { useLanguage } from '@/context/LanguageContext'
 
 const copy = {
   // Shell and entry points
-  'shell.title': { en: 'My Scores', lo: 'ຄະແນນຂອງຂ້ອຍ' },
+  'shell.title': { en: 'Schooling', lo: 'ໂຮງຮຽນ' },
   'shell.subtitle': { en: 'Your school results, privately', lo: 'ຜົນການຮຽນຂອງເຈົ້າ ເປັນສ່ວນຕົວ' },
   'shell.back': { en: 'Back to Academy', lo: 'ກັບໄປ Academy' },
-  'entry.tile': { en: 'My Scores', lo: 'ຄະແນນ' },
-  'entry.profileLink': { en: 'My Scores', lo: 'ຄະແນນຂອງຂ້ອຍ' },
+  'entry.tile': { en: 'Schooling', lo: 'ໂຮງຮຽນ' },
+  'entry.profileLink': { en: 'Schooling', lo: 'ໂຮງຮຽນ' },
 
   // Module states
-  'state.unavailable.title': { en: 'My Scores is coming soon', lo: 'ຄະແນນຂອງຂ້ອຍ ຈະມາໃນໄວໆນີ້' },
+  'state.unavailable.title': { en: 'Schooling is coming soon', lo: 'ໂຮງຮຽນ ຈະມາໃນໄວໆນີ້' },
   'state.unavailable.body': {
     en: 'We are getting monthly score tracking ready for students. It will appear here when it opens.',
     lo: 'ພວກເຮົາກຳລັງກຽມລະບົບບັນທຶກຄະແນນປະຈຳເດືອນສຳລັບນັກຮຽນ. ເມື່ອເປີດໃຫ້ໃຊ້ ຈະສະແດງຢູ່ບ່ອນນີ້.',
   },
-  'state.error.title': { en: 'We could not load My Scores', lo: 'ບໍ່ສາມາດໂຫຼດ ຄະແນນຂອງຂ້ອຍ ໄດ້' },
+  'state.error.title': { en: 'We could not load Schooling', lo: 'ບໍ່ສາມາດໂຫຼດ ໂຮງຮຽນ ໄດ້' },
   'state.error.body': { en: 'Check your connection and try again.', lo: 'ກວດເບິ່ງອິນເຕີເນັດ ແລ້ວລອງໃໝ່ອີກຄັ້ງ.' },
   'state.error.rateLimited': { en: 'Too many requests. Wait a minute, then try again.', lo: 'ມີການຮ້ອງຂໍຫຼາຍເກີນໄປ. ລໍຖ້າໜຶ່ງນາທີ ແລ້ວລອງໃໝ່.' },
   'state.retry': { en: 'Try again', lo: 'ລອງໃໝ່' },
-  'state.next.onboarding': { en: 'Set up My Scores', lo: 'ຕັ້ງຄ່າ ຄະແນນຂອງຂ້ອຍ' },
+  'state.next.onboarding': { en: 'Set up Schooling', lo: 'ຕັ້ງຄ່າ ໂຮງຮຽນ' },
   'state.next.consent': { en: 'Review the privacy notice', lo: 'ອ່ານແຈ້ງການຄວາມເປັນສ່ວນຕົວ' },
   'state.next.newSchoolYear': { en: 'A new school year has started', lo: 'ສົກຮຽນໃໝ່ເລີ່ມແລ້ວ' },
   'state.next.ready': { en: 'Your dashboard', lo: 'ໜ້າສະຫຼຸບຂອງເຈົ້າ' },
@@ -46,7 +46,7 @@ const copy = {
   // Privacy notice (PRIV-001): layered, summary under 150 words.
   'notice.title': { en: 'Before you start', lo: 'ກ່ອນເລີ່ມຕົ້ນ' },
   'notice.updatedTitle': { en: 'We updated the privacy notice', lo: 'ພວກເຮົາປັບປຸງແຈ້ງການຄວາມເປັນສ່ວນຕົວແລ້ວ' },
-  'notice.pausedTitle': { en: 'My Scores is paused', lo: 'ຄະແນນຂອງຂ້ອຍ ຖືກຢຸດໄວ້' },
+  'notice.pausedTitle': { en: 'Schooling is paused', lo: 'ໂຮງຮຽນ ຖືກຢຸດໄວ້' },
   'notice.pausedBody': { en: 'You withdrew permission, so nothing new is saved. Agree again to keep recording, or delete your data in My data.', lo: 'ເຈົ້າໄດ້ຖອນການອະນຸຍາດ ຈຶ່ງບໍ່ມີການບັນທຶກຫຍັງໃໝ່. ຍອມຮັບອີກຄັ້ງເພື່ອບັນທຶກຕໍ່ ຫຼື ລຶບຂໍ້ມູນຢູ່ໃນ ຂໍ້ມູນຂອງຂ້ອຍ.' },
   'notice.what': {
     en: 'What we keep: the name you choose to show, your age group, province, school, grade and the scores you type in. We never ask for your date of birth, phone number or address.',
@@ -70,7 +70,7 @@ const copy = {
   },
   'notice.more': { en: 'Read the full notice', lo: 'ອ່ານແຈ້ງການເຕັມ' },
   'notice.full': {
-    en: 'Data is stored on Bitdoin\'s servers with the rest of your Bitdoin account and protected by access controls. We keep it until you delete it, or for 3 years after you last use My Scores, after a reminder. Records that you agreed to this notice are kept as proof even after deletion. Score books are not uploaded in this version. We do not use your scores for advertising, ranking or any comparison with other students.',
+    en: 'Data is stored on Bitdoin\'s servers with the rest of your Bitdoin account and protected by access controls. We keep it until you delete it, or for 3 years after you last use Schooling, after a reminder. Records that you agreed to this notice are kept as proof even after deletion. Score books are not uploaded in this version. We do not use your scores for advertising, ranking or any comparison with other students.',
     lo: 'ຂໍ້ມູນເກັບໄວ້ໃນເຊີບເວີຂອງ Bitdoin ພ້ອມກັບບັນຊີ Bitdoin ຂອງເຈົ້າ ແລະ ມີການຄວບຄຸມການເຂົ້າເຖິງ. ພວກເຮົາເກັບໄວ້ຈົນກວ່າເຈົ້າຈະລຶບ ຫຼື 3 ປີຫຼັງຈາກເຈົ້າໃຊ້ຄັ້ງສຸດທ້າຍ ໂດຍຈະແຈ້ງເຕືອນກ່ອນ. ບັນທຶກວ່າເຈົ້າຍອມຮັບແຈ້ງການນີ້ ຈະເກັບໄວ້ເປັນຫຼັກຖານ ເຖິງແມ່ນລຶບແລ້ວ. ເວີຊັນນີ້ບໍ່ມີການອັບໂຫຼດປຶ້ມຄະແນນ. ພວກເຮົາບໍ່ໃຊ້ຄະແນນຂອງເຈົ້າເພື່ອໂຄສະນາ, ຈັດອັນດັບ ຫຼື ປຽບທຽບກັບນັກຮຽນຄົນອື່ນ.',
   },
   'notice.version': { en: 'Notice version {version}', lo: 'ແຈ້ງການ ເວີຊັນ {version}' },
@@ -84,7 +84,7 @@ const copy = {
   'age.13_15': { en: '13–15', lo: '13–15 ປີ' },
   'age.16_17': { en: '16–17', lo: '16–17 ປີ' },
   'age.18_plus': { en: '18 or older', lo: '18 ປີຂຶ້ນໄປ' },
-  'age.u13Title': { en: 'My Scores is for older students for now', lo: 'ຕອນນີ້ ຄະແນນຂອງຂ້ອຍ ສຳລັບນັກຮຽນທີ່ໃຫຍ່ກວ່າ' },
+  'age.u13Title': { en: 'Schooling is for older students for now', lo: 'ຕອນນີ້ ໂຮງຮຽນ ສຳລັບນັກຮຽນທີ່ໃຫຍ່ກວ່າ' },
   'age.u13Body': { en: 'It is open to students aged 13 and over. You can still use the rest of Bitdoin Academy.', lo: 'ເປີດໃຫ້ນັກຮຽນອາຍຸ 13 ປີຂຶ້ນໄປ. ເຈົ້າຍັງໃຊ້ສ່ວນອື່ນຂອງ Bitdoin Academy ໄດ້.' },
 
   // About you and your school (PROFILE-001/002)
@@ -153,7 +153,7 @@ const copy = {
   'data.link': { en: 'My data and privacy', lo: 'ຂໍ້ມູນ ແລະ ຄວາມເປັນສ່ວນຕົວ' },
   'data.profile': { en: 'Profile', lo: 'ໂປຣໄຟລ໌' },
   'data.ageBand': { en: 'Age group', lo: 'ກຸ່ມອາຍຸ' },
-  'data.held': { en: 'What My Scores holds', lo: 'ຂໍ້ມູນທີ່ ຄະແນນຂອງຂ້ອຍ ເກັບໄວ້' },
+  'data.held': { en: 'What Schooling holds', lo: 'ຂໍ້ມູນທີ່ ໂຮງຮຽນ ເກັບໄວ້' },
   'data.count.enrolments': { en: 'School years', lo: 'ສົກຮຽນ' },
   'data.count.periods': { en: 'Months saved', lo: 'ເດືອນທີ່ບັນທຶກ' },
   'data.count.drafts': { en: 'Unsaved drafts', lo: 'ສະບັບຮ່າງ' },
@@ -289,7 +289,7 @@ const copy = {
   'privacy.delete.title': { en: 'Delete', lo: 'ລຶບ' },
   'privacy.delete.scores': { en: 'Delete my scores only', lo: 'ລຶບສະເພາະຄະແນນ' },
   'privacy.delete.scoresBody': { en: 'Removes every saved score, draft and correction. Your profile and school years stay, so you can start recording again.', lo: 'ລຶບຄະແນນ, ຮ່າງ ແລະ ການແກ້ໄຂທັງໝົດ. ໂປຣໄຟລ໌ ແລະ ສົກຮຽນຍັງຢູ່ ເພື່ອໃຫ້ເລີ່ມບັນທຶກໃໝ່ໄດ້.' },
-  'privacy.delete.profile': { en: 'Delete my whole My Scores profile', lo: 'ລຶບໂປຣໄຟລ໌ ຄະແນນຂອງຂ້ອຍ ທັງໝົດ' },
+  'privacy.delete.profile': { en: 'Delete my whole Schooling profile', lo: 'ລຶບໂປຣໄຟລ໌ ໂຮງຮຽນ ທັງໝົດ' },
   'privacy.delete.profileBody': { en: 'Removes your profile, school years, scores and corrections. Your Bitdoin account and Academy membership are not affected.', lo: 'ລຶບໂປຣໄຟລ໌, ສົກຮຽນ, ຄະແນນ ແລະ ການແກ້ໄຂ. ບັນຊີ Bitdoin ແລະ ສະມາຊິກ Academy ບໍ່ໄດ້ຮັບຜົນກະທົບ.' },
   'privacy.delete.grace': { en: 'You have 14 days to change your mind. A record that you agreed to the privacy notice is kept as required.', lo: 'ເຈົ້າມີເວລາ 14 ມື້ ເພື່ອປ່ຽນໃຈ. ບັນທຶກວ່າເຈົ້າຍອມຮັບແຈ້ງການຄວາມເປັນສ່ວນຕົວ ຈະຖືກເກັບໄວ້ຕາມທີ່ກຳນົດ.' },
   'privacy.delete.continue': { en: 'Continue', lo: 'ສືບຕໍ່' },
@@ -299,11 +299,11 @@ const copy = {
   'privacy.delete.reauthButton': { en: 'Sign in again', lo: 'ເຂົ້າສູ່ລະບົບອີກຄັ້ງ' },
   'privacy.pending.title': { en: 'Deletion scheduled', lo: 'ກຳນົດການລຶບແລ້ວ' },
   'privacy.pending.scores': { en: 'Your scores will be deleted on {date}.', lo: 'ຄະແນນຂອງເຈົ້າຈະຖືກລຶບໃນວັນທີ {date}.' },
-  'privacy.pending.profile': { en: 'Your My Scores profile will be deleted on {date}.', lo: 'ໂປຣໄຟລ໌ ຄະແນນຂອງຂ້ອຍ ຈະຖືກລຶບໃນວັນທີ {date}.' },
+  'privacy.pending.profile': { en: 'Your Schooling profile will be deleted on {date}.', lo: 'ໂປຣໄຟລ໌ ໂຮງຮຽນ ຈະຖືກລຶບໃນວັນທີ {date}.' },
   'privacy.pending.readOnly': { en: 'Until then everything is read-only.', lo: 'ຈົນກວ່າຮອດມື້ນັ້ນ ທຸກຢ່າງອ່ານໄດ້ຢ່າງດຽວ.' },
   'privacy.pending.cancel': { en: 'Cancel deletion', lo: 'ຍົກເລີກການລຶບ' },
   'privacy.pending.cancelled': { en: 'Deletion cancelled.', lo: 'ຍົກເລີກການລຶບແລ້ວ.' },
-  'privacy.readOnly': { en: 'Saving is paused because you stopped "Keep my scores in My Scores".', lo: 'ການບັນທຶກຖືກຢຸດ ເພາະເຈົ້າຢຸດ "ເກັບຄະແນນໄວ້ໃນ ຄະແນນຂອງຂ້ອຍ".' },
+  'privacy.readOnly': { en: 'Saving is paused because you stopped "Keep my scores in Schooling".', lo: 'ການບັນທຶກຖືກຢຸດ ເພາະເຈົ້າຢຸດ "ເກັບຄະແນນໄວ້ໃນ ໂຮງຮຽນ".' },
 
   // Reminders inbox and settings (BE-009, #27). Lao month labels are bare
   // names (ຕຸລາ), so `ເດືອນ` is part of the Lao templates.
@@ -333,7 +333,7 @@ const copy = {
   'inbox.settings.failed': { en: 'Could not update notifications. Please try again.', lo: 'ບັນທຶກບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່.' },
   'inbox.settings.pushOn': { en: 'Reminders will also come to this device.', lo: 'ການແຈ້ງເຕືອນຈະສົ່ງມາອຸປະກອນນີ້ນຳ.' },
 
-  'consent.purpose.module_processing': { en: 'Keep my scores in My Scores', lo: 'ເກັບຄະແນນໄວ້ໃນ ຄະແນນຂອງຂ້ອຍ' },
+  'consent.purpose.module_processing': { en: 'Keep my scores in Schooling', lo: 'ເກັບຄະແນນໄວ້ໃນ ໂຮງຮຽນ' },
   'consent.purpose.push': { en: 'Send reminders to my device', lo: 'ສົ່ງການແຈ້ງເຕືອນໄປທີ່ອຸປະກອນ' },
   'consent.purpose.email': { en: 'Email me', lo: 'ສົ່ງອີເມວຫາຂ້ອຍ' },
 } as const satisfies Record<string, { en: string; lo: string }>

@@ -1,4 +1,5 @@
 import { ArrowRight, Target } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { Language } from '@/types'
 
@@ -118,8 +119,8 @@ export function TodayNudges({
         : (lo ? 'ຜູ້ແນະນຳປະຈຳວັນລໍຖ້າທ່ານຢູ່. ຕອບສັ້ນໆພຽງ 3 ຂໍ້.' : 'Your daily mentor is waiting. Just 3 quick replies.')
 
   return (
-    <a
-        href="#mentor"
+    <Link
+        to="/academy/mentor"
         data-no-premium-translate
         className={cn(
           'group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300',
@@ -131,6 +132,6 @@ export function TodayNudges({
         <span aria-hidden className="text-base">{mentorCompleted >= 3 ? '🏆' : streak > 1 ? '🔥' : '✨'}</span>
         <span className="min-w-0 flex-1">{mentorText}</span>
         <ArrowRight className="h-4 w-4 flex-shrink-0 opacity-70 transition group-hover:translate-x-1" />
-      </a>
+      </Link>
   )
 }

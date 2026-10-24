@@ -55,14 +55,14 @@ export function SupportAdmin() {
 
   return (
     <div className="grid gap-6">
-      <Panel title="Support lookup" description="Find a student's My Scores account by Bitdoin member code (e.g. BA-ACA-DAN9XY) or user ID. Scores are not shown. Every lookup is audit-logged.">
+      <Panel title="Support lookup" description="Find a student's Schooling account by Bitdoin member code (e.g. BA-ACA-DAN9XY) or user ID. Scores are not shown. Every lookup is audit-logged.">
         <form onSubmit={lookup} className="flex flex-wrap items-end gap-3">
           <Field label="Member code or user ID" className="min-w-[16rem] flex-1">
             <input value={ref} onChange={event => setRef(event.target.value)} autoComplete="off" spellCheck={false} />
           </Field>
           <Button type="submit" loading={busy && !asking} disabled={!ref.trim()} icon={<Search className="h-4 w-4" />}>Look up</Button>
         </form>
-        {notFound && <div className="mt-4"><Empty>No My Scores account for that reference.</Empty></div>}
+        {notFound && <div className="mt-4"><Empty>No Schooling account for that reference.</Empty></div>}
       </Panel>
 
       {result && (

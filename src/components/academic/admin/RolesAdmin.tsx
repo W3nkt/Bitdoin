@@ -8,11 +8,11 @@ import { useAuth } from '@/context/AuthContext'
 import { useSetUserRole, useStaffUsers, type BitdoinRole, type StaffUser } from '@/lib/academic/adminApi'
 import { Empty, Field, Panel, Pill, adminErrorText } from './AdminKit'
 
-// What each Bitdoin role can do in My Scores (OD-01b, PRD §28).
+// What each Bitdoin role can do in Schooling (OD-01b, PRD §28).
 const ROLES: Record<BitdoinRole, { label: string; myScores: string }> = {
   ADMIN: { label: 'Admin', myScores: 'Configuration, roles, support lookup, emergency score access, full audit log and CSV export.' },
   OPERATIONS: { label: 'Operations (support)', myScores: 'Support lookup without scores; emergency score access with a reason, 30 minutes; sees only their own audit entries.' },
-  FINANCE: { label: 'Finance', myScores: 'No My Scores access.' },
+  FINANCE: { label: 'Finance', myScores: 'No Schooling access.' },
   CUSTOMER: { label: 'Customer / student', myScores: 'Their own scores only.' },
 }
 

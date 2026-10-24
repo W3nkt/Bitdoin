@@ -28,6 +28,7 @@ export function MyScores() {
   const location = useLocation()
   const session = useAcademicSession()
   const { t } = useAcademicCopy()
+  const backTo = location.pathname.replace(/\/+$/, '') === '/academy/scores' ? undefined : '/academy/scores'
 
   if (loading) return <PageLoader />
   if (!profile) return <Navigate to="/auth" state={{ from: `${location.pathname}${location.search}` }} replace />
@@ -36,7 +37,7 @@ export function MyScores() {
   if (session.isError) {
     const rateLimited = session.error instanceof AcademicError && session.error.code === 'RATE_LIMITED'
     return (
-      <MyScoresShell>
+      <MyScoresShell backTo={backTo}>
         <MyScoresNotice
           icon={<AlertTriangle className="h-7 w-7" />}
           title={t('state.error.title')}
@@ -58,7 +59,7 @@ export function MyScores() {
   const data = session.data
   if (data.next_step === 'unavailable') {
     return (
-      <MyScoresShell>
+      <MyScoresShell backTo={backTo}>
         <MyScoresNotice icon={<Hourglass className="h-7 w-7" />} title={t('state.unavailable.title')} body={t('state.unavailable.body')} />
       </MyScoresShell>
     )

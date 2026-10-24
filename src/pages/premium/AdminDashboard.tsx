@@ -39,7 +39,7 @@ import {
   BellRing,
   Trophy,
   Megaphone,
-  ClipboardList,
+  School,
   type LucideIcon,
 } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
@@ -1595,11 +1595,11 @@ export function PremiumAdminDashboard() {
               <Button
                 type="button"
                 variant="ghost"
-                icon={<ClipboardList className="h-4 w-4" />}
+                icon={<School className="h-4 w-4" />}
                 onClick={() => navigate('/academy-admin/scores')}
                 className="bg-white/10 text-white hover:bg-white/15"
               >
-                My Scores
+                Schooling
               </Button>
               <Button
                 type="button"

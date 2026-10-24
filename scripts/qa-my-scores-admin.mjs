@@ -1,4 +1,4 @@
-// End-to-end checks for the My Scores admin screens (FE-007, #34) against a
+// End-to-end checks for the Schooling admin screens (FE-007, #34) against a
 // mocked Supabase (PostgREST, RPCs and Auth MFA), so no real data is touched.
 //
 //   VITE_SUPABASE_URL=https://example.supabase.co VITE_SUPABASE_ANON_KEY=test npx vite build
@@ -415,11 +415,11 @@ try {
     const { context, page, mock, errors } = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores?tab=subjects`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: 'Support lookup' }).waitFor()
-    const tabs = await page.getByRole('navigation', { name: 'My Scores admin sections' }).getByRole('button').allInnerTexts()
+    const tabs = await page.getByRole('navigation', { name: 'Schooling admin sections' }).getByRole('button').allInnerTexts()
     assert.deepEqual(tabs.map(text => text.trim()), ['Support', 'Audit log'])
     await page.getByLabel('Member code or user ID').fill('BA-ACA-NOPE00')
     await page.getByRole('button', { name: 'Look up' }).click()
-    await page.getByText('No My Scores account for that reference.').waitFor()
+    await page.getByText('No Schooling account for that reference.').waitFor()
     await page.getByLabel('Member code or user ID').fill('BA-ACA-DAN9XY')
     await page.getByRole('button', { name: 'Look up' }).click()
     await page.getByRole('heading', { name: 'Member DAN9XY' }).waitFor()
@@ -503,7 +503,7 @@ try {
   {
     const { context, page, errors } = await openAs(browser, { role: 'FINANCE', aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: 'No My Scores access' }).waitFor()
+    await page.getByRole('heading', { name: 'No Schooling access' }).waitFor()
     assert.deepEqual(errors, [])
     await context.close()
     const phone = await openAs(browser, { aal: 'aal2', factors: VERIFIED }, devices['Pixel 7'])

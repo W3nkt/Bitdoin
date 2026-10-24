@@ -75,7 +75,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
   if (factorId && !enrolment) {
     return (
       <Card icon={<ShieldCheck className="h-6 w-6" />} title="Confirm it's you">
-        <p>My Scores admin and support need a code from your authenticator app each time you sign in.</p>
+        <p>Schooling admin and support need a code from your authenticator app each time you sign in.</p>
         {codeForm}
       </Card>
     )
@@ -103,7 +103,7 @@ export function MfaGate({ children }: { children: ReactNode }) {
 
   return (
     <Card icon={<KeyRound className="h-6 w-6" />} title="Two-step verification required">
-      <p>My Scores admin and support handle student data, so they need a code from an authenticator app on your phone as well as your password. Other Bitdoin admin pages are not affected.</p>
+      <p>Schooling admin and support handle student data, so they need a code from an authenticator app on your phone as well as your password. Other Bitdoin admin pages are not affected.</p>
       <Button className="mt-5" loading={busy} onClick={() => void begin()} icon={<Smartphone className="h-4 w-4" />}>Set up authenticator app</Button>
       {error && <p role="alert" className="mt-3 text-sm font-bold text-red-700 dark:text-red-400">{error}</p>}
     </Card>

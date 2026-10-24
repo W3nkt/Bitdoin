@@ -120,7 +120,7 @@ export function AuditAdmin({ isAdmin }: { isAdmin: boolean }) {
       {isAdmin && <AlertsPanel />}
       <Panel
         title="Audit log"
-        description="Every access, change and denial in My Scores. Entries cannot be edited or removed. Operations staff see only their own entries."
+        description="Every access, change and denial in Schooling. Entries cannot be edited or removed. Operations staff see only their own entries."
         actions={isAdmin && <Button size="sm" variant="outline" loading={exporting} icon={<Download className="h-4 w-4" />} onClick={() => void exportCsv()}>Export CSV</Button>}
       >
         <form className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_10rem_auto] lg:items-end"
