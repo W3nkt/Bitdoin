@@ -23,13 +23,19 @@ begin
     execute format('drop table if exists public.%I cascade', r.tablename);
   end loop;
 
+  -- Aggregates first: they depend on functions and need DROP AGGREGATE.
   for r in
-    select p.oid::regprocedure as signature
+    select p.oid::regprocedure as signature, p.prokind
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname like 'academic\_%'
+    order by p.prokind = 'a' desc
   loop
-    execute format('drop function if exists %s cascade', r.signature);
+    if r.prokind = 'a' then
+      execute format('drop aggregate if exists %s cascade', r.signature);
+    elsif exists (select 1 from pg_proc where oid = r.signature::oid) then
+      execute format('drop function if exists %s cascade', r.signature);
+    end if;
   end loop;
 end;
 $$;

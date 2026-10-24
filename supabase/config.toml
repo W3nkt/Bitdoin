@@ -72,3 +72,8 @@ verify_jwt = false
 # the app. Staff-only and per-user actions check the JWT inside the function.
 [functions.send-push]
 verify_jwt = false
+
+# Called by pg_cron every 5 minutes and after an admin's test alert. Only sends
+# alerts already queued in the database, at most once each (migration 122).
+[functions.academic-alerts]
+verify_jwt = false

@@ -69,6 +69,29 @@ function fixtures(role) {
   }
 }
 
+function healthFixture() {
+  const now = Date.now()
+  const window = (read, write, calls, errors, loads, p75) => ({ read_calls: 120, read_p95_ms: read, write_calls: 30, write_p95_ms: write, slowest: null,
+    calls, server_errors: errors, client_errors: 4, network_errors: 2, availability: calls ? 1 - errors / calls : null, dashboard_loads: loads, dashboard_p75_ms: p75 })
+  return {
+    targets: { read_p95_ms: 300, write_p95_ms: 500, availability: 0.995, dashboard_p75_ms: 2500, min_calls: 20 },
+    hour: window(410, 220, 150, 0, 12, 2000),
+    day: window(260, 210, 2400, 3, 80, 2000),
+    month: window(240, 200, 52000, 120, 1900, 2000),
+    series: Array.from({ length: 48 }, (_, i) => ({
+      hour: new Date(now - (47 - i) * 3600_000).toISOString(),
+      read_p95_ms: i % 6 === 0 ? null : 180 + (i % 7) * 30, write_p95_ms: i % 6 === 0 ? null : 240 + (i % 5) * 40,
+      calls: i % 6 === 0 ? 0 : 40 + i, server_errors: i === 40 ? 2 : 0,
+    })),
+    jobs: [
+      { job: 'academic-score-reminders', schedule: '5 * * * *', last_run: new Date(now - 600_000).toISOString(), last_status: 'succeeded', failed_24h: 0 },
+      { job: 'academic-push-reminders', schedule: '*/15 * * * *', last_run: new Date(now - 300_000).toISOString(), last_status: 'failed', failed_24h: 1 },
+    ],
+    alerts: { open: 2, unsent: 0, last_error: null },
+    pending_push: 0,
+  }
+}
+
 function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
   const state = { calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal) }
   const user = () => ({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'admin@example.com', app_metadata: {}, user_metadata: {}, factors: state.factors })
@@ -86,6 +109,8 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       enrolments: [{ id: 'e1', academic_year: '2026-2027', grade: 'G11', state: 'active', closed_reason: null, school_verification: 'verified', submitted_periods: 2, draft_periods: 1 }],
       consents: [{ purpose: 'module_processing', notice_version: '2026-10', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }],
     } : { error: { code: 'NOT_FOUND', status: 404 } },
+    academic_admin_health: () => healthFixture(),
+    academic_admin_test_alert: () => ({ id: 'al-test' }),
     academic_support_break_glass: () => ({ session_id: 'bg1', expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }),
     academic_support_view_scores: () => ({
       expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -124,6 +149,10 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     const method = request.method()
     const json = (body, status = 200, headers = {}) => route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) })
 
+    if (url.pathname === '/functions/v1/academic-alerts') {
+      state.calls.push({ fn: 'fn academic-alerts', args: request.postDataJSON() })
+      return json({ claimed: 1, sent: 1, failed: 0 })
+    }
     if (url.pathname.startsWith('/auth/v1/')) {
       const path = url.pathname.replace('/auth/v1', '')
       state.calls.push({ fn: `auth ${method} ${path}`, args: request.postDataJSON?.() ?? null })
@@ -440,6 +469,34 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Audit: alert reviewed (who and when saved), action filter applied, actor names shown, CSV export with formula cells neutralised')
+  }
+
+  // Health (OPS-002): service levels with verdicts, charts with table views, jobs, test alert.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=health`, { waitUntil: 'domcontentloaded' })
+    const tiles = page.getByRole('region', { name: 'Service levels' })
+    await tiles.getByText('99.77%').waitFor()
+    assert.equal(await tiles.getByText('Missed').count(), 1, 'reads p95 410 ms > 300 ms')
+    assert.equal(await tiles.getByText('Met').count(), 3)
+    await page.locator('.recharts-line-curve').first().waitFor()
+    await page.getByText('academic-push-reminders').waitFor()
+    await shot(page, 'admin-9-health')
+    await axe(page)
+    await page.getByRole('button', { name: 'Show table' }).first().click()
+    await page.getByRole('columnheader', { name: 'Read p95' }).waitFor()
+    await page.getByRole('button', { name: 'Send test alert' }).click()
+    await page.getByText('Test alert sent. Check the on-call inbox.').waitFor()
+    assert.ok(lastCall(mock, 'academic_admin_test_alert'))
+    assert.deepEqual(lastCall(mock, 'fn academic-alerts').args, { action: 'deliver' })
+    assert.deepEqual(errors, [])
+    await context.close()
+    const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await ops.page.goto(`${base}/academy-admin/scores?tab=health`, { waitUntil: 'domcontentloaded' })
+    await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
+    assert.equal(await ops.page.getByRole('button', { name: 'Health' }).count(), 0)
+    await ops.context.close()
+    pass('Health: verdicts per target (icon + label), latency and error charts with table views, job results, test alert queued and e-mailed; Operations has no Health tab')
   }
 
   // Finance: no access; phone width has no horizontal scroll.

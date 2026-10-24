@@ -59,6 +59,10 @@ $$;
 create function cron.unschedule(p_jobid bigint) returns boolean language sql as $$
   delete from cron.job where jobid = p_jobid returning true
 $$;
+create table cron.job_run_details (
+  runid bigserial primary key, jobid bigint, status text, return_message text,
+  start_time timestamptz, end_time timestamptz
+);
 
 -- pg_net stand-in and the core push_subscriptions table (migration 102).
 create schema if not exists net;

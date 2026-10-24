@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, BookOpenCheck, CalendarDays, ClipboardList, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BookOpenCheck, CalendarDays, ClipboardList, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -11,8 +11,9 @@ import { CalendarsAdmin } from '@/components/academic/admin/CalendarsAdmin'
 import { RolesAdmin } from '@/components/academic/admin/RolesAdmin'
 import { SupportAdmin } from '@/components/academic/admin/SupportAdmin'
 import { AuditAdmin } from '@/components/academic/admin/AuditAdmin'
+import { HealthAdmin } from '@/components/academic/admin/HealthAdmin'
 
-type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit'
+type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit' | 'health'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[] }> = [
   { id: 'subjects', label: 'Subjects', icon: BookOpenCheck, roles: ['ADMIN'] },
@@ -22,6 +23,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[
   { id: 'roles', label: 'Roles', icon: Users, roles: ['ADMIN'] },
   { id: 'support', label: 'Support', icon: LifeBuoy, roles: ['ADMIN', 'OPERATIONS'] },
   { id: 'audit', label: 'Audit log', icon: ScrollText, roles: ['ADMIN', 'OPERATIONS'] },
+  { id: 'health', label: 'Health', icon: Activity, roles: ['ADMIN'] },
 ]
 
 /**
@@ -82,6 +84,7 @@ export function MyScoresAdmin() {
               {active.id === 'roles' && <RolesAdmin />}
               {active.id === 'support' && <SupportAdmin />}
               {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
+              {active.id === 'health' && <HealthAdmin />}
             </MfaGate>
           </>
         )}

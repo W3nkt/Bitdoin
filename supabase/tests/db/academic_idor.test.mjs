@@ -67,12 +67,15 @@ const OWN_WRITE = [
   'academic_set_notification_preference(text,boolean,boolean)',
   // Moves a browser's push endpoint to the caller; endpoints are unguessable secrets held by the browser.
   'save_push_subscription(text,text,text,text,text,boolean,text)',
+  // Anonymous counters only (RPC name, duration, status); no IDs accepted (migration 122).
+  'academic_record_metrics(jsonb)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
   'academic_admin_create_school_calendar(uuid,uuid,jsonb)', 'academic_admin_merge_schools(uuid,uuid,text)',
   'academic_admin_resolve_school_task(uuid,uuid,text)', 'academic_admin_set_user_role(uuid,text,text)',
   'academic_support_lookup(text)', 'academic_support_break_glass(uuid,text)', 'academic_support_view_scores(uuid)',
+  'academic_admin_health()', 'academic_admin_test_alert()',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -195,6 +198,8 @@ const staffCalls = {
   'academic_support_lookup(text)': `public.academic_support_lookup('AAA111')`,
   'academic_support_break_glass(uuid,text)': `public.academic_support_break_glass('${a.profile_id}', 'curious about scores')`,
   'academic_support_view_scores(uuid)': `public.academic_support_view_scores('${a.profile_id}')`,
+  'academic_admin_health()': `public.academic_admin_health()`,
+  'academic_admin_test_alert()': `public.academic_admin_test_alert()`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

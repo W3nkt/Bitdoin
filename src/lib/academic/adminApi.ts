@@ -445,3 +445,49 @@ export function useAcknowledgeAlert() {
     .update({ status: 'acknowledged', acknowledged_by: userId, acknowledged_at: new Date().toISOString() })
     .eq('id', id).eq('status', 'open')))
 }
+
+// ─── Health (OPS-002, migration 122) ─────────────────────────────────────────
+
+export interface SloWindow {
+  read_calls: number
+  read_p95_ms: number | null
+  write_calls: number
+  write_p95_ms: number | null
+  slowest: Array<{ rpc: string; kind: 'read' | 'write'; calls: number; p95_ms: number }> | null
+  calls: number
+  server_errors: number
+  client_errors: number
+  network_errors: number
+  availability: number | null
+  dashboard_loads: number
+  dashboard_p75_ms: number | null
+}
+
+export interface HealthView {
+  targets: { read_p95_ms: number; write_p95_ms: number; availability: number; dashboard_p75_ms: number; min_calls: number }
+  hour: SloWindow
+  day: SloWindow
+  month: SloWindow
+  series: Array<{ hour: string; read_p95_ms: number | null; write_p95_ms: number | null; calls: number; server_errors: number }>
+  jobs: Array<{ job: string; schedule: string; last_run: string | null; last_status: string | null; failed_24h: number }>
+  alerts: { open: number; unsent: number; last_error: string | null }
+  pending_push: number
+}
+
+export function useHealth() {
+  return useQuery({
+    queryKey: [...adminKey, 'health'],
+    queryFn: () => callAcademicRpc<HealthView>('academic_admin_health'),
+    refetchInterval: 60_000,
+  })
+}
+
+/** Queues a test alert and asks the e-mail function to send it now (the 5-minute job would too). */
+export function useTestAlert() {
+  return useAdminMutation(async () => {
+    await callAcademicRpc('academic_admin_test_alert')
+    const { data, error } = await supabase.functions.invoke('academic-alerts', { body: { action: 'deliver' } })
+    if (error) throw error
+    return data as { claimed: number; sent: number; failed: number; skipped?: string }
+  })
+}

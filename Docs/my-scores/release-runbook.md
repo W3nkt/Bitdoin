@@ -54,10 +54,8 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration `121_academic_security_hardening.sql` (security review fixes S-01 to
-  S-04, see `security-review.md`). No Edge Function changes.
-- Applied 2026-10-24: migration `120_academic_push_devices.sql` and the
-  `send-push` redeploy.
+Nothing. Applied 2026-10-24: migrations 120 and 121, and the `send-push`
+redeploy.
 
 ## Feature flag
 
@@ -75,6 +73,40 @@ Privacy actions (export, consent withdrawal, deletion) keep working while the
 module is off (PRIV-003..005). Other switches in the same table:
 `admin_mfa_required`, `scale_four_eyes_required`, `break_glass_minutes`,
 `score_reminders`, `notification_quiet_hours`, `push_caps`, `rate_limits`.
+
+## Monitoring (OPS-002, migration 122)
+
+Admin → My Scores → **Health** (ADMIN only) shows four service levels with a
+Met / Missed verdict, 48-hour charts (each with a table view), the scheduled
+jobs and the alert e-mail status.
+
+| Target | Source | Window |
+|---|---|---|
+| Availability ≥ 99.5% (NFR-005) | App reports of every My Scores call: server errors (5xx, timeouts) ÷ calls. Offline and 4xx answers are not counted against it. | 30 days on the tile, 24 h for alerts |
+| Reads p95 ≤ 300 ms, writes p95 ≤ 500 ms (NFR-002) | `pg_stat_statements`, sampled every 5 minutes; p95 estimated as mean + 1.645 × sd per window. Server time only. | Last hour |
+| Dashboard summary p75 ≤ 2.5 s (NFR-001) | Students' devices: first load from navigation start, later visits from opening the screen. | 24 h |
+
+Nothing personal is recorded (NFR-017): RPC names, durations and status
+classes only; `academic_record_metrics` refuses any other field. Metrics are
+kept 90 days.
+
+**Alerts** (hourly check, one per kind a day) for missed targets, failed or
+late jobs and push reminders stuck for 2 hours, plus the existing
+suspicious-access alerts. Each is e-mailed to the on-call address within
+5 minutes by the `academic-alerts` Edge Function (Resend). The address is in
+`academic_private_settings` (`alert_email`, default `bitdoin0@gmail.com`):
+
+```sql
+update public.academic_private_settings set value = 'someone@example.com' where key = 'alert_email';
+```
+
+"Send test alert" on the Health tab proves the path end to end. If it fails,
+the error shows on the tab: with Resend's shared sender
+(`onboarding@resend.dev`) mail only reaches the Resend account's own address,
+so set `FROM_EMAIL` to a verified domain sender or use that address. Optional
+secret `ADMIN_APP_URL` adds a link to the Health tab in each e-mail.
+
+Targets live in `academic_settings` → `slo_targets`.
 
 ## Rollback, fastest first
 
@@ -102,4 +134,5 @@ module is off (PRIV-003..005). Other switches in the same table:
 | 2026-10-24 | All academic migrations forward, re-run (idempotent), full rollback, forward again (`academic_rollback.test.mjs`, PGlite) | Passed; part of every CI run from now on |
 | 2026-10-24 | Workflows checked with actionlint 1.7.7 | No findings |
 | 2026-10-24 | `npm run test:e2e` locally: 20 student + 10 admin scenarios | Passed |
-| — | Flag off/on on a staging project; `supabase.yml` dry run against production | To do once the GitHub secrets are set |
+| 2026-10-24 | `supabase.yml` against production: migration 120 and `send-push`, then migration 121 (Apply) | Passed; changes verified read-only afterwards |
+| 2026-10-24 | Module flag off and on again in production (SQL editor); `/academy/scores` showed "coming soon", then worked | Passed; flag confirmed `true` afterwards |

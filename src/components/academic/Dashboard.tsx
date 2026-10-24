@@ -11,6 +11,7 @@ import { plainNumber } from '@/lib/academic/scoreInput'
 import { useChartTheme, useTheme } from '@/lib/theme'
 import { MyScoresNotice } from './MyScoresShell'
 import { academicErrorText } from './errorText'
+import { useDashboardTiming } from '@/lib/academic/telemetry'
 import { ReminderBanner } from './Inbox'
 
 // Identity never rests on colour alone: single series name their measure in
@@ -44,6 +45,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   const periods = usePeriods(enrolmentId)
   const [params, setParams] = useSearchParams()
   const subjectId = params.get('subject')
+  useDashboardTiming(dashboard.isSuccess, !!dashboard.data?.stale_since)
 
   if (dashboard.isPending) return <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
   if (dashboard.isError) return <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, dashboard.error)} />

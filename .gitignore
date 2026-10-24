@@ -12,3 +12,4 @@ dev-dist
 
 dist-qa
 qa-artifacts
+.claude/settings.local.json
