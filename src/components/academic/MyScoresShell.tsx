@@ -4,11 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import { cn } from '@/lib/utils'
+import { InboxButton } from './Inbox'
 
 /** Page frame for every My Scores screen, matching the other Academy pages. */
-export function MyScoresShell({ subtitle, backTo = '/academy/home', children }: {
+export function MyScoresShell({ subtitle, backTo = '/academy/home', inbox = false, children }: {
   subtitle?: string
   backTo?: string
+  /** Show the reminders bell (students with a profile). */
+  inbox?: boolean
   children: ReactNode
 }) {
   const { t, lo } = useAcademicCopy()
@@ -35,6 +38,7 @@ export function MyScoresShell({ subtitle, backTo = '/academy/home', children }: 
               {subtitle ?? t('shell.subtitle')}
             </p>
           </div>
+          {inbox && <InboxButton />}
           <AcademyHeaderActions />
         </div>
       </header>

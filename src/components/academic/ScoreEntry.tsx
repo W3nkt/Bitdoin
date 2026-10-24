@@ -449,7 +449,7 @@ function CorrectionForm({ view, name, line, onDone }: { view: ScoreEntryView; na
   )
 }
 
-function RevisionList({ lineId }: { lineId: string }) {
+export function RevisionList({ lineId }: { lineId: string }) {
   const { t, language } = useAcademicCopy()
   const revisions = useLineRevisions(lineId)
   const show = (value: number | string | null, status: string) => (status === 'scored' ? plainNumber(value) : t(`entry.status.${status}` as AcademicCopyKey))

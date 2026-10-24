@@ -1,0 +1,104 @@
+# My Scores — release and rollback runbook (OPS-001, #41)
+
+How My Scores reaches production, how it is switched on and off, and how each
+part is rolled back. The module lives in the main app and the main Supabase
+project (OD-01), so it uses the same pipeline as the rest of Bitdoin.
+
+## Pipeline
+
+| Workflow | When | What it does |
+|---|---|---|
+| `ci.yml` | Every pull request and branch push; called by `deploy.yml` | Type-check, lint, database tests (all migrations on PGlite, including the forward → rollback → forward rehearsal), and the My Scores browser checks: 20 student and 10 admin scenarios against a mocked Supabase. Screenshots are uploaded as the `my-scores-screenshots` artifact. |
+| `deploy.yml` | Push to `main`, or manual | Runs `ci.yml` first, then builds and deploys the frontend to GitHub Pages. Manual runs accept `ref` (deploy an older commit) and `skip_checks` (emergency only). |
+| `supabase.yml` | Manual only | Database tests, then `supabase db push` and `supabase functions deploy` for one environment. **Dry run by default**: it lists pending migrations and changes nothing unless "Apply" is ticked. |
+
+Local equivalents: `npm run test:db`, `npm run test:e2e` (builds `dist-qa` with a
+mocked Supabase, serves it and runs both browser suites).
+
+## One-time GitHub setup
+
+1. **Settings → Environments**: create `production` (add yourself as a required
+   reviewer) and, once a staging project exists, `staging`.
+2. In each environment add:
+   - secret `SUPABASE_ACCESS_TOKEN`: a personal access token from
+     supabase.com/dashboard/account/tokens
+   - secret `SUPABASE_DB_PASSWORD`: that project's database password
+   - variable `SUPABASE_PROJECT_REF`: production is `bzyvzftnfuuxcseuqrnj`
+3. The existing Pages variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`,
+   `VITE_VAPID_PUBLIC_KEY`, …) are unchanged.
+
+## Environments
+
+| | Production | Staging |
+|---|---|---|
+| Supabase project | `bzyvzftnfuuxcseuqrnj` | Not created yet. Until it exists, CI's PGlite run is the migration and rollback rehearsal. |
+| Frontend | GitHub Pages from `main` | Local `npm run test:e2e` / `vite preview` |
+| Module flag | `my_scores_enabled = true` (on since 2026-10-23) | Any |
+| Admin MFA | `admin_mfa_required = true` | May be `false` for testing |
+
+Migration history check (2026-10-24): production's `supabase_migrations.schema_migrations`
+lists every local migration up to `119`, so `supabase db push` would apply only `120`.
+
+## Release order
+
+1. Merge to `main` only when CI is green.
+2. Run **Supabase migrations and functions** → `production`, dry run. Read the
+   pending list.
+3. Run it again with **Apply** ticked, and the functions that changed (for
+   example `send-push`). Migrations come first because the frontend may rely on
+   them; frontend code that reads new columns tolerates their absence
+   (for example `getDevicePushState` selects `*`).
+4. Push or re-run **Deploy Bitdoin to GitHub Pages**.
+5. Smoke test: open `/academy/scores` as a student, `/academy-admin/scores` as an
+   admin.
+
+### Pending right now
+
+- Migration `120_academic_push_devices.sql` (device switch for score reminders,
+  reminders settle on submit).
+- `send-push` redeploy (device filter, and the edited test message).
+
+## Feature flag
+
+The module is switched on and off in the database, without a deploy. Run in the
+Supabase SQL editor:
+
+```sql
+-- Off: students see "My Scores is coming soon"; reminders stop; nothing is deleted.
+update public.academic_settings set value = 'false' where key = 'my_scores_enabled';
+-- On:
+update public.academic_settings set value = 'true' where key = 'my_scores_enabled';
+```
+
+Privacy actions (export, consent withdrawal, deletion) keep working while the
+module is off (PRIV-003..005). Other switches in the same table:
+`admin_mfa_required`, `scale_four_eyes_required`, `break_glass_minutes`,
+`score_reminders`, `notification_quiet_hours`, `push_caps`, `rate_limits`.
+
+## Rollback, fastest first
+
+1. **Switch the module off** (above). Instant, no data loss. Use this first for
+   any student-facing problem.
+2. **Frontend**: Actions → *Deploy Bitdoin to GitHub Pages* → *Run workflow*,
+   `ref` = the last good commit SHA. Tick `skip_checks` only if that commit is
+   older than this CI setup (it has no `test:e2e` script).
+3. **Edge Function**: deploy the old version from a separate worktree, so your
+   working copy is untouched:
+   ```sh
+   git worktree add ../bitdoin-rollback <good-sha>
+   cd ../bitdoin-rollback && supabase functions deploy send-push --project-ref bzyvzftnfuuxcseuqrnj
+   cd - && git worktree remove ../bitdoin-rollback
+   ```
+4. **Database**: production is forward-only. Undo a change with a new migration
+   that reverses it, released through the same workflow.
+   `supabase/scripts/academic_module_rollback.sql` removes the whole module and
+   its data; it is for staging only, never production.
+
+## Rehearsal record
+
+| Date | What | Result |
+|---|---|---|
+| 2026-10-24 | All academic migrations forward, re-run (idempotent), full rollback, forward again (`academic_rollback.test.mjs`, PGlite) | Passed; part of every CI run from now on |
+| 2026-10-24 | Workflows checked with actionlint 1.7.7 | No findings |
+| 2026-10-24 | `npm run test:e2e` locally: 20 student + 10 admin scenarios | Passed |
+| — | Flag off/on on a staging project; `supabase.yml` dry run against production | To do once the GitHub secrets are set |

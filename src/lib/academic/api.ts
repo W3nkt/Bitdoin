@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { callAcademicRpc, shouldRetryAcademic } from './rpc'
 import { academicKeys } from './session'
@@ -216,6 +216,27 @@ export interface HistoryEnrolment {
   state: 'active' | 'closed'
   closed_reason: string | null
   read_only: boolean
+  scale?: ScoreEntryView['scale']
+  terms?: HistoryTerm[]
+}
+
+export interface HistoryPeriod {
+  id: string
+  key: string
+  period_type: string
+  term_no: number | null
+  sequence: number
+  label_lo: string
+  label_en: string
+  start_date: string
+  end_date: string
+  entry: { id: string; state: 'draft' | 'submitted'; submitted_at: string | null; source: string }
+  lines: { subject_enrolment_id: string; code: string | null; name_lo: string; name_en: string; line: EntryLine | null }[]
+}
+
+export interface HistoryTerm {
+  term_no: number | null
+  periods: HistoryPeriod[]
 }
 
 /** Every school year the student recorded, newest first (SCORE-010). */
@@ -232,6 +253,7 @@ export interface PeriodOption {
   id: string
   key: string
   period_type: string
+  term_no?: number | null
   sequence: number
   label_lo: string
   label_en: string
@@ -404,5 +426,136 @@ export function useDashboard(userId: string, enrolmentId: string | null) {
         throw error
       }
     },
+  })
+}
+
+// ─── Privacy (FE-006): consent, export, deletion ─────────────────────────────
+
+export function useWithdrawConsent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (purpose: string) => callAcademicRpc('academic_withdraw_consent', { p_purpose: purpose }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+  })
+}
+
+export const exportMyData = () => callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data')
+
+export interface DeletionStatus {
+  status: 'active' | 'read_only' | 'deletion_pending'
+  deletion_scope: 'scores' | 'profile' | null
+  deletion_requested_at: string | null
+  deletion_scheduled_for: string | null
+}
+
+export function useRequestDeletion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (scope: 'scores' | 'profile') => callAcademicRpc<DeletionStatus>('academic_request_deletion', { p_scope: scope }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+  })
+}
+
+export function useCancelDeletion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => callAcademicRpc<DeletionStatus>('academic_cancel_deletion'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+  })
+}
+
+// ─── Reminders (BE-009, #27) ─────────────────────────────────────────────────
+
+export interface AcademicNotification {
+  id: string
+  category: 'score_reminder'
+  code: 'score_reminder.first' | 'score_reminder.second' | string
+  payload: { enrolment_id?: string; period_id?: string; period_key?: string; period_label_lo?: string; period_label_en?: string }
+  channel: 'in_app' | 'push'
+  state: 'sent' | 'read'
+  created_at: string
+  read_at: string | null
+}
+
+export interface NotificationPage {
+  items: AcademicNotification[]
+  unread_count: number
+  next_before: string | null
+}
+
+const notificationsKey = [...academicKeys.all, 'notifications'] as const
+
+/** The inbox, newest first, 20 at a time. Page 1 also carries the unread count. */
+export function useNotifications(enabled = true) {
+  return useInfiniteQuery({
+    queryKey: notificationsKey,
+    enabled,
+    retry: shouldRetryAcademic,
+    staleTime: 60_000,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => callAcademicRpc<NotificationPage>('academic_list_notifications', { p_limit: 20, p_before: pageParam }),
+    getNextPageParam: last => last.next_before,
+  })
+}
+
+export const unreadCount = (data: InfiniteData<NotificationPage> | undefined) => data?.pages[0]?.unread_count ?? 0
+
+function useUpdateInbox() {
+  const queryClient = useQueryClient()
+  return (change: (item: AcademicNotification) => AcademicNotification | null, unread?: number) =>
+    queryClient.setQueryData<InfiniteData<NotificationPage>>(notificationsKey, data => data && {
+      ...data,
+      pages: data.pages.map((page, index) => ({
+        ...page,
+        items: page.items.flatMap(item => change(item) ?? []),
+        unread_count: index === 0 && unread !== undefined ? unread : page.unread_count,
+      })),
+    })
+}
+
+export function useMarkNotificationsRead() {
+  const update = useUpdateInbox()
+  return useMutation({
+    mutationFn: (ids: string[]) => callAcademicRpc<{ unread_count: number }>('academic_mark_notifications_read', { p_ids: ids }),
+    onSuccess: ({ unread_count }, ids) => update(item => (ids.includes(item.id) ? { ...item, state: 'read' } : item), unread_count),
+  })
+}
+
+export function useDismissNotification() {
+  const queryClient = useQueryClient()
+  const update = useUpdateInbox()
+  return useMutation({
+    mutationFn: (id: string) => callAcademicRpc('academic_dismiss_notification', { p_id: id }),
+    onSuccess: (_, id) => {
+      update(item => (item.id === id ? null : item))
+      void queryClient.invalidateQueries({ queryKey: notificationsKey })
+    },
+  })
+}
+
+export interface NotificationPreferences {
+  categories: Array<{ category: 'score_reminder'; in_app_enabled: boolean; push_enabled: boolean }>
+  push_consent: boolean
+  /** Some device of this account has the My Scores switch on. */
+  push_device: boolean
+  quiet_hours: { start: string; end: string } | null
+}
+
+const preferencesKey = [...academicKeys.all, 'notification-preferences'] as const
+
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: preferencesKey,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<NotificationPreferences>('academic_get_notification_preferences'),
+  })
+}
+
+export function useSetNotificationPreference() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ inApp, push }: { inApp: boolean; push: boolean }) =>
+      callAcademicRpc<NotificationPreferences>('academic_set_notification_preference', { p_category: 'score_reminder', p_in_app: inApp, p_push: push }),
+    onSuccess: prefs => queryClient.setQueryData(preferencesKey, prefs),
   })
 }

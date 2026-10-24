@@ -1,0 +1,103 @@
+name: Supabase migrations and functions
+
+# Manual. Pushes pending migrations (supabase/migrations) and deploys Edge
+# Functions to one environment. Dry run by default: it lists what would be
+# applied without changing anything.
+#
+# Each GitHub Environment (staging, production) needs:
+#   secrets  SUPABASE_ACCESS_TOKEN  personal access token (supabase.com/dashboard/account/tokens)
+#            SUPABASE_DB_PASSWORD   that project's database password
+#   vars     SUPABASE_PROJECT_REF   e.g. bzyvzftnfuuxcseuqrnj
+# Protect "production" with required reviewers in Settings > Environments.
+# Function settings such as verify_jwt come from supabase/config.toml.
+# Runbook: Docs/my-scores/release-runbook.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target
+        type: choice
+        options: [staging, production]
+        default: staging
+      apply:
+        description: Apply (unticked = dry run only)
+        type: boolean
+        default: false
+      functions:
+        description: Edge Functions to deploy, space separated (empty = none)
+        type: string
+        default: send-push
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:db
+
+  deploy:
+    name: ${{ inputs.apply && 'Apply to' || 'Dry run on' }} ${{ inputs.environment }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      FUNCTIONS: ${{ inputs.functions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check configuration
+        shell: bash
+        run: |
+          missing=0
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD PROJECT_REF; do
+            if [[ -z "${!name}" ]]; then echo "::error::$name is not set for the ${{ inputs.environment }} environment."; missing=1; fi
+          done
+          for fn in $FUNCTIONS; do
+            if [[ ! -d "supabase/functions/$fn" ]]; then echo "::error::No Edge Function named $fn."; missing=1; fi
+          done
+          exit $missing
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Migrations (local vs remote)
+        run: supabase migration list
+
+      - name: Pending migrations (dry run)
+        run: supabase db push --dry-run
+
+      - name: Apply migrations
+        if: ${{ inputs.apply }}
+        run: supabase db push
+
+      - name: Deploy Edge Functions
+        if: ${{ inputs.apply && inputs.functions != '' }}
+        shell: bash
+        run: |
+          for fn in $FUNCTIONS; do
+            echo "::group::$fn"
+            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+            echo "::endgroup::"
+          done

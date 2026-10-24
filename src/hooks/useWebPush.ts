@@ -9,7 +9,7 @@ import {
   sendTestPush,
   setAcademyReminderSlot,
   type DevicePushState,
-  type PushPlatform,
+  type PushTarget,
   type PushSupport,
   type ReminderSlot,
 } from '@/lib/webPush'
@@ -17,7 +17,7 @@ import {
 export type PushActionError = 'denied' | 'failed'
 
 /** This device's notification state for one platform, plus actions to change it. */
-export function useWebPush(platform: PushPlatform) {
+export function useWebPush(platform: PushTarget) {
   const { profile } = useAuth()
   const qc = useQueryClient()
   const [support, setSupport] = useState<PushSupport>(() => getPushSupport())
@@ -31,7 +31,8 @@ export function useWebPush(platform: PushPlatform) {
     staleTime: 60_000,
   })
 
-  const enabled = platform === 'ACADEMY' ? Boolean(device?.academy_enabled) : Boolean(device?.bookstore_enabled)
+  const enabled = Boolean(platform === 'ACADEMY' ? device?.academy_enabled
+    : platform === 'MY_SCORES' ? device?.my_scores_enabled : device?.bookstore_enabled)
 
   async function run(action: () => Promise<DevicePushState | null>): Promise<PushActionError | null> {
     setBusy(true)

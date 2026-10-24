@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit, tag or branch to deploy (rollback). Empty = the selected branch.'
+        required: false
+        default: ''
+      skip_checks:
+        description: 'Emergency only: deploy without running CI first.'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,7 +24,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Types, lint, database tests and browser checks (ci.yml) gate every build.
+  checks:
+    if: ${{ !inputs.skip_checks }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.ref || github.sha }}
+
   build:
+    needs: checks
+    if: ${{ !cancelled() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') }}
     runs-on: ubuntu-latest
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || vars.VITE_SUPABASE_URL }}
@@ -28,6 +46,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

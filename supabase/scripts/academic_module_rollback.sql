@@ -2,6 +2,11 @@
 -- academic_* table, policy and function, and every My Scores row. Never run
 -- this in production: migrations are forward-only there, and student data
 -- cannot be recovered after this.
+--
+-- Kept on purpose: push_subscriptions.my_scores_enabled and the
+-- save_push_subscription version from migration 120. Both are core push
+-- objects that Bookstore and Academy notifications use; the extra switch is
+-- simply unused once the module is gone.
 
 do $$
 declare

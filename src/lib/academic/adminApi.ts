@@ -1,0 +1,418 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { AcademicError, toAcademicError } from './errors'
+import { callAcademicRpc } from './rpc'
+
+// Data access for the My Scores admin screens (FE-007, #34). Configuration
+// tables are written directly under RLS (ADMIN with an aal2 session,
+// migration 116); merges, scale versions, calendars, roles and support go
+// through the audited RPCs. Config changes are audited by triggers (111).
+
+export const adminKey = ['academic', 'admin'] as const
+
+/** Unwraps a PostgREST result. Plain Postgres errors keep their SQLSTATE as PG_<code>. */
+async function rows<T>(request: PromiseLike<{ data: unknown; error: unknown }>): Promise<T> {
+  const { data, error } = await request
+  if (error) {
+    const code = (error as { code?: string }).code ?? ''
+    if (/^PT\d{3}$/.test(code) || code === '42501' || code.startsWith('PGRST')) throw toAcademicError(error)
+    throw new AcademicError(`PG_${code}`, 400, (error as { message?: string }).message)
+  }
+  return data as T
+}
+
+function useAdminMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKey }),
+  })
+}
+
+// ─── Subjects and aliases (ADMIN-002) ────────────────────────────────────────
+
+export interface AdminGrade { id: string; code: string; ordinal: number; label_lo: string; label_en: string }
+
+export interface SubjectAlias { id: string; alias_text: string; school_id: string | null }
+
+export interface AdminSubject {
+  id: string
+  code: string
+  name_lo: string
+  name_en: string
+  grade_min: number
+  grade_max: number
+  is_default: boolean
+  status: 'active' | 'archived'
+  aliases: SubjectAlias[]
+}
+
+export type SubjectInput = Omit<AdminSubject, 'id' | 'aliases'> & { id?: string }
+
+export function useAdminGrades() {
+  return useQuery({
+    queryKey: [...adminKey, 'grades'],
+    queryFn: () => rows<AdminGrade[]>(supabase.from('academic_grades').select('id,code,ordinal,label_lo,label_en').eq('status', 'active').order('ordinal')),
+  })
+}
+
+export function useAdminSubjects() {
+  return useQuery({
+    queryKey: [...adminKey, 'subjects'],
+    queryFn: () => rows<AdminSubject[]>(supabase.from('academic_subjects')
+      .select('id,code,name_lo,name_en,grade_min,grade_max,is_default,status,aliases:academic_subject_aliases(id,alias_text,school_id)')
+      .order('code')),
+  })
+}
+
+export function useSaveSubject() {
+  return useAdminMutation(({ id, ...fields }: SubjectInput) => rows(id
+    ? supabase.from('academic_subjects').update(fields).eq('id', id)
+    : supabase.from('academic_subjects').insert(fields)))
+}
+
+export function useAddAlias() {
+  return useAdminMutation(({ subjectId, text }: { subjectId: string; text: string }) =>
+    rows(supabase.from('academic_subject_aliases').insert({ subject_id: subjectId, alias_text: text, alias_normalised: text.trim().toLowerCase() })))
+}
+
+export function useDeleteAlias() {
+  return useAdminMutation((id: string) => rows(supabase.from('academic_subject_aliases').delete().eq('id', id)))
+}
+
+// ─── Grading scales (ADMIN-002, OD-13a) ──────────────────────────────────────
+
+export type ScaleFamily = 'numeric_linear' | 'ordinal' | 'pass_fail'
+export interface OrdinalLevel { code: string; label_lo: string; label_en: string }
+
+export interface ScaleVersion {
+  id: string
+  version: number
+  scale_family: ScaleFamily
+  min_value: number | null
+  max_value: number | null
+  step: number | null
+  decimals: number
+  pass_mark: number | null
+  normalisable: boolean
+  ordinal_levels: OrdinalLevel[] | null
+  status: 'draft' | 'approved' | 'retired'
+  created_by: string | null
+  approved_by: string | null
+  approved_at: string | null
+  created_at: string
+}
+
+export interface AdminScale {
+  id: string
+  code: string
+  name_lo: string
+  name_en: string
+  status: 'active' | 'archived'
+  versions: ScaleVersion[]
+}
+
+export type ScaleFields = Partial<Pick<ScaleVersion, 'scale_family' | 'min_value' | 'max_value' | 'step' | 'decimals' | 'pass_mark' | 'normalisable' | 'ordinal_levels'>>
+
+export function useAdminScales() {
+  return useQuery({
+    queryKey: [...adminKey, 'scales'],
+    queryFn: async () => {
+      const scales = await rows<AdminScale[]>(supabase.from('academic_grading_scales')
+        .select('id,code,name_lo,name_en,status,versions:academic_grading_scale_versions(id,version,scale_family,min_value,max_value,step,decimals,pass_mark,normalisable,ordinal_levels,status,created_by,approved_by,approved_at,created_at)')
+        .order('code'))
+      return scales.map(scale => ({ ...scale, versions: [...scale.versions].sort((a, b) => b.version - a.version) }))
+    },
+  })
+}
+
+/** A new scale with its first draft version. */
+export function useCreateScale() {
+  return useAdminMutation(async ({ code, name_lo, name_en, fields }: { code: string; name_lo: string; name_en: string; fields: ScaleFields }) => {
+    const [scale] = await rows<Array<{ id: string }>>(supabase.from('academic_grading_scales').insert({ code, name_lo, name_en }).select('id'))
+    return callAcademicRpc<string>('academic_admin_create_scale_version', { p_scale_id: scale.id, p_fields: fields })
+  })
+}
+
+/** Scales are never edited in place: a change is a new draft version. */
+export function useCreateScaleVersion() {
+  return useAdminMutation(({ scaleId, fields }: { scaleId: string; fields: ScaleFields }) =>
+    callAcademicRpc<string>('academic_admin_create_scale_version', { p_scale_id: scaleId, p_fields: fields }))
+}
+
+export function useApproveScaleVersion() {
+  return useAdminMutation((versionId: string) => callAcademicRpc('academic_admin_approve_scale_version', { p_version_id: versionId }))
+}
+
+export function useRetireScaleVersion() {
+  return useAdminMutation((versionId: string) => rows(supabase.from('academic_grading_scale_versions').update({ status: 'retired' }).eq('id', versionId)))
+}
+
+export function useDeleteDraftVersion() {
+  return useAdminMutation((versionId: string) => rows(supabase.from('academic_grading_scale_versions').delete().eq('id', versionId).eq('status', 'draft')))
+}
+
+// ─── Schools (ADMIN-003) ─────────────────────────────────────────────────────
+
+export interface AdminSchool {
+  id: string
+  name_lo: string
+  name_en: string | null
+  romanised_name: string | null
+  province_code: string
+  district_code: string | null
+  school_type: 'public' | 'private' | 'other' | null
+  status: 'active' | 'merged' | 'archived'
+  merged_into_id: string | null
+}
+
+export type SchoolInput = Omit<AdminSchool, 'id' | 'status' | 'merged_into_id'> & { id?: string; status?: 'active' | 'archived' }
+
+const SCHOOL_COLUMNS = 'id,name_lo,name_en,romanised_name,province_code,district_code,school_type,status,merged_into_id'
+
+export function useAdminSchools(search: string, provinceCode: string, includeMerged: boolean) {
+  return useQuery({
+    queryKey: [...adminKey, 'schools', search, provinceCode, includeMerged],
+    queryFn: () => {
+      let query = supabase.from('academic_schools').select(SCHOOL_COLUMNS).order('name_lo').limit(100)
+      const term = search.trim().replace(/[%,()]/g, ' ')
+      if (term) query = query.or(`name_lo.ilike.%${term}%,name_en.ilike.%${term}%,romanised_name.ilike.%${term}%`)
+      if (provinceCode) query = query.eq('province_code', provinceCode)
+      if (!includeMerged) query = query.neq('status', 'merged')
+      return rows<AdminSchool[]>(query)
+    },
+  })
+}
+
+export function useSaveSchool() {
+  return useAdminMutation(({ id, ...fields }: SchoolInput) => rows(id
+    ? supabase.from('academic_schools').update(fields).eq('id', id)
+    : supabase.from('academic_schools').insert(fields)))
+}
+
+export function useMergeSchools() {
+  return useAdminMutation(({ fromId, intoId, reason }: { fromId: string; intoId: string; reason: string }) =>
+    callAcademicRpc<{ enrolments_moved: number }>('academic_admin_merge_schools', { p_from_id: fromId, p_into_id: intoId, p_reason: reason }))
+}
+
+export interface ReviewTask {
+  id: string
+  kind: 'unverified_school'
+  status: 'open' | 'resolved' | 'dismissed'
+  enrolment_id: string | null
+  payload: { school_free_text?: string; province_code?: string }
+  created_at: string
+}
+
+export function useReviewTasks() {
+  return useQuery({
+    queryKey: [...adminKey, 'review-tasks'],
+    queryFn: () => rows<ReviewTask[]>(supabase.from('academic_review_tasks')
+      .select('id,kind,status,enrolment_id,payload,created_at').eq('status', 'open').order('created_at').limit(200)),
+  })
+}
+
+export function useResolveTask() {
+  return useAdminMutation(({ taskId, schoolId, note }: { taskId: string; schoolId: string | null; note?: string }) =>
+    callAcademicRpc('academic_admin_resolve_school_task', { p_task_id: taskId, p_school_id: schoolId, p_note: note ?? null }))
+}
+
+// ─── Calendars (ADMIN-004) ───────────────────────────────────────────────────
+
+export interface AdminYear { id: string; code: string; start_date: string; end_date: string; status: 'upcoming' | 'active' | 'closed' }
+
+export type PeriodType = 'monthly' | 'term_official' | 'semester_official' | 'annual_official' | 'exam'
+
+export interface AdminPeriod {
+  id: string
+  period_type: PeriodType
+  term_no: number | null
+  sequence: number
+  label_lo: string
+  label_en: string
+  start_date: string
+  end_date: string
+}
+
+export interface AdminCalendar {
+  id: string
+  name: string
+  academic_year_id: string
+  scope: 'national' | 'province' | 'school'
+  province_code: string | null
+  school_id: string | null
+  status: 'draft' | 'active' | 'archived'
+  school: { name_lo: string } | null
+  periods: AdminPeriod[]
+}
+
+export function useAdminYears() {
+  return useQuery({
+    queryKey: [...adminKey, 'years'],
+    queryFn: () => rows<AdminYear[]>(supabase.from('academic_years').select('id,code,start_date,end_date,status').order('start_date', { ascending: false })),
+  })
+}
+
+export function useSaveYear() {
+  return useAdminMutation(({ id, ...fields }: Omit<AdminYear, 'id'> & { id?: string }) => rows(id
+    ? supabase.from('academic_years').update(fields).eq('id', id)
+    : supabase.from('academic_years').insert(fields)))
+}
+
+export function useAdminCalendars(yearId: string | null) {
+  return useQuery({
+    queryKey: [...adminKey, 'calendars', yearId],
+    enabled: !!yearId,
+    queryFn: async () => {
+      const calendars = await rows<AdminCalendar[]>(supabase.from('academic_calendar_templates')
+        .select('id,name,academic_year_id,scope,province_code,school_id,status,school:academic_schools(name_lo),periods:academic_reporting_periods(id,period_type,term_no,sequence,label_lo,label_en,start_date,end_date)')
+        .eq('academic_year_id', yearId!)
+        .order('scope').order('name'))
+      const typeOrder: PeriodType[] = ['monthly', 'term_official', 'semester_official', 'annual_official', 'exam']
+      return calendars.map(calendar => ({
+        ...calendar,
+        periods: [...calendar.periods].sort((a, b) => typeOrder.indexOf(a.period_type) - typeOrder.indexOf(b.period_type) || a.sequence - b.sequence),
+      }))
+    },
+  })
+}
+
+export function useSavePeriod() {
+  return useAdminMutation(({ id, calendarId, ...fields }: Omit<AdminPeriod, 'id'> & { id?: string; calendarId: string }) => rows(id
+    ? supabase.from('academic_reporting_periods').update(fields).eq('id', id)
+    : supabase.from('academic_reporting_periods').insert({ ...fields, calendar_template_id: calendarId })))
+}
+
+/** Fails with PG_23503 while any score entry uses the period. */
+export function useDeletePeriod() {
+  return useAdminMutation((id: string) => rows(supabase.from('academic_reporting_periods').delete().eq('id', id)))
+}
+
+export interface PeriodOverride {
+  period_type: PeriodType
+  sequence: number
+  label_lo?: string
+  label_en?: string
+  term_no?: number
+  start_date?: string
+  end_date?: string
+  remove?: boolean
+}
+
+export function useCreateSchoolCalendar() {
+  return useAdminMutation(({ schoolId, yearId, overrides }: { schoolId: string; yearId: string; overrides: PeriodOverride[] }) =>
+    callAcademicRpc<string>('academic_admin_create_school_calendar', { p_school_id: schoolId, p_year_id: yearId, p_overrides: overrides }))
+}
+
+// ─── Roles (ADMIN-001) ───────────────────────────────────────────────────────
+
+export type BitdoinRole = 'CUSTOMER' | 'ADMIN' | 'OPERATIONS' | 'FINANCE'
+
+export interface StaffUser { id: string; name: string; email: string | null; phone: string | null; member_code: string | null; role: BitdoinRole }
+
+/** Staff, or anyone matching the search (name, email, phone, member code). */
+export function useStaffUsers(search: string) {
+  return useQuery({
+    queryKey: [...adminKey, 'users', search],
+    queryFn: () => {
+      let query = supabase.from('users').select('id,name,email,phone,member_code,role').order('name').limit(50)
+      const term = search.trim().replace(/[%,()]/g, ' ')
+      query = term
+        ? query.or(`name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,member_code.ilike.%${term}%`)
+        : query.neq('role', 'CUSTOMER')
+      return rows<StaffUser[]>(query)
+    },
+  })
+}
+
+export function useSetUserRole() {
+  return useAdminMutation(({ userId, role, reason }: { userId: string; role: BitdoinRole; reason: string }) =>
+    callAcademicRpc<{ old_role: BitdoinRole; role: BitdoinRole }>('academic_admin_set_user_role', { p_user_id: userId, p_role: role, p_reason: reason }))
+}
+
+// ─── Support (ADMIN-005) ─────────────────────────────────────────────────────
+
+export interface SupportLookup {
+  user: { id: string; member_code: string | null; role: BitdoinRole }
+  profile: {
+    id: string
+    status: 'active' | 'read_only' | 'deletion_pending'
+    consent_state: string
+    age_band: string
+    deletion_requested_at: string | null
+    deletion_scope: string | null
+    created_at: string
+  }
+  enrolments: Array<{ id: string; academic_year: string; grade: string; state: string; closed_reason: string | null; school_verification: string; submitted_periods: number; draft_periods: number }>
+  consents: Array<{ purpose: string; notice_version: string; granted_at: string; withdrawn_at: string | null }>
+}
+
+export const supportLookup = (userRef: string) => callAcademicRpc<SupportLookup>('academic_support_lookup', { p_user_ref: userRef })
+
+export const startBreakGlass = (profileId: string, reason: string) =>
+  callAcademicRpc<{ session_id: string; expires_at: string }>('academic_support_break_glass', { p_student_profile_id: profileId, p_reason: reason })
+
+export const viewStudentScores = (profileId: string) =>
+  callAcademicRpc<{ expires_at: string; enrolments: import('./api').HistoryEnrolment[] }>('academic_support_view_scores', { p_student_profile_id: profileId })
+
+// ─── Audit (ADMIN-006) ───────────────────────────────────────────────────────
+
+export interface AuditEvent {
+  id: string
+  occurred_at: string
+  actor_user_id: string | null
+  actor_role: string
+  action: string
+  target_type: string
+  target_id: string | null
+  student_profile_id: string | null
+  outcome: 'success' | 'denied' | 'error'
+  reason: string | null
+}
+
+export interface AuditFilters {
+  actor: string
+  student: string
+  action: string
+  outcome: '' | AuditEvent['outcome']
+}
+
+export const AUDIT_PAGE = 50
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** Actor by user ID or member code (BA-XXX-… prefixes are ignored). */
+async function resolveActor(ref: string): Promise<string | null> {
+  const value = ref.trim()
+  if (!value) return null
+  if (UUID.test(value)) return value.toLowerCase()
+  const code = value.toUpperCase().replace(/^BA-[A-Z]{3}-/, '')
+  const found = await rows<Array<{ id: string }>>(supabase.from('users').select('id').eq('member_code', code).limit(1))
+  return found[0]?.id ?? '00000000-0000-0000-0000-000000000000'
+}
+
+async function auditQuery(filters: AuditFilters, from: number, to: number) {
+  let query = supabase.from('academic_audit_events')
+    .select('id,occurred_at,actor_user_id,actor_role,action,target_type,target_id,student_profile_id,outcome,reason', { count: 'exact' })
+    .order('occurred_at', { ascending: false })
+    .range(from, to)
+  const actor = await resolveActor(filters.actor)
+  if (actor) query = query.eq('actor_user_id', actor)
+  const student = filters.student.trim()
+  if (student) query = UUID.test(student) ? query.eq('student_profile_id', student.toLowerCase()) : query.eq('student_profile_id', '00000000-0000-0000-0000-000000000000')
+  if (filters.action) query = query.like('action', `${filters.action}%`)
+  if (filters.outcome) query = query.eq('outcome', filters.outcome)
+  const { data, error, count } = await query
+  if (error) throw toAcademicError(error)
+  return { events: (data ?? []) as AuditEvent[], total: count ?? 0 }
+}
+
+export function useAuditEvents(filters: AuditFilters, page: number) {
+  return useQuery({
+    queryKey: [...adminKey, 'audit', filters, page],
+    queryFn: () => auditQuery(filters, page * AUDIT_PAGE, page * AUDIT_PAGE + AUDIT_PAGE - 1),
+  })
+}
+
+/** Up to 5,000 rows with the current filters, for the CSV export. */
+export const auditExportRows = (filters: AuditFilters) => auditQuery(filters, 0, 4999)

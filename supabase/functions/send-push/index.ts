@@ -217,6 +217,7 @@ async function sendAcademicReminders(admin: SupabaseClient) {
     .from('push_subscriptions')
     .select('id,user_id,endpoint,p256dh,auth')
     .in('user_id', userIds)
+    .eq('my_scores_enabled', true) // migration 120
   if (devicesError) throw devicesError
 
   // One delivery per device per notification.

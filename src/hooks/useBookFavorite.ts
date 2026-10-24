@@ -70,7 +70,6 @@ export function useBookFavorite(bookId: string | undefined, onSavedAfterSignIn?:
   useEffect(() => {
     if (!userId || !bookId || !takePendingFavorite(bookId)) return
     mutation.mutate(true, { onSuccess: onSavedAfterSignIn })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, bookId])
 
   return {
@@ -122,7 +121,6 @@ export function useFavoriteBookIds(onSavedAfterSignIn?: () => void) {
     if (!userId) return
     const pending = takePendingFavorite()
     if (pending) mutation.mutate({ bookId: pending, favorite: true }, { onSuccess: onSavedAfterSignIn })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   return {

@@ -9,3 +9,6 @@ dist
 .wrangler/
 .gstack/
 dev-dist
+
+dist-qa
+qa-artifacts

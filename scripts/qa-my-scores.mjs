@@ -53,17 +53,39 @@ function backend(initial) {
     academic_get_session: () => session(),
     academic_search_schools: (args) => SCHOOLS.filter(s => `${s.name_lo} ${s.name_en} ${s.romanised_name}`.toLowerCase().includes(args.p_query.toLowerCase().slice(0, 3))),
     academic_create_profile: () => { state.step = 'ready'; state.enrolment = 'e1'; return { created: true, profile_id: 'p1', enrolment_id: 'e1' } },
-    academic_grant_consent: () => { state.step = 'ready'; return { consents: [] } },
+    academic_grant_consent: (args) => {
+      state.step = 'ready'
+      state.consents.push({ id: `c${state.consents.length + 1}`, purpose: args.p_purpose, notice_version: args.p_notice_version, granted_at: '2026-10-23T05:00:00Z', withdrawn_at: null })
+      return { consents: state.consents }
+    },
     academic_transition_enrolment: (args) => { state.step = args.p_input.kind === 'left' ? 'new_school_year' : 'ready'; if (args.p_input.kind === 'left') state.enrolment = null; return { closed_enrolment_id: 'e0', enrolment_id: 'e1' } },
-    academic_get_history: () => ({ enrolments: [{ enrolment_id: 'e0', academic_year: '2025-2026', grade: { code: 'G11', label_lo: 'ມ.6', label_en: 'Grade 11' }, school: { id: 'school-1', name_lo: SCHOOLS[0].name_lo, name_en: SCHOOLS[0].name_en, verification: 'verified' }, state: 'active', closed_reason: null, read_only: false }] }),
+    academic_get_history: () => state.history ?? ({ enrolments: [{ enrolment_id: 'e0', academic_year: '2025-2026', grade: { code: 'G11', label_lo: 'ມ.6', label_en: 'Grade 11' }, school: { id: 'school-1', name_lo: SCHOOLS[0].name_lo, name_en: SCHOOLS[0].name_en, verification: 'verified' }, state: 'active', closed_reason: null, read_only: false }] }),
     academic_get_my_data_summary: () => ({
-      profile: { id: 'p1', display_name: state.name ?? 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', district_code: '1-01', goals: null, interest_subject_codes: [], status: 'active', version: state.version ?? 1 },
+      profile: { id: 'p1', display_name: state.name ?? 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', district_code: '1-01', goals: null, interest_subject_codes: [], status: state.deletion?.status ?? state.profileStatus ?? 'active', version: state.version ?? 1 },
       counts: { enrolments: 1, score_entries_submitted: 2, score_entries_draft: 1, scores: 6, corrections: 1, uploads: 0, guardian_links: 0 },
-      consents: [{ id: 'c1', purpose: 'module_processing', notice_version: '2026-10-draft', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }],
-      deletion: { status: 'active', deletion_scope: null, deletion_requested_at: null, deletion_scheduled_for: null },
+      consents: state.consents,
+      deletion: state.deletion ?? { status: state.profileStatus ?? 'active', deletion_scope: null, deletion_requested_at: null, deletion_scheduled_for: null },
     }),
+    academic_withdraw_consent: (args) => {
+      const consent = state.consents.find(c => c.purpose === args.p_purpose && !c.withdrawn_at)
+      if (consent) consent.withdrawn_at = '2026-10-23T05:00:00Z'
+      if (args.p_purpose === 'module_processing') state.profileStatus = 'read_only'
+      return { consents: state.consents }
+    },
+    academic_export_my_data: () => ({
+      format_version: 1, generated_at: '2026-10-23T05:00:00Z',
+      profile: { id: 'p1', display_name: 'Noy' }, enrolments: [{ id: 'e1', academic_year: '2026-2027' }],
+      scores: [{ academic_year: '2026-2027', period: 'October', subject_code: 'MATH', subject: 'ຄະນິດສາດ', status: 'scored', raw_value: 7.5 }],
+      revisions: [], consents: state.consents,
+    }),
+    academic_request_deletion: (args) => {
+      if (state.reauth) return pgError(401, 'REAUTH_REQUIRED', { max_age_minutes: 15 })
+      state.deletion = { status: 'deletion_pending', deletion_scope: args.p_scope, deletion_requested_at: '2026-10-23T05:00:00Z', deletion_scheduled_for: '2026-11-06T05:00:00Z' }
+      return state.deletion
+    },
+    academic_cancel_deletion: () => { state.deletion = null; return { status: 'active', deletion_scope: null, deletion_requested_at: null, deletion_scheduled_for: null } },
     academic_update_profile: (args) => { state.version = (state.version ?? 1) + 1; state.name = args.p_changes.display_name; return { profile_id: 'p1', version: state.version } },
-    academic_list_periods: () => ({ enrolment_id: 'e1', read_only: false, suggested_period_id: 'm1', periods: [1, 2, 3].map(seq => ({ id: `m${seq}`, key: `2026-${8 + seq}`, period_type: 'monthly', sequence: seq, label_lo: `ເດືອນ ${seq}`, label_en: ['September', 'October', 'November'][seq - 1], state: state.entries[`m${seq}`]?.state ?? 'empty', disabled: seq === 3 })) }),
+    academic_list_periods: () => ({ enrolment_id: 'e1', read_only: false, suggested_period_id: 'm1', periods: [1, 2, 3].map(seq => ({ id: `m${seq}`, key: `2026-${8 + seq}`, period_type: 'monthly', term_no: 1, sequence: seq, label_lo: `ເດືອນ ${seq}`, label_en: ['September', 'October', 'November'][seq - 1], state: state.entries[`m${seq}`]?.state ?? 'empty', disabled: seq === 3 })) }),
 
     // Score entry (FE-003): one entry per period, lines keyed by subject.
     academic_get_score_entry: (args) => entryView(args.p_period_id),
@@ -96,8 +118,37 @@ function backend(initial) {
     },
     academic_get_line_revisions: (args) => ({ score_line_id: args.p_line_id, revisions: [...state.revisions].reverse() }),
     academic_get_dashboard: () => state.dashboard ?? emptyDashboard(),
+    academic_list_notifications: (args) => ({
+      items: state.notes.filter(n => n.state === 'sent' || n.state === 'read').slice(0, args.p_limit ?? 20),
+      unread_count: state.notes.filter(n => n.state === 'sent').length,
+      next_before: null,
+    }),
+    academic_mark_notifications_read: (args) => {
+      state.notes.forEach(n => { if (args.p_ids.includes(n.id) && n.state === 'sent') n.state = 'read' })
+      return { unread_count: state.notes.filter(n => n.state === 'sent').length }
+    },
+    academic_dismiss_notification: (args) => {
+      const note = state.notes.find(n => n.id === args.p_id && n.state !== 'dismissed')
+      if (!note) return { error: { code: 'NOT_FOUND', status: 404 } }
+      note.state = 'dismissed'
+      return { id: note.id, state: 'dismissed' }
+    },
+    academic_get_notification_preferences: () => prefsView(),
+    academic_set_notification_preference: (args) => {
+      if (args.p_push && !state.consents.some(c => c.purpose === 'push' && !c.withdrawn_at)) return pgError(403, 'CONSENT_REQUIRED')
+      state.prefs = { in_app_enabled: args.p_in_app, push_enabled: args.p_push }
+      return prefsView()
+    },
   }
+  state.notes ??= []
+  const prefsView = () => ({
+    categories: [{ category: 'score_reminder', in_app_enabled: state.prefs?.in_app_enabled ?? true, push_enabled: state.prefs?.push_enabled ?? false }],
+    push_consent: state.consents.some(c => c.purpose === 'push' && !c.withdrawn_at),
+    push_device: false,
+    quiet_hours: { start: '21:00', end: '07:00' },
+  })
   state.entries ??= {}
+  state.consents ??= [{ id: 'c1', purpose: 'module_processing', notice_version: '2026-10-draft', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }]
   state.revisions = []
   state.abort ??= {}
   function entryView(periodId) {
@@ -535,6 +586,8 @@ try {
     const { context, page, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
     await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
     await page.getByLabel('Mathematics', { exact: true }).waitFor()
+    // Let the startup purge finish first, or it would race the insert below.
+    await page.waitForTimeout(800)
     const countOthers = () => page.evaluate(() => new Promise(resolve => {
       const request = indexedDB.open('bitdoin-my-scores')
       request.onsuccess = () => {
@@ -606,6 +659,8 @@ try {
     await page.getByRole('heading', { name: 'Mathematics by month' }).waitFor()
     await page.getByText('Average 5.9 over 6 months').waitFor()
     await page.getByText('Up 0.5 since January').waitFor()
+    // Recharts draws the reference line after layout; wait for it rather than counting at once.
+    await page.locator('.recharts-reference-line').first().waitFor({ state: 'attached' })
     assert.equal(await page.locator('.recharts-reference-line').count(), 1)
     await shot(page, 'my-scores-16-subject-en-mobile')
     await page.getByRole('button', { name: 'All subjects' }).click()
@@ -649,6 +704,210 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Dashboard (Lao, desktop): gap month not interpolated, Lao change text')
+  }
+
+  // ─── History (FE-004) ─────────────────────────────────────────────────────
+
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    const line = (id, status, value, extra = {}) => ({ id, status, value, normalised_value: null, source: 'manual', verification: 'self_reported', edited: false, version: 1, ...extra })
+    const subjects = [['se-math', 'MATH', 'ຄະນິດສາດ', 'Mathematics'], ['se-lao', 'LAO', 'ພາສາລາວ', 'Lao Language'], ['se-phys', 'PHYS', 'ຟີຊິກສາດ', 'Physics']]
+    const period = (id, seq, label, type, entryState, values) => ({
+      id, key: `2026-${8 + seq}`, period_type: type, term_no: 1, sequence: seq, label_lo: label, label_en: label, start_date: '2026-09-01', end_date: '2026-09-30',
+      entry: { id: `entry-${id}`, state: entryState, submitted_at: entryState === 'submitted' ? '2026-11-02T03:00:00Z' : null, source: 'manual' },
+      lines: subjects.map(([se, code, name_lo, name_en], i) => ({ subject_enrolment_id: se, code, name_lo, name_en, line: values[i] })),
+    })
+    mock.state.history = { enrolments: [
+      {
+        enrolment_id: 'e1', academic_year: '2026-2027', grade: { code: 'G11', label_lo: 'ມ.6', label_en: 'Grade 11' },
+        school: { id: 'school-1', name_lo: SCHOOLS[0].name_lo, name_en: SCHOOLS[0].name_en, verification: 'verified' },
+        state: 'active', closed_reason: null, read_only: false, scale: SCALE_10,
+        terms: [{ term_no: 1, periods: [
+          period('m2', 2, 'October', 'monthly', 'submitted', [line('h2:se-math', 'scored', 7.5, { edited: true, version: 2 }), line('h2:se-lao', 'scored', 9, { verification: 'school_verified' }), line('h2:se-phys', 'exempt', null)]),
+          period('t1', 1, 'Term 1', 'term_official', 'submitted', [line('ht:se-math', 'scored', 8), line('ht:se-lao', 'scored', 8.5), line('ht:se-phys', 'missing', null)]),
+        ] }],
+      },
+      {
+        enrolment_id: 'e0', academic_year: '2025-2026', grade: { code: 'G10', label_lo: 'ມ.5', label_en: 'Grade 10' },
+        school: { id: null, name_lo: 'ໂຮງຮຽນເກົ່າ', name_en: 'Old school', verification: 'unverified_school' },
+        state: 'closed', closed_reason: 'transferred', read_only: true, scale: SCALE_10,
+        terms: [{ term_no: 1, periods: [period('o1', 1, 'September 2025', 'monthly', 'submitted', [line('ho:se-math', 'scored', 6), line('ho:se-lao', 'scored', 7), line('ho:se-phys', 'missing', null)])] }],
+      },
+    ] }
+    mock.state.revisions.push({ old_value: 7, new_value: 7.5, old_status: 'scored', new_status: 'scored', changed_by: 'student', reason: 'Re-marked', changed_at: '2026-11-03T03:00:00Z' })
+
+    await page.goto(`${base}/academy/scores/history`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: '2026-2027 · Grade 11' }).waitFor()
+    const years = await page.locator('section > header h2').allInnerTexts()
+    assert.deepEqual(years, ['2026-2027 · Grade 11', '2025-2026 · Grade 10'], 'newest year first')
+    await page.getByText('Closed · read-only · Changed school').waitFor()
+
+    // Missing month is shown as missing, with a way to add it; never as 0.
+    const firstYear = page.locator('section').first()
+    await firstYear.getByText('Not recorded').waitFor()
+    assert.equal(await firstYear.getByRole('link', { name: 'Add' }).getAttribute('href'), '/academy/scores/entry?period=m1')
+
+    // Term average calculated by Bitdoin, official result kept apart (SCORE-011).
+    await firstYear.getByText('Term average · calculated by Bitdoin').waitFor()
+    assert.match(await firstYear.locator('div.border-dashed').innerText(), /Mathematics\s*7\.5\s*\(1 month\)/)
+    await firstYear.getByText('Official result').waitFor()
+
+    // Open October: badges and correction history (SCORE-012, SCORE-007).
+    await firstYear.getByRole('button', { name: /^October/ }).click()
+    await firstYear.getByText('Verified by school').waitFor()
+    assert.match(await firstYear.locator('li', { hasText: 'Physics' }).first().innerText(), /Absent \/ exempt/)
+    await firstYear.getByRole('button', { name: 'Edited' }).click()
+    await firstYear.getByText('7 → 7.5').waitFor()
+    await firstYear.getByText('“Re-marked”').waitFor()
+    await shot(page, 'my-scores-18-history-en-mobile')
+
+    // Closed year: read-only, no add or open links.
+    const closedYear = page.locator('section').nth(1)
+    await closedYear.getByRole('button', { name: /^September 2025/ }).click()
+    assert.equal(await closedYear.getByRole('link').count(), 0, 'closed year has no edit links')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('History: years newest first, missing month not zero, calculated vs official term, badges, revision history, closed year read-only')
+  }
+
+  // ─── Privacy (FE-006) ─────────────────────────────────────────────────────
+
+  // Export downloads a valid ZIP with the documented files (PRIV-004).
+  {
+    const { context, page, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'ready', enrolment: 'e1' })
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download ZIP' }).click()])
+    assert.match(download.suggestedFilename(), /^my-scores-\d{4}-\d{2}-\d{2}\.zip$/)
+    const bytes = await (await import('node:fs/promises')).readFile(await download.path())
+    assert.equal(bytes.readUInt32LE(0), 0x04034b50, 'starts with a ZIP local header')
+    const eocd = bytes.length - 22
+    assert.equal(bytes.readUInt32LE(eocd), 0x06054b50, 'ends with a ZIP directory record')
+    assert.equal(bytes.readUInt16LE(eocd + 10), 5, 'five files')
+    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
+    assert.ok(bytes.includes(Buffer.from('ຄະນິດສາດ')), 'Lao text kept as UTF-8')
+    await page.getByText('Your data was downloaded.').waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json')
+  }
+
+  // Deletion: needs a fresh sign-in, then a cancellable 14-day grace period (PRIV-005).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.reauth = true
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    assert.equal(await page.getByRole('button', { name: 'Continue' }).isDisabled(), true, 'a scope must be chosen first')
+    await page.getByLabel(/Delete my whole My Scores profile/).check()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Yes, delete in 14 days' }).click()
+    await page.getByText('Please sign in again').waitFor()
+    await shot(page, 'my-scores-19-delete-reauth-en-mobile')
+
+    mock.state.reauth = false
+    await page.getByRole('button', { name: 'Yes, delete in 14 days' }).count() // still hidden behind the sign-in prompt
+    const fresh = await context.newPage()
+    fresh.on('pageerror', error => errors.push(error.message))
+    await fresh.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    await fresh.getByLabel(/Delete my scores only/).check()
+    await fresh.getByRole('button', { name: 'Continue' }).click()
+    await fresh.getByRole('button', { name: 'Yes, delete in 14 days' }).click()
+    await fresh.getByText('Your scores will be deleted on 6 Nov 2026.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_request_deletion').args, { p_scope: 'scores' })
+    await shot(fresh, 'my-scores-20-delete-pending-en-mobile')
+    await fresh.getByRole('button', { name: 'Cancel deletion' }).click()
+    await fresh.getByText('Deletion cancelled.').waitFor()
+    await fresh.getByRole('button', { name: 'Continue' }).waitFor()
+    assert.equal(await fresh.getByText('Deletion scheduled').count(), 0)
+
+    // The sign-in prompt signs out and returns to My data afterwards.
+    await page.getByRole('button', { name: 'Sign in again' }).click()
+    await page.waitForURL(/\/auth/)
+    assert.equal(await page.evaluate(() => window.history.state?.usr?.from), '/academy/scores/data')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Delete: scope required, fresh sign-in requested, 14-day schedule shown with date, cancellable; sign-in returns to My data')
+  }
+
+  // Consents: stop device reminders; withdraw module processing with a warning.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    mock.state.consents.push({ id: 'c2', purpose: 'push', notice_version: '2026-10-draft', granted_at: '2026-10-20T02:00:00Z', withdrawn_at: null })
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const pushRow = page.getByText('ສົ່ງການແຈ້ງເຕືອນໄປທີ່ອຸປະກອນ')
+    await pushRow.waitFor()
+    await page.getByRole('button', { name: 'ຢຸດ' }).nth(1).click()
+    await pushRow.waitFor({ state: 'detached' })
+    assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'push' })
+    await page.getByRole('link', { name: 'ຕັ້ງຄ່າການແຈ້ງເຕືອນ' }).waitFor()
+    await page.getByRole('button', { name: 'ຢຸດ' }).first().click()
+    await page.getByText('ຢຸດເກັບຄະແນນໃໝ່ບໍ?').waitFor()
+    await shot(page, 'my-scores-21-consents-lo-mobile')
+    await page.getByRole('button', { name: 'ແມ່ນ, ຢຸດ' }).click()
+    await page.getByText('ການບັນທຶກຖືກຢຸດ').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'module_processing' })
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Consents (Lao): device reminders stopped and hidden until given again; module processing withdrawn after a warning, profile shown read-only')
+  }
+
+  // Reminders (Lao, phone): bell count, dashboard banner, inbox read/dismiss, settings.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    const note = (id, code, seq, created_at) => ({ id, category: 'score_reminder', code, channel: 'in_app', state: 'sent', created_at, read_at: null,
+      payload: { enrolment_id: 'e1', period_id: `m${seq}`, period_key: `2026-${8 + seq}`, period_label_lo: ['ກັນຍາ', 'ຕຸລາ'][seq - 1], period_label_en: ['September', 'October'][seq - 1] } })
+    mock.state.notes = [note('n2', 'score_reminder.second', 2, '2026-11-14T03:00:00Z'), note('n1', 'score_reminder.first', 1, '2026-10-07T03:00:00Z')]
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'ການແຈ້ງເຕືອນ, ໃໝ່ 2' }).waitFor()
+    await page.getByRole('heading', { name: 'ເພີ່ມຄະແນນເດືອນຕຸລາ' }).waitFor()
+    await page.getByText('ເດືອນນີ້ຍັງເປີດຢູ່').waitFor()
+    await shot(page, 'my-scores-22-reminder-banner-lo-mobile')
+    await page.getByRole('button', { name: 'ພາຍຫຼັງ' }).click()
+    await page.getByRole('heading', { name: 'ເພີ່ມຄະແນນເດືອນກັນຍາ' }).waitFor() // the next unread takes its place
+    assert.deepEqual(lastCall(mock, 'academic_mark_notifications_read').args, { p_ids: ['n2'] })
+    await page.getByRole('link', { name: 'ການແຈ້ງເຕືອນ, ໃໝ່ 1' }).click()
+
+    await page.waitForURL(/\/academy\/scores\/inbox$/)
+    await page.getByText('ໃໝ່', { exact: true }).waitFor()
+    await page.waitForTimeout(300)
+    assert.deepEqual(lastCall(mock, 'academic_mark_notifications_read').args, { p_ids: ['n1'] })
+    assert.equal(mock.state.notes.filter(n => n.state === 'sent').length, 0)
+    await shot(page, 'my-scores-23-inbox-lo-mobile')
+
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    const axe = await page.evaluate(async () => {
+      const result = await window.axe.run(document, { resultTypes: ['violations'] })
+      return result.violations.filter(v => v.impact === 'serious' || v.impact === 'critical').map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)
+    })
+    assert.deepEqual(axe, [], `axe violations: ${axe.join(', ')}`)
+
+    await page.getByRole('button', { name: 'ລຶບການແຈ້ງເຕືອນນີ້' }).nth(1).click()
+    await page.getByText('ເພີ່ມຄະແນນເດືອນກັນຍາ').waitFor({ state: 'detached' })
+    assert.deepEqual(lastCall(mock, 'academic_dismiss_notification').args, { p_id: 'n1' })
+
+    const inApp = page.getByRole('switch', { name: 'ແຈ້ງເຕືອນໃຫ້ເພີ່ມຄະແນນ' })
+    assert.equal(await inApp.getAttribute('aria-checked'), 'true')
+    await page.getByText('ບໍ່ສົ່ງລະຫວ່າງ 21:00 ຫາ 07:00 (ເວລາລາວ)', { exact: false }).waitFor()
+    await inApp.click()
+    await page.waitForFunction(() => document.querySelector('[role=switch][aria-labelledby=pref-in-app]')?.getAttribute('aria-checked') === 'false')
+    assert.deepEqual(lastCall(mock, 'academic_set_notification_preference').args, { p_category: 'score_reminder', p_in_app: false, p_push: false })
+
+    await page.getByRole('link', { name: 'ເພີ່ມຄະແນນ', exact: true }).click()
+    await page.waitForURL(/\/academy\/scores\/entry\?period=m2$/)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Reminders (Lao): bell count, newest reminder on the dashboard, inbox marks read and dismisses, reminders switched off, axe clean, "Add scores" opens that month')
+  }
+
+  // Reminders (English, desktop): empty inbox.
+  {
+    const { context, page, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'ready', enrolment: 'e1' })
+    await page.goto(`${base}/academy/scores/inbox`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'You are all caught up', level: 3 }).waitFor()
+    await page.getByRole('heading', { name: 'Reminder settings' }).waitFor()
+    await shot(page, 'my-scores-24-inbox-empty-en-desktop')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Reminders (English): empty inbox and settings')
   }
 
   console.log(`

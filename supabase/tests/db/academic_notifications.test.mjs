@@ -40,13 +40,25 @@ eq('second waits a further 7 days', await schedule(), 0)
 // A submits October; their reminders stop.
 const lines = (await db.query(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}'`)).rows.map((r) => ({ subject_enrolment_id: r.id, status: 'missing' }))
 await rpc(A, `public.academic_submit_score_entry('${a.enrolment_id}', '${period(2)}', ${json(lines)}, 'oct')`)
+eq('submitting settles that month at once (migration 120)', await notes(A), [{ code: 'score_reminder.first', channel: 'in_app', state: 'dismissed', period: '2026-10' }])
 
 // B opts in to push; C turns in-app reminders off.
 eq('push needs consent first', (await rpcError(B, `public.academic_set_notification_preference('score_reminder', true, true)`))?.code, 'CONSENT_REQUIRED')
 await rpc(B, `public.academic_grant_consent('push', '2026-10-draft')`)
 const prefs = await rpc(B, `public.academic_set_notification_preference('score_reminder', true, true)`)
 eq('preferences', [prefs.categories, prefs.push_consent, prefs.push_device], [[{ category: 'score_reminder', in_app_enabled: true, push_enabled: true }], true, false])
-await ok(db, 'B device', `insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ('${B}', 'https://push.example/b', 'k', 'a')`)
+// Devices (migration 120): a Bookstore-only device does not get score reminders.
+const saveDevice = (platform, enabled, endpoint = 'https://push.example/b') =>
+  rpc(B, `public.save_push_subscription('${endpoint}', 'k', 'a', 'test', '${platform}', ${enabled})`)
+await saveDevice('BOOKSTORE', true)
+eq('Bookstore-only device is not a My Scores device', (await rpc(B, `public.academic_get_notification_preferences()`)).push_device, false)
+eq('My Scores switch on the same device', await saveDevice('MY_SCORES', true), { bookstore_enabled: true, academy_enabled: false, my_scores_enabled: true, academy_slot: 'MORNING' })
+eq('now a My Scores device', (await rpc(B, `public.academic_get_notification_preferences()`)).push_device, true)
+await saveDevice('MY_SCORES', true, 'https://push.example/b2')
+await saveDevice('MY_SCORES', false, 'https://push.example/b2')
+eq('device row removed only when every switch is off', (await db.query(`select endpoint from push_subscriptions where user_id = '${B}' order by endpoint`)).rows.map((r) => r.endpoint), ['https://push.example/b'])
+await saveDevice('BOOKSTORE', false)
+eq('turning Bookstore off keeps the My Scores device', (await one(`select bookstore_enabled, my_scores_enabled from push_subscriptions where endpoint = 'https://push.example/b'`)), { bookstore_enabled: false, my_scores_enabled: true })
 await rpc(C, `public.academic_set_notification_preference('score_reminder', false, false)`)
 
 await ageFirstReminders()
@@ -102,14 +114,14 @@ eq('after 3 failures it becomes in-app', await one(`select channel, state, attem
 // ─── Inbox RPCs ──────────────────────────────────────────────────────────────
 
 const inbox = await rpc(A, `public.academic_list_notifications(1)`)
-// A has October's first reminder and both November reminders (November never submitted).
-eq('inbox paginates', [inbox.items.length, inbox.unread_count, inbox.next_before !== null], [1, 3, true])
+// A has both November reminders (October was submitted, so its reminder left the inbox).
+eq('inbox paginates', [inbox.items.length, inbox.unread_count, inbox.next_before !== null], [1, 2, true])
 const read = await rpc(A, `public.academic_mark_notifications_read(array['${inbox.items[0].id}']::uuid[])`)
-eq('mark read', read.unread_count, 2)
+eq('mark read', read.unread_count, 1)
 eq("cannot dismiss someone else's", await rpc(B, `public.academic_dismiss_notification('${inbox.items[0].id}')`), { error: { code: 'NOT_FOUND', status: 404 } })
 eq('marking others as read is a no-op', (await rpc(B, `public.academic_mark_notifications_read(array['${inbox.items[0].id}']::uuid[])`)).unread_count >= 0, true)
 eq('dismiss own', (await rpc(A, `public.academic_dismiss_notification('${inbox.items[0].id}')`)).state, 'dismissed')
-eq('dismissed leave the inbox', (await rpc(A, `public.academic_list_notifications()`)).items.length, 2)
+eq('dismissed leave the inbox', (await rpc(A, `public.academic_list_notifications()`)).items.length, 1)
 eq('max page size 50', (await rpc(A, `public.academic_list_notifications(500)`)).items.length <= 50, true)
 eq('tables hidden from clients', (await rpcError(A, `(select count(*) from academic_notifications)`))?.status, '42501')
 eq('service functions hidden from clients', (await rpcError(A, `(select count(*) from public.academic_claim_push_notifications(1))`))?.status, '42501')

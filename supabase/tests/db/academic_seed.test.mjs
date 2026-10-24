@@ -1,14 +1,10 @@
 import { createDb, ok, fails, eq, done, readSupabaseFile, ACADEMIC_MIGRATIONS } from './harness.mjs'
 
 const db = await createDb(ACADEMIC_MIGRATIONS)
-const seed = readSupabaseFile('seeds/academic_draft_seed.sql')
+const seed = readSupabaseFile('seeds/academic_curriculum_seed.sql')
 
-await fails(db, 'refuses without opt-in', seed, 'unverified')
-eq('nothing loaded', (await db.query(`select count(*)::int as n from academic_subjects`)).rows[0].n, 0)
-
-const optIn = `set academic.allow_draft_seed = 'on';`
-await ok(db, 'loads with opt-in', optIn + seed)
-await ok(db, 're-run is safe', optIn + seed)
+await ok(db, 'loads', seed)
+await ok(db, 're-run is safe', seed)
 
 const counts = (await db.query(`select
   (select count(*)::int from academic_grades) as grades,
@@ -17,10 +13,10 @@ const counts = (await db.query(`select
   (select count(*)::int from academic_subjects) as subjects,
   (select count(*)::int from academic_subjects where is_default) as default_subjects,
   (select count(*)::int from academic_subject_aliases) as aliases`)).rows[0]
-eq('seed counts', counts, { grades: 3, scales: 1, periods: 9, subjects: 10, default_subjects: 9, aliases: 19 })
+eq('seed counts', counts, { grades: 3, scales: 1, periods: 9, subjects: 12, default_subjects: 9, aliases: 19 })
 
 eq('stable ids', (await db.query(`select id = md5('bitdoin.academic.subject.MATH')::uuid as ok from academic_subjects where code = 'MATH'`)).rows[0].ok, true)
-eq('marked unverified', (await db.query(`select value from academic_settings where key = 'seed_status'`)).rows[0].value, 'draft_unverified')
+eq('marked production', (await db.query(`select value from academic_settings where key = 'seed_status'`)).rows[0].value, 'production')
 eq('periods are contiguous months', (await db.query(`select bool_and(p.start_date = prev.end_date + 1) as ok
   from academic_reporting_periods p join academic_reporting_periods prev
     on prev.calendar_template_id = p.calendar_template_id and prev.sequence = p.sequence - 1`)).rows[0].ok, true)

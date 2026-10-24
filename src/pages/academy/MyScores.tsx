@@ -8,6 +8,8 @@ import { ConsentReview } from '@/components/academic/ConsentReview'
 import { NewSchoolYear } from '@/components/academic/NewSchoolYear'
 import { MyData } from '@/components/academic/MyData'
 import { ScoreEntry } from '@/components/academic/ScoreEntry'
+import { History } from '@/components/academic/History'
+import { Inbox } from '@/components/academic/Inbox'
 
 // Charts (Recharts) load only with the dashboard.
 const Dashboard = lazy(() => import('@/components/academic/Dashboard'))
@@ -62,21 +64,34 @@ export function MyScores() {
     )
   }
 
+  const inbox = !!data.profile
   return (
     <Routes>
       <Route
         path="data"
         element={data.profile
-          ? <MyScoresShell subtitle={t('data.title')} backTo="/academy/scores"><MyData activeEnrolmentId={data.active_enrolment_id} /></MyScoresShell>
+          ? <MyScoresShell subtitle={t('data.title')} backTo="/academy/scores" inbox><MyData activeEnrolmentId={data.active_enrolment_id} /></MyScoresShell>
           : <Navigate to="/academy/scores" replace />}
       />
       <Route
         path="entry"
         element={data.next_step === 'ready' && data.active_enrolment_id
-          ? <MyScoresShell subtitle={t('entry.subtitle')} backTo="/academy/scores"><ScoreEntry userId={profile.id} enrolmentId={data.active_enrolment_id} /></MyScoresShell>
+          ? <MyScoresShell subtitle={t('entry.subtitle')} backTo="/academy/scores" inbox><ScoreEntry userId={profile.id} enrolmentId={data.active_enrolment_id} /></MyScoresShell>
           : <Navigate to="/academy/scores" replace />}
       />
-      <Route path="*" element={<MyScoresShell><StepScreen session={data} userId={profile.id} /></MyScoresShell>} />
+      <Route
+        path="history"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('history.title')} backTo="/academy/scores" inbox><History /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="inbox"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('inbox.title')} backTo="/academy/scores"><Inbox noticeVersion={data.notice_version} /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route path="*" element={<MyScoresShell inbox={inbox}><StepScreen session={data} userId={profile.id} /></MyScoresShell>} />
     </Routes>
   )
 }

@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, Minus, PenLine, ShieldCheck } from 'lucide-react'
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useDashboard, usePeriods, type Change, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
@@ -11,6 +11,7 @@ import { plainNumber } from '@/lib/academic/scoreInput'
 import { useChartTheme, useTheme } from '@/lib/theme'
 import { MyScoresNotice } from './MyScoresShell'
 import { academicErrorText } from './errorText'
+import { ReminderBanner } from './Inbox'
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -57,6 +58,9 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
           <PenLine className="h-4 w-4" />{t('entry.cta')}
         </Link>
       )}
+      <Link to="/academy/scores/history" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
+        <HistoryIcon className="h-4 w-4" />{t('history.link')}
+      </Link>
       <Link to="/academy/scores/data" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
         <ShieldCheck className="h-4 w-4" />{t('data.link')}
       </Link>
@@ -66,6 +70,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   if (!view.summary) {
     return (
       <div className="space-y-6">
+        <ReminderBanner />
         <MyScoresNotice icon={<PenLine className="h-7 w-7" />} title={t('dash.empty.title')} body={t('dash.empty.body')} action={<div className="flex justify-center">{actions}</div>} />
       </div>
     )
@@ -74,6 +79,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   const subject = subjectId ? view.subjects.find(item => item.subject_enrolment_id === subjectId) : undefined
   return (
     <div className="space-y-6">
+      {!subject && <ReminderBanner />}
       {view.stale_since && (
         <p role="status" className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
           <CloudOff className="h-4 w-4 shrink-0" />{t('dash.stale', { date: formatDate(new Date(view.stale_since), language) })}

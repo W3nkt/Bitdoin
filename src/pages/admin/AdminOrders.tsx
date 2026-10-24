@@ -82,7 +82,6 @@ export function AdminOrders() {
         setNewStatus((order as Order).status)
         markSeen(orderId)
       })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const { data, isLoading } = useQuery({

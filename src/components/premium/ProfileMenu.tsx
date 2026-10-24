@@ -155,7 +155,6 @@ export function PremiumProfileMenu({ variant = 'dark', showPreferences = true }:
 
   useEffect(() => {
     if (!editing) setDraft(personalization)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, onboarding])
 
   useEffect(() => {

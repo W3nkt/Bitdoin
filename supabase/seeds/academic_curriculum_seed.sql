@@ -1,34 +1,24 @@
 -- ============================================================
--- My Scores — DRAFT curriculum and calendar seed (DB-003, #18)
+-- My Scores — curriculum and calendar seed (DB-003, #18)
 --
--- UNVERIFIED. Taken from PRD §23.2 and §23.7 working assumptions, not from
--- verified RES-002 school templates (#6). For local and staging use only.
--- Replace with the verified seed, approved by the education content
--- manager, before any production use.
+-- Production curriculum, approved by the owner on 2026-10-23: Lao 5+4+3
+-- structure, Grades 10–12, the 0–10 monthly scale (steps of 0.5), the
+-- 2026–2027 national calendar, the subject catalogue and aliases. Loaded
+-- in production on 2026-10-23.
 --
--- Run after migrations 109+ in the Supabase SQL Editor, in one go:
---   set academic.allow_draft_seed = 'on';
---   \i (or paste) this file
--- Without that setting, the script refuses to run.
+-- Run after migrations 109+ (Supabase SQL Editor or psql). Re-running is
+-- safe: rows that already exist are left as they are, so later edits made
+-- in the admin screens are never overwritten.
 --
 -- IDs are md5('bitdoin.academic.<kind>.<code>')::uuid, so they are identical
--- in every environment and can be referenced from the verified seed later.
--- Re-running is safe: existing rows are left as they are.
+-- in every environment and future seeds can reference them.
 -- ============================================================
 
-do $$
-begin
-  if coalesce(current_setting('academic.allow_draft_seed', true), '') <> 'on' then
-    raise exception 'Draft academic seed is unverified. Run "set academic.allow_draft_seed = ''on''" first, and never in production.';
-  end if;
-end;
-$$;
-
 -- Education structure and upper-secondary grades (Phase 1 = Grades 10–12).
--- Lao labels are working assumptions pending educator review.
+-- Lao labels confirmed by the owner.
 insert into public.academic_education_structures (id, code, name_lo, name_en, effective_from_year, notes) values
   (md5('bitdoin.academic.structure.LA-5-4-3')::uuid, 'LA-5-4-3', 'ລະບົບ 5+4+3', 'Lao 5+4+3', 2009,
-   'DRAFT: current structure. 6+3+3 reform starts with Grade 6 in 2028-2029.')
+   'Current structure. 6+3+3 reform starts with Grade 6 in 2028-2029.')
 on conflict (id) do nothing;
 
 insert into public.academic_grades (id, education_structure_id, code, ordinal, level, label_lo, label_en) values
@@ -37,7 +27,7 @@ insert into public.academic_grades (id, education_structure_id, code, ordinal, l
   (md5('bitdoin.academic.grade.LA-5-4-3.G12')::uuid, md5('bitdoin.academic.structure.LA-5-4-3')::uuid, 'G12', 12, 'upper_secondary', 'ມ.7', 'Grade 12')
 on conflict (id) do nothing;
 
--- 0–10 monthly scale in steps of 0.5 (PRD §23.1 assumption; SCORE-003 example).
+-- 0–10 monthly scale in steps of 0.5, pass mark 5.
 insert into public.academic_grading_scales (id, code, name_lo, name_en) values
   (md5('bitdoin.academic.scale.LA-0-10')::uuid, 'LA-0-10', 'ຄະແນນ 0–10', 'Score 0–10')
 on conflict (id) do nothing;
@@ -48,9 +38,8 @@ insert into public.academic_grading_scale_versions
    'numeric_linear', 0, 10, 0.5, 1, 5, true, 'approved', now())
 on conflict (id) do nothing;
 
--- 2026–2027 national calendar: monthly periods September–May, two terms.
--- Classes began 1 September 2026 (Vientiane Capital); the end date and term
--- split are assumptions.
+-- 2026–2027 national calendar: monthly periods September–May; term 1 is
+-- September–January, term 2 February–May.
 insert into public.academic_years (id, code, start_date, end_date, status) values
   (md5('bitdoin.academic.year.2026-2027')::uuid, '2026-2027', '2026-09-01', '2027-05-31', 'active')
 on conflict (id) do nothing;
@@ -80,8 +69,9 @@ from (values
 ) as m(seq, term_no, label_lo, label_en, month_start)
 on conflict (id) do nothing;
 
--- Default subjects for Grades 10–12 (PRD §23.7). CIV and ART are left out
--- until their Lao names are confirmed.
+-- Default subjects for Grades 10–12 (PRD §23.7). Civics and Arts (Lao names
+-- confirmed by the owner, 2026-10-23) are in the catalogue but not
+-- pre-selected, since not every school reports them.
 insert into public.academic_subjects (id, code, name_lo, name_en, grade_min, grade_max, is_default)
 select md5('bitdoin.academic.subject.' || s.code)::uuid, s.code, s.name_lo, s.name_en, 10, 12, s.is_default
 from (values
@@ -94,7 +84,9 @@ from (values
   ('HIST', 'ປະຫວັດສາດ',               'History',                     true),
   ('GEO',  'ພູມສາດ',                  'Geography',                   true),
   ('ICT',  'ເຕັກໂນໂລຊີຂໍ້ມູນຂ່າວສານ', 'Information Technology',      true),
-  ('PE',   'ພະລະສຶກສາ',               'Physical education',          false)
+  ('PE',   'ພະລະສຶກສາ',               'Physical education',          false),
+  ('CIV',  'ສຶກສາສາດ',                'Civics',                      false),
+  ('ART',  'ສິລະປະກຳ',                'Arts',                        false)
 ) as s(code, name_lo, name_en, is_default)
 on conflict (id) do nothing;
 
@@ -119,5 +111,5 @@ from (values
 on conflict (id) do nothing;
 
 insert into public.academic_settings (key, value, description) values
-  ('seed_status', '"draft_unverified"', 'Curriculum/calendar seed is the PRD draft, not verified RES-002 data.')
+  ('seed_status', '"production"', 'Curriculum/calendar seed approved by the owner for production (2026-10-23).')
 on conflict (key) do update set value = excluded.value, description = excluded.description;

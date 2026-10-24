@@ -39,6 +39,7 @@ const LearningProgressPage = lazy(() => import('@/pages/premium/LearningHub').th
 const PromptLibraryPage = lazy(() => import('@/pages/premium/LearningHub').then(m => ({ default: m.PromptLibraryPage })))
 const PremiumAdminDashboard = lazy(() => import('@/pages/premium/AdminDashboard').then(m => ({ default: m.PremiumAdminDashboard })))
 const PremiumLearningAdmin = lazy(() => import('@/pages/premium/LearningAdmin').then(m => ({ default: m.PremiumLearningAdmin })))
+const MyScoresAdmin = lazy(() => import('@/pages/premium/MyScoresAdmin').then(m => ({ default: m.MyScoresAdmin })))
 const Contacts        = lazy(() => import('@/pages/customer/Contacts').then(m => ({ default: m.default || m })))
 const About           = lazy(() => import('@/pages/customer/About').then(m => ({ default: m.About })))
 const Faq              = lazy(() => import('@/pages/customer/Faq').then(m => ({ default: m.Faq })))
@@ -271,6 +272,9 @@ export function App() {
                     } />
                     <Route path="/academy-admin/learning" element={
                       <AdminGuard><PremiumLearningAdmin /></AdminGuard>
+                    } />
+                    <Route path="/academy-admin/scores" element={
+                      <AdminGuard><MyScoresAdmin /></AdminGuard>
                     } />
                     <Route path="/premium-admin" element={<LegacyRedirect to="/academy-admin" />} />
                     <Route path="/premium-admin/learning" element={<LegacyRedirect to="/academy-admin/learning" />} />

@@ -1,0 +1,75 @@
+name: CI
+
+# Type-check, lint, database tests (PGlite) and the My Scores browser checks
+# against a mocked Supabase. Runs on pull requests and branch pushes; the
+# deploy workflow calls it before every production build.
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to check (defaults to the triggering commit).
+        type: string
+        default: ''
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: Types, lint and database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Database tests (migrations, RLS, RPCs, rollback)
+        run: npm run test:db
+
+  e2e:
+    name: My Scores browser checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium and Lao fonts
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends fonts-noto-core
+      - name: Student and admin scenarios (mocked Supabase)
+        run: npm run test:e2e
+        env:
+          QA_OUTPUT: qa-artifacts
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-scores-screenshots
+          path: qa-artifacts
+          if-no-files-found: ignore
+          retention-days: 14

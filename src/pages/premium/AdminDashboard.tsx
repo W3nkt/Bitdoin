@@ -39,6 +39,7 @@ import {
   BellRing,
   Trophy,
   Megaphone,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
@@ -649,7 +650,6 @@ export function PremiumAdminDashboard() {
     } else if (weeklyRun?.status === 'FAILED') {
       error(weeklyRun.error_message ?? 'Weekly generation failed after automatic retries.')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weeklyRun?.status])
 
   useEffect(() => {
@@ -1591,6 +1591,15 @@ export function PremiumAdminDashboard() {
                 className="bg-white/10 text-white hover:bg-white/15"
               >
                 Learning Content
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                icon={<ClipboardList className="h-4 w-4" />}
+                onClick={() => navigate('/academy-admin/scores')}
+                className="bg-white/10 text-white hover:bg-white/15"
+              >
+                My Scores
               </Button>
               <Button
                 type="button"

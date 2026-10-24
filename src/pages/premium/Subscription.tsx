@@ -1091,7 +1091,6 @@ export function Subscription() {
       // ?renew is gone from the URL by now, so a later tap can run this again.
       renewHandledRef.current = false
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, pageLoading, onboardingLoading, profile])
 
   // Back to where they came from; opened directly, members go to the platform picker and visitors to the landing page.

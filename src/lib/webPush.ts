@@ -3,7 +3,8 @@ import { isIos, isStandalone } from '@/lib/installPrompt'
 
 // Browser / home-screen notifications (Web Push). The service worker shows
 // them (public/push-sw.js); send-push (edge function) sends them; each
-// device's per-platform switches live in push_subscriptions (migration 102).
+// device's per-platform switches live in push_subscriptions (migrations 102
+// and 120).
 
 const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? ''
 // Remembers this browser's endpoint so a replaced subscription can be moved
@@ -11,6 +12,8 @@ const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | unde
 const ENDPOINT_KEY = 'bitdoin.push.endpoint'
 
 export type PushPlatform = 'BOOKSTORE' | 'ACADEMY'
+/** A device switch: a platform's notifications, or My Scores reminders. */
+export type PushTarget = PushPlatform | 'MY_SCORES'
 export type ReminderSlot = 'MORNING' | 'AFTERNOON' | 'EVENING'
 
 /**
@@ -26,6 +29,7 @@ export interface DevicePushState {
   bookstore_enabled: boolean
   academy_enabled: boolean
   academy_slot: ReminderSlot
+  my_scores_enabled: boolean
 }
 
 export const pushConfigured = Boolean(VAPID_PUBLIC_KEY)
@@ -80,16 +84,26 @@ function subscriptionKeys(subscription: PushSubscription) {
 export async function getDevicePushState(): Promise<DevicePushState | null> {
   const subscription = await getBrowserSubscription()
   if (!subscription) return null
+  // '*' so this keeps working if the frontend ships before migration 120.
   const { data, error } = await supabase
     .from('push_subscriptions')
-    .select('bookstore_enabled,academy_enabled,academy_slot')
+    .select('*')
     .eq('endpoint', subscription.endpoint)
     .maybeSingle()
   if (error) throw error
-  return data as DevicePushState | null
+  return data ? deviceState(data as Partial<DevicePushState>) : null
 }
 
-async function save(subscription: PushSubscription, platform: PushPlatform, enabled: boolean, slot?: ReminderSlot) {
+function deviceState(row: Partial<DevicePushState>): DevicePushState {
+  return {
+    bookstore_enabled: Boolean(row.bookstore_enabled),
+    academy_enabled: Boolean(row.academy_enabled),
+    academy_slot: (row.academy_slot ?? 'MORNING') as ReminderSlot,
+    my_scores_enabled: Boolean(row.my_scores_enabled),
+  }
+}
+
+async function save(subscription: PushSubscription, platform: PushTarget, enabled: boolean, slot?: ReminderSlot) {
   const keys = subscriptionKeys(subscription)
   const { data, error } = await supabase.rpc('save_push_subscription', {
     p_endpoint: subscription.endpoint,
@@ -101,7 +115,7 @@ async function save(subscription: PushSubscription, platform: PushPlatform, enab
     p_slot: slot ?? null,
   })
   if (error) throw error
-  return data as DevicePushState
+  return deviceState(data as Partial<DevicePushState>)
 }
 
 /**
@@ -109,7 +123,7 @@ async function save(subscription: PushSubscription, platform: PushPlatform, enab
  * click: browsers (and iOS always) refuse the permission prompt otherwise.
  * Throws Error('denied') if the person says no.
  */
-export async function enablePush(platform: PushPlatform, slot?: ReminderSlot) {
+export async function enablePush(platform: PushTarget, slot?: ReminderSlot) {
   if (getPushSupport() !== 'ready') throw new Error('unsupported')
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('denied')
@@ -127,12 +141,12 @@ export async function enablePush(platform: PushPlatform, slot?: ReminderSlot) {
   return state
 }
 
-/** Turns a platform off on this device; unsubscribes the browser when both are off. */
-export async function disablePush(platform: PushPlatform) {
+/** Turns a switch off on this device; unsubscribes the browser when all are off. */
+export async function disablePush(platform: PushTarget) {
   const subscription = await getBrowserSubscription()
   if (!subscription) return null
   const state = await save(subscription, platform, false)
-  if (!state.bookstore_enabled && !state.academy_enabled) {
+  if (!state.bookstore_enabled && !state.academy_enabled && !state.my_scores_enabled) {
     await subscription.unsubscribe().catch(() => undefined)
     storeEndpoint(null)
   }
@@ -146,7 +160,7 @@ export async function setAcademyReminderSlot(slot: ReminderSlot) {
 }
 
 /** Asks send-push to send a test notification to all of the caller's devices. */
-export async function sendTestPush(platform: PushPlatform) {
+export async function sendTestPush(platform: PushTarget) {
   const { data, error } = await supabase.functions.invoke('send-push', { body: { action: 'test', platform } })
   if (error) throw error
   return data as { sent: number; failed: number }

@@ -94,7 +94,7 @@ export interface ScoreReminderPayload {
   period_label_en?: string
 }
 
-// DRAFT copy, pending the UX-005 Lao copy pack and native educator review.
+// Lao copy confirmed by the owner (UX-005, #14, 2026-10-23).
 // Lock-screen text: no scores, no comparison, no pressure (NOTIF-004).
 export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload): PushMessage {
   const tag = `my-scores-${payload.period_key ?? 'reminder'}`
@@ -121,7 +121,7 @@ export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload):
 export function testMessage(lang: Lang, platform: 'BOOKSTORE' | 'ACADEMY'): PushMessage {
   const lo = lang === 'lo'
   return {
-    title: lo ? '🔔 ການແຈ້ງເຕືອນເຮັດວຽກແລ້ວ!' : '🔔 Notifications are working!',
+    title: lo ? '🔔 ການແຈ້ງເຕືອນທຳງານແລ້ວ!' : '🔔 Notifications are working!',
     body: lo ? 'ທ່ານຈະໄດ້ຮັບຂ່າວສານຈາກ Bitdoin ຢູ່ບ່ອນນີ້.' : "You'll get Bitdoin updates right here.",
     url: platform === 'ACADEMY' ? '/academy/profile' : '/bookstore/profile',
     tag: 'bitdoin-test',

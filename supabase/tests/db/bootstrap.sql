@@ -70,5 +70,10 @@ create table public.push_subscriptions (
   endpoint text not null unique,
   p256dh text not null,
   auth text not null,
-  academy_enabled boolean not null default false
+  user_agent text,
+  bookstore_enabled boolean not null default false,
+  academy_enabled boolean not null default false,
+  academy_slot text not null default 'MORNING'
 );
+create function public.default_telegram_reminder_slot(p_user_id uuid) returns text
+language sql stable as $$ select 'MORNING' $$;

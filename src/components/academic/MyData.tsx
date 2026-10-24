@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowRightLeft, Database, KeyRound, Pencil, UserRound } from 'lucide-react'
+import { ArrowRightLeft, Database, Pencil, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
@@ -9,8 +9,8 @@ import {
   useMyDataSummary, usePeriods, useTransitionEnrolment, useUpdateProfile,
   type AgeBand, type MyDataSummary,
 } from '@/lib/academic/api'
-import { formatDate } from '@/lib/academic/format'
 import { MyScoresNotice } from './MyScoresShell'
+import { ConsentChoices, DeleteCard, DeletionPending, ExportCard } from './Privacy'
 import { SchoolPicker, type SchoolChoice } from './SchoolPicker'
 import { academicErrorText } from './errorText'
 
@@ -27,17 +27,20 @@ const COUNTS: [keyof MyDataSummary['counts'], AcademicCopyKey][] = [
 
 /** "My data" (PROFILE-007): everything the module holds, with edits. */
 export function MyData({ activeEnrolmentId }: { activeEnrolmentId: string | null }) {
-  const { t, lo, language } = useAcademicCopy()
+  const { t, lo } = useAcademicCopy()
   const summary = useMyDataSummary()
 
   if (summary.isPending) return <div className="h-64 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
   if (summary.isError) return <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, summary.error)} />
 
   const { profile, counts, consents } = summary.data
-  const date = (value: string) => formatDate(value, language)
 
   return (
     <div className="space-y-6">
+      <DeletionPending deletion={summary.data.deletion} />
+      {profile.status === 'read_only' && (
+        <p role="status" className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">{t('privacy.readOnly')}</p>
+      )}
       <ProfileCard profile={profile} />
 
       <Card icon={<Database className="h-5 w-5" />} title={t('data.held')}>
@@ -51,23 +54,13 @@ export function MyData({ activeEnrolmentId }: { activeEnrolmentId: string | null
         </dl>
       </Card>
 
-      <Card icon={<KeyRound className="h-5 w-5" />} title={t('data.consents')}>
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {consents.map(consent => (
-            <li key={consent.id} className="flex flex-wrap items-baseline justify-between gap-2 py-3">
-              <span className="font-bold">
-                {t(`consent.purpose.${consent.purpose}` as AcademicCopyKey)}
-              </span>
-              <span className="text-xs text-slate-500">
-                {consent.withdrawn_at ? t('data.consentWithdrawn', { date: date(consent.withdrawn_at) }) : t('data.consentActive', { date: date(consent.granted_at) })}
-                {' · '}{t('notice.version', { version: consent.notice_version })}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
 
       {activeEnrolmentId && profile.status === 'active' && <TransferCard enrolmentId={activeEnrolmentId} lo={lo} />}
+
+      <h2 className="px-1 pt-2 text-xl font-black">{t('privacy.title')}</h2>
+      <ConsentChoices consents={consents} />
+      <ExportCard />
+      {profile.status !== 'deletion_pending' && <DeleteCard />}
     </div>
   )
 }
