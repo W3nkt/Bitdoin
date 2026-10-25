@@ -534,6 +534,8 @@ try {
     await page.goto(`${base}/academy-admin/scores?tab=subjects`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     await page.getByRole('button', { name: 'Open menu', exact: true }).click()
+    // allInnerTexts() does not wait: let the menu dialog open first.
+    await page.getByRole('dialog', { name: 'Schooling admin sections' }).waitFor()
     const tabs = await page.getByRole('navigation', { name: 'Schooling admin sections' }).getByRole('button').allInnerTexts()
     assert.deepEqual(tabs.map(text => text.trim()), ['Support', 'Reports', 'Audit log'])
     await page.keyboard.press('Escape')

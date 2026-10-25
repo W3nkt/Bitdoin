@@ -54,10 +54,7 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration 138 (feedback on next actions and repetition control, LEARN-005):
-  apply before the frontend that shows the Done / Not now / Not helpful
-  buttons. Waits for the owner's review of the five new Lao strings
-  (`week.feedback.*` in recommendationCopy.ts).
+- Nothing.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
 migrations 122–127 on 2026-10-25, with `send-push` and the three admin
@@ -76,6 +73,10 @@ Applied 2026-10-25 (Phase 2, #49 and #50; commit 2ec6ce5):
   catalogue entries before students see them.
 - Check: production lists 129–137, `insights_enabled = true`, no
   `academic_*` function callable by `anon`.
+
+Applied 2026-10-26: 138 (feedback on next actions and repetition control,
+LEARN-005) with `supabase db push`, before the frontend with the Done / Not now /
+Not helpful buttons; Lao strings approved by the owner.
 
 ## Feature flag
 

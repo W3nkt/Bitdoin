@@ -51,9 +51,15 @@ eq('first-entry rate: first submission within 7 days of the profile', [week.firs
 const monthKey = (await one(`select to_char(${T} at time zone 'Asia/Vientiane', 'YYYY-MM') as k`)).k
 const month = m.months.find((x) => x.month === monthKey)
 const lateMonth = (await one(`select to_char((${T} + interval '10 days') at time zone 'Asia/Vientiane', 'YYYY-MM') as k`)).k
+const thisMonth = (await one(`select to_char(now() at time zone 'Asia/Vientiane', 'YYYY-MM') as k`)).k
 if (lateMonth === monthKey) {
   eq('North Star: distinct students recording in the month', month.recording_students >= 24, true)
-  eq('entry duration p50 (24 timed entries)', month.entry_duration_p50_ms, 72500)
+  if (monthKey !== thisMonth) {
+    eq('entry duration p50 (24 timed entries)', month.entry_duration_p50_ms, 72500)
+  } else {
+    // Three weeks ago can be this month: the 50-second entries above join the median.
+    eq('entry duration p50 mixes in this month’s 50 s entries', month.entry_duration_p50_ms >= 50000 && month.entry_duration_p50_ms < 72500, true)
+  }
 }
 eq('active students and dashboard twice-a-month rate', [month.active_students, month.dashboard_twice_rate], [24, Number((20 / 24).toFixed(4))])
 eq('acquisition source shares (last 90 days)', m.sources.map((s) => [s.source, s.profiles, s.share]), [['academy_menu', null, 0.75], ['profile_link', null, 0.25]])

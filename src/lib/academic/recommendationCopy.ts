@@ -26,7 +26,7 @@ export const recommendationCopy = {
   'week.action.practice_set': { en: 'Practise', lo: 'ຝຶກ' },
   'week.action.academy_lesson': { en: 'Open the lesson', lo: 'ເປີດບົດຮຽນ' },
   'week.action.academy_challenge': { en: 'Open the challenge', lo: 'ເປີດສິ່ງທ້າທາຍ' },
-  // LEARN-005 feedback (added after the 2026-10-25 review: needs the owner's Lao review)
+  // LEARN-005 feedback (Lao approved by the owner on 2026-10-26)
   'week.feedback.done': { en: 'Done', lo: 'ເຮັດແລ້ວ' },
   'week.feedback.not_now': { en: 'Not now', lo: 'ບໍ່ແມ່ນຕອນນີ້' },
   'week.feedback.not_helpful': { en: 'Not helpful', lo: 'ບໍ່ເປັນປະໂຫຍດ' },
