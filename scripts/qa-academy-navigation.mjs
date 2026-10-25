@@ -242,7 +242,7 @@ try {
     await schoolingProfileLink.waitFor()
     assert.equal(await schoolingProfileLink.locator('.lucide-school').count(), 1)
     await schoolingProfileLink.click()
-    await page.waitForURL(`${base}/academy/scores`)
+    await page.waitForURL(url => url.pathname === '/academy/scores')
 
     // Existing bookmarks must still reach the new page.
     await page.goto(`${base}/academy/home#mentor`)
@@ -339,7 +339,7 @@ try {
       if(fallback){ document.startViewTransition=undefined; return }
       const original=document.startViewTransition.bind(document)
       document.startViewTransition=callback=>{
-        const panel=document.getElementById('academy-navigation-panel')
+        const panel=document.querySelector('.academy-menu-panel')
         window.__menuNavigationPhases.push({phase:'page-fade-start', time:performance.now(), location:location.pathname, wheelMoving:panel.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform')})
         return original(callback)
       }
@@ -349,7 +349,7 @@ try {
     await target.click()
     await page.waitForTimeout(150)
     assert.equal(new URL(page.url()).pathname,'/academy/home','Old page remains visible while wheel closes')
-    const closing=await page.locator('#academy-navigation-panel').evaluate(el=>el.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform'))
+    const closing=await page.locator('.academy-menu-panel').evaluate(el=>el.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform'))
     assert.equal(closing,true,'Selection plays the wheel close animation')
     await page.waitForURL(base+'/academy/learn')
     const elapsed=await page.evaluate(start=>performance.now()-start,start)

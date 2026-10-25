@@ -14,6 +14,8 @@ import { AuditAdmin } from '@/components/academic/admin/AuditAdmin'
 import { HealthAdmin } from '@/components/academic/admin/HealthAdmin'
 import { MetricsAdmin } from '@/components/academic/admin/MetricsAdmin'
 import { PilotAdmin } from '@/components/academic/admin/PilotAdmin'
+import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
+import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
 type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit' | 'health' | 'metrics' | 'pilot'
 
@@ -48,13 +50,14 @@ export function MyScoresAdmin() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950 text-white">
-        <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4">
-          <button type="button" onClick={() => navigate('/academy-admin')} aria-label="Back to Academy admin" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
+        <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4 lg:pr-24">
+          <button type="button" onClick={() => navigate('/academy-admin')} aria-label="Back to Academy admin" className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p>
             <h1 className="flex items-center gap-2 text-xl font-black"><School className="h-5 w-5" />Schooling</h1>
           </div>
           <a href="/academy/scores" target="_blank" rel="noreferrer" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Student view <ExternalLink className="h-4 w-4" /></a>
+          <AdminPlatformSwitch platform="academy" />
           <button type="button" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-slate-200 transition-colors hover:bg-white/15 hover:text-white dark:text-amber-300">
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -62,7 +65,8 @@ export function MyScoresAdmin() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <AcademyAdminMenu />
+      <main className="mx-auto max-w-7xl px-4 py-8 pb-24">
         {!active ? (
           <section className="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-700">
             <h2 className="text-xl font-black">No Schooling access</h2>

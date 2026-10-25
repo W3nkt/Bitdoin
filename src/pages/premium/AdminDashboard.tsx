@@ -60,7 +60,8 @@ import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { premiumText, usePremiumTranslation } from '@/i18n/premium'
-import { FloatingOrbitMenu } from '@/components/premium/FloatingOrbitMenu'
+import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
+import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 import { PushAnnouncementComposer } from '@/components/admin/PushAnnouncementComposer'
 import { PremiumOverviewAnalytics } from '@/components/premium/PremiumOverviewAnalytics'
 import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
@@ -448,24 +449,6 @@ export function PremiumAdminDashboard() {
   const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
 
-  // Highlights the floating menu item for the section scrolled into view.
-  useEffect(() => {
-    const update = () => {
-      let current = ADMIN_SECTION_ORDER[0]
-      for (const section of ADMIN_SECTION_ORDER) {
-        const el = document.getElementById(`premium-${section}`)
-        if (el && el.getBoundingClientRect().top <= 140) current = section
-      }
-      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
-        current = ADMIN_SECTION_ORDER[ADMIN_SECTION_ORDER.length - 1]
-      }
-      setActiveSection(current)
-    }
-    update()
-    window.addEventListener('scroll', update, { passive: true })
-    return () => window.removeEventListener('scroll', update)
-  }, [])
-
   useEffect(() => {
     if (!profileMenuOpen) return
 
@@ -797,24 +780,25 @@ export function PremiumAdminDashboard() {
   const navItems: Array<{
     id: PremiumAdminSection
     label: string
+    detail: string
     icon: LucideIcon
     badge?: number
   }> = [
-    { id: 'overview', label: 'Overview', icon: Sparkles },
-    { id: 'forge', label: 'Weekly Content', icon: WandSparkles },
-    { id: 'renewals', label: 'Renewals', icon: BellRing, badge: expiringMemberships.length },
-    { id: 'members', label: 'Members', icon: Users, badge: subscriptionRequests.length },
-    { id: 'mentor', label: 'Daily Mentor', icon: MessageSquareText },
-    { id: 'content', label: 'Member Content', icon: Flame },
-    { id: 'notifications', label: 'Notifications', icon: Megaphone },
-    { id: 'plans', label: 'Plans', icon: Crown },
+    { id: 'overview', label: 'Overview', detail: 'Review Academy performance and activity.', icon: Sparkles },
+    { id: 'forge', label: 'Weekly Content', detail: 'Generate and review the next learning week.', icon: WandSparkles },
+    { id: 'renewals', label: 'Renewals', detail: 'Follow up on expiring memberships.', icon: BellRing, badge: expiringMemberships.length },
+    { id: 'members', label: 'Members', detail: 'Manage requests, payments and members.', icon: Users, badge: subscriptionRequests.length },
+    { id: 'mentor', label: 'Daily Mentor', detail: 'Edit daily guidance and missions.', icon: MessageSquareText },
+    { id: 'content', label: 'Member Content', detail: 'Manage events and communities.', icon: Flame },
+    { id: 'notifications', label: 'Notifications', detail: 'Prepare announcements for members.', icon: Megaphone },
+    { id: 'plans', label: 'Plans', detail: 'Manage membership plans and pricing.', icon: Crown },
   ]
 
   function scrollToSection(section: PremiumAdminSection) {
     const target = document.getElementById(`premium-${section}`)
     if (!target) return
     setActiveSection(section)
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    target.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
     window.history.replaceState(null, '', `#premium-${section}`)
   }
 
@@ -1459,6 +1443,26 @@ export function PremiumAdminDashboard() {
   }
 
   const loading = plansLoading || subscriptionsLoading || paymentsLoading || onboardingResponsesLoading || motivationsLoading || weeklyRunLoading || memberEventsLoading || communitiesLoading
+
+  // Measure only after the dashboard sections replace the loading skeleton.
+  useEffect(() => {
+    if (loading) return
+    const update = () => {
+      let current = ADMIN_SECTION_ORDER[0]
+      for (const section of ADMIN_SECTION_ORDER) {
+        const el = document.getElementById(`premium-${section}`)
+        if (el && el.getBoundingClientRect().top <= 140) current = section
+      }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        current = ADMIN_SECTION_ORDER[ADMIN_SECTION_ORDER.length - 1]
+      }
+      setActiveSection(current)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    return () => window.removeEventListener('scroll', update)
+  }, [loading])
+
   const selectedOnboarding = selectedSubscription
     ? onboardingByUser.get(selectedSubscription.user_id)
     : undefined
@@ -1467,7 +1471,7 @@ export function PremiumAdminDashboard() {
   return (
     <div className="premium-i18n min-h-screen overflow-x-clip bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:pr-24">
           <div className="flex min-w-0 items-center gap-3">
             <PwenLogoLockup
               textClassName="text-white"
@@ -1476,6 +1480,7 @@ export function PremiumAdminDashboard() {
             />
           </div>
           <div className="flex items-center gap-2">
+            <AdminPlatformSwitch platform="academy" />
             <button
               type="button"
               onClick={toggleTheme}
@@ -1806,21 +1811,18 @@ export function PremiumAdminDashboard() {
         </main>
       )}
 
-      {!loading && (
-        <FloatingOrbitMenu
-          menuLabel={premiumText(language, 'Admin Menu')}
-          openLabel={language === 'lo' ? 'ເປີດເມນູ' : 'Open menu'}
-          closeLabel={language === 'lo' ? 'ປິດເມນູ' : 'Close menu'}
-          items={navItems.map(item => ({
-            key: item.id,
-            label: premiumText(language, item.label),
-            icon: item.icon,
-            onClick: () => scrollToSection(item.id),
-            active: activeSection === item.id,
-            badge: item.badge,
-          }))}
-        />
-      )}
+      <AcademyAdminMenu sections={loading ? undefined : navItems.map((item, index) => ({
+        id: item.id,
+        en: item.label,
+        lo: premiumText('lo', item.label),
+        detail: item.detail,
+        detailLo: premiumText('lo', item.detail),
+        icon: item.icon,
+        color: ['#e48b26', '#3989cd', '#df779d', '#31a59a', '#ab69ce', '#e5a832', '#6366f1', '#d59627'][index],
+        onSelect: () => scrollToSection(item.id),
+        active: activeSection === item.id,
+        badge: item.badge,
+      }))} />
 
       {/* Closing never stops generation: the backend keeps running the queue
           and the floating progress pill below takes over. */}

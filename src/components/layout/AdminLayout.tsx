@@ -1,9 +1,9 @@
 import { type ReactNode, useState } from 'react'
-import { NavLink, Link, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard, Store, Tag, ShoppingBag, ClipboardList,
-  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, ArrowRight, DollarSign, ScrollText, Lightbulb, Moon, Sun
+  CreditCard, Truck, BarChart3, Settings, LogOut, Menu, X, DollarSign, ScrollText, Lightbulb, Moon, Sun
 } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
 import { useAuth } from '@/context/AuthContext'
@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext'
 import { AdminNotificationsContext } from '@/context/AdminNotificationsContext'
 import { useAdminNotifications } from '@/hooks/useAdminNotifications'
 import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
+import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 import { cn } from '@/lib/utils'
 import { publicAsset } from '@/lib/assets'
 import { useTheme } from '@/lib/theme'
@@ -170,13 +171,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
              <LogOut className="h-4 w-4" />
            </button>
         </div>
-         <Link
-           to="/academy-admin"
-           className="flex items-center justify-center gap-2 rounded-lg bg-sky-400/15 px-3 py-2 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-400/25 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200"
-         >
-           Switch to Academy Admin
-           <ArrowRight className="h-3 w-3" />
-         </Link>
+         <AdminPlatformSwitch platform="bookstore" sidebar />
       </div>
     </aside>
   )
@@ -202,10 +197,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <header className="md:hidden flex items-center gap-3 px-4 h-14 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm flex-shrink-0">
+        <header className="md:hidden flex items-center gap-2 px-3 h-14 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Open admin navigation"
+            className="shrink-0 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
           </button>
@@ -214,11 +210,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             alt="Bitdoin"
             className="h-9 w-9 rounded-lg bg-white object-contain"
           />
-          <span className="text-lg font-bold text-primary-900 dark:text-primary-300 tracking-tight">Bitdoin</span>
-          <span className="rounded-full bg-primary-50 dark:bg-primary-900/40 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
+          <span className="hidden sm:inline text-lg font-bold text-primary-900 dark:text-primary-300 tracking-tight">Bitdoin</span>
+          <span className="hidden min-[400px]:inline rounded-full bg-primary-50 dark:bg-primary-900/40 px-2 py-0.5 text-[10px] font-semibold text-primary-700 dark:text-primary-300 uppercase tracking-wider">
             Admin
           </span>
           <div className="ml-auto flex items-center gap-0.5">
+            <AdminPlatformSwitch platform="bookstore" />
             <button
               type="button"
               onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}

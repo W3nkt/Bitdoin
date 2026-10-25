@@ -16,7 +16,8 @@
 .academy-wheel-item:focus-visible { outline: 2px solid #e9a348; outline-offset: -3px; border-radius: 16px; }
 .academy-wheel-label { min-width: 0; }
 .academy-wheel-name { display: block; font-size: 14px; font-weight: 700; line-height: 1.6; }
-.academy-wheel-icon { display: grid; flex-shrink: 0; place-items: center; width: 48px; height: 46px; border-radius: 18px; background: #eff0ee; color: var(--item-color); }
+.academy-wheel-icon { position: relative; display: grid; flex-shrink: 0; place-items: center; width: 48px; height: 46px; border-radius: 18px; background: #eff0ee; color: var(--item-color); }
+.academy-menu-badge { position: absolute; top: -5px; right: -7px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 800; line-height: 1; }
 
 /* Desktop retains the regular sidebar; its toggle floats at the top right. */
 .is-desktop .academy-menu-panel { display: flex; flex-direction: column; top: var(--academy-banner-h, 0px); right: 0; bottom: 0; width: 340px; border-left: 1px solid #e2e8f0; transform: translateX(100%); }

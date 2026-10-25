@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Grip, Menu, X } from 'lucide-react'
+import { Grip, Menu, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn } from '@/lib/utils'
@@ -20,21 +20,46 @@ export function AcademyMenu() {
   const { pathname } = useLocation()
   const { profile } = useAuth()
   if (!profile || !pathname.startsWith('/academy/')) return null
-  return <ResponsiveMenu key={pathname} pathname={pathname} />
-}
-
-function ResponsiveMenu({ pathname }: { pathname: string }) {
-  const navigate = useNavigate()
-  const { language } = useLanguage()
-  const lo = language === 'lo'
-  const captionPathId = `academy-caption-${useId().replace(/:/g, '')}`
-  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
-  const [open, setOpen] = useState(false)
-  const [departing, setDeparting] = useState(false)
   const currentPath = pathname === '/academy/subscription' || pathname === '/academy/plans' ? '/academy/membership'
     : /^\/academy\/(lesson|challenges|habits|progress|prompts|careers)(\/|$)/.test(pathname) ? '/academy/learn'
     : pathname === '/academy/top-corner-lab' ? '/academy/play' : pathname
-  const activeIndex = academyNavigation.findIndex(item => currentPath === item.path || currentPath.startsWith(`${item.path}/`))
+  return <ResponsiveAcademyMenu key={pathname} pathname={pathname}
+    items={academyNavigation.map(item => ({ ...item, active: currentPath === item.path || currentPath.startsWith(`${item.path}/`) }))}
+    title={{ en: 'Academy menu', lo: 'ເມນູ Academy' }} brand="BITDOIN ACADEMY" preload={preloadDestination} />
+}
+
+export interface AcademyMenuItem {
+  id: string
+  en: string
+  lo: string
+  detail?: string
+  detailLo?: string
+  icon: LucideIcon
+  color: string
+  path?: string
+  onSelect?: () => void
+  active?: boolean
+  badge?: number
+}
+
+export function ResponsiveAcademyMenu({ pathname, items, title, brand, preload }: {
+  pathname: string
+  items: readonly AcademyMenuItem[]
+  title: { en: string; lo: string }
+  brand: string
+  preload?: (path: string) => Promise<unknown>
+}) {
+  const navigate = useNavigate()
+  const { language } = useLanguage()
+  const lo = language === 'lo'
+  const id = useId().replace(/:/g, '')
+  const captionPathId = `academy-caption-${id}`
+  const panelId = `academy-navigation-panel-${id}`
+  const titleId = `academy-navigation-title-${id}`
+  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
+  const [open, setOpen] = useState(false)
+  const [departing, setDeparting] = useState(false)
+  const activeIndex = items.findIndex(item => item.active)
   const [selected, setSelected] = useState(Math.max(0, activeIndex))
   const trigger = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -44,7 +69,7 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
   const navigationPending = useRef(false)
   const mounted = useRef(true)
   const fadeOut = useRef<Animation | null>(null)
-  const count = academyNavigation.length
+  const count = items.length
 
   useEffect(() => {
     mounted.current = true
@@ -96,8 +121,11 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
     trigger.current?.focus()
   }
 
-  async function selectDestination(path: string) {
+  async function selectDestination(item: AcademyMenuItem) {
     if (navigationPending.current) return
+    if (item.onSelect) { close(); item.onSelect(); return }
+    const path = item.path
+    if (!path) return
     if (path === pathname) { close(); return }
     if (desktop || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       close()
@@ -108,7 +136,7 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
     navigationPending.current = true
     const oldPanel = panel.current
     // Load the destination while the wheel completes its normal close motion.
-    const ready = preloadDestination(path)
+    const ready = preload?.(path) ?? Promise.resolve()
     flushSync(() => { setDeparting(true); setOpen(false) })
     try {
       const closing = oldPanel?.getAnimations({ subtree: true })
@@ -155,15 +183,15 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
     requestAnimationFrame(() => links.current[index]?.focus({ preventScroll: !desktop }))
   }
 
-  const selectedItem = academyNavigation[selected]
+  const selectedItem = items[selected] ?? items[0]
   return createPortal(
     <div data-no-premium-translate aria-busy={departing || undefined} className={cn('academy-navigation', desktop ? 'is-desktop' : 'is-mobile', departing && 'is-navigating')}>
       <div aria-hidden onClick={close} className={cn('academy-menu-backdrop', open && 'is-open')} />
-      <div ref={panel} id="academy-navigation-panel" role="dialog" aria-modal={open ? true : undefined} aria-labelledby="academy-navigation-title" aria-hidden={!open} {...(!open ? { inert: '' } : {})} className={cn('academy-menu-panel', open && 'is-open')}>
+      <div ref={panel} id={panelId} role="dialog" aria-modal={open ? true : undefined} aria-labelledby={titleId} aria-hidden={!open} {...(!open ? { inert: '' } : {})} className={cn('academy-menu-panel', open && 'is-open')}>
         <div className="academy-menu-heading">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">BITDOIN ACADEMY</p>
-            <h2 id="academy-navigation-title" className="mt-1 text-xl font-black text-slate-900 dark:text-white">{lo ? 'ເມນູ Academy' : 'Academy menu'}</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">{brand}</p>
+            <h2 id={titleId} className="mt-1 text-xl font-black text-slate-900 dark:text-white">{lo ? title.lo : title.en}</h2>
           </div>
           <button type="button" aria-label={lo ? 'ປິດເມນູ' : 'Close navigation'} onClick={close} className="academy-menu-close"><X className="h-5 w-5" /></button>
         </div>
@@ -195,7 +223,7 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
             </div>
             <div aria-hidden className="academy-radial-hub" />
           </>}
-          <nav aria-label={lo ? 'ເມນູ Academy' : 'Academy menu'} className="academy-wheel-scroll"
+          <nav aria-label={lo ? title.lo : title.en} className="academy-wheel-scroll"
             onKeyDown={event => {
               const current = links.current.indexOf(document.activeElement as HTMLButtonElement)
               const next = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? (current + 1 + count) % count
@@ -206,9 +234,9 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
               focusItem(next)
             }}
           >
-            {academyNavigation.map((item, index) => {
+            {items.map((item, index) => {
               // Faded options at both ends hint that the ring keeps rotating.
-              const distance = ((index - selected + count + 3) % count) - 3
+              const distance = ((index - selected + count + Math.floor(count / 2)) % count) - Math.floor(count / 2)
               const angle = (48 - distance * 21) * Math.PI / 180
               const visible = desktop || Math.abs(distance) <= 2
               const isCurrent = index === activeIndex
@@ -221,10 +249,10 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
                 } : {}),
               } as CSSProperties
               return (
-                <button key={item.id} ref={element => { links.current[index] = element }} type="button" disabled={departing} aria-label={lo ? item.lo : item.en} aria-current={isCurrent ? 'page' : undefined} aria-hidden={!visible ? true : undefined} tabIndex={visible ? 0 : -1}
+                <button key={item.id} ref={element => { links.current[index] = element }} type="button" disabled={departing} aria-label={lo ? item.lo : item.en} aria-describedby={item.badge && item.badge > 0 ? `academy-pending-${id}-${item.id}` : undefined} aria-current={isCurrent ? 'page' : undefined} aria-hidden={!visible ? true : undefined} tabIndex={visible ? 0 : -1}
                   onClick={() => {
                     if (gesture.current.dragged) { gesture.current.dragged = false; return }
-                    void selectDestination(item.path)
+                    void selectDestination(item)
                   }}
                   className={cn('academy-wheel-item', (desktop ? isCurrent : index === selected) && 'is-selected', !desktop && Math.abs(distance) === 2 && 'is-edge', !visible && 'is-outside')}
                   style={style}
@@ -233,7 +261,10 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
                     <span className="academy-wheel-name">{lo ? item.lo : item.en}</span>
                     <span className="academy-wheel-detail">{lo ? item.detailLo : item.detail}</span>
                   </span>}
-                  <span className="academy-wheel-icon"><Icon aria-hidden className="h-6 w-6" strokeWidth={1.8} /></span>
+                  <span className="academy-wheel-icon"><Icon aria-hidden className="h-6 w-6" strokeWidth={1.8} />
+                    {!!item.badge && item.badge > 0 && <span className="academy-menu-badge">{item.badge > 99 ? '99+' : item.badge}</span>}
+                  </span>
+                  {!!item.badge && item.badge > 0 && <span id={`academy-pending-${id}-${item.id}`} className="sr-only">{lo ? `ລໍຖ້າ ${item.badge}` : `${item.badge} pending`}</span>}
                 </button>
               )
             })}
@@ -241,7 +272,7 @@ function ResponsiveMenu({ pathname }: { pathname: string }) {
         </div>
         <p className="sr-only">{lo ? 'ເລື່ອນເພື່ອເລືອກ · ແຕະເພື່ອເປີດ' : 'Scroll or swipe to rotate the menu. Tap a destination to open it.'}</p>
       </div>
-      <button ref={trigger} type="button" disabled={departing} aria-label={open ? (lo ? 'ປິດເມນູ' : 'Close menu') : (lo ? 'ເປີດເມນູ' : 'Open menu')} aria-expanded={open} aria-controls="academy-navigation-panel" onClick={() => open ? close() : setOpen(true)} className={cn('academy-menu-trigger', open && 'is-open')}>
+      <button ref={trigger} type="button" disabled={departing} aria-label={open ? (lo ? 'ປິດເມນູ' : 'Close menu') : (lo ? 'ເປີດເມນູ' : 'Open menu')} aria-expanded={open} aria-controls={panelId} onClick={() => open ? close() : setOpen(true)} className={cn('academy-menu-trigger', open && 'is-open')}>
         {open ? <X className="h-6 w-6" /> : desktop ? <Menu className="h-5 w-5" /> : <Grip className="h-6 w-6" />}
       </button>
     </div>, document.body,

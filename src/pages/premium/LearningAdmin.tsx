@@ -9,6 +9,8 @@ import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
+import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
+import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
 type AdminTab = 'lessons' | 'challenges'
 type Category = { id: string; slug: string; name_en: string }
@@ -178,10 +180,11 @@ export function PremiumLearningAdmin() {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950 text-white">
-        <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4">
-          <button onClick={() => navigate('/academy-admin')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
+        <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4 lg:pr-24">
+          <button onClick={() => navigate('/academy-admin')} aria-label="Back to Academy admin" className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p><h1 className="text-xl font-black">Learning content</h1></div>
           <a href="/academy/learn" target="_blank" className="hidden items-center gap-2 text-xs font-bold text-slate-300 sm:flex">Member view <ExternalLink className="h-4 w-4" /></a>
+          <AdminPlatformSwitch platform="academy" />
           <button
             type="button"
             onClick={toggleTheme}
@@ -193,7 +196,8 @@ export function PremiumLearningAdmin() {
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <AcademyAdminMenu />
+      <main className="mx-auto max-w-7xl px-4 py-8 pb-24">
         <div className="flex flex-col gap-4 border-b border-slate-200 dark:border-slate-700 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex gap-2">
