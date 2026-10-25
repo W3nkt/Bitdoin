@@ -2,7 +2,8 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? ''
-const ADMIN_EMAIL = 'wen.kt2020@gmail.com'
+// Platform inbox; the ADMIN_EMAIL function secret overrides it.
+const ADMIN_EMAIL = Deno.env.get('ADMIN_EMAIL') || 'bitdoin0@gmail.com'
 const FROM_EMAIL = Deno.env.get('FROM_EMAIL') ?? 'Bitdoin <onboarding@resend.dev>'
 const ADMIN_APP_URL = (Deno.env.get('ADMIN_APP_URL') ?? '')
   .split('#', 1)[0]
