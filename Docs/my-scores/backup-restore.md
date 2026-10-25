@@ -155,5 +155,18 @@ Findings, all fixed in the scripts:
 5. Cron jobs are paused through `cron.alter_job()`, because `postgres` cannot
    update `cron.job` directly.
 
-**First production drill:** pending the one-time setup. Record its recovery
-time and backup size here.
+**2026-10-25, production, first run**
+([run 40153289539](https://github.com/W3nkt/Bitdoin/actions/runs/40153289539)).
+
+- Backup: 126 tables, 5,699 rows, migration 123, 12 cron jobs; dumped in
+  188 s; 2.5 MB encrypted.
+- Drill:
+  - download 11 s, decrypt 0 s, empty stack 73 s, restore 1 s, verify 0 s;
+  - **data back and checked in 85 s**;
+  - every table and row identical, grants and row-level security as backed up;
+  - backup 2 minutes old.
+- Both runs show on the Health tab.
+
+RTO: the data part takes under 2 minutes, so the 4-hour budget is taken up
+by the manual steps in "Restoring for real" (about 1.5–2 hours). RPO: at
+most 24 hours with nightly backups.

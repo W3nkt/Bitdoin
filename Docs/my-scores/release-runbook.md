@@ -54,13 +54,13 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Function `academic-alerts` (#42): not deployed yet; migration 122 is applied.
-- Migration `123` (#43, backup monitoring).
-- The `backup` environment's two Supabase secrets, then a first run of
-  **Database backup** ([backup-restore.md](backup-restore.md#one-time-setup)).
+- Function `academic-alerts` (#42): not deployed yet. Run this workflow with
+  functions = `academic-alerts`; nothing else is pending.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
-migration 122 by 2026-10-25.
+migrations 122 and 123 on 2026-10-25. **Database backup** is set up; its
+first backup and drill passed on 2026-10-25
+([backup-restore.md](backup-restore.md)).
 
 ## Feature flag
 
