@@ -11,6 +11,7 @@
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test:db": "node supabase/tests/db/run.mjs",
     "test:insights": "node scripts/test-insights.mjs",
+    "test:ocr": "node scripts/test-ocr-extract.mjs",
     "test:e2e": "node scripts/qa-run.mjs"
   },
   "dependencies": {

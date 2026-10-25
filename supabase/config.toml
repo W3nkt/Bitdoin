@@ -77,3 +77,6 @@ verify_jwt = false
 # alerts already queued in the database, at most once each (migration 122).
 [functions.academic-alerts]
 verify_jwt = false
+
+[functions.academic-ocr]
+verify_jwt = false

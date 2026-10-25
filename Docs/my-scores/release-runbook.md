@@ -54,7 +54,9 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Nothing.
+- Migration 139 (score-book scanning: jobs, allowance, duplicates, subject matching, confirmation,
+  retention; **off**) and the new `academic-ocr` Edge Function (`verify_jwt = false`; it checks the
+  student session itself). Nothing changes for students until OCR is switched on.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
 migrations 122–127 on 2026-10-25, with `send-push` and the three admin
@@ -77,6 +79,15 @@ Applied 2026-10-25 (Phase 2, #49 and #50; commit 2ec6ce5):
 Applied 2026-10-26: 138 (feedback on next actions and repetition control,
 LEARN-005) with `supabase db push`, before the frontend with the Done / Not now /
 Not helpful buttons; Lao strings approved by the owner.
+
+### Switching score-book scanning on (P2-OCR #48)
+
+In this order; until then `ocr_enabled` stays `false`:
+1. Vendor assessment for DashScope (no training on inputs, retention, Singapore region) recorded in the processing register (PRIV-006).
+2. QG-3 passed on the #9 hold-out set with `scripts/ocr-eval.mjs`: numeric accuracy >= 90% on clear photos, silent errors <= 2%, flag recall >= 98%.
+3. A privacy-notice version naming the provider and region (counsel), published as `consent_notice_version`.
+4. Add `ocr_processing` to `consent_purposes_enabled`, then set `ocr_enabled` to `true`.
+5. Schedule the storage purge (hourly POST `{"action":"purge"}` to `academic-ocr`).
 
 ## Feature flag
 

@@ -125,3 +125,13 @@ create table public.premium_weekly_challenge_progress (
   completed_at timestamptz,
   unique (user_id, challenge_id)
 );
+
+-- Supabase Storage: only the buckets table the OCR migration (139) writes to.
+create schema if not exists storage;
+create table storage.buckets (
+  id text primary key,
+  name text not null,
+  public boolean default false,
+  file_size_limit bigint,
+  allowed_mime_types text[]
+);

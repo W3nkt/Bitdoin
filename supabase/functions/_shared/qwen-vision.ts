@@ -13,8 +13,11 @@ export async function analyzeImageWithQwen(
   image: { base64: string; mimeType: string },
   prompt: string,
   timeoutMs: number,
+  // Optional overrides (score-book OCR needs more output and may use its own model).
+  options: { model?: string; maxTokens?: number } = {},
 ): Promise<QwenVisionResult> {
   if (!QWEN_API_KEY) throw new Error('QWEN_API_KEY not configured')
+  const model = options.model || QWEN_VISION_MODEL
 
   const response = await fetchWithTimeout(
     `${QWEN_BASE_URL}/chat/completions`,
@@ -25,7 +28,7 @@ export async function analyzeImageWithQwen(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: QWEN_VISION_MODEL,
+        model,
         messages: [{
           role: 'user',
           content: [
@@ -41,7 +44,7 @@ export async function analyzeImageWithQwen(
         }],
         response_format: { type: 'json_object' },
         temperature: 0.1,
-        max_tokens: 1200,
+        max_tokens: options.maxTokens ?? 1200,
       }),
     },
     timeoutMs,
@@ -67,5 +70,5 @@ export async function analyzeImageWithQwen(
     throw new Error('Qwen vision API returned an empty response')
   }
 
-  return { model: QWEN_VISION_MODEL, content }
+  return { model, content }
 }

@@ -45,6 +45,8 @@ jobs:
         run: npm run test:db
       - name: Explanation templates and cause filter
         run: npm run test:insights
+      - name: Score-book extraction core
+        run: npm run test:ocr
 
   e2e:
     name: My Scores browser checks

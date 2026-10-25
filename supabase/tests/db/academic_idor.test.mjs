@@ -26,7 +26,8 @@ const STAFF = { aal: 'aal2' }
 await ok(db, 'users', `insert into public.users (id, name, member_code, role) values
   ('${A}', 'Student A', 'AAA111', 'CUSTOMER'), ('${B}', 'Student B', 'BBB222', 'CUSTOMER'),
   ('${OPS}', 'Ops', 'OPS001', 'OPERATIONS'), ('${OPS2}', 'Ops 2', 'OPS002', 'OPERATIONS'), ('${ADM}', 'Admin', 'ADM001', 'ADMIN')`)
-await ok(db, 'config', CONFIG_SQL)
+// Many attack calls in a few seconds would trip the per-user rate limits (tested in academic_rate_limits).
+await ok(db, 'config', CONFIG_SQL + `update academic_settings set value = '{"read": {"limit": 1000, "seconds": 60}, "write": {"limit": 1000, "seconds": 60}}' where key = 'rate_limits';`)
 await ok(db, 'today', `create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-11-15' $$`)
 
 // ─── Fixtures: A has a submitted, corrected month and a reminder ─────────────
@@ -54,6 +55,14 @@ const aMath = (await one(`select id from academic_subject_enrolments where enrol
 await ok(db, 'practice set', `insert into academic_content_items (kind, external_id, subject_ids, grade_min, grade_max, topic_ids, difficulty, language, est_minutes, status)
   values ('practice_set', '${RANDOM.replace('f0e1', 'ab01')}', array['${ID.math}']::uuid[], 10, 12, array['${RANDOM.replace('f0e1', 'ab01')}']::uuid[], 1, 'lo', 8, 'published')`)
 const aPractice = await rpc(A, `public.academic_start_practice('${RANDOM.replace('f0e1', 'ab01')}')`)
+// ...and a finished score-book scan (migration 139).
+await ok(db, 'OCR on', `update academic_settings set value = 'true' where key = 'ocr_enabled';
+  update academic_settings set value = value || '["ocr_processing"]' where key = 'consent_purposes_enabled'`)
+await rpc(A, `public.academic_grant_consent('ocr_processing', '2026-10-25')`)
+await rpc(B, `public.academic_grant_consent('ocr_processing', '2026-10-25')`)
+const aScan = (await rpc(A, `public.academic_start_ocr_job('${a.enrolment_id}', 'f0f0f0f0f0f0f0f0')`)).job.job_id
+await ok(db, 'scan processed', `select public.academic_ocr_begin('${aScan}', '${A}', '${A}/${aScan}.jpg', 1000);
+  select public.academic_ocr_complete('${aScan}', '{"schema": "ocr_extraction.v1", "periods": []}', 'qwen-vl-max', 'v1', 100)`)
 const aLine = await one(`select l.id, l.version from academic_score_lines l join academic_score_entries e on e.id = l.score_entry_id where e.enrolment_id = '${a.enrolment_id}' and l.status = 'scored'`)
 await rpc(A, `public.academic_correct_score_line('${aLine.id}', ${aLine.version}, ${json({ status: 'scored', value: 8 })}, 'typo')`)
 await ok(db, 'A reminder', `insert into academic_notifications (id, user_id, student_profile_id, category, code, channel, state, dedupe_key, sent_at)
@@ -79,6 +88,12 @@ const BY_ID = [
   'academic_get_quiz_result(uuid)',
   'academic_answer_practice_item(uuid,uuid,text)',
   'academic_finish_practice(uuid)',
+  'academic_start_ocr_job(uuid,text,boolean)',
+  'academic_reuse_ocr_job(uuid)',
+  'academic_get_ocr_job(uuid)',
+  'academic_confirm_ocr_job(uuid,uuid,jsonb,jsonb,integer,boolean)',
+  'academic_discard_ocr_job(uuid)',
+  'academic_delete_ocr_image(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -87,6 +102,7 @@ const OWN_READ = [
   // Builds the caller's own next actions and logs their impressions (migration 136).
   'academic_get_recommendations()',
   'academic_export_my_recommendations()',
+  'academic_ocr_status()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -170,6 +186,12 @@ const attacks = [
   ['academic_get_quiz_result(uuid)', aAttempt, (id) => `public.academic_get_quiz_result('${id}')`],
   ['academic_answer_practice_item(uuid,uuid,text)', aPractice.attempt_id, (id) => `public.academic_answer_practice_item('${id}', '${aPractice.items[0].id}', 'B')`],
   ['academic_finish_practice(uuid)', aPractice.attempt_id, (id) => `public.academic_finish_practice('${id}')`],
+  ['academic_start_ocr_job(uuid,text,boolean)', a.enrolment_id, (id) => `public.academic_start_ocr_job('${id}', '0f0f0f0f0f0f0f0f')`],
+  ['academic_reuse_ocr_job(uuid)', aScan, (id) => `public.academic_reuse_ocr_job('${id}')`],
+  ['academic_get_ocr_job(uuid)', aScan, (id) => `public.academic_get_ocr_job('${id}')`],
+  ['academic_confirm_ocr_job(uuid,uuid,jsonb,jsonb,integer,boolean)', aScan, (id) => `public.academic_confirm_ocr_job('${id}', '${period(3)}', '[]', '[]')`],
+  ['academic_discard_ocr_job(uuid)', aScan, (id) => `public.academic_discard_ocr_job('${id}')`],
+  ['academic_delete_ocr_image(uuid)', aScan, (id) => `public.academic_delete_ocr_image('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -215,6 +237,7 @@ const ownReads = {
   'academic_export_my_reports()': 'public.academic_export_my_reports()',
   'academic_get_recommendations()': 'public.academic_get_recommendations()',
   'academic_export_my_recommendations()': 'public.academic_export_my_recommendations()',
+  'academic_ocr_status()': 'public.academic_ocr_status()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
