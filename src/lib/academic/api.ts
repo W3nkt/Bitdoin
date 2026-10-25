@@ -505,13 +505,15 @@ export function useGrantUsageStatistics() {
 }
 
 export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
-  const [data, quizzes, reports] = await Promise.all([
+  const [data, quizzes, reports, recommendations] = await Promise.all([
     callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
     // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
-    callAcademicRpc<{ attempts: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
+    callAcademicRpc<{ attempts?: Record<string, unknown>[]; practice?: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
     callAcademicRpc<{ reports: Record<string, unknown>[] } | null>('academic_export_my_reports'),
+    // Next actions shown and feedback on them (migration 138).
+    callAcademicRpc<Record<string, unknown> | null>('academic_export_my_recommendations'),
   ])
-  return { ...data, quizzes: quizzes?.attempts ?? [], reports: reports?.reports ?? [] }
+  return { ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] } }
 }
 
 export interface DeletionStatus {
@@ -816,6 +818,16 @@ export function useFinishPractice() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (attemptId: string) => callAcademicRpc<{ attempt_id: string; correct: number; total: number }>('academic_finish_practice', { p_attempt_id: attemptId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'recommendations'] }),
+  })
+}
+
+/** LEARN-005: done (30 days), not now (14 days) or not helpful (180 days) for a shown action. */
+export function useRecommendationFeedback() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ key, response }: { key: string; response: 'done' | 'not_now' | 'not_helpful' }) =>
+      callAcademicRpc<{ item_key: string; response: string }>('academic_recommendation_feedback', { p_item_key: key, p_response: response }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'recommendations'] }),
   })
 }

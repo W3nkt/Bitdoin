@@ -54,40 +54,28 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migrations 129 (analysis engine v2: labels and trends, #49) and 130
-  (`insights_enabled` switch, off). Safe to apply during the pilot: students
-  see no change until the switch is on. Every dashboard rebuilds its snapshot
-  once on the next view (the engine version is part of the input hash).
-- Migration 131 (diagnostic item bank and review workflow, #49): admin-only
-  tables and RPCs, new **Quiz items** tab. Nothing reaches students yet.
-- Migration 132 (diagnostic quizzes, #49): diagnostics in the Quiz items tab;
-  students see a quiz only on a subject needing attention, and only while
-  `insights_enabled` is on. Also replaces `academic_purge_due_deletions()` so
-  the 'scores' deletion scope removes quiz attempts. Includes parallel forms
-  and retakes (QUIZ-004) and the conflicting-evidence note (ANALYSIS-007).
-- Migration 133 ("Report a problem", PRIV-008): live for every student as soon
-  as it is applied (not behind `insights_enabled`); new **Reports** tab for
-  ADMIN and OPERATIONS. Redeploy the `academic-alerts` function so priority
-  reports get their own e-mail wording.
-- Migration 134 switches `insights_enabled` **on** (owner approval 2026-10-25).
-  Apply it together with the frontend deploy: students then see labels,
-  trends, explanations and diagnostic quizzes. During the pilot this also
-  changes what pilot students see; note the date in the weekly pilot report.
-  To release 129–133 without switching on, apply up to 133 first.
-- Migration 135 (content catalogue for recommendations, #50): admin-only
-  table and RPCs, new **Content** tab; reads Academy lessons and challenges
-  read-only (OD-05). Nothing reaches students yet.
-- Migration 136 (weekly next actions engine, #50): `academic_get_recommendations()`
-  and the content-gap log (Content tab).
-- Migration 137 (practice sets, #50): students see the **This week** card on
-  the dashboard and can practise topics at `/academy/scores/practice/:topic`
-  (behind `insights_enabled`). Practice is exported and deleted with scores.
+- Migration 138 (feedback on next actions and repetition control, LEARN-005):
+  apply before the frontend that shows the Done / Not now / Not helpful
+  buttons. Waits for the owner's review of the five new Lao strings
+  (`week.feedback.*` in recommendationCopy.ts).
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
 migrations 122–127 on 2026-10-25, with `send-push` and the three admin
 e-mail functions; migration 128 (pilot, gate off) on 2026-10-25. **Database backup** is set up; its
 first backup and drill passed on 2026-10-25
 ([backup-restore.md](backup-restore.md)).
+
+Applied 2026-10-25 (Phase 2, #49 and #50; commit 2ec6ce5):
+- 129–132 (engine v2, insights switch, item bank, diagnostic quizzes with
+  parallel forms and retakes), then 133–137 with `supabase db push`
+  ("Report a problem", insights **on**, content catalogue, next-actions engine,
+  practice sets). `academic-alerts` redeployed for priority-report e-mails.
+- From this date pilot students see labels, trends, explanations, diagnostic
+  quizzes, the **This week** card and practice sets: note it in the weekly
+  pilot report. Quizzes and practice need approved items, diagnostics and
+  catalogue entries before students see them.
+- Check: production lists 129–137, `insights_enabled = true`, no
+  `academic_*` function callable by `anon`.
 
 ## Feature flag
 

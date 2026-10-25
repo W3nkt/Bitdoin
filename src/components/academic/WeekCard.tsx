@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BookOpen, CalendarCheck, ListChecks, PenLine, Search, Trophy } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
-import { useRecommendations, type Recommendation } from '@/lib/academic/api'
+import { useRecommendationFeedback, useRecommendations, type Recommendation } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
+import { useToast } from '@/components/ui/Toast'
+import { academicErrorText } from './errorText'
 
 const ICONS: Record<Recommendation['kind'], typeof PenLine> = {
   enter_scores: PenLine, diagnostic: ListChecks, practice_set: CalendarCheck, academy_lesson: BookOpen, academy_challenge: Trophy, gap: Search,
@@ -16,6 +18,8 @@ const ICONS: Record<Recommendation['kind'], typeof PenLine> = {
 export function WeekCard() {
   const { t, lo, language } = useAcademicCopy()
   const recommendations = useRecommendations()
+  const feedback = useRecommendationFeedback()
+  const toast = useToast()
   const items = recommendations.data ?? []
   if (items.length === 0) return null
 
@@ -52,6 +56,20 @@ export function WeekCard() {
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
                   {t(`week.action.${item.kind}` as AcademicCopyKey)}<ArrowRight aria-hidden className="h-4 w-4" />
                 </Link>
+              )}
+              {item.kind !== 'gap' && (
+                <div role="group" aria-label={t('week.feedback.label', { title: title(item) })} className="flex w-full flex-wrap gap-1 pl-8">
+                  {(['done', 'not_now', 'not_helpful'] as const).map(response => (
+                    <button key={response} type="button" disabled={feedback.isPending}
+                      onClick={() => feedback.mutate({ key: item.key, response }, {
+                        onSuccess: () => toast.success(t('week.feedback.thanks')),
+                        onError: error => toast.error(academicErrorText(t, error)),
+                      })}
+                      className="rounded-full px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-50 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-gray-900">
+                      {t(`week.feedback.${response}`)}
+                    </button>
+                  ))}
+                </div>
               )}
             </li>
           )

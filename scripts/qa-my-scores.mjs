@@ -158,6 +158,11 @@ function backend(initial) {
     academic_get_quiz_result: () => quizResult(state.quizAnswers ?? {}, state.quizPrevious),
     // Next actions (migration 136) and practice sets (137).
     academic_get_recommendations: () => ({ items: state.recommendations ?? [] }),
+    academic_recommendation_feedback: (args) => {
+      state.feedback = [...(state.feedback ?? []), args]
+      state.recommendations = (state.recommendations ?? []).filter(item => item.key !== args.p_item_key)
+      return { item_key: args.p_item_key, response: args.p_response }
+    },
     academic_start_practice: () => ({
       attempt_id: 'pa1', status: 'in_progress', correct: null, topic: { id: 't1', name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra' },
       items: PRACTICE_ITEMS.map(({ correct_key, explanation_lo, explanation_en, explanation_origin, ...item }) => ({ ...item, feedback: state.practice?.[item.id] ?? null })),
@@ -1100,13 +1105,20 @@ try {
     await week.waitFor()
     const rows = (await week.locator('li').allInnerTexts()).map(r => r.replace(/\s+/g, ' ').trim())
     assert.deepEqual(rows, [
-      'Enter your March scores March scores are not entered yet. About 2 min Enter scores',
-      'Practice: Algebra Because Algebra was Needs practice in your quiz on 12 Oct 2026. About 8 min Practise',
+      'Enter your March scores March scores are not entered yet. About 2 min Enter scores Done Not now Not helpful',
+      'Practice: Algebra Because Algebra was Needs practice in your quiz on 12 Oct 2026. About 8 min Practise Done Not now Not helpful',
       "We don't have practice for Geometry yet.",
     ])
     await shot(page, 'my-scores-25-week-en-mobile')
     await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)), [])
+
+    // LEARN-005: feedback per action; gap cards have none.
+    assert.equal(await week.getByRole('group', { name: /^Feedback on/ }).count(), 2)
+    await week.getByRole('group', { name: 'Feedback on Enter your March scores' }).getByRole('button', { name: 'Not now' }).click()
+    await page.getByText('Thanks. Your list is updated.').waitFor()
+    assert.deepEqual(mock.state.feedback, [{ p_item_key: 'R1:p7', p_response: 'not_now' }])
+    await week.getByText('Enter your March scores').waitFor({ state: 'detached' })
 
     await week.getByRole('link', { name: 'Practise' }).click()
     await page.getByText('Question 1 of 2').waitFor()
@@ -1249,13 +1261,14 @@ try {
     assert.equal(bytes.readUInt32LE(0), 0x04034b50, 'starts with a ZIP local header')
     const eocd = bytes.length - 22
     assert.equal(bytes.readUInt32LE(eocd), 0x06054b50, 'ends with a ZIP directory record')
-    assert.equal(bytes.readUInt16LE(eocd + 10), 7, 'seven files')
-    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json', 'quizzes.json', 'reports.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
+    assert.equal(bytes.readUInt16LE(eocd + 10), 8, 'eight files')
+    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json', 'quizzes.json', 'reports.json', 'recommendations.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
     assert.ok(bytes.includes(Buffer.from('ຄະນິດສາດ')), 'Lao text kept as UTF-8')
+    assert.ok(bytes.includes(Buffer.from('"practice"')), 'quizzes.json carries practice sets')
     await page.getByText('Your data was downloaded.').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json, quizzes.json, reports.json')
+    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json, quizzes.json, reports.json, recommendations.json')
   }
 
   // Export on an old session asks for a fresh sign-in first (PRD §29.6 T3, S-02).

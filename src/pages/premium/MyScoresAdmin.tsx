@@ -2,7 +2,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
-import { cn } from '@/lib/utils'
 import { MfaGate } from '@/components/academic/admin/MfaGate'
 import { SubjectsAdmin } from '@/components/academic/admin/SubjectsAdmin'
 import { ScalesAdmin } from '@/components/academic/admin/ScalesAdmin'
@@ -17,7 +16,7 @@ import { PilotAdmin } from '@/components/academic/admin/PilotAdmin'
 import { QuizBankAdmin } from '@/components/academic/admin/QuizBankAdmin'
 import { ReportsAdmin } from '@/components/academic/admin/ReportsAdmin'
 import { ContentAdmin } from '@/components/academic/admin/ContentAdmin'
-import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
+import { ResponsiveAcademyMenu } from '@/components/academy/AcademyMenu'
 import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
 type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'pilot'
@@ -71,8 +70,22 @@ export function MyScoresAdmin() {
         </div>
       </header>
 
-      <AcademyAdminMenu />
-      <main className="mx-auto max-w-7xl px-4 py-8 pb-24">
+      {active && <ResponsiveAcademyMenu compact pathname="/academy-admin/scores"
+        title={{ en: 'Schooling admin sections', lo: 'ເມນູຈັດການໂຮງຮຽນ' }} brand="BITDOIN SCHOOLING"
+        items={tabs.map((tab, index) => ({
+          id: tab.id,
+          en: tab.label,
+          lo: tab.label,
+          icon: tab.icon,
+          color: ['#3989cd', '#ab69ce', '#6366f1', '#e48b26', '#31a59a', '#df779d'][index % 6],
+          active: tab.id === active.id,
+          onSelect: () => setParams(current => {
+            const next = new URLSearchParams(current)
+            next.set('tab', tab.id)
+            return next
+          }),
+        }))} />}
+      <main className="mx-auto max-w-7xl px-4 py-8 pb-24 [&_section]:min-w-0 [&_article]:min-w-0 [&_table]:relative">
         {!active ? (
           <section className="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-700">
             <h2 className="text-xl font-black">No Schooling access</h2>
@@ -80,16 +93,6 @@ export function MyScoresAdmin() {
           </section>
         ) : (
           <>
-            <nav aria-label="Schooling admin sections" className="mb-6 flex gap-2 overflow-x-auto pb-1">
-              {tabs.map(tab => (
-                <button key={tab.id} type="button" aria-current={tab.id === active.id ? 'page' : undefined}
-                  onClick={() => setParams({ tab: tab.id })}
-                  className={cn('flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-                    tab.id === active.id ? 'bg-slate-950 text-white dark:bg-primary-600' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:text-slate-900 dark:bg-gray-900 dark:text-slate-300 dark:ring-slate-700')}>
-                  <tab.icon className="h-4 w-4" />{tab.label}
-                </button>
-              ))}
-            </nav>
             <MfaGate>
               {active.id === 'subjects' && <SubjectsAdmin />}
               {active.id === 'scales' && <ScalesAdmin />}

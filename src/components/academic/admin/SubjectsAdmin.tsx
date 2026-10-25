@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { FileEdit, Plus, Save, Search, X } from 'lucide-react'
+import {
+  Atom, BookOpenCheck, Calculator, ChevronDown, Dumbbell, FileEdit, FlaskConical,
+  Globe2, GraduationCap, Landmark, Languages, Leaf, Monitor, Palette, Plus,
+  Save, Scale, Search, Sparkles, Tags, X, type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -10,6 +14,21 @@ import {
 import { Empty, Field, IconButton, Panel, Pill, adminErrorText } from './AdminKit'
 
 const blank: SubjectInput = { code: '', name_lo: '', name_en: '', grade_min: 10, grade_max: 12, is_default: false, status: 'active' }
+
+const subjectVisuals: Record<string, { icon: LucideIcon; tone: string }> = {
+  MATH: { icon: Calculator, tone: 'bg-indigo-50 text-indigo-600 ring-indigo-100 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/20' },
+  PHYS: { icon: Atom, tone: 'bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-500/15 dark:text-sky-300 dark:ring-sky-500/20' },
+  CHEM: { icon: FlaskConical, tone: 'bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-500/15 dark:text-violet-300 dark:ring-violet-500/20' },
+  BIO: { icon: Leaf, tone: 'bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/20' },
+  LAO: { icon: BookOpenCheck, tone: 'bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-500/20' },
+  ENG: { icon: Languages, tone: 'bg-blue-50 text-blue-600 ring-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:ring-blue-500/20' },
+  HIST: { icon: Landmark, tone: 'bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/20' },
+  GEO: { icon: Globe2, tone: 'bg-teal-50 text-teal-600 ring-teal-100 dark:bg-teal-500/15 dark:text-teal-300 dark:ring-teal-500/20' },
+  ICT: { icon: Monitor, tone: 'bg-cyan-50 text-cyan-700 ring-cyan-100 dark:bg-cyan-500/15 dark:text-cyan-300 dark:ring-cyan-500/20' },
+  PE: { icon: Dumbbell, tone: 'bg-orange-50 text-orange-600 ring-orange-100 dark:bg-orange-500/15 dark:text-orange-300 dark:ring-orange-500/20' },
+  CIV: { icon: Scale, tone: 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700' },
+  ART: { icon: Palette, tone: 'bg-pink-50 text-pink-600 ring-pink-100 dark:bg-pink-500/15 dark:text-pink-300 dark:ring-pink-500/20' },
+}
 
 /** Subjects, their grade range and aliases (ADMIN-002). */
 export function SubjectsAdmin() {
@@ -55,49 +74,77 @@ export function SubjectsAdmin() {
   return (
     <Panel
       title="Subjects"
-      description="Names students see, which grades each subject applies to, and other names score books use for it (aliases). Defaults are pre-selected for new students."
+      description="Manage subject names, grades and aliases. Default subjects are pre-selected for new students."
       actions={<Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setDraft({ ...blank })}>Add subject</Button>}
     >
-      <label className="mb-4 flex max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 dark:border-slate-700 dark:bg-gray-900">
-        <Search className="h-4 w-4 text-slate-500" />
-        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search subjects or aliases" aria-label="Search subjects or aliases"
-          className="w-full bg-transparent py-2.5 text-sm outline-none" />
-      </label>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex w-full max-w-md items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 transition-colors focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-500/15 dark:border-slate-700 dark:bg-slate-950/40">
+          <Search aria-hidden className="h-4 w-4 shrink-0 text-slate-500" />
+          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search subjects or aliases" aria-label="Search subjects or aliases"
+            className="min-w-0 w-full bg-transparent py-2.5 text-sm outline-none" />
+        </label>
+        {!subjects.isPending && !subjects.isError && <p role="status" className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {term ? `${list.length} of ${subjects.data?.length ?? 0}` : list.length} {subjects.data?.length === 1 ? 'subject' : 'subjects'}
+        </p>}
+      </div>
 
-      {subjects.isPending ? <Skeleton className="h-48 w-full rounded-xl" />
+      {subjects.isPending ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-52 rounded-2xl" />)}</div>
         : subjects.isError ? <Empty>{adminErrorText(subjects.error)}</Empty>
         : list.length === 0 ? <Empty>No subjects match.</Empty>
         : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {list.map(subject => (
-              <li key={subject.id} className="grid gap-3 py-4 sm:grid-cols-[1fr_auto]">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-black text-slate-600 dark:text-slate-400">{subject.code}</span>
-                    <span className="font-black">{subject.name_lo}</span>
-                    <span className="text-sm text-slate-600 dark:text-slate-400">{subject.name_en}</span>
-                    {subject.is_default && <Pill tone="blue">Default</Pill>}
-                    {subject.status === 'archived' && <Pill>Archived</Pill>}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{gradeLabel(subject.grade_min)} – {gradeLabel(subject.grade_max)}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <ul aria-label="Subjects" className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {list.map(subject => {
+              const visual = subjectVisuals[subject.code.toUpperCase()] ?? { icon: BookOpenCheck, tone: 'bg-primary-50 text-primary-600 ring-primary-100 dark:bg-primary-500/15 dark:text-primary-300 dark:ring-primary-500/20' }
+              const SubjectIcon = visual.icon
+              const gradeRange = subject.grade_min === subject.grade_max ? gradeLabel(subject.grade_min) : `${gradeLabel(subject.grade_min)} – ${gradeLabel(subject.grade_max)}`
+              return (
+              <li key={subject.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-[border-color,box-shadow] hover:border-primary-200 hover:shadow-md dark:border-slate-700 dark:bg-slate-950/30 dark:hover:border-primary-700">
+                <div className="flex min-h-16 items-start gap-3">
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ring-inset ${visual.tone}`}>
+                    <SubjectIcon aria-hidden className="h-6 w-6" strokeWidth={1.7} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-mono text-[10px] font-bold tracking-wider text-slate-500 dark:text-slate-400">{subject.code}</span>
+                    <h3 className="mt-0.5 break-words text-sm font-bold leading-5 text-slate-900 dark:text-slate-100">{subject.name_en}</h3>
+                  </div>
+                  <IconButton label={`Edit ${subject.name_en}`} onClick={() => edit(subject)}><FileEdit aria-hidden className="h-4 w-4" /></IconButton>
+                </div>
+                <p lang="lo" className="mt-3 min-h-7 break-words text-sm font-semibold leading-7 text-slate-700 dark:text-slate-300">{subject.name_lo}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    <GraduationCap aria-hidden className="h-3.5 w-3.5" />{gradeRange}
+                  </span>
+                  {subject.is_default && <Pill tone="blue"><Sparkles aria-hidden className="mr-1 h-3 w-3" />Default</Pill>}
+                  {subject.status === 'archived' && <Pill>Archived</Pill>}
+                </div>
+                <details className="group/aliases mt-4 border-t border-slate-100 pt-3 dark:border-slate-800">
+                  <summary aria-label={`Aliases for ${subject.name_en}`} className="flex min-h-7 cursor-pointer list-none items-center gap-2 rounded-lg text-xs font-semibold text-slate-500 transition-colors hover:text-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-slate-400 dark:hover:text-primary-300 [&::-webkit-details-marker]:hidden">
+                    <Tags aria-hidden className="h-3.5 w-3.5" />
+                    <span>Aliases</span>
+                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">{subject.aliases.length}</span>
+                    <ChevronDown aria-hidden className="ml-auto h-3.5 w-3.5 transition-transform group-open/aliases:rotate-180" />
+                  </summary>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
                     {subject.aliases.map(alias => (
-                      <span key={alias.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pl-2.5 pr-1 text-xs font-bold dark:bg-slate-800">
-                        {alias.alias_text}{alias.school_id && <span className="text-slate-500"> · school</span>}
-                        <button type="button" aria-label={`Remove alias ${alias.alias_text}`} onClick={() => deleteAlias.mutate(alias.id, { onError: error => toast.error(adminErrorText(error)) })}
-                          className="grid h-5 w-5 place-items-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700"><X className="h-3 w-3" /></button>
+                      <span key={alias.id} className="inline-flex max-w-full items-center gap-1 rounded-full bg-slate-100 py-0.5 pl-2.5 pr-0.5 text-xs font-semibold dark:bg-slate-800">
+                        <span className="break-words [overflow-wrap:anywhere]">{alias.alias_text}{alias.school_id && <span className="text-slate-500 dark:text-slate-400"> · school</span>}</span>
+                        <button type="button" aria-label={`Remove alias ${alias.alias_text}`} disabled={deleteAlias.isPending} onClick={() => deleteAlias.mutate(alias.id, { onError: error => toast.error(adminErrorText(error)) })}
+                          className="grid h-7 w-7 shrink-0 place-items-center rounded-full transition-colors hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50 dark:hover:bg-slate-700"><X aria-hidden className="h-3 w-3" /></button>
                       </span>
                     ))}
-                    <form onSubmit={event => { event.preventDefault(); submitAlias(subject.id) }} className="inline-flex">
-                      <input value={aliasText[subject.id] ?? ''} onChange={event => setAliasText(current => ({ ...current, [subject.id]: event.target.value }))}
-                        placeholder="+ alias" aria-label={`Add alias for ${subject.name_en}`} maxLength={80}
-                        className="w-28 rounded-full border border-dashed border-slate-300 bg-transparent px-2.5 py-0.5 text-xs outline-none focus:border-primary-500 dark:border-slate-600" />
-                    </form>
+                    {subject.aliases.length === 0 && <p className="text-xs text-slate-500 dark:text-slate-400">No aliases yet.</p>}
                   </div>
-                </div>
-                <div className="flex gap-2"><IconButton label={`Edit ${subject.name_en}`} onClick={() => edit(subject)}><FileEdit className="h-4 w-4" /></IconButton></div>
+                  <form onSubmit={event => { event.preventDefault(); submitAlias(subject.id) }} className="mt-3 flex gap-2">
+                    <input value={aliasText[subject.id] ?? ''} onChange={event => setAliasText(current => ({ ...current, [subject.id]: event.target.value }))}
+                      placeholder="Add another name" aria-label={`Add alias for ${subject.name_en}`} maxLength={80}
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-transparent px-2.5 py-2 text-xs outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 dark:border-slate-700" />
+                    <button type="submit" aria-label={`Save alias for ${subject.name_en}`} disabled={addAlias.isPending || !(aliasText[subject.id] ?? '').trim()}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700 transition-colors hover:bg-primary-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:opacity-50 dark:bg-primary-500/15 dark:text-primary-300 dark:hover:bg-primary-500/25"><Plus aria-hidden className="h-4 w-4" /></button>
+                  </form>
+                </details>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
 

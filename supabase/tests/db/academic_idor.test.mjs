@@ -86,6 +86,7 @@ const OWN_READ = [
   'academic_export_my_quizzes()', 'academic_export_my_reports()',
   // Builds the caller's own next actions and logs their impressions (migration 136).
   'academic_get_recommendations()',
+  'academic_export_my_recommendations()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -105,6 +106,8 @@ const OWN_WRITE = [
   'academic_report_problem(jsonb)',
   // Takes a quiz topic's id (shared content); the attempt is the caller's own (migration 137).
   'academic_start_practice(uuid)',
+  // Feedback on a next action: accepts only keys from the caller's own impressions (migration 138).
+  'academic_recommendation_feedback(text,text)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -211,6 +214,7 @@ const ownReads = {
   'academic_export_my_quizzes()': 'public.academic_export_my_quizzes()',
   'academic_export_my_reports()': 'public.academic_export_my_reports()',
   'academic_get_recommendations()': 'public.academic_get_recommendations()',
+  'academic_export_my_recommendations()': 'public.academic_export_my_recommendations()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

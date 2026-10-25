@@ -13,3 +13,7 @@ dev-dist
 dist-qa
 qa-artifacts
 .claude/settings.local.json
+# Local UAT stack (scripts/uat)
+.uat/
+dist-uat/
+uat-artifacts/

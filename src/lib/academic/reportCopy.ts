@@ -1,6 +1,6 @@
 // Strings for "Report a problem" (PRIV-008). Spread into copy.ts. Lao strings
 // reviewed and approved by the owner on 2026-10-25; changes need the same review.
-
+http://localhost:5173/academy-admin/scores?tab=subjects
 export const reportCopy = {
   'report.link': { en: 'Report a problem', lo: 'ລາຍງານບັນຫາ' },
   'report.title': { en: 'Report a problem', lo: 'ລາຍງານບັນຫາ' },

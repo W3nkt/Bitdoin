@@ -42,12 +42,13 @@ export interface AcademyMenuItem {
   badge?: number
 }
 
-export function ResponsiveAcademyMenu({ pathname, items, title, brand, preload }: {
+export function ResponsiveAcademyMenu({ pathname, items, title, brand, preload, compact = false }: {
   pathname: string
   items: readonly AcademyMenuItem[]
   title: { en: string; lo: string }
   brand: string
   preload?: (path: string) => Promise<unknown>
+  compact?: boolean
 }) {
   const navigate = useNavigate()
   const { language } = useLanguage()
@@ -185,7 +186,7 @@ export function ResponsiveAcademyMenu({ pathname, items, title, brand, preload }
 
   const selectedItem = items[selected] ?? items[0]
   return createPortal(
-    <div data-no-premium-translate aria-busy={departing || undefined} className={cn('academy-navigation', desktop ? 'is-desktop' : 'is-mobile', departing && 'is-navigating')}>
+    <div data-no-premium-translate aria-busy={departing || undefined} className={cn('academy-navigation', desktop ? 'is-desktop' : 'is-mobile', compact && 'is-compact', departing && 'is-navigating')}>
       <div aria-hidden onClick={close} className={cn('academy-menu-backdrop', open && 'is-open')} />
       <div ref={panel} id={panelId} role="dialog" aria-modal={open ? true : undefined} aria-labelledby={titleId} aria-hidden={!open} {...(!open ? { inert: '' } : {})} className={cn('academy-menu-panel', open && 'is-open')}>
         <div className="academy-menu-heading">

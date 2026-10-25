@@ -30,6 +30,21 @@
 .is-desktop .academy-wheel-detail { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.6; }
 .is-desktop .academy-wheel-icon { width: 40px; height: 40px; border-radius: 12px; background: #fff; }
 
+/* Schooling has more sections, so its sidebar uses compact rows. */
+.is-desktop.is-compact .academy-menu-panel { width: 180px; }
+.is-desktop.is-compact .academy-menu-heading { gap: 8px; padding: 12px; }
+.is-desktop.is-compact .academy-menu-heading > div { min-width: 0; }
+.is-desktop.is-compact .academy-menu-heading p { font-size: 8px; letter-spacing: .1em; }
+.is-desktop.is-compact .academy-menu-heading h2 { font-size: 14px; line-height: 20px; }
+.is-desktop.is-compact .academy-menu-close { width: 28px; height: 32px; }
+.is-desktop.is-compact .academy-menu-close > svg { width: 16px; height: 16px; }
+.is-desktop.is-compact .academy-wheel-scroll { padding: 8px; }
+.is-desktop.is-compact .academy-wheel-item { min-height: 44px; gap: 8px; margin-bottom: 2px; padding: 6px; border-radius: 10px; }
+.is-desktop.is-compact .academy-wheel-name { font-size: 12px; line-height: 18px; }
+.is-desktop.is-compact .academy-wheel-detail { display: none; }
+.is-desktop.is-compact .academy-wheel-icon { width: 28px; height: 28px; border-radius: 9px; }
+.is-desktop.is-compact .academy-wheel-icon > svg { width: 18px; height: 18px; }
+
 /* Mobile: rotating outer rings and a separate corner-expanding white hub. */
 .is-mobile .academy-menu-backdrop { background: transparent; backdrop-filter: none; }
 .is-mobile .academy-menu-trigger { top: auto; bottom: max(20px, env(safe-area-inset-bottom)); z-index: 62; width: 44px; height: 44px; background: #f7931a; border-color: #ffc575; box-shadow: 0 5px 18px rgb(247 147 26 / .3); }
