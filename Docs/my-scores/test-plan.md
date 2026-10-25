@@ -59,6 +59,8 @@ eight observations §20.6 requires for high trend confidence.
 
 ## Device and browser matrix (PRD NFR, §35.1)
 
+Agreed by the owner on 2026-10-25.
+
 | Tier | Device / browser | How |
 |---|---|---|
 | A | Android Chrome, 360 × 800, low-end (2 GB RAM, Android 10+) | Automated emulation every push; real-device session before each release |
