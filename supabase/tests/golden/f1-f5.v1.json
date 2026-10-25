@@ -1,0 +1,1746 @@
+{
+  "version": "f1-f5.v1",
+  "engine": "f1-f5@1.0.0",
+  "config": {
+    "window_size": 6,
+    "coverage_min": "1/2",
+    "about_same_band_0_10": "1/4"
+  },
+  "generated_by": "supabase/tests/golden/reference.mjs (exact fractions, independent of the SQL engine)",
+  "notes": "Expected values are exact fractions as strings. Engine output must match to 1e-9. Periods are monthly sequences of the 2026-2027 national calendar (1 = September).",
+  "cases": [
+    {
+      "id": "G01",
+      "title": "PRD §20.9 worked example: six subjects, six months, Physics January missing",
+      "source": "PRD §20.9 / Appendix C (C1)",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "MATH": 6,
+            "PHYS": 7,
+            "CHEM": 7.5,
+            "BIO": 8.5,
+            "LAO": 8,
+            "ENG": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "MATH": 7,
+            "PHYS": 6,
+            "CHEM": 8,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 7
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "MATH": 6.5,
+            "PHYS": 6.5,
+            "CHEM": 8,
+            "BIO": 8.5,
+            "LAO": 7.5,
+            "ENG": 5
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "MATH": 5.5,
+            "PHYS": 6,
+            "CHEM": 8.5,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 8
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "MATH": 5,
+            "PHYS": "missing",
+            "CHEM": 8,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 6
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "MATH": 5.5,
+            "PHYS": 6,
+            "CHEM": 8.5,
+            "BIO": 9.5,
+            "LAO": 8,
+            "ENG": 7.5
+          }
+        }
+      ],
+      "prd": {
+        "period_means": [
+          7.17,
+          7.5,
+          7,
+          7.5,
+          7.2,
+          7.5
+        ],
+        "period_changes": [
+          null,
+          0.33,
+          -0.5,
+          0.5,
+          -0.3,
+          0.3
+        ],
+        "rolling": [
+          null,
+          null,
+          7.22,
+          7.33,
+          7.23,
+          7.4
+        ],
+        "subject_means": {
+          "MATH": 5.92,
+          "PHYS": 6.3,
+          "CHEM": 8.08,
+          "BIO": 8.92,
+          "LAO": 7.92,
+          "ENG": 6.58
+        }
+      },
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "43/6",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "15/2",
+            "change": {
+              "value": "1/3",
+              "direction": "up",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "7",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "65/9"
+          },
+          {
+            "seq": 4,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "15/2",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 3,
+              "skipped": 0
+            },
+            "rolling": "22/3"
+          },
+          {
+            "seq": 5,
+            "recorded": 5,
+            "active": 6,
+            "missing": 1,
+            "coverage": "5/6",
+            "mean": "36/5",
+            "change": {
+              "value": "-3/10",
+              "direction": "down",
+              "compared_seq": 4,
+              "skipped": 0
+            },
+            "rolling": "217/30"
+          },
+          {
+            "seq": 6,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "15/2",
+            "change": {
+              "value": "3/10",
+              "direction": "up",
+              "compared_seq": 5,
+              "skipped": 0
+            },
+            "rolling": "37/5"
+          }
+        ],
+        "subjects": {
+          "MATH": {
+            "n": 6,
+            "mean": "71/12",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          },
+          "PHYS": {
+            "n": 5,
+            "mean": "63/10",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 4
+            }
+          },
+          "CHEM": {
+            "n": 6,
+            "mean": "97/12",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          },
+          "BIO": {
+            "n": 6,
+            "mean": "107/12",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          },
+          "LAO": {
+            "n": 6,
+            "mean": "95/12",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 5
+            }
+          },
+          "ENG": {
+            "n": 6,
+            "mean": "79/12",
+            "change": {
+              "value": "3/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G02",
+      "title": "Only three months (C4): no rolling mean before month 3, subject means from 2–3 values",
+      "source": "Appendix C (C4)",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 7,
+            "S3": 8,
+            "S4": 9
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 6.5,
+            "S2": 7,
+            "S3": 8,
+            "S4": 9
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 8.5,
+            "S4": 9
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "15/2",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "61/8",
+            "change": {
+              "value": "1/8",
+              "direction": "same",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "63/8",
+            "change": {
+              "value": "1/4",
+              "direction": "up",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "23/3"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 3,
+            "mean": "13/2",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 2
+            }
+          },
+          "S2": {
+            "n": 3,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 2
+            }
+          },
+          "S3": {
+            "n": 3,
+            "mean": "49/6",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 2
+            }
+          },
+          "S4": {
+            "n": 3,
+            "mean": "9",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 2
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G03",
+      "title": "Zero scores and every status (C5): 0 is a score; missing stays in the denominator; N/A and exempt leave it",
+      "source": "Appendix C (C5), §20.7",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 0,
+            "S2": 5,
+            "S3": 6,
+            "S4": "missing",
+            "S5": "not_applicable",
+            "S6": "exempt"
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 0,
+            "S2": 0,
+            "S3": 0,
+            "S4": 0,
+            "S5": 0,
+            "S6": 0
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": "missing",
+            "S2": "missing",
+            "S3": "missing",
+            "S4": 4,
+            "S5": "not_applicable",
+            "S6": "exempt"
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 10,
+            "S2": "missing",
+            "S3": 8,
+            "S4": 9,
+            "S5": "not_applicable",
+            "S6": "exempt"
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 3,
+            "active": 4,
+            "missing": 1,
+            "coverage": "3/4",
+            "mean": "11/3",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 6,
+            "active": 6,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "0",
+            "change": {
+              "value": "-11/3",
+              "direction": "down",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 1,
+            "active": 4,
+            "missing": 3,
+            "coverage": "1/4",
+            "mean": null,
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 4,
+            "recorded": 3,
+            "active": 4,
+            "missing": 1,
+            "coverage": "3/4",
+            "mean": "9",
+            "change": {
+              "value": "9",
+              "direction": "up",
+              "compared_seq": 2,
+              "skipped": 1
+            },
+            "rolling": null
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 3,
+            "mean": "10/3",
+            "change": {
+              "value": "10",
+              "direction": "up",
+              "compared_seq": 2
+            }
+          },
+          "S2": {
+            "n": 2,
+            "mean": "5/2",
+            "change": null
+          },
+          "S3": {
+            "n": 3,
+            "mean": "14/3",
+            "change": {
+              "value": "8",
+              "direction": "up",
+              "compared_seq": 2
+            }
+          },
+          "S4": {
+            "n": 3,
+            "mean": "13/3",
+            "change": {
+              "value": "5",
+              "direction": "up",
+              "compared_seq": 3
+            }
+          },
+          "S5": {
+            "n": 1,
+            "mean": null,
+            "change": null
+          },
+          "S6": {
+            "n": 1,
+            "mean": null,
+            "change": null
+          }
+        }
+      }
+    },
+    {
+      "id": "G04",
+      "title": "Coverage just below and exactly at 50%",
+      "source": "F1 minimum data, §20.7",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 7,
+            "S4": 7,
+            "S5": "missing",
+            "S6": "missing",
+            "S7": "missing"
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 7,
+            "S4": "missing",
+            "S5": "missing",
+            "S6": "missing",
+            "S7": "missing"
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 7,
+            "S4": "missing",
+            "S5": "missing",
+            "S6": "missing",
+            "S7": "not_applicable"
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 7,
+            "S4": 7,
+            "S5": 7,
+            "S6": 7,
+            "S7": 7
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 4,
+            "active": 7,
+            "missing": 3,
+            "coverage": "4/7",
+            "mean": "7",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 3,
+            "active": 7,
+            "missing": 4,
+            "coverage": "3/7",
+            "mean": null,
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 3,
+            "active": 6,
+            "missing": 3,
+            "coverage": "1/2",
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 1,
+              "skipped": 1
+            },
+            "rolling": null
+          },
+          {
+            "seq": 4,
+            "recorded": 7,
+            "active": 7,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3,
+              "skipped": 0
+            },
+            "rolling": null
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 4,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3
+            }
+          },
+          "S2": {
+            "n": 4,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3
+            }
+          },
+          "S3": {
+            "n": 4,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3
+            }
+          },
+          "S4": {
+            "n": 2,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 1
+            }
+          },
+          "S5": {
+            "n": 1,
+            "mean": null,
+            "change": null
+          },
+          "S6": {
+            "n": 1,
+            "mean": null,
+            "change": null
+          },
+          "S7": {
+            "n": 1,
+            "mean": null,
+            "change": null
+          }
+        }
+      }
+    },
+    {
+      "id": "G05",
+      "title": "A month not recorded: changes skip it, rolling means need three consecutive months",
+      "source": "§20.7 missing whole period, CALC-3",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 7,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 6.5,
+            "S2": 7,
+            "S3": 6
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 6
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 7.5,
+            "S2": 7,
+            "S3": 6.5
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "S1": 8,
+            "S2": 7.5,
+            "S3": 6
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "6",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "13/2",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 4,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "20/3",
+            "change": {
+              "value": "1/6",
+              "direction": "same",
+              "compared_seq": 2,
+              "skipped": 1
+            },
+            "rolling": null
+          },
+          {
+            "seq": 5,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "7",
+            "change": {
+              "value": "1/3",
+              "direction": "up",
+              "compared_seq": 4,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 6,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "43/6",
+            "change": {
+              "value": "1/6",
+              "direction": "same",
+              "compared_seq": 5,
+              "skipped": 0
+            },
+            "rolling": "125/18"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 5,
+            "mean": "7",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          },
+          "S2": {
+            "n": 5,
+            "mean": "71/10",
+            "change": {
+              "value": "1/2",
+              "direction": "up",
+              "compared_seq": 5
+            }
+          },
+          "S3": {
+            "n": 5,
+            "mean": "59/10",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 5
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G06",
+      "title": "\"About the same\" band edges on 0–10: ±0.25 is a change, 0.125 is not",
+      "source": "CALC-1",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 6,
+            "S2": 6,
+            "S3": 6,
+            "S4": 7
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 6,
+            "S2": 6,
+            "S3": 6.5,
+            "S4": 7
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 6,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6.5
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "6",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "25/4",
+            "change": {
+              "value": "1/4",
+              "direction": "up",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "51/8",
+            "change": {
+              "value": "1/8",
+              "direction": "same",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "149/24"
+          },
+          {
+            "seq": 4,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "49/8",
+            "change": {
+              "value": "-1/4",
+              "direction": "down",
+              "compared_seq": 3,
+              "skipped": 0
+            },
+            "rolling": "25/4"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 4,
+            "mean": "6",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3
+            }
+          },
+          "S2": {
+            "n": 4,
+            "mean": "6",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 3
+            }
+          },
+          "S3": {
+            "n": 4,
+            "mean": "49/8",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 3
+            }
+          },
+          "S4": {
+            "n": 4,
+            "mean": "53/8",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 3
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G07",
+      "title": "0–50 scale: the band scales to 1.25",
+      "source": "CALC-1, §20.3",
+      "scale": {
+        "school": "school50",
+        "min": 0,
+        "max": 50
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 30,
+            "S2": 30,
+            "S3": 30,
+            "S4": 30
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 30,
+            "S2": 30,
+            "S3": 31,
+            "S4": 31
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 31,
+            "S2": 31,
+            "S3": 32,
+            "S4": 31
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 32,
+            "S2": 32,
+            "S3": 32,
+            "S4": 32
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 33,
+            "S2": 33,
+            "S3": 33,
+            "S4": 34
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "30",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "61/2",
+            "change": {
+              "value": "1/2",
+              "direction": "same",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "125/4",
+            "change": {
+              "value": "3/4",
+              "direction": "same",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "367/12"
+          },
+          {
+            "seq": 4,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "32",
+            "change": {
+              "value": "3/4",
+              "direction": "same",
+              "compared_seq": 3,
+              "skipped": 0
+            },
+            "rolling": "125/4"
+          },
+          {
+            "seq": 5,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "133/4",
+            "change": {
+              "value": "5/4",
+              "direction": "up",
+              "compared_seq": 4,
+              "skipped": 0
+            },
+            "rolling": "193/6"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 5,
+            "mean": "156/5",
+            "change": {
+              "value": "1",
+              "direction": "same",
+              "compared_seq": 4
+            }
+          },
+          "S2": {
+            "n": 5,
+            "mean": "156/5",
+            "change": {
+              "value": "1",
+              "direction": "same",
+              "compared_seq": 4
+            }
+          },
+          "S3": {
+            "n": 5,
+            "mean": "158/5",
+            "change": {
+              "value": "1",
+              "direction": "same",
+              "compared_seq": 4
+            }
+          },
+          "S4": {
+            "n": 5,
+            "mean": "158/5",
+            "change": {
+              "value": "2",
+              "direction": "up",
+              "compared_seq": 4
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G08",
+      "title": "Eight months: subject means use the last six submitted months only",
+      "source": "CALC-2",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 2,
+            "S2": 9,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 4,
+            "S2": 9,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 6,
+            "S2": "missing",
+            "S3": 5
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 6,
+            "S2": 8,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 6,
+            "S2": 8,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "S1": 6,
+            "S2": 8,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 7,
+          "lines": {
+            "S1": 6,
+            "S2": 8,
+            "S3": 5
+          }
+        },
+        {
+          "seq": 8,
+          "lines": {
+            "S1": 6,
+            "S2": "missing",
+            "S3": 10
+          }
+        }
+      ],
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "16/3",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "6",
+            "change": {
+              "value": "2/3",
+              "direction": "up",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 2,
+            "active": 3,
+            "missing": 1,
+            "coverage": "2/3",
+            "mean": "11/2",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "101/18"
+          },
+          {
+            "seq": 4,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "19/3",
+            "change": {
+              "value": "5/6",
+              "direction": "up",
+              "compared_seq": 3,
+              "skipped": 0
+            },
+            "rolling": "107/18"
+          },
+          {
+            "seq": 5,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "19/3",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 4,
+              "skipped": 0
+            },
+            "rolling": "109/18"
+          },
+          {
+            "seq": 6,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "19/3",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 5,
+              "skipped": 0
+            },
+            "rolling": "19/3"
+          },
+          {
+            "seq": 7,
+            "recorded": 3,
+            "active": 3,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "19/3",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 6,
+              "skipped": 0
+            },
+            "rolling": "19/3"
+          },
+          {
+            "seq": 8,
+            "recorded": 2,
+            "active": 3,
+            "missing": 1,
+            "coverage": "2/3",
+            "mean": "8",
+            "change": {
+              "value": "5/3",
+              "direction": "up",
+              "compared_seq": 7,
+              "skipped": 0
+            },
+            "rolling": "62/9"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 6,
+            "mean": "6",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 7
+            }
+          },
+          "S2": {
+            "n": 4,
+            "mean": "8",
+            "change": null
+          },
+          "S3": {
+            "n": 6,
+            "mean": "35/6",
+            "change": {
+              "value": "5",
+              "direction": "up",
+              "compared_seq": 7
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G09",
+      "title": "Transfer to a 0–50 school in month 4 (C2/C3): each enrolment is analysed on its own scale",
+      "source": "Appendix C (C2, C3), §20.7",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 5,
+            "S3": 9
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 7,
+            "S2": 5,
+            "S3": 9
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 9
+          }
+        }
+      ],
+      "transfer": {
+        "effective_seq": 4,
+        "scale": {
+          "school": "school50",
+          "min": 0,
+          "max": 50
+        },
+        "months": [
+          {
+            "seq": 4,
+            "lines": {
+              "S1": 35,
+              "S2": 25,
+              "S3": 45
+            }
+          },
+          {
+            "seq": 5,
+            "lines": {
+              "S1": 40,
+              "S2": 25,
+              "S3": "missing"
+            }
+          },
+          {
+            "seq": 6,
+            "lines": {
+              "S1": 40,
+              "S2": 30,
+              "S3": 45
+            }
+          }
+        ]
+      },
+      "expected": {
+        "before": {
+          "periods": [
+            {
+              "seq": 1,
+              "recorded": 3,
+              "active": 3,
+              "missing": 0,
+              "coverage": "1",
+              "mean": "20/3",
+              "change": null,
+              "rolling": null
+            },
+            {
+              "seq": 2,
+              "recorded": 3,
+              "active": 3,
+              "missing": 0,
+              "coverage": "1",
+              "mean": "7",
+              "change": {
+                "value": "1/3",
+                "direction": "up",
+                "compared_seq": 1,
+                "skipped": 0
+              },
+              "rolling": null
+            },
+            {
+              "seq": 3,
+              "recorded": 3,
+              "active": 3,
+              "missing": 0,
+              "coverage": "1",
+              "mean": "23/3",
+              "change": {
+                "value": "2/3",
+                "direction": "up",
+                "compared_seq": 2,
+                "skipped": 0
+              },
+              "rolling": "64/9"
+            }
+          ],
+          "subjects": {
+            "S1": {
+              "n": 3,
+              "mean": "7",
+              "change": {
+                "value": "1",
+                "direction": "up",
+                "compared_seq": 2
+              }
+            },
+            "S2": {
+              "n": 3,
+              "mean": "16/3",
+              "change": {
+                "value": "1",
+                "direction": "up",
+                "compared_seq": 2
+              }
+            },
+            "S3": {
+              "n": 3,
+              "mean": "9",
+              "change": {
+                "value": "0",
+                "direction": "same",
+                "compared_seq": 2
+              }
+            }
+          }
+        },
+        "after": {
+          "periods": [
+            {
+              "seq": 4,
+              "recorded": 3,
+              "active": 3,
+              "missing": 0,
+              "coverage": "1",
+              "mean": "35",
+              "change": null,
+              "rolling": null
+            },
+            {
+              "seq": 5,
+              "recorded": 2,
+              "active": 3,
+              "missing": 1,
+              "coverage": "2/3",
+              "mean": "65/2",
+              "change": {
+                "value": "-5/2",
+                "direction": "down",
+                "compared_seq": 4,
+                "skipped": 0
+              },
+              "rolling": null
+            },
+            {
+              "seq": 6,
+              "recorded": 3,
+              "active": 3,
+              "missing": 0,
+              "coverage": "1",
+              "mean": "115/3",
+              "change": {
+                "value": "35/6",
+                "direction": "up",
+                "compared_seq": 5,
+                "skipped": 0
+              },
+              "rolling": "635/18"
+            }
+          ],
+          "subjects": {
+            "S1": {
+              "n": 3,
+              "mean": "115/3",
+              "change": {
+                "value": "0",
+                "direction": "same",
+                "compared_seq": 5
+              }
+            },
+            "S2": {
+              "n": 3,
+              "mean": "80/3",
+              "change": {
+                "value": "5",
+                "direction": "up",
+                "compared_seq": 5
+              }
+            },
+            "S3": {
+              "n": 2,
+              "mean": "45",
+              "change": {
+                "value": "0",
+                "direction": "same",
+                "compared_seq": 4
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "G10",
+      "title": "Retry and correction: a replayed submit changes nothing; a corrected score changes F1, F3, F5 and F2",
+      "source": "SCORE-007, ANALYSIS-006",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 7,
+            "S3": 8,
+            "S4": 5
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 6,
+            "S2": 7,
+            "S3": 8,
+            "S4": 6
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 7,
+            "S2": 7,
+            "S3": 8,
+            "S4": 6
+          }
+        }
+      ],
+      "retry_seq": 3,
+      "correction": {
+        "seq": 2,
+        "subject": "S1",
+        "value": 9
+      },
+      "expected": {
+        "periods": [
+          {
+            "seq": 1,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "13/2",
+            "change": null,
+            "rolling": null
+          },
+          {
+            "seq": 2,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "15/2",
+            "change": {
+              "value": "1",
+              "direction": "up",
+              "compared_seq": 1,
+              "skipped": 0
+            },
+            "rolling": null
+          },
+          {
+            "seq": 3,
+            "recorded": 4,
+            "active": 4,
+            "missing": 0,
+            "coverage": "1",
+            "mean": "7",
+            "change": {
+              "value": "-1/2",
+              "direction": "down",
+              "compared_seq": 2,
+              "skipped": 0
+            },
+            "rolling": "7"
+          }
+        ],
+        "subjects": {
+          "S1": {
+            "n": 3,
+            "mean": "22/3",
+            "change": {
+              "value": "-2",
+              "direction": "down",
+              "compared_seq": 2
+            }
+          },
+          "S2": {
+            "n": 3,
+            "mean": "7",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 2
+            }
+          },
+          "S3": {
+            "n": 3,
+            "mean": "8",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 2
+            }
+          },
+          "S4": {
+            "n": 3,
+            "mean": "17/3",
+            "change": {
+              "value": "0",
+              "direction": "same",
+              "compared_seq": 2
+            }
+          }
+        }
+      }
+    }
+  ]
+}
