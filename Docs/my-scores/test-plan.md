@@ -20,6 +20,30 @@ All automated suites run in CI on every push and gate the Pages deploy
 | Localisation, accessibility | Checklist §35.3 | #39 |
 | UAT | Appendix E scripts with pilot users | #40 |
 
+## Automated coverage (QA-002, #38)
+
+| Area | API / database (PGlite, real migrations) | Browser (Playwright, mocked API) |
+|---|---|---|
+| J1 first-time student: Academy → set-up → first month → dashboard | `academic_profiles`, `academic_scores`, `academic_analysis` | Android/Lao and desktop/English set-up, entry, dashboard |
+| J2 monthly return (manual entry; photo is Phase 2) | drafts, idempotent submit, corrections (`academic_scores`) | Entry, offline draft and retry, duplicate period, correction |
+| J6 new school year | promotion, repeat, transfer, leaving (`academic_profiles`) | New school year, mid-year transfer |
+| J7 admin configures a grading scale | versions, approval, four-eyes, audit (`academic_admin`) | Scales: invalid pass mark, draft version, approval |
+| Admin authorisation | every staff RPC refused to students and to staff without MFA (`academic_idor`, `academic_admin`) | MFA set-up and code, Operations sees two tabs, Finance no access |
+| In-app reminders | schedule, caps, quiet hours, settle on submit (`academic_notifications`) | Bell count, banner, inbox, settings (Lao and English) |
+| Shared phone | drafts and caches keyed by account | Other accounts' drafts purged; after sign-out the next student signing in on the same tab never sees the previous account's data |
+| Data isolation (QG-2) | registry of every callable RPC × another student's ids, RLS backstop (`academic_idor`, `academic_policies`) | — |
+| Privacy | consent, export, deletion and purge (`academic_privacy`) | Export ZIP, fresh sign-in, deletion schedule, consents |
+
+J3–J5 (diagnostics, guardians, careers) are later phases. CI runs both
+harnesses on every push and blocks the deploy if either fails.
+
+**Flaky rate (target < 2%), measured 2026-10-25:**
+- **Locally:** ten back-to-back runs of both suites gave 0 failures: 200 database test-file runs and 360 browser-scenario runs. With 0 of 560, the 95% upper bound is about 0.5%.
+- **In CI**, since the test gates started on 24 October, two runs failed:
+  - one real failure: a missing test key;
+  - one flaky test: a timing race in the backup test, fixed the same day by making the test deterministic.
+- **If a test flakes again:** fix the test before re-running. A quarantined test still counts as failed.
+
 ## Golden fixtures (QG-1)
 
 - **File:** `supabase/tests/golden/f1-f5.v1.json`, built by `node supabase/tests/golden/build.mjs`.
