@@ -25,7 +25,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  Store,
   Users,
   WandSparkles,
   XCircle,
@@ -1532,15 +1531,6 @@ export function PremiumAdminDashboard() {
                   >
                     <Settings className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                     Profile settings
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => navigate('/admin')}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
-                  >
-                    <Store className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    Switch to Bookstore Admin
                   </button>
                   <button
                     type="button"

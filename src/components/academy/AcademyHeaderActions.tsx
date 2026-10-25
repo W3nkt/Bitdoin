@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeftRight, Languages, Moon, Sun } from 'lucide-react'
+import { Languages, Moon, Sun } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { PremiumProfileMenu } from '@/components/premium/ProfileMenu'
 import { useAuth } from '@/context/AuthContext'
@@ -17,17 +17,12 @@ export function AcademyHeaderActions({ guestAction }: { guestAction?: ReactNode 
   const dark = useTheme(state => state.theme) === 'dark'
   const toggleTheme = useTheme(state => state.toggleTheme)
   const lo = language === 'lo'
-  const switchPlatform = lo ? 'ປ່ຽນແພລດຟອມ' : 'Switch platform'
   const switchTheme = dark
     ? (lo ? 'ປ່ຽນເປັນໂໝດສະຫວ່າງ' : 'Switch to light mode')
     : (lo ? 'ປ່ຽນເປັນໂໝດມືດ' : 'Switch to dark mode')
 
   return (
     <div className={cn('ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5', profile && location.pathname.startsWith('/academy/') && 'lg:mr-16')}>
-      <Link data-no-premium-translate to="/" aria-label={switchPlatform} title={switchPlatform} className={cn(controlClass, 'px-2 text-xs font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white lg:px-3')}>
-        <ArrowLeftRight className="h-[18px] w-[18px] lg:hidden" />
-        <span className="hidden whitespace-nowrap lg:inline">{switchPlatform}</span>
-      </Link>
       <button data-no-premium-translate type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} aria-label={lo ? 'English' : 'ລາວ'} title={lo ? 'English' : 'ລາວ'} className={cn(controlClass, 'gap-1.5 px-2.5 text-xs font-bold sm:px-3')}>
         <Languages className="h-4 w-4" />
         <span className="hidden min-[420px]:inline">{lo ? 'English' : 'ລາວ'}</span>
