@@ -103,7 +103,7 @@ export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload):
     return {
       title: '📒 My Scores',
       body: month ? `Whenever you're ready, add your ${month} scores.` : "Whenever you're ready, add this month's scores.",
-      url: '/academy/scores',
+      url: '/academy/scores?from=reminder',
       tag,
     }
   }
@@ -111,7 +111,7 @@ export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload):
   return {
     title: '📒 ຄະແນນຂອງຂ້ອຍ',
     body: month ? `ເມື່ອພ້ອມແລ້ວ ເພີ່ມຄະແນນເດືອນ${month.replace(/^ເດືອນ\s*/, '')}ຂອງເຈົ້າໄດ້ເລີຍ.` : 'ເມື່ອພ້ອມແລ້ວ ເພີ່ມຄະແນນປະຈຳເດືອນຂອງເຈົ້າໄດ້ເລີຍ.',
-    url: '/academy/scores',
+    url: '/academy/scores?from=reminder',
     tag,
   }
 }

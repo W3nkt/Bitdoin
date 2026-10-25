@@ -14,6 +14,7 @@ import {
   type DraftLine,
 } from '@/lib/academic/drafts'
 import { AcademicError } from '@/lib/academic/errors'
+import { durationSince, useTrackUsage } from '@/lib/academic/usageEvents'
 import { formatDate } from '@/lib/academic/format'
 import { checkScore, normaliseScoreText, plainNumber, type LineStatus, type ScaleRule } from '@/lib/academic/scoreInput'
 import { academicKeys } from '@/lib/academic/session'
@@ -148,6 +149,17 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
   const inputs = useRef<(HTMLInputElement | null)[]>([])
   const [retryTick, setRetryTick] = useState(0)
 
+  // Usage events (ANL-001): counts and timings only, never values.
+  const track = useTrackUsage()
+  const openedAt = useRef(performance.now())
+  const lastDraftEvent = useRef(0)
+  const announced = useRef(false)
+  useEffect(() => {
+    if (announced.current) return
+    announced.current = true
+    track('score_entry_started', { period: view.period.id, method: 'manual' })
+  }, [track, view.period.id])
+
   // A newer unsynced draft on this device wins over the server copy.
   useEffect(() => {
     void loadDraft(key).then(local => {
@@ -171,6 +183,10 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
     const timer = window.setTimeout(async () => {
       const snapshot = lines
       await saveDraft({ key, userId, enrolmentId: view.enrolment_id, periodId: view.period.id, lines: snapshot, synced: false, updatedAt: Date.now() })
+      if (Date.now() - lastDraftEvent.current > 120_000) {
+        lastDraftEvent.current = Date.now()
+        track('score_draft_saved', { lines_filled: Object.values(snapshot).filter(line => line?.status).length, offline: !navigator.onLine })
+      }
       if (!navigator.onLine) { setSync('local'); return }
       const wire: WireLine[] = []
       for (const subject of view.subjects) {
@@ -228,6 +244,12 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
     })
     try {
       await submitScoreEntry(view.enrolment_id, view.period.id, wire, idempotencyKey)
+      const counts: Partial<Record<LineStatus, number>> = {}
+      for (const line of wire) counts[line.status!] = (counts[line.status!] ?? 0) + 1
+      track('score_entry_submitted', {
+        period: view.period.id, lines_scored: counts.scored ?? 0, lines_status_counts: counts,
+        duration_ms: durationSince(openedAt.current), method: 'manual',
+      })
       await dequeueSubmit(key)
       await deleteDraft(key)
       toast.success(t('entry.saved', { period: periodLabel }))

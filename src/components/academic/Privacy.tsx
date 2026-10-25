@@ -6,8 +6,10 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  exportMyData, useCancelDeletion, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
+  exportMyData, useCancelDeletion, useGrantUsageStatistics, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
 } from '@/lib/academic/api'
+import { useAcademicSession } from '@/lib/academic/session'
+import { useTrackUsage } from '@/lib/academic/usageEvents'
 import { AcademicError } from '@/lib/academic/errors'
 import { downloadExport } from '@/lib/academic/exportZip'
 import { formatDate } from '@/lib/academic/format'
@@ -58,11 +60,14 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   const { t, language } = useAcademicCopy()
   const toast = useToast()
   const withdraw = useWithdrawConsent()
+  const grantStats = useGrantUsageStatistics()
+  const noticeVersion = useAcademicSession().data?.notice_version ?? null
   const [confirming, setConfirming] = useState(false)
   const active = (purpose: string) => consents.find(consent => consent.purpose === purpose && !consent.withdrawn_at)
   const onError = (error: unknown) => toast.error(academicErrorText(t, error))
   const module = active('module_processing')
   const push = active('push')
+  const stats = active('usage_statistics')
 
   const row = (purpose: string, current: NonNullable<typeof module>, action: React.ReactNode) => (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -86,6 +91,22 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
         {push && row('push', push, (
           <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('push', { onError })}>{t('privacy.withdraw')}</Button>
         ))}
+        {/* Usage statistics (migration 124): on with the notice, off and on here at any time. */}
+        {module && (
+          <li className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block font-bold">{t('consent.purpose.usage_statistics')}</span>
+              <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.usageStats.body')}</span>
+              <span className="block text-xs text-slate-500">
+                {stats ? t('data.consentActive', { date: formatDate(stats.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
+            </span>
+            {stats
+              ? <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('usage_statistics', { onError })}>{t('consent.usageStats.turnOff')}</Button>
+              : <Button size="sm" variant="outline" loading={grantStats.isPending} disabled={!noticeVersion}
+                  onClick={() => noticeVersion && grantStats.mutate(noticeVersion, { onError })}>{t('consent.usageStats.turnOn')}</Button>}
+          </li>
+        )}
       </ul>
       <Link to="/academy/scores/inbox" className="mt-2 inline-block text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
         {t('inbox.settings.title')}
@@ -129,6 +150,7 @@ const needsSignIn = (error: unknown) => error instanceof AcademicError && error.
 export function ExportCard() {
   const { t } = useAcademicCopy()
   const toast = useToast()
+  const track = useTrackUsage()
   const [busy, setBusy] = useState(false)
   const [reauth, setReauth] = useState(false)
   return (
@@ -141,6 +163,7 @@ export function ExportCard() {
             try {
               const data = await exportMyData()
               downloadExport(data, `my-scores-${new Date().toISOString().slice(0, 10)}.zip`)
+              track('export_requested', {})
               toast.success(t('privacy.export.done'))
             } catch (error) {
               if (needsSignIn(error)) setReauth(true)

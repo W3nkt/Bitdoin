@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Hourglass } from 'lucide-react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import { AcademicError } from '@/lib/academic/errors'
 import { useAcademicSession, type AcademicSession } from '@/lib/academic/session'
+import { landingSourceFrom, setLandingSource, useTrackUsage } from '@/lib/academic/usageEvents'
 
 /**
  * /academy/scores/* — My Scores (FE-001). Uses the existing Bitdoin session
@@ -29,6 +30,17 @@ export function MyScores() {
   const session = useAcademicSession()
   const { t } = useAcademicCopy()
   const backTo = location.pathname.replace(/\/+$/, '') === '/academy/scores' ? undefined : '/academy/scores'
+  const track = useTrackUsage()
+  // Where this visit came from, read once on arrival (ANL-001).
+  const [source] = useState(() => landingSourceFrom(location.search))
+  const landed = useRef(false)
+  const available = !!session.data && session.data.next_step !== 'unavailable'
+  useEffect(() => {
+    if (!available || landed.current) return
+    landed.current = true
+    setLandingSource(source)
+    track('module_landing_viewed', { source })
+  }, [available, source, track])
 
   if (loading) return <PageLoader />
   if (!profile) return <Navigate to="/auth" state={{ from: `${location.pathname}${location.search}` }} replace />

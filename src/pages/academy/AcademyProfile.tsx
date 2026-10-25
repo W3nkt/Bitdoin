@@ -35,7 +35,7 @@ export function AcademyProfile() {
         <nav className="mt-8 border-t border-slate-200 dark:border-slate-700">
           <ProfileLink to="/academy/learn" icon={OpenBook} title={lo ? 'ການຮຽນຂອງຂ້ອຍ' : 'My learning'} />
           <ProfileLink to="/academy/progress" icon={Target} title={lo ? 'ຄວາມຄືບໜ້າ' : 'Progress and achievements'} />
-          {academicSession.data?.module_enabled && <ProfileLink to="/academy/scores" icon={School} title={lo ? 'ໂຮງຮຽນ' : 'Schooling'} />}
+          {academicSession.data?.module_enabled && <ProfileLink to="/academy/scores?from=profile_link" icon={School} title={lo ? 'ໂຮງຮຽນ' : 'Schooling'} />}
           <ProfileLink to="/academy/coach" icon={Brain} title={lo ? 'AI Coach' : 'AI Coach conversations'} />
           <ProfileLink to="/academy/subscription" icon={CreditCard} title={lo ? 'ສະມາຊິກ ແລະ ການຈ່າຍ' : 'Membership and billing'} />
         </nav>

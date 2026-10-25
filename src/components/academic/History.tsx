@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, History as HistoryIcon, Lock, PenLine } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useAcademicHistory, usePeriods, type HistoryEnrolment, type HistoryPeriod, type HistoryTerm, type PeriodOption } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
 import { plainNumber } from '@/lib/academic/scoreInput'
+import { useTrackUsage } from '@/lib/academic/usageEvents'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { RevisionList } from './ScoreEntry'
@@ -20,6 +21,13 @@ type Scale = NonNullable<HistoryEnrolment['scale']>
 export function History() {
   const { t } = useAcademicCopy()
   const history = useAcademicHistory()
+  const track = useTrackUsage()
+  const viewed = useRef(false)
+  useEffect(() => {
+    if (viewed.current) return
+    viewed.current = true
+    track('history_viewed', {})
+  }, [track])
 
   if (history.isPending) return <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
   if (history.isError) return <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, history.error)} />

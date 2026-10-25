@@ -160,13 +160,13 @@ await ok(db, 'edit draft scale', `update academic_grading_scale_versions set ste
 
 // Consent records are append-only (PRIV-003).
 const C = '40000000-0000-0000-0000-000000000001'
-await ok(db, 'consent', `insert into academic_consent_records (id, student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${C}', '${P}', '${U}', 'student', 'module_processing', '2026-10-draft', 'in_app_checkbox')`)
-await fails(db, 'second active consent', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${P}', '${U}', 'student', 'module_processing', '2026-10-draft', 'in_app_checkbox')`, 'duplicate')
+await ok(db, 'consent', `insert into academic_consent_records (id, student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${C}', '${P}', '${U}', 'student', 'module_processing', '2026-10-25', 'in_app_checkbox')`)
+await fails(db, 'second active consent', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${P}', '${U}', 'student', 'module_processing', '2026-10-25', 'in_app_checkbox')`, 'duplicate')
 await fails(db, 'edit consent', `update academic_consent_records set notice_version = 'v2' where id = '${C}'`, 'append-only')
 await fails(db, 'delete consent', `delete from academic_consent_records where id = '${C}'`, 'append-only')
 await ok(db, 'withdraw consent', `update academic_consent_records set withdrawn_at = now() where id = '${C}'`)
 await fails(db, 'withdraw twice', `update academic_consent_records set withdrawn_at = now() + interval '1 day' where id = '${C}'`, 'append-only')
-await ok(db, 'consent again after withdrawal', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${P}', '${U}', 'student', 'module_processing', '2026-10-draft', 'in_app_checkbox')`)
+await ok(db, 'consent again after withdrawal', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('${P}', '${U}', 'student', 'module_processing', '2026-10-25', 'in_app_checkbox')`)
 
 // Audit events.
 await ok(db, 'audit', `insert into academic_audit_events (actor_user_id, actor_role, action, target_type, target_id, student_profile_id) values ('${U}', 'student', 'score_entry.submit', 'score_entry', '${SC}', '${P}')`)

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { cn } from '@/lib/utils'
 
-const SUMMARY: AcademicCopyKey[] = ['notice.what', 'notice.why', 'notice.who', 'notice.choices', 'notice.selfReported']
+const SUMMARY: AcademicCopyKey[] = ['notice.what', 'notice.why', 'notice.stats', 'notice.who', 'notice.choices', 'notice.selfReported']
 
 /**
  * Layered privacy notice (PRIV-001): a short summary, the full text on

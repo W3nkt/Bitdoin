@@ -12,7 +12,7 @@ await ok(db, 'config', CONFIG_SQL)
 const setToday = (d) => db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '${d}' $$`)
 await setToday('2026-10-05')
 
-const profile = { display_name: 'S', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
+const profile = { display_name: 'S', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-25' }
 const a = await rpc(A, `public.academic_create_profile(${json(profile)})`)
 const b = await rpc(B, `public.academic_create_profile(${json(profile)})`)
 const c = await rpc(C, `public.academic_create_profile(${json(profile)})`)
@@ -44,7 +44,7 @@ eq('submitting settles that month at once (migration 120)', await notes(A), [{ c
 
 // B opts in to push; C turns in-app reminders off.
 eq('push needs consent first', (await rpcError(B, `public.academic_set_notification_preference('score_reminder', true, true)`))?.code, 'CONSENT_REQUIRED')
-await rpc(B, `public.academic_grant_consent('push', '2026-10-draft')`)
+await rpc(B, `public.academic_grant_consent('push', '2026-10-25')`)
 const prefs = await rpc(B, `public.academic_set_notification_preference('score_reminder', true, true)`)
 eq('preferences', [prefs.categories, prefs.push_consent, prefs.push_device], [[{ category: 'score_reminder', in_app_enabled: true, push_enabled: true }], true, false])
 // Devices (migration 120): a Bookstore-only device does not get score reminders.
@@ -103,7 +103,7 @@ await rpc(B, `public.academic_withdraw_consent('push')`)
 eq('withdrawn consent suppresses queued push', [await claim(), (await one(`select state from academic_notifications where dedupe_key = 'test:optout'`)).state], [[], 'suppressed'])
 
 // Failed delivery retries 3 times, then shows in-app.
-await rpc(B, `public.academic_grant_consent('push', '2026-10-draft')`)
+await rpc(B, `public.academic_grant_consent('push', '2026-10-25')`)
 await ok(db, 'queued push 2', `insert into academic_notifications (user_id, student_profile_id, category, code, channel, state, dedupe_key) values ('${B}', '${b.profile_id}', 'score_reminder', 'score_reminder.second', 'push', 'pending', 'test:fail')`)
 for (let i = 1; i <= 3; i++) {
   const [row] = await claim()

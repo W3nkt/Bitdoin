@@ -16,7 +16,7 @@ const setToday = (d) => db.exec(`create or replace function public.academic_toda
 await setToday('2026-10-23')
 
 const onboard = (user) => rpc(user, `public.academic_create_profile(${json({
-  display_name: 'S', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft',
+  display_name: 'S', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-25',
 })})`)
 const a = await onboard(A)
 const b = await onboard(B)

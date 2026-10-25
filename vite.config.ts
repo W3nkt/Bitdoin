@@ -5,6 +5,10 @@ import path from 'path'
 
 export default defineConfig({
   base: '/',
+  define: {
+    // Reported with My Scores usage events (src/lib/academic/usageEvents.ts).
+    __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 10).replace(/-/g, '.')),
+  },
   plugins: [
     react(),
     VitePWA({

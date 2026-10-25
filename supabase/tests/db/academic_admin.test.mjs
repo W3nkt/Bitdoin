@@ -15,7 +15,7 @@ await ok(db, 'users', `insert into public.users (id, name, role) values
 await ok(db, 'config', CONFIG_SQL)
 await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-11-15' $$`)
 
-const a = await rpc(A, `public.academic_create_profile(${json({ display_name: 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' })})`)
+const a = await rpc(A, `public.academic_create_profile(${json({ display_name: 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-25' })})`)
 const lines = (await db.query(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}'`)).rows.map((r) => ({ subject_enrolment_id: r.id, status: 'scored', value: 7 }))
 await rpc(A, `public.academic_submit_score_entry('${a.enrolment_id}', '${period(2)}', ${json(lines)}, 'k1')`)
 
@@ -122,7 +122,7 @@ eq('operations cannot grant roles', (await rpcError(OPS, `public.academic_admin_
 // ─── Support lookup and break-glass (ADMIN-005) ──────────────────────────────
 
 const look = await rpc(OPS, `public.academic_support_lookup('BA-FRE-dan9xy')`, mfa)
-eq('lookup by member code', [look.user.id, look.profile.status, look.enrolments.length, look.consents.length], [A, 'active', 2, 1])
+eq('lookup by member code', [look.user.id, look.profile.status, look.enrolments.length, look.consents.length], [A, 'active', 2, 2])
 eq('lookup shows no scores or names', /"raw_value"|"value"|Noy|display_name/.test(JSON.stringify(look)), false)
 eq('lookup by user id', (await rpc(OPS, `public.academic_support_lookup('${A}')`, mfa)).profile.id, a.profile_id)
 eq('unknown -> 404', await rpc(OPS, `public.academic_support_lookup('nobody')`, mfa), { error: { code: 'NOT_FOUND', status: 404 } })

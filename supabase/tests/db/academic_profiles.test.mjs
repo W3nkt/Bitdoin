@@ -11,7 +11,7 @@ await ok(db, 'config', CONFIG_SQL)
 
 const valid = {
   display_name: '  Noy  ', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11,
-  school_id: ID.school, notice_version: '2026-10-draft',
+  school_id: ID.school, notice_version: '2026-10-25',
 }
 const create = (user, input) => rpc(user, `public.academic_create_profile(${json(input)})`)
 const createError = (user, input) => rpcError(user, `public.academic_create_profile(${json(input)})`)
@@ -51,7 +51,7 @@ const profile = await one(`select * from academic_student_profiles where user_id
 eq('profile fields', [profile.display_name, profile.age_band, profile.consent_state, profile.status, profile.goals, profile.interest_subject_codes],
   ['Noy', '16_17', 'active', 'active', { chips: ['university'], text: 'Pass exams' }, ['MATH']])
 const consent = await one(`select purpose, notice_version, grantor_user_id, method from academic_consent_records where student_profile_id = '${profile.id}'`)
-eq('consent recorded before data', consent, { purpose: 'module_processing', notice_version: '2026-10-draft', grantor_user_id: A, method: 'in_app_checkbox' })
+eq('consent recorded before data', consent, { purpose: 'module_processing', notice_version: '2026-10-25', grantor_user_id: A, method: 'in_app_checkbox' })
 const enr = await one(`select * from academic_enrolments where id = '${created.enrolment_id}'`)
 eq('enrolment', [enr.academic_year_id, enr.grade_id, enr.school_id, enr.grading_scale_version_id, enr.calendar_template_id, enr.state],
   [ID.year, ID.g11, ID.school, ID.scaleV1, ID.calendar, 'active'])
@@ -170,6 +170,6 @@ await fails(db, 'anon cannot search', `set local role anon; select * from public
 
 const summary = await rpc(A, `public.academic_get_my_data_summary()`)
 eq('my data counts', summary.counts, { enrolments: 3, score_entries_submitted: 0, score_entries_draft: 1, scores: 1, corrections: 0, uploads: 0, guardian_links: 0 })
-eq('my data consents', summary.consents.map((c) => c.purpose), ['module_processing'])
+eq('my data consents', summary.consents.map((c) => c.purpose).sort(), ['module_processing', 'usage_statistics'])
 
 done()

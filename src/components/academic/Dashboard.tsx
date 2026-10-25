@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -12,6 +12,7 @@ import { useChartTheme, useTheme } from '@/lib/theme'
 import { MyScoresNotice } from './MyScoresShell'
 import { academicErrorText } from './errorText'
 import { useDashboardTiming } from '@/lib/academic/telemetry'
+import { useTrackUsage, type UsageEvents } from '@/lib/academic/usageEvents'
 import { ReminderBanner } from './Inbox'
 
 // Identity never rests on colour alone: single series name their measure in
@@ -46,6 +47,13 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   const [params, setParams] = useSearchParams()
   const subjectId = params.get('subject')
   useDashboardTiming(dashboard.isSuccess, !!dashboard.data?.stale_since)
+  const track = useTrackUsage()
+  const viewed = useRef(false)
+  useEffect(() => {
+    if (viewed.current || !dashboard.data) return
+    viewed.current = true
+    track('dashboard_viewed', { has_trend: dashboard.data.periods.filter(period => period.mean !== null).length >= 2 })
+  }, [dashboard.data, track])
 
   if (dashboard.isPending) return <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
   if (dashboard.isError) return <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, dashboard.error)} />
@@ -148,8 +156,11 @@ function SummaryCard({ view, periodLabel, actions }: { view: DashboardView; peri
 
 // ─── Shared chart frame with table view (DASH-008) ──────────────────────────
 
-function ChartCard({ title, subtitle, table, children, footer }: { title: string; subtitle?: ReactNode; table: ReactNode; children: ReactNode; footer?: ReactNode }) {
+type ChartId = UsageEvents['chart_table_toggled']['chart_id']
+
+function ChartCard({ chartId, title, subtitle, table, children, footer }: { chartId: ChartId; title: string; subtitle?: ReactNode; table: ReactNode; children: ReactNode; footer?: ReactNode }) {
   const { t } = useAcademicCopy()
+  const track = useTrackUsage()
   const [asTable, setAsTable] = useState(false)
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
@@ -158,7 +169,7 @@ function ChartCard({ title, subtitle, table, children, footer }: { title: string
           <h2 className="text-lg font-black">{title}</h2>
           {subtitle && <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{subtitle}</div>}
         </div>
-        <button type="button" onClick={() => setAsTable(value => !value)} aria-pressed={asTable}
+        <button type="button" onClick={() => { if (!asTable) track('chart_table_toggled', { chart_id: chartId }); setAsTable(value => !value) }} aria-pressed={asTable}
           className="shrink-0 rounded-full px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-500/10">
           {asTable ? t('dash.table.hide') : t('dash.table.show')}
         </button>
@@ -235,7 +246,7 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
 
   if (withMean < 2) {
     return (
-      <ChartCard title={t('dash.trend.title')} table={<DataTable head={[t('dash.table.month'), t('dash.average'), t('dash.table.recorded')]} rows={data.map(point => [point.label, formatMean(point.mean, scale) ?? '—', point.recorded])} />}>
+      <ChartCard chartId="trend" title={t('dash.trend.title')} table={<DataTable head={[t('dash.table.month'), t('dash.average'), t('dash.table.recorded')]} rows={data.map(point => [point.label, formatMean(point.mean, scale) ?? '—', point.recorded])} />}>
         <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400">{t('dash.trend.empty')}</p>
       </ChartCard>
     )
@@ -243,6 +254,7 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
 
   return (
     <ChartCard
+      chartId="trend"
       title={t('dash.trend.title')}
       subtitle={showRolling && (
         <span className="flex flex-wrap gap-x-4 gap-y-1">
@@ -294,6 +306,7 @@ function LatestCard({ view }: { view: DashboardView }) {
 
   return (
     <ChartCard
+      chartId="subjects"
       title={t('dash.compare.title', { period: periodName })}
       table={<DataTable head={[t('dash.table.subject'), t('dash.table.score')]}
         rows={[...scored.map(row => [row.name, plainNumber(row.value)]), ...others.map(subject => [name(subject), t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)])]} />}
@@ -381,6 +394,7 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
         <ArrowLeft className="h-4 w-4" />{t('dash.subject.back')}
       </button>
       <ChartCard
+        chartId="subject_detail"
         title={t('dash.subject.chart', { subject: name })}
         subtitle={(
           <span className="flex flex-col gap-1">

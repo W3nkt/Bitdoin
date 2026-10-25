@@ -56,6 +56,10 @@ const copy = {
     en: 'Why: to show you your own averages and how your scores change over time.',
     lo: 'ເພື່ອຫຍັງ: ເພື່ອສະແດງຄ່າສະເລ່ຍ ແລະ ການປ່ຽນແປງຄະແນນຂອງເຈົ້າເອງຕາມເວລາ.',
   },
+  'notice.stats': {
+    en: 'Usage statistics: we count which screens are used and how long entering scores takes, without your name or scores, to improve Schooling. You can switch this off in My data.',
+    lo: 'ສະຖິຕິການນຳໃຊ້: ພວກເຮົານັບວ່າໜ້າໃດຖືກໃຊ້ ແລະ ການປ້ອນຄະແນນໃຊ້ເວລາດົນປານໃດ ໂດຍບໍ່ມີຊື່ ຫຼື ຄະແນນຂອງເຈົ້າ ເພື່ອປັບປຸງ ໂຮງຮຽນ. ເຈົ້າປິດໄດ້ຢູ່ໃນ ຂໍ້ມູນຂອງຂ້ອຍ.',
+  },
   'notice.who': {
     en: 'Who sees it: only you. It is not shared with your school, parents or other students. Support staff can look only when helping with a problem, and every look is recorded.',
     lo: 'ໃຜເຫັນ: ມີແຕ່ເຈົ້າ. ບໍ່ແບ່ງປັນໃຫ້ໂຮງຮຽນ, ພໍ່ແມ່ ຫຼື ນັກຮຽນຄົນອື່ນ. ພະນັກງານຊ່ວຍເຫຼືອເບິ່ງໄດ້ສະເພາະຕອນຊ່ວຍແກ້ບັນຫາ ແລະ ທຸກຄັ້ງຖືກບັນທຶກໄວ້.',
@@ -336,6 +340,14 @@ const copy = {
   'consent.purpose.module_processing': { en: 'Keep my scores in Schooling', lo: 'ເກັບຄະແນນໄວ້ໃນ ໂຮງຮຽນ' },
   'consent.purpose.push': { en: 'Send reminders to my device', lo: 'ສົ່ງການແຈ້ງເຕືອນໄປທີ່ອຸປະກອນ' },
   'consent.purpose.email': { en: 'Email me', lo: 'ສົ່ງອີເມວຫາຂ້ອຍ' },
+  'consent.purpose.usage_statistics': { en: 'Usage statistics', lo: 'ສະຖິຕິການນຳໃຊ້' },
+  'consent.usageStats.body': {
+    en: 'Which screens you use and how long entering scores takes. Never your scores or name.',
+    lo: 'ໜ້າທີ່ເຈົ້າໃຊ້ ແລະ ການປ້ອນຄະແນນໃຊ້ເວລາດົນປານໃດ. ບໍ່ມີຄະແນນ ຫຼື ຊື່ຂອງເຈົ້າ.',
+  },
+  'consent.usageStats.off': { en: 'Off', lo: 'ປິດຢູ່' },
+  'consent.usageStats.turnOff': { en: 'Turn off', lo: 'ປິດ' },
+  'consent.usageStats.turnOn': { en: 'Turn on', lo: 'ເປີດ' },
 } as const satisfies Record<string, { en: string; lo: string }>
 
 export type AcademicCopyKey = keyof typeof copy

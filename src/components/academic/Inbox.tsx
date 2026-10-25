@@ -12,6 +12,7 @@ import {
   useNotifications, useSetNotificationPreference, type AcademicNotification,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
+import { useTrackUsage } from '@/lib/academic/usageEvents'
 import { cn } from '@/lib/utils'
 import { PrivacyCard } from './Privacy'
 import { academicErrorText } from './errorText'
@@ -28,6 +29,29 @@ function useReminderText() {
       body: t(note.code === 'score_reminder.second' ? 'inbox.reminder.second' : 'inbox.reminder.first'),
       href: note.payload.period_id ? `/academy/scores/entry?period=${note.payload.period_id}` : '/academy/scores/entry',
     }
+  }
+}
+
+// Usage events (ANL-001): a reminder counts as shown once per page load.
+const shownReminders = new Set<string>()
+const reminderCode = (note: AcademicNotification) =>
+  note.code === 'score_reminder.first' || note.code === 'score_reminder.second' ? note.code : null
+
+function useReminderEvents(notes: AcademicNotification[]) {
+  const track = useTrackUsage()
+  const ids = notes.map(note => note.id).join(',')
+  useEffect(() => {
+    for (const note of notes) {
+      const code = reminderCode(note)
+      if (!code || shownReminders.has(note.id)) continue
+      shownReminders.add(note.id)
+      track('reminder_shown', { code })
+    }
+    // notes is a new array each render; ids says when it changed.
+  }, [ids, track])
+  return (note: AcademicNotification) => {
+    const code = reminderCode(note)
+    if (code) track('reminder_clicked', { code })
   }
 }
 
@@ -57,6 +81,7 @@ export function ReminderBanner() {
   const text = useReminderText()
   const markRead = useMarkNotificationsRead()
   const note = useNotifications().data?.pages[0]?.items.find(item => item.state === 'sent')
+  const clicked = useReminderEvents(note ? [note] : [])
   if (!note) return null
   const { title, body, href } = text(note)
   const done = () => markRead.mutate([note.id])
@@ -67,7 +92,7 @@ export function ReminderBanner() {
         <h2 id="reminder-banner" className="font-black">{title}</h2>
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{body}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Link to={href} onClick={done}
+          <Link to={href} onClick={() => { clicked(note); done() }}
             className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
             <PenLine className="h-4 w-4" />{t('entry.cta')}
           </Link>
@@ -93,6 +118,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
   const seen = useRef(new Set<string>())
   const unreadIds = items.filter(item => item.state === 'sent' && !seen.current.has(item.id)).map(item => item.id)
   const unreadKey = unreadIds.join(',')
+  const clicked = useReminderEvents(items.filter(item => item.state === 'sent'))
   useEffect(() => {
     if (!unreadKey) return
     const ids = unreadKey.split(',')
@@ -134,7 +160,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{body}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
                       <span>{formatDate(note.created_at, language)}</span>
-                      <Link to={href} className="font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('entry.cta')}</Link>
+                      <Link to={href} onClick={() => clicked(note)} className="font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('entry.cta')}</Link>
                     </p>
                   </div>
                   <button type="button" aria-label={t('inbox.dismiss')} disabled={dismiss.isPending}

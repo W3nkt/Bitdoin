@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, Baby, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
@@ -7,6 +7,7 @@ import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { defaultSubjectsFor, useAcademicConfig, useCreateProfile, type AgeBand, type SubjectItem } from '@/lib/academic/api'
 import { AcademicError } from '@/lib/academic/errors'
+import { discardUsageEvents, durationSince, flushUsageEvents, getLandingSource, useTrackUsage } from '@/lib/academic/usageEvents'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { PrivacyNotice } from './PrivacyNotice'
@@ -57,6 +58,23 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
   const [interests, setInterests] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Usage events (ANL-001): anonymous until the profile exists.
+  const track = useTrackUsage()
+  const startedAt = useRef(performance.now())
+  const stepStartedAt = useRef(performance.now())
+  const announced = useRef(false)
+  useEffect(() => {
+    if (announced.current) return
+    announced.current = true
+    track('onboarding_started', {})
+  }, [track])
+  /** Moves forward and records how long the finished step took. */
+  const advance = (next: Step) => {
+    track('onboarding_step_completed', { step, duration_ms: durationSince(stepStartedAt.current) })
+    stepStartedAt.current = performance.now()
+    setStep(next)
+  }
+
   // Fixing a field clears its error straight away.
   const clearError = (field: string) => setErrors(current => {
     if (!(field in current)) return current
@@ -86,7 +104,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
   }
 
   if (step === 'notice') {
-    return <PrivacyNotice version={noticeVersion} onAccept={() => setStep('age')} />
+    return <PrivacyNotice version={noticeVersion} onAccept={() => advance('age')} />
   }
 
   const validateDetails = () => {
@@ -99,8 +117,11 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
     return Object.keys(next).length === 0
   }
 
-  const submit = (withGoals: boolean) => {
+  const submit = async (withGoals: boolean) => {
     if (!ageBand || !school) return
+    track('onboarding_step_completed', { step: 'goals', duration_ms: durationSince(stepStartedAt.current) })
+    // Pre-profile events go now or never, so they are never stored against the new profile.
+    if (!await flushUsageEvents()) discardUsageEvents()
     const goalsValue = withGoals && (chips.length || goalText.trim())
       ? { chips, ...(goalText.trim() ? { text: goalText.trim().slice(0, 200) } : {}) }
       : null
@@ -116,6 +137,10 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
       interest_subject_codes: withGoals ? interests : [],
       notice_version: noticeVersion,
     }, {
+      onSuccess: () => {
+        track('profile_created', { source: getLandingSource() })
+        track('onboarding_completed', { duration_ms: durationSince(startedAt.current), school_listed: 'school_id' in school })
+      },
       onError: error => {
         const field = errorField(error)
         if (field) {
@@ -154,7 +179,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
               </ChoiceButton>
             ))}
           </div>
-          <Button className="mt-6" fullWidth size="lg" disabled={!ageBand} onClick={() => setStep('details')}>{t('common.next')}</Button>
+          <Button className="mt-6" fullWidth size="lg" disabled={!ageBand} onClick={() => advance('details')}>{t('common.next')}</Button>
         </StepBody>
       )}
 
@@ -190,7 +215,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
           </div>
           {!config.isPending && !config.data?.activeYear && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{t('error.calendarMissing')}</p>}
           <Button className="mt-6" fullWidth size="lg" disabled={!config.data?.activeYear}
-            onClick={() => { if (validateDetails()) setStep('subjects') }}>{t('common.next')}</Button>
+            onClick={() => { if (validateDetails()) advance('subjects') }}>{t('common.next')}</Button>
         </StepBody>
       )}
 
@@ -202,7 +227,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
             onClick={() => {
               if (chosenSubjects.length === 0) { setErrors({ subjects: t('subjects.none') }); return }
               setErrors({})
-              setStep('goals')
+              advance('goals')
             }}>{t('common.next')}</Button>
         </StepBody>
       )}
@@ -237,8 +262,8 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
             })}
           </div>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
-            <Button variant="ghost" fullWidth size="lg" disabled={create.isPending} onClick={() => submit(false)}>{t('goals.skip')}</Button>
-            <Button fullWidth size="lg" loading={create.isPending} onClick={() => submit(true)}>{t('goals.finish')}</Button>
+            <Button variant="ghost" fullWidth size="lg" disabled={create.isPending} onClick={() => void submit(false)}>{t('goals.skip')}</Button>
+            <Button fullWidth size="lg" loading={create.isPending} onClick={() => void submit(true)}>{t('goals.finish')}</Button>
           </div>
         </StepBody>
       )}

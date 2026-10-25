@@ -61,7 +61,7 @@ s = await session(A)
 eq('profile without consent -> consent', [s.next_step, s.profile.display_name, s.consent.module_processing], ['consent', 'Noy', false])
 eq('write without consent -> 403', await errorOf(A, `select public.academic_require_profile(true)`, 'postgres'), { code: 'CONSENT_REQUIRED', sqlstate: 'PT403' })
 
-await ok(db, 'consent', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('20000000-0000-0000-0000-000000000001', '${A}', 'student', 'module_processing', '2026-10-draft', 'in_app_checkbox')`)
+await ok(db, 'consent', `insert into academic_consent_records (student_profile_id, grantor_user_id, grantor_role, purpose, notice_version, method) values ('20000000-0000-0000-0000-000000000001', '${A}', 'student', 'module_processing', '2026-10-25', 'in_app_checkbox')`)
 eq('consent but no enrolment -> new_school_year', (await session(A)).next_step, 'new_school_year')
 await ok(db, 'enrolment', `insert into academic_schools (id, name_lo, province_code) values ('10000000-0000-0000-0000-000000000009', 'ໂຮງຮຽນ', 'vientiane-prefecture');
   insert into academic_enrolments (id, student_profile_id, academic_year_id, grade_id, school_id, grading_scale_version_id, calendar_template_id)
@@ -72,7 +72,7 @@ eq('ready', [s.next_step, s.active_enrolment_id], ['ready', '20000000-0000-0000-
 // A new notice version requires re-acknowledgement (PRIV-001).
 await ok(db, 'new notice', `update academic_settings set value = '"2027-01"' where key = 'consent_notice_version'`)
 eq('notice change -> consent', (await session(A)).next_step, 'consent')
-await ok(db, 'restore notice', `update academic_settings set value = '"2026-10-draft"' where key = 'consent_notice_version'`)
+await ok(db, 'restore notice', `update academic_settings set value = '"2026-10-25"' where key = 'consent_notice_version'`)
 
 // Year rollover (PROFILE-004).
 await ok(db, 'roll over year', `update academic_years set status = 'closed' where code = '2026-2027';

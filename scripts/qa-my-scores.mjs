@@ -36,7 +36,7 @@ function fakeJwt() {
 
 /** A mocked backend whose session moves through the module states. */
 function backend(initial) {
-  const state = { calls: [], ...initial }
+  const state = { calls: [], events: [], ...initial }
   const session = () => ({
     user: { id: USER_ID, role: 'CUSTOMER', language: state.lang },
     module_enabled: true,
@@ -51,6 +51,11 @@ function backend(initial) {
   })
   const rpc = {
     academic_get_session: () => session(),
+    // Usage events (ANL-001): kept for the assertions below.
+    academic_track_events: (args) => {
+      state.events.push(...args.p_events)
+      return { accepted: args.p_events.length, duplicates: 0, dropped: 0, tracking: true }
+    },
     academic_search_schools: (args) => SCHOOLS.filter(s => `${s.name_lo} ${s.name_en} ${s.romanised_name}`.toLowerCase().includes(args.p_query.toLowerCase().slice(0, 3))),
     academic_create_profile: () => { state.step = 'ready'; state.enrolment = 'e1'; return { created: true, profile_id: 'p1', enrolment_id: 'e1' } },
     academic_grant_consent: (args) => {
@@ -257,7 +262,7 @@ async function isolate(context) {
   await context.route(url => !url.href.startsWith(base) && !url.href.startsWith(SUPABASE), route => route.abort())
 }
 
-async function openAs(browser, { device, lang, step, enrolment, consentState, entries }) {
+async function openAs(browser, { device, lang, step, enrolment, consentState, entries, clock = false }) {
   const context = await browser.newContext({ ...device, locale: lang === 'lo' ? 'lo-LA' : 'en-GB' })
   await isolate(context)
   const mock = backend({ step, lang, enrolment, consentState, entries })
@@ -271,6 +276,8 @@ async function openAs(browser, { device, lang, step, enrolment, consentState, en
     }))
   }, { token: fakeJwt(), userId: USER_ID, lang })
   const page = await context.newPage()
+  // Lets a scenario jump past the 10-second usage-event flush.
+  if (clock) await page.clock.install()
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   return { context, page, mock, errors }
@@ -384,9 +391,19 @@ try {
     assert.equal(input.goals, null)
     assert.equal(input.district_code, null)
     assert.deepEqual(input.subjects.map(s => s.subject_id), ['s-MATH', 's-PHYS', 's-LAO'])
+    // Usage events (ANL-001): pre-profile events are sent before the profile exists.
+    const createdAt = mock.state.calls.findIndex(call => call.fn === 'academic_create_profile')
+    const before = mock.state.calls.slice(0, createdAt).filter(call => call.fn === 'academic_track_events').flatMap(call => call.args.p_events)
+    assert.deepEqual(before.map(e => e.name === 'onboarding_step_completed' ? `step:${e.props.step}` : e.name).sort(), [
+      'module_landing_viewed', 'module_session_started', 'onboarding_started',
+      'step:age', 'step:details', 'step:goals', 'step:notice', 'step:subjects',
+    ])
+    assert.deepEqual(before.find(e => e.name === 'module_landing_viewed').props, { source: 'direct' })
+    assert.ok(before.every(e => e.locale === 'en' && e.platform === 'desktop' && /^[0-9a-f-]{36}$/.test(e.event_id)))
+    assert.ok(!/Noy|Ban Nong Hai|champasak/.test(JSON.stringify(before)), 'no names, schools or places in events')
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Desktop/English: unlisted school as free text, goals skipped, grade 12 defaults')
+    pass('Desktop/English: unlisted school as free text, goals skipped, grade 12 defaults; onboarding events sent before the profile exists, without personal data')
   }
 
   // Under 13 is not supported (PRIV-002).
@@ -466,7 +483,7 @@ try {
 
   // Validation, Lao digits, statuses, review and exact submit (Android, Lao).
   {
-    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1', clock: true })
     await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('link', { name: 'ເພີ່ມຄະແນນ' }).click()
     const math = page.getByLabel('ຄະນິດສາດ', { exact: true })
@@ -500,9 +517,19 @@ try {
     assert.match(submit.p_idempotency_key, /^[0-9a-f-]{36}$/)
     assert.deepEqual(submit.p_lines, draftCall.p_lines)
     await shot(page, 'my-scores-12-submitted-lo-mobile')
+    // Usage events (ANL-001): batched every 10 s; counts and timings, never values.
+    await page.clock.fastForward(11_000)
+    for (let i = 0; i < 50 && !mock.state.events.some(e => e.name === 'score_entry_submitted'); i++) await page.waitForTimeout(100)
+    const sent = mock.state.events
+    assert.deepEqual(sent.map(e => e.name).sort(), ['dashboard_viewed', 'module_landing_viewed', 'module_session_started', 'score_draft_saved', 'score_entry_started', 'score_entry_submitted'])
+    const submitted = sent.find(e => e.name === 'score_entry_submitted').props
+    assert.deepEqual([submitted.period, submitted.lines_scored, submitted.lines_status_counts, submitted.method], ['m1', 2, { scored: 2, exempt: 1 }, 'manual'])
+    assert.ok(Number.isInteger(submitted.duration_ms) && submitted.duration_ms > 0)
+    assert.ok(!/7.5|Noy|ຄະນິດສາດ/.test(JSON.stringify(sent.map(e => e.props))), 'no scores or names in events')
+    assert.ok(sent.every(e => e.locale === 'lo' && e.platform === 'android'))
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Entry (Android/Lao): range/step/number errors, Lao digits, Enter to next, statuses, autosave, review, exact submit')
+    pass('Entry (Android/Lao): range/step/number errors, Lao digits, Enter to next, statuses, autosave, review, exact submit; usage events carry counts only')
   }
 
   // Offline draft survives a closed tab; a lost submit retries with the same key.
@@ -854,6 +881,14 @@ try {
     await pushRow.waitFor({ state: 'detached' })
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'push' })
     await page.getByRole('link', { name: 'ຕັ້ງຄ່າການແຈ້ງເຕືອນ' }).waitFor()
+    // Usage statistics (ANL-001): off here, turned on with the current notice version, then off again.
+    await page.getByText('ສະຖິຕິການນຳໃຊ້').waitFor()
+    await page.getByRole('button', { name: 'ເປີດ', exact: true }).click()
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'usage_statistics', p_notice_version: '2026-10-draft' })
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).click()
+    await page.getByRole('button', { name: 'ເປີດ', exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'usage_statistics' })
     await page.getByRole('button', { name: 'ຢຸດ' }).first().click()
     await page.getByText('ຢຸດເກັບຄະແນນໃໝ່ບໍ?').waitFor()
     await shot(page, 'my-scores-21-consents-lo-mobile')
@@ -862,7 +897,7 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'module_processing' })
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Consents (Lao): device reminders stopped and hidden until given again; module processing withdrawn after a warning, profile shown read-only')
+    pass('Consents (Lao): device reminders stopped and hidden until given again; usage statistics switched on and off; module processing withdrawn after a warning, profile shown read-only')
   }
 
   // Reminders (Lao, phone): bell count, dashboard banner, inbox read/dismiss, settings.

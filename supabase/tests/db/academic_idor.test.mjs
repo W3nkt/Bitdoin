@@ -31,7 +31,7 @@ await ok(db, 'today', `create or replace function public.academic_today() return
 
 // ─── Fixtures: A has a submitted, corrected month and a reminder ─────────────
 
-const profile = { display_name: 'Secret A', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-draft' }
+const profile = { display_name: 'Secret A', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-25' }
 const a = await rpc(A, `public.academic_create_profile(${json(profile)})`)
 const b = await rpc(B, `public.academic_create_profile(${json({ ...profile, display_name: 'B' })})`)
 const aSubjects = (await db.query(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}' order by display_order`)).rows.map((row) => row.id)
@@ -69,6 +69,8 @@ const OWN_WRITE = [
   'save_push_subscription(text,text,text,text,text,boolean,text)',
   // Anonymous counters only (RPC name, duration, status); no IDs accepted (migration 122).
   'academic_record_metrics(jsonb)',
+  // Usage events: no IDs accepted except reporting periods (shared configuration), migration 124.
+  'academic_track_events(jsonb)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -171,7 +173,7 @@ const aState = async () => one(`select
   (select to_jsonb(n) from academic_notification_preferences n where n.user_id = '${A}') as prefs`)
 const aBefore = await aState()
 await rpc(B, `public.academic_update_profile(1, ${json({ display_name: 'B2' })})`)
-await rpc(B, `public.academic_grant_consent('push', '2026-10-draft')`)
+await rpc(B, `public.academic_grant_consent('push', '2026-10-25')`)
 await rpc(B, `public.academic_set_notification_preference('score_reminder', false, true)`)
 await rpc(B, `public.academic_withdraw_consent('push')`)
 await rpcError(B, `public.academic_transition_enrolment(${json({ kind: 'transferred', school_id: ID.school50 })})`)

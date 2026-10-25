@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteD
 import { supabase } from '@/lib/supabase'
 import { callAcademicRpc, shouldRetryAcademic } from './rpc'
 import { academicKeys } from './session'
+import { resumeUsageEvents, useTrackUsage } from './usageEvents'
 
 // Data access for the My Scores screens. Configuration (grades, subjects,
 // settings) is read straight from its tables; everything about the student
@@ -182,11 +183,15 @@ export function useGrantConsent() {
 
 export function useTransitionEnrolment() {
   const invalidate = useInvalidateAcademic()
+  const track = useTrackUsage()
   return useMutation({
     mutationFn: (input: TransitionInput) => callAcademicRpc<{ closed_enrolment_id: string | null; enrolment_id: string | null }>(
       'academic_transition_enrolment', { p_input: input },
     ),
-    onSuccess: invalidate,
+    onSuccess: (_result, input) => {
+      track('enrolment_transitioned', { type: input.kind })
+      return invalidate()
+    },
   })
 }
 
@@ -324,10 +329,14 @@ export const submitScoreEntry = (enrolmentId: string, periodId: string, lines: W
 
 export function useCorrectLine() {
   const queryClient = useQueryClient()
+  const track = useTrackUsage()
   return useMutation({
     mutationFn: ({ lineId, version, line, reason }: { lineId: string; version: number; line: Pick<WireLine, 'status' | 'value'>; reason?: string }) =>
       callAcademicRpc<EntryLine>('academic_correct_score_line', { p_line_id: lineId, p_expected_version: version, p_line: line, p_reason: reason ?? null }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+    onSuccess: (_line, { reason }) => {
+      track('score_line_edited', { reason_given: !!reason?.trim() })
+      return queryClient.invalidateQueries({ queryKey: academicKeys.all })
+    },
   })
 }
 
@@ -439,6 +448,18 @@ export function useWithdrawConsent() {
   })
 }
 
+/** Usage statistics back on (migration 124): the app starts sending again. */
+export function useGrantUsageStatistics() {
+  const invalidate = useInvalidateAcademic()
+  return useMutation({
+    mutationFn: (noticeVersion: string) => callAcademicRpc('academic_grant_consent', { p_purpose: 'usage_statistics', p_notice_version: noticeVersion }),
+    onSuccess: () => {
+      resumeUsageEvents()
+      return invalidate()
+    },
+  })
+}
+
 export const exportMyData = () => callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data')
 
 export interface DeletionStatus {
@@ -450,17 +471,25 @@ export interface DeletionStatus {
 
 export function useRequestDeletion() {
   const queryClient = useQueryClient()
+  const track = useTrackUsage()
   return useMutation({
     mutationFn: (scope: 'scores' | 'profile') => callAcademicRpc<DeletionStatus>('academic_request_deletion', { p_scope: scope }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+    onSuccess: () => {
+      track('deletion_requested', {})
+      return queryClient.invalidateQueries({ queryKey: academicKeys.all })
+    },
   })
 }
 
 export function useCancelDeletion() {
   const queryClient = useQueryClient()
+  const track = useTrackUsage()
   return useMutation({
     mutationFn: () => callAcademicRpc<DeletionStatus>('academic_cancel_deletion'),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: academicKeys.all }),
+    onSuccess: () => {
+      track('deletion_cancelled', {})
+      return queryClient.invalidateQueries({ queryKey: academicKeys.all })
+    },
   })
 }
 
