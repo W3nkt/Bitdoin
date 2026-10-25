@@ -104,3 +104,32 @@ records the device, OS and browser versions used, and the result.
   - Zero failures.
   - The manual penetration test is scheduled before Phase 3.
 - **UAT exit (§35.5):** all P0 scripts pass, no open severity-1/2 defects, and at least 80% of pilot students rate entry 4–5/5. Tracked in #40.
+
+## Localisation and accessibility checklist (PRD §35.3, QA-003 #39)
+
+### Automated (CI, every push)
+
+The browser suite checks seven student screens in Lao and English, light and dark, at 360 px: set-up notice, updated notice, dashboard, score entry, history, My data and inbox.
+
+| §35.3 item | How it is checked | Result 2026-10-25 |
+|---|---|---|
+| No clipped Lao glyphs at 200% zoom | Text at 200% at 360 px: no text clipped or cut off with "…", no sideways scrolling. Lao screenshots saved as `a11y-*-lo-200.png`. | Passes after fixes: names wrap instead of "…", and rows rearrange at large text |
+| Line breaks at word boundaries | `<html lang>` follows the chosen language, so the browser breaks Lao lines with its dictionary and picks Lao fonts and voices | Passes after fix: it stayed `en` until the language was toggled |
+| Lao digits accepted | "໗.໕" normalised to 7.5 (entry scenario; SCORE-004) | Passes |
+| Dates in Lao month names | `formatDate` uses Lao month names, e.g. "ໃຫ້ເມື່ອ 1 ຕຸລາ 2026" in My data | Passes |
+| Colour contrast | axe WCAG 2.2 AA (all rules, all impacts) on every screen, both themes | Passes after fix: grey text was too faint in dark mode |
+| Keyboard navigation on desktop | Tab through dashboard, entry, My data and inbox; every focused control shows a focus indicator; Enter moves between scores | Passes |
+| Chart tables | Every chart has a table view (dashboard and Health tab scenarios) | Passes |
+| 360 px layout, reflow | No sideways scrolling at 360 px and at 320 px (WCAG 1.4.10) | Passes |
+
+### Manual, before the pilot (tick in #39)
+
+- [ ] **Lao text reviewed by two native educators.** Cover `src/lib/academic/copy.ts` and the push wording in `send-push/messages.ts`. The owner confirmed the text on 2026-10-23 (UX-005); §35.3 asks for two educators. Strings added since then: `inbox.*`, `privacy.export.reauthBody`, `notice.stats`, `consent.usageStats.*`.
+- [ ] **TalkBack on a real Android phone** (tier A device), with Lao text-to-speech if installed:
+  - set-up;
+  - entering a month;
+  - dashboard and the chart table view;
+  - My data.
+
+  Each label should be read in the right language, and the screen reader should announce the order logically.
+- [ ] **Android "Largest" font size and 200% display zoom** on the same phone: no clipped Lao tone marks or vowels.

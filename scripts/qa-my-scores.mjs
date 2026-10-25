@@ -1076,6 +1076,115 @@ try {
     pass('Reminders (English): empty inbox and settings')
   }
 
+  // ─── Localisation and accessibility sweep (QA-003, #39; PRD §35.3) ────────
+  // Every student screen × Lao/English × light/dark at 360 px: axe (WCAG 2.2
+  // AA, all impacts), page language, no sideways scrolling, no clipped text;
+  // then text at 200% and reflow at 320 px.
+  {
+    const PHONE = { viewport: { width: 360, height: 800 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: MOBILE.userAgent }
+    const SCREENS = [
+      { name: 'set-up notice', path: '/academy/scores', state: { step: 'onboarding' } },
+      { name: 'updated notice', path: '/academy/scores', state: { step: 'consent', enrolment: 'e1' } },
+      { name: 'dashboard', path: '/academy/scores', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = workedExampleDashboard() } },
+      { name: 'score entry', path: '/academy/scores/entry', state: { step: 'ready', enrolment: 'e1' } },
+      { name: 'history', path: '/academy/scores/history', state: { step: 'ready', enrolment: 'e1' } },
+      { name: 'my data', path: '/academy/scores/data', state: { step: 'ready', enrolment: 'e1' } },
+      { name: 'inbox', path: '/academy/scores/inbox', state: { step: 'ready', enrolment: 'e1' } },
+    ]
+    const audit = (page) => page.evaluate(() => {
+      const sideways = document.documentElement.scrollWidth > window.innerWidth + 1
+      const clipped = []
+      for (const el of document.querySelectorAll('body *')) {
+        const style = getComputedStyle(el)
+        if (style.display === 'none' || style.visibility === 'hidden' || !el.offsetParent && style.position !== 'fixed') continue
+        const hasText = [...el.childNodes].some(node => node.nodeType === 3 && node.textContent.trim())
+        if (!hasText || el.closest('.recharts-wrapper, .sr-only')) continue
+        // Ellipsis hides content too (WCAG 1.4.4): names must wrap instead.
+        if (style.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) {
+          clipped.push(`truncated ${el.tagName.toLowerCase()} "${el.textContent.trim().slice(0, 30)}"`)
+          continue
+        }
+        const hidesX = ['hidden', 'clip'].includes(style.overflowX)
+        const hidesY = ['hidden', 'clip'].includes(style.overflowY)
+        if ((hidesY && el.scrollHeight > el.clientHeight + 1) || (hidesX && el.scrollWidth > el.clientWidth + 1)) {
+          clipped.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 3).join('.')} "${el.textContent.trim().slice(0, 30)}"`)
+        }
+      }
+      return { sideways, clipped, lang: document.documentElement.lang }
+    })
+    const findings = []
+    for (const screen of SCREENS) {
+      for (const lang of ['lo', 'en']) {
+        for (const theme of ['light', 'dark']) {
+          const { context, page, mock, errors } = await openAs(browser, { device: PHONE, lang, ...screen.state })
+          await context.addInitScript(value => localStorage.setItem('bitdoin_theme', value), theme)
+          screen.setup?.(mock)
+          await page.goto(`${base}${screen.path}`, { waitUntil: 'networkidle' })
+          await page.waitForTimeout(400)
+          const where = `${screen.name} (${lang}, ${theme})`
+          await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+          const axe = await page.evaluate(async () => {
+            const result = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, resultTypes: ['violations'] })
+            return result.violations.map(v => `${v.id} (${v.impact}): ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`)
+          })
+          axe.forEach(v => findings.push(`${where}: axe ${v}`))
+          let check = await audit(page)
+          if (check.lang !== lang) findings.push(`${where}: <html lang> is "${check.lang}"`)
+          if (check.sideways) findings.push(`${where}: scrolls sideways at 360 px`)
+          check.clipped.forEach(c => findings.push(`${where}: clipped text ${c}`))
+          if (theme === 'light') {
+            // Text at 200% (WCAG 1.4.4) and reflow at 320 px (1.4.10).
+            await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
+            await page.waitForTimeout(200)
+            check = await audit(page)
+            if (check.sideways) findings.push(`${where}: scrolls sideways with text at 200%`)
+            check.clipped.forEach(c => findings.push(`${where}: clipped at 200% ${c}`))
+            if (lang === 'lo') await shot(page, `a11y-${screen.name.replace(/ /g, '-')}-lo-200`)
+            await page.evaluate(() => { document.documentElement.style.fontSize = '' })
+            await page.setViewportSize({ width: 320, height: 800 })
+            await page.waitForTimeout(200)
+            if ((await audit(page)).sideways) findings.push(`${where}: scrolls sideways at 320 px`)
+          }
+          errors.forEach(e => findings.push(`${where}: page error ${e}`))
+          await context.close()
+        }
+      }
+    }
+    assert.deepEqual(findings, [], `\n${findings.join('\n')}`)
+    pass(`Localisation and accessibility: ${SCREENS.length} screens × Lao/English × light/dark at 360 px: axe WCAG 2.2 AA clean, page language set, no sideways scrolling or clipped text, also with text at 200% and at 320 px`)
+  }
+
+  // Keyboard (PRD §35.3): on desktop every control reached with Tab shows a
+  // visible focus indicator, and Tab order covers the main actions.
+  {
+    const missing = []
+    for (const path of ['/academy/scores', '/academy/scores/entry', '/academy/scores/data', '/academy/scores/inbox']) {
+      const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'ready', enrolment: 'e1' })
+      if (path === '/academy/scores') mock.state.dashboard = workedExampleDashboard()
+      await page.goto(`${base}${path}`, { waitUntil: 'networkidle' })
+      await page.waitForTimeout(300)
+      const seen = new Set()
+      for (let i = 0; i < 40; i++) {
+        await page.keyboard.press('Tab')
+        const focus = await page.evaluate(() => {
+          const el = document.activeElement
+          if (!el || el === document.body) return null
+          const style = getComputedStyle(el)
+          const ring = (style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0) || (style.boxShadow && style.boxShadow !== 'none')
+          return { id: `${el.tagName.toLowerCase()} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 40)}"`, ring }
+        })
+        if (!focus || seen.has(focus.id)) continue
+        seen.add(focus.id)
+        if (!focus.ring) missing.push(`${path}: ${focus.id}`)
+      }
+      assert.ok(seen.size >= 4, `${path}: only ${seen.size} controls reached with Tab`)
+      assert.deepEqual(errors, [])
+      await context.close()
+    }
+    assert.deepEqual(missing, [], `no visible focus indicator:\n${missing.join('\n')}`)
+    pass('Keyboard: dashboard, entry, My data and inbox reachable with Tab; every focused control shows a focus indicator')
+  }
+
   console.log(`
 ${results.length} scenarios passed`)
 } finally {

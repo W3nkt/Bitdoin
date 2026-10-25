@@ -111,7 +111,7 @@ function MissingRow({ label, periodId, canAdd }: { label: string; periodId: stri
   return (
     <li className="flex items-center justify-between gap-3 py-3">
       <span className="px-1 font-bold">{label}</span>
-      <span className="flex items-center gap-3 text-sm text-slate-500">
+      <span className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
         {t('history.notRecorded')}
         {canAdd && (
           <Link to={`/academy/scores/entry?period=${periodId}`} className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-black text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:ring-indigo-500/40">
@@ -136,7 +136,7 @@ function PeriodRow({ period, enrolment, official = false }: { period: HistoryPer
         className="flex w-full items-center gap-3 px-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
         <span className="min-w-0 flex-1">
           <span className="block font-bold">{label}{official && <span className="ml-2 text-xs font-black uppercase text-indigo-700 dark:text-indigo-300">{t('history.officialResult')}</span>}</span>
-          <span className="block text-xs text-slate-500">
+          <span className="block text-xs text-slate-500 dark:text-slate-400">
             {draft ? t('history.draft') : period.entry.submitted_at ? t('entry.submittedOn', { date: formatDate(period.entry.submitted_at, language) }) : ''}
             {' · '}{t('dash.coverage', { recorded: scored, active: period.lines.length })}
           </span>
@@ -152,7 +152,7 @@ function PeriodRow({ period, enrolment, official = false }: { period: HistoryPer
               return (
                 <li key={item.subject_enrolment_id}>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                    <span className="min-w-[8rem] flex-1 break-words">{name}</span>
                     {line && line.source !== 'manual' && <Badge tone="sky">{t(`history.source.${line.source}` as AcademicCopyKey)}</Badge>}
                     {line && line.verification !== 'self_reported' && <Badge tone="emerald">{t(`history.verification.${line.verification}` as AcademicCopyKey)}</Badge>}
                     {line?.edited && (
@@ -161,7 +161,7 @@ function PeriodRow({ period, enrolment, official = false }: { period: HistoryPer
                         <Badge tone="amber">{t('entry.edited')}</Badge>
                       </button>
                     )}
-                    <span className={cn('tabular-nums', line?.status === 'scored' ? 'font-black' : 'text-slate-500')}>
+                    <span className={cn('tabular-nums', line?.status === 'scored' ? 'font-black' : 'text-slate-500 dark:text-slate-400')}>
                       {!line ? '—' : line.status === 'scored' ? plainNumber(line.value) : t(`entry.status.${line.status}` as AcademicCopyKey)}
                     </span>
                   </div>
@@ -198,13 +198,13 @@ function TermAverage({ months, scale }: { months: HistoryPeriod[]; scale: Scale 
   return (
     <div className="mt-3 rounded-2xl border border-dashed border-slate-300 p-3 dark:border-slate-700">
       <p className="text-xs font-black text-slate-700 dark:text-slate-300">{t('history.calculated')}</p>
-      <p className="text-xs text-slate-500">{t('history.calculatedHint')}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400">{t('history.calculatedHint')}</p>
       <ul className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {[...bySubject.values()].map(({ name, values }) => (
-          <li key={name} className="flex justify-between gap-3">
-            <span className="truncate">{name}</span>
+          <li key={name} className="flex flex-wrap justify-between gap-x-3">
+            <span className="min-w-[8rem] flex-1 break-words">{name}</span>
             <span className="tabular-nums"><span className="font-black">{formatMean(values.reduce((a, b) => a + b, 0) / values.length, scale)}</span>
-              <span className="ml-1 text-xs text-slate-500">({values.length === 1 ? t('history.monthOne') : t('history.months', { count: values.length })})</span></span>
+              <span className="ml-1 text-xs text-slate-500 dark:text-slate-400">({values.length === 1 ? t('history.monthOne') : t('history.months', { count: values.length })})</span></span>
           </li>
         ))}
       </ul>

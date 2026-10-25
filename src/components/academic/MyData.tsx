@@ -164,7 +164,7 @@ function TransferCard({ enrolmentId, lo }: { enrolmentId: string; lo: boolean })
           onChange={event => setSeq(event.target.value)}
           options={choices.map(period => ({ value: String(period.sequence), label: lo ? period.label_lo : period.label_en }))} />
         <SchoolPicker value={school} onChange={setSchool} provinceCode={null} showLocationFilters />
-        <p className="text-xs text-slate-500">{t('transfer.body')}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{t('transfer.body')}</p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => setOpen(false)}>{t('common.cancel')}</Button>
           <Button

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Currency, Language } from '@/types'
 
@@ -17,6 +17,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(
     () => (localStorage.getItem('pwen_lang') as Language) ?? 'lo'
   )
+  // <html lang> drives Lao line breaking, fonts and the screen reader's voice,
+  // so it must follow the chosen language from the first render.
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
   const [currency, setCurrencyState] = useState<Currency>(
     () => (localStorage.getItem('pwen_currency') as Currency) ?? 'LAK'
   )
@@ -25,7 +31,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang)
     i18n.changeLanguage(lang)
     localStorage.setItem('pwen_lang', lang)
-    document.documentElement.lang = lang
   }
 
   function setCurrency(c: Currency) {

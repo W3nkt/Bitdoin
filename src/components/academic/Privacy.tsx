@@ -73,7 +73,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
       <span>
         <span className="block font-bold">{t(`consent.purpose.${purpose}` as AcademicCopyKey)}</span>
-        <span className="block text-xs text-slate-500">
+        <span className="block text-xs text-slate-500 dark:text-slate-400">
           {t('data.consentActive', { date: formatDate(current.granted_at, language) })}
         </span>
       </span>
@@ -97,7 +97,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
             <span className="min-w-0 flex-1 basis-56">
               <span className="block font-bold">{t('consent.purpose.usage_statistics')}</span>
               <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.usageStats.body')}</span>
-              <span className="block text-xs text-slate-500">
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
                 {stats ? t('data.consentActive', { date: formatDate(stats.granted_at, language) }) : t('consent.usageStats.off')}
               </span>
             </span>
@@ -206,7 +206,7 @@ export function DeleteCard() {
         {option('scores', 'privacy.delete.scores', 'privacy.delete.scoresBody')}
         {option('profile', 'privacy.delete.profile', 'privacy.delete.profileBody')}
       </div>
-      <p className="mt-3 text-xs text-slate-500">{t('privacy.delete.grace')}</p>
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{t('privacy.delete.grace')}</p>
 
       {reauth ? <ReauthNotice body="privacy.delete.reauthBody" /> : confirming && scope ? (
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">

@@ -49,7 +49,7 @@ export function SchoolPicker({ value, onChange, provinceCode, districtCode = nul
         <div className="mt-1 flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3 dark:border-indigo-500/30 dark:bg-indigo-500/10">
           <School className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-bold">{name}</p>
+            <p className="break-words font-bold">{name}</p>
             {'school_free_text' in value && <p className="text-xs text-slate-600 dark:text-slate-400">{t('school.unverified')}</p>}
           </div>
           <button type="button" onClick={() => onChange(null)} className="shrink-0 rounded-full px-3 py-1.5 text-sm font-black text-indigo-700 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-500/20">
@@ -100,9 +100,9 @@ export function SchoolPicker({ value, onChange, provinceCode, districtCode = nul
 
         {showResults && (
           <div className="mt-2 max-h-80 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700" role="listbox" aria-label={t('school.label')}>
-            {search.isFetching && results.length === 0 && <p className="p-3 text-sm text-slate-500">{t('school.searching')}</p>}
+            {search.isFetching && results.length === 0 && <p className="p-3 text-sm text-slate-500 dark:text-slate-400">{t('school.searching')}</p>}
             {search.isError && <p className="p-3 text-sm text-red-600 dark:text-red-400" role="alert">{t('school.searchError')}</p>}
-            {!search.isFetching && !search.isError && debounced.trim() === typed && results.length === 0 && <p className="p-3 text-sm text-slate-500">{t('school.noResults')}</p>}
+            {!search.isFetching && !search.isError && debounced.trim() === typed && results.length === 0 && <p className="p-3 text-sm text-slate-500 dark:text-slate-400">{t('school.noResults')}</p>}
             {results.map(school => {
               const name = lo ? school.name_lo : school.name_en || school.name_lo
               const area = LAOS_ADMIN_DIVISIONS.find(item => item.id === school.province_code)
@@ -119,14 +119,14 @@ export function SchoolPicker({ value, onChange, provinceCode, districtCode = nul
                 >
                   <School className="h-4 w-4 shrink-0 text-slate-400" />
                   <span className="min-w-0">
-                    <span className="block truncate font-bold">{name}</span>
-                    {school.romanised_name && <span className="block truncate text-xs text-slate-500">{school.romanised_name}</span>}
-                    <span className="block text-xs text-slate-500">{locationLabel}</span>
+                    <span className="block break-words font-bold">{name}</span>
+                    {school.romanised_name && <span className="block break-words text-xs text-slate-500 dark:text-slate-400">{school.romanised_name}</span>}
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">{locationLabel}</span>
                   </span>
                 </button>
               )
             })}
-            {results.length >= 20 && <p className="p-3 text-xs text-slate-500">{t('school.refine')}</p>}
+            {results.length >= 20 && <p className="p-3 text-xs text-slate-500 dark:text-slate-400">{t('school.refine')}</p>}
             {typed.length >= 2 && <button
               type="button"
               onClick={() => onChange({ school_free_text: typed.slice(0, 80) })}

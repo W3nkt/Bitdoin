@@ -136,7 +136,7 @@ function SummaryCard({ view, periodLabel, actions }: { view: DashboardView; peri
       <p className="text-sm font-bold text-slate-600 dark:text-slate-400">{periodLabel(summary.latest_period_id)} · {view.enrolment.academic_year}</p>
       <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-1">
         {mean ? (
-          <p className="text-5xl font-black leading-none">{mean}<span className="ml-1 text-lg font-bold text-slate-500">/ {plainNumber(view.scale.max)}</span></p>
+          <p className="text-5xl font-black leading-none">{mean}<span className="ml-1 text-lg font-bold text-slate-500 dark:text-slate-400">/ {plainNumber(view.scale.max)}</span></p>
         ) : (
           <p className="text-base font-bold text-slate-700 dark:text-slate-300">{t('dash.lowCoverage')}</p>
         )}
@@ -264,7 +264,7 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
       )}
       table={<DataTable head={[t('dash.table.month'), meanName, ...(showRolling ? [rollingName] : []), t('dash.table.recorded')]}
         rows={data.map(point => [point.label, formatMean(point.mean, scale) ?? '—', ...(showRolling ? [formatMean(point.rolling, scale) ?? '—'] : []), point.recorded])} />}
-      footer={<p className="mt-2 text-xs text-slate-500">{t('dash.trend.gap')}{transferredFrom && ` · ${t('dash.trend.schoolChanged', { period: transferredFrom })}`}</p>}
+      footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.trend.gap')}{transferredFrom && ` · ${t('dash.trend.schoolChanged', { period: transferredFrom })}`}</p>}
     >
       <div className="h-56" role="img" aria-label={`${t('dash.trend.title')}: ${data.map(point => `${point.label} ${formatMean(point.mean, scale) ?? '—'}`).join(', ')}`}>
         <ResponsiveContainer width="100%" height="100%">
@@ -314,7 +314,7 @@ function LatestCard({ view }: { view: DashboardView }) {
         <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">
           <p className="font-bold text-slate-600 dark:text-slate-400">{t('dash.compare.others')}</p>
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-            {others.map(subject => <li key={subject.subject_enrolment_id}>{name(subject)} · <span className="text-slate-500">{t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)}</span></li>)}
+            {others.map(subject => <li key={subject.subject_enrolment_id}>{name(subject)} · <span className="text-slate-500 dark:text-slate-400">{t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)}</span></li>)}
           </ul>
         </div>
       )}
@@ -351,10 +351,10 @@ function SubjectList({ view, onOpen }: { view: DashboardView; onOpen: (id: strin
         {subjects.map(subject => (
           <li key={subject.subject_enrolment_id}>
             <button type="button" onClick={() => onOpen(subject.subject_enrolment_id)}
-              className="flex w-full items-center gap-3 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800/60">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-bold">{lo ? subject.name_lo : subject.name_en}</span>
-                <span className="block text-xs text-slate-500">
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800/60">
+              <span className="min-w-[8rem] flex-1">
+                <span className="block break-words font-bold">{lo ? subject.name_lo : subject.name_en}</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400">
                   {subject.mean !== null ? t('dash.subjects.average', { value: formatMean(subject.mean, view.scale) ?? '', count: subject.window_n }) : t('dash.subjects.fewMonths')}
                 </span>
               </span>
@@ -372,7 +372,7 @@ function SubjectList({ view, onOpen }: { view: DashboardView; onOpen: (id: strin
 function DirectionIcon({ change }: { change: Change | null }) {
   if (!change) return <span className="w-4" />
   const Icon = change.direction === 'up' ? ArrowUpRight : change.direction === 'down' ? ArrowDownRight : Minus
-  return <Icon aria-hidden className="h-4 w-4 text-slate-500" />
+  return <Icon aria-hidden className="h-4 w-4 text-slate-500 dark:text-slate-400" />
 }
 
 function SubjectDetail({ view, subject, periodLabel, onBack }: { view: DashboardView; subject: DashboardSubject; periodLabel: (id: string) => string; onBack: () => void }) {
@@ -408,7 +408,7 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
           </span>
         )}
         table={<DataTable head={[t('dash.table.month'), scoreName]} rows={data.map(point => [point.label, point.value === null ? t(`entry.status.${point.status}` as AcademicCopyKey) : plainNumber(point.value)])} />}
-        footer={<p className="mt-2 text-xs text-slate-500">{t('dash.oneMonth')}</p>}
+        footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.oneMonth')}</p>}
       >
         <div className="h-56" role="img" aria-label={`${t('dash.subject.chart', { subject: name })}: ${data.map(point => `${point.label} ${point.value ?? '—'}`).join(', ')}`}>
           <ResponsiveContainer width="100%" height="100%">

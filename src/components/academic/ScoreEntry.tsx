@@ -285,7 +285,7 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
             return (
               <li key={subject.subject_enrolment_id} className="flex items-center justify-between gap-3 py-3">
                 <span className="font-bold">{lo ? subject.name_lo : subject.name_en}</span>
-                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500')}>
+                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500 dark:text-slate-400')}>
                   {line?.status === 'scored' ? normaliseScoreText(line.text) : line?.status ? statusText(line.status) : '—'}
                 </span>
               </li>
@@ -316,8 +316,8 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
           const error = errorFor(line)
           return (
             <li key={id} className="py-2.5">
-              <div className="flex items-center gap-2">
-                <label htmlFor={`score-${id}`} className="min-w-0 flex-1 truncate px-1 font-bold">{name}</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label htmlFor={`score-${id}`} className="min-w-[8rem] flex-1 break-words px-1 font-bold">{name}</label>
                 <input
                   id={`score-${id}`}
                   ref={element => { inputs.current[index] = element }}
@@ -361,7 +361,7 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
           )
         })}
       </ul>
-      {unfilled > 0 && !invalid && <p className="mt-3 px-1 text-xs text-slate-500">{t('entry.unfilled', { count: unfilled })}</p>}
+      {unfilled > 0 && !invalid && <p className="mt-3 px-1 text-xs text-slate-500 dark:text-slate-400">{t('entry.unfilled', { count: unfilled })}</p>}
       <Button className="mt-4" fullWidth size="lg" disabled={invalid || unfilled > 0} onClick={() => setReviewing(true)}>{t('entry.review')}</Button>
     </section>
   )
@@ -375,7 +375,7 @@ function SyncBadge({ state }: { state: 'idle' | 'saving' | 'saved' | 'local' }) 
     saved: [<CheckCircle2 key="i" className="h-3.5 w-3.5" />, t('entry.savedDraft')],
     local: [<CloudOff key="i" className="h-3.5 w-3.5" />, t('entry.savedLocal')],
   }[state]
-  return <span role="status" className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-slate-500">{content}</span>
+  return <span role="status" className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">{content}</span>
 }
 
 // ─── Submitted period: view and correct (SCORE-007/012) ──────────────────────
@@ -397,22 +397,22 @@ function SubmittedView({ view }: { view: ScoreEntryView }) {
           const name = lo ? subject.name_lo : subject.name_en
           return (
             <li key={subject.subject_enrolment_id} className="py-3">
-              <div className="flex items-center gap-3">
-                <span className="min-w-0 flex-1 truncate px-1 font-bold">{name}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="min-w-[8rem] flex-1 break-words px-1 font-bold">{name}</span>
                 {line?.edited && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">{t('entry.edited')}</span>}
                 {line && line.verification !== 'self_reported' && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-800">{t('entry.badge.verified')}</span>}
-                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500')}>
+                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500 dark:text-slate-400')}>
                   {line ? (line.status === 'scored' ? plainNumber(line.value) : statusText(line.status)) : '—'}
                 </span>
                 {line && !view.read_only && (
                   <button type="button" onClick={() => setEditing(editing === line.id ? null : line.id)} aria-label={t('entry.correctTitle', { subject: name })}
-                    className="grid h-9 w-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800">
+                    className="grid h-9 w-9 place-items-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800">
                     <Pencil className="h-4 w-4" />
                   </button>
                 )}
                 {line?.edited && (
                   <button type="button" onClick={() => setHistory(history === line.id ? null : line.id)} aria-label={`${t('entry.history')}: ${name}`}
-                    className="grid h-9 w-9 place-items-center rounded-full text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800">
+                    className="grid h-9 w-9 place-items-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800">
                     <History className="h-4 w-4" />
                   </button>
                 )}
@@ -475,15 +475,15 @@ export function RevisionList({ lineId }: { lineId: string }) {
   const { t, language } = useAcademicCopy()
   const revisions = useLineRevisions(lineId)
   const show = (value: number | string | null, status: string) => (status === 'scored' ? plainNumber(value) : t(`entry.status.${status}` as AcademicCopyKey))
-  if (revisions.isPending) return <p className="mt-2 px-1 text-xs text-slate-500">…</p>
+  if (revisions.isPending) return <p className="mt-2 px-1 text-xs text-slate-500 dark:text-slate-400">…</p>
   const rows = revisions.data?.revisions ?? []
   return (
     <ul className="mt-2 space-y-1 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">
-      {rows.length === 0 && <li className="text-slate-500">{t('entry.noRevisions')}</li>}
+      {rows.length === 0 && <li className="text-slate-500 dark:text-slate-400">{t('entry.noRevisions')}</li>}
       {rows.map(row => (
         <li key={row.changed_at} className="flex flex-wrap gap-x-2">
           <span className="font-black tabular-nums">{show(row.old_value, row.old_status)} → {show(row.new_value, row.new_status)}</span>
-          <span className="text-slate-500">{formatDate(row.changed_at, language)} · {t(`entry.revisionBy.${row.changed_by}` as AcademicCopyKey)}</span>
+          <span className="text-slate-500 dark:text-slate-400">{formatDate(row.changed_at, language)} · {t(`entry.revisionBy.${row.changed_by}` as AcademicCopyKey)}</span>
           {row.reason && <span className="w-full text-slate-600 dark:text-slate-400">“{row.reason}”</span>}
         </li>
       ))}

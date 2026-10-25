@@ -165,7 +165,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
                   </div>
                   <button type="button" aria-label={t('inbox.dismiss')} disabled={dismiss.isPending}
                     onClick={() => dismiss.mutate(note.id, { onError: error => toast.error(academicErrorText(t, error)) })}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-slate-200">
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-slate-200">
                     <X className="h-4 w-4" />
                   </button>
                 </li>

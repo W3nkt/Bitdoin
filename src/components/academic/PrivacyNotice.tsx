@@ -46,7 +46,7 @@ export function PrivacyNotice({ version, title, intro, busy, onAccept }: {
         <ChevronDown className={cn('h-4 w-4 transition', open && 'rotate-180')} />
       </button>
       {open && <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">{t('notice.full')}</p>}
-      <p className="mt-4 text-xs text-slate-500 dark:text-slate-500">{t('notice.version', { version })}</p>
+      <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('notice.version', { version })}</p>
 
       <label htmlFor={checkboxId} className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
         <input

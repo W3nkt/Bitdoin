@@ -19,7 +19,7 @@ export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/90">
-        <div className="mx-auto flex h-20 max-w-4xl items-center gap-3 px-4">
+        <div className="mx-auto flex min-h-20 max-w-4xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
           {backTo && <button
             type="button"
             onClick={() => navigate(backTo)}
@@ -31,10 +31,10 @@ export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
           <span className="hidden h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 text-white sm:grid">
             <School className="h-6 w-6" />
           </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate font-black">{t('shell.title')}</h1>
+          <div className="min-w-[7rem] flex-1">
+            <h1 className="break-words font-black">{t('shell.title')}</h1>
             {/* Letter-spacing suits Latin caps but breaks up Lao script. */}
-            <p className={cn('truncate font-bold text-indigo-700 dark:text-indigo-300', lo ? 'text-xs' : 'text-[10px] uppercase tracking-[0.18em]')}>
+            <p className={cn('break-words font-bold text-indigo-700 dark:text-indigo-300', lo ? 'text-xs' : 'text-[10px] uppercase tracking-[0.18em]')}>
               {subtitle ?? t('shell.subtitle')}
             </p>
           </div>

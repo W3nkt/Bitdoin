@@ -167,7 +167,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800" aria-hidden>
           <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${(index / (STEPS.length - 1)) * 100}%` }} />
         </div>
-        <span className="shrink-0 text-xs font-bold text-slate-500">{t('common.stepOf', { step: index, total: STEPS.length - 1 })}</span>
+        <span className="shrink-0 text-xs font-bold text-slate-500 dark:text-slate-400">{t('common.stepOf', { step: index, total: STEPS.length - 1 })}</span>
       </div>
 
       {step === 'age' && (
@@ -247,7 +247,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
           </div>
           <div className="mt-4">
             <Textarea label={t('goals.text')} value={goalText} maxLength={200} rows={3} onChange={event => setGoalText(event.target.value)} />
-            <p className="mt-1 text-right text-xs text-slate-500">{goalText.length}/200</p>
+            <p className="mt-1 text-right text-xs text-slate-500 dark:text-slate-400">{goalText.length}/200</p>
           </div>
           <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-200">{t('goals.interests')}</p>
           <div className="mt-2 flex flex-wrap gap-2">
