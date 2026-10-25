@@ -204,14 +204,14 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Select label={t('details.province')} required value={provinceId} error={errors.province_code}
                 placeholder={t('details.choose')}
-                onChange={event => { setProvinceId(event.target.value); setDistrictCode(''); clearError('province_code') }}
+                onChange={event => { setProvinceId(event.target.value); setDistrictCode(''); setSchool(null); clearError('province_code') }}
                 options={LAOS_ADMIN_DIVISIONS.map(item => ({ value: item.id, label: lo ? item.name_lo : item.name_en }))} />
               <Select label={`${t('details.district')} (${t('common.optional')})`} value={districtCode} disabled={!province}
                 placeholder={t('details.choose')}
-                onChange={event => setDistrictCode(event.target.value)}
+                onChange={event => { setDistrictCode(event.target.value); setSchool(null) }}
                 options={(province?.districts ?? []).map(item => ({ value: item.code, label: lo ? item.name_lo : item.name_en }))} />
             </div>
-            <SchoolPicker value={school} onChange={choice => { setSchool(choice); clearError('school_id') }} provinceCode={provinceId || null} error={errors.school_id} />
+            <SchoolPicker key={`${provinceId}:${districtCode}`} value={school} onChange={choice => { setSchool(choice); clearError('school_id') }} provinceCode={provinceId || null} districtCode={districtCode || null} error={errors.school_id} />
           </div>
           {!config.isPending && !config.data?.activeYear && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{t('error.calendarMissing')}</p>}
           <Button className="mt-6" fullWidth size="lg" disabled={!config.data?.activeYear}

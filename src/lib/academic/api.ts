@@ -50,6 +50,8 @@ export interface SchoolMatch {
   romanised_name: string | null
   province_code: string
   district_code: string | null
+  latitude: number | null
+  longitude: number | null
 }
 
 /** Subject chosen during onboarding or when editing subjects. */
@@ -142,16 +144,17 @@ export function defaultSubjectsFor(subjects: AcademicSubject[], grade: AcademicG
   return subjects.filter(subject => subject.is_default && grade.ordinal >= subject.grade_min && grade.ordinal <= subject.grade_max)
 }
 
-export function useSchoolSearch(query: string, provinceCode: string | null) {
+export function useSchoolSearch(query: string, provinceCode: string | null, districtCode: string | null = null) {
   const trimmed = query.trim()
   return useQuery({
-    queryKey: [...academicKeys.all, 'schools', trimmed.toLowerCase(), provinceCode],
-    enabled: trimmed.length >= 2,
+    queryKey: [...academicKeys.all, 'schools', trimmed.toLowerCase(), provinceCode, districtCode],
+    enabled: trimmed.length >= 2 || (trimmed.length === 0 && !!provinceCode),
     staleTime: 5 * 60_000,
     retry: shouldRetryAcademic,
     queryFn: () => callAcademicRpc<SchoolMatch[]>('academic_search_schools', {
       p_query: trimmed,
       p_province_code: provinceCode,
+      p_district_code: districtCode,
       p_limit: 20,
     }),
   })

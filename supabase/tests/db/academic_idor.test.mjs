@@ -84,7 +84,7 @@ const HELPERS = [
   'academic_can_read_enrolment(uuid)', 'academic_can_read_profile(uuid,text)', 'academic_can_read_score_entry(uuid)',
   'academic_can_read_score_line(uuid)', 'academic_current_profile_id()', 'academic_is_admin()', 'academic_mfa_ok()',
   'academic_admin_session()', 'academic_module_enabled()', 'academic_today()', 'academic_engine_version()',
-  'academic_search_schools(text,text,integer)',
+  'academic_search_schools(text,text,integer,text)',
 ]
 const registry = [...BY_ID, ...OWN_READ, ...OWN_WRITE, ...STAFF_ONLY, ...HELPERS]
 eq('each function is classified once', registry.length, new Set(registry).size)

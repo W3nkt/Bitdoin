@@ -83,7 +83,7 @@ export function NewSchoolYear({ hasEnrolment }: { hasEnrolment: boolean }) {
           <Select label={t('details.grade')} required value={chosenGrade} placeholder={t('details.choose')}
             onChange={event => setGradeId(event.target.value)}
             options={grades.map(grade => ({ value: grade.id, label: lo ? `${grade.label_lo} · ${grade.label_en}` : grade.label_en }))} />
-          <SchoolPicker value={school} onChange={setSchool} provinceCode={null} />
+          <SchoolPicker value={school} onChange={setSchool} provinceCode={null} showLocationFilters />
         </div>
       )}
 

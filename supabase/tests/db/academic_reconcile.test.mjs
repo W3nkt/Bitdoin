@@ -19,9 +19,9 @@ await ok(db, 'old state', `
   insert into academic_student_profiles (user_id, display_name, age_band, province_code) values ('00000000-0000-0000-0000-0000000000a1', 'S', '18_plus', 'SV');`)
 await ok(db, 'reconcile', reconcile)
 eq('setting converted', (await one(`select jsonb_array_length(value) as n, value ? 'vientiane-prefecture' as has from academic_settings where key = 'province_codes'`)), { n: 18, has: true })
-eq('rows converted', await one(`select (select province_code from academic_schools) as school, (select province_code from academic_calendar_templates) as calendar,
+eq('rows converted', await one(`select (select province_code from academic_schools where id = '10000000-0000-0000-0000-0000000000a9') as school, (select province_code from academic_calendar_templates) as calendar,
   (select province_code from academic_student_profiles) as profile`), { school: 'vientiane-prefecture', calendar: 'luang-prabang', profile: 'savannakhet' })
 await ok(db, 'second run is a no-op', reconcile)
-eq('still converted', (await one(`select province_code from academic_schools`)).province_code, 'vientiane-prefecture')
+eq('still converted', (await one(`select province_code from academic_schools where id = '10000000-0000-0000-0000-0000000000a9'`)).province_code, 'vientiane-prefecture')
 
 done()

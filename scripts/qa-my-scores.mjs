@@ -26,7 +26,11 @@ const SUBJECTS = [
   ['LAO', 'ພາສາລາວ', 'Lao Language & Literature', 10, 12, true],
   ['PE', 'ພະລະສຶກສາ', 'Physical education', 10, 12, false],
 ].map(([code, name_lo, name_en, grade_min, grade_max, is_default]) => ({ id: `s-${code}`, code, name_lo, name_en, grade_min, grade_max, is_default }))
-const SCHOOLS = [{ id: 'school-1', name_lo: 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', name_en: 'Thotlong Secondary School', romanised_name: 'Matthayom Thotlong', province_code: 'vientiane-prefecture', district_code: null }]
+const SCHOOLS = [
+  { id: 'school-1', name_lo: 'ໂຮງຮຽນ ມັດທະຍົມ ທົດລອງ', name_en: 'Thotlong Secondary School', romanised_name: 'Matthayom Thotlong', province_code: 'vientiane-prefecture', district_code: '1-01' },
+  { id: 'school-2', name_lo: 'ໂຮງຮຽນ ສີໂຄດ', name_en: 'Sikhottabong Secondary School', romanised_name: null, province_code: 'vientiane-prefecture', district_code: '1-02' },
+  { id: 'school-3', name_lo: 'ໂຮງຮຽນ ຜົ້ງສາລີ', name_en: 'Phongsaly Secondary School', romanised_name: null, province_code: 'phongsaly', district_code: '2-01' },
+]
 
 function fakeJwt() {
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -58,7 +62,10 @@ function backend(initial) {
       state.events.push(...args.p_events)
       return { accepted: args.p_events.length, duplicates: 0, dropped: 0, tracking: true }
     },
-    academic_search_schools: (args) => SCHOOLS.filter(s => `${s.name_lo} ${s.name_en} ${s.romanised_name}`.toLowerCase().includes(args.p_query.toLowerCase().slice(0, 3))),
+    academic_search_schools: (args) => SCHOOLS.filter(s =>
+      (!args.p_province_code || s.province_code === args.p_province_code)
+      && (!args.p_district_code || s.district_code === args.p_district_code)
+      && `${s.name_lo} ${s.name_en} ${s.romanised_name ?? ''}`.toLowerCase().includes(args.p_query.toLowerCase().slice(0, 3))),
     academic_create_profile: () => { state.step = 'ready'; state.enrolment = 'e1'; return { created: true, profile_id: 'p1', enrolment_id: 'e1' } },
     academic_grant_consent: (args) => {
       state.step = 'ready'
@@ -299,6 +306,45 @@ const MOBILE = devices['Pixel 7']
 const DESKTOP = { viewport: { width: 1280, height: 900 } }
 
 try {
+  // Province -> district -> school browsing, with dependent selections cleared.
+  for (const [device, lang] of [[MOBILE, 'lo'], [DESKTOP, 'en']]) {
+    const { context, page, mock, errors } = await openAs(browser, { device, lang, step: 'onboarding' })
+    const lo = lang === 'lo'
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('checkbox').check()
+    await page.getByRole('button', { name: lo ? 'ຍອມຮັບ ແລະ ສືບຕໍ່' : 'Agree and continue', exact: true }).click()
+    await page.getByRole('button', { name: lo ? '16–17 ປີ' : '16–17', exact: true }).click()
+    await page.getByRole('button', { name: lo ? 'ຕໍ່ໄປ' : 'Next', exact: true }).click()
+    const province = page.getByLabel(lo ? 'ແຂວງ' : 'Province')
+    const district = page.getByLabel(lo ? 'ເມືອງ (ບໍ່ບັງຄັບ)' : 'District (optional)', { exact: true })
+    const schools = page.getByRole('listbox')
+    await province.selectOption('vientiane-prefecture')
+    await schools.getByRole('option', { name: /Thotlong|ທົດລອງ/ }).waitFor()
+    assert.equal(await page.locator('[role="listbox"] [role="option"]').count(), 2, 'Browse selected province without typing')
+    await district.selectOption('1-02')
+    await schools.getByRole('option', { name: /Sikhottabong|ສີໂຄດ/ }).waitFor()
+    assert.equal(await page.locator('[role="listbox"] [role="option"]').count(), 1)
+    assert.deepEqual(lastCall(mock, 'academic_search_schools').args, { p_query: '', p_province_code: 'vientiane-prefecture', p_district_code: '1-02', p_limit: 20 })
+    await schools.getByRole('option', { name: /Sikhottabong|ສີໂຄດ/ }).click()
+    await district.selectOption('1-01')
+    await schools.getByRole('option', { name: /Thotlong|ທົດລອງ/ }).waitFor()
+    assert.equal(await page.getByRole('button', { name: lo ? 'ປ່ຽນ' : 'Change', exact: true }).count(), 0, 'Changing district clears selected school')
+    await schools.getByRole('option', { name: /Thotlong|ທົດລອງ/ }).click()
+    await province.selectOption('phongsaly')
+    assert.equal(await district.inputValue(), '', 'Changing province clears district')
+    await schools.getByRole('option', { name: /Phongsaly|ຜົ້ງສາລີ/ }).waitFor()
+    assert.equal(await page.locator('[role="listbox"] [role="option"]').count(), 1)
+    assert.equal(await page.getByRole('button', { name: lo ? 'ປ່ຽນ' : 'Change', exact: true }).count(), 0, 'Changing province clears selected school')
+    await page.getByRole('searchbox').fill('No matching school')
+    await page.getByRole('button', { name: /My school is not listed|ບໍ່ມີໂຮງຮຽນຂອງຂ້ອຍ/ }).waitFor()
+    assert.equal(await page.locator('[role="listbox"] [role="option"]').count(), 0, 'Previous results cannot be selected during a new search')
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    await shot(page, `school-location-filters-${lang}`)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass(`${lang}: school browsing filters by province/district, clears stale selections and retains unlisted-school fallback`)
+  }
+
   // Signed out -> /auth with return path (AUTH-001).
   {
     const context = await browser.newContext(MOBILE)
