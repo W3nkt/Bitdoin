@@ -99,6 +99,27 @@ function healthFixture() {
   }
 }
 
+function metricsFixture() {
+  const months = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10']
+  const weeks = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2026, 7, 3 + i * 7)).toISOString().slice(0, 10))
+  return {
+    generated_at: '2026-10-25T03:00:00Z', timezone: 'Asia/Vientiane', min_group: 20, tracking_since: '2026-08-03T01:00:00Z',
+    statistics: { on: 412, off: 37 },
+    weeks: weeks.map((week_start, i) => ({
+      week_start, profiles_created: i < 2 ? null : 20 + i * 3, onboarding_started: i < 2 ? null : 40 + i * 2, onboarding_completed: i < 2 ? null : 30 + i * 2,
+      onboarding_rate: i < 2 ? null : (30 + i * 2) / (40 + i * 2), first_entry_cohort: i < 2 ? null : 20 + i * 3, first_entry_rate: i < 2 ? null : 0.55, first_entry_final: i < 10,
+    })),
+    months: months.map((month, i) => ({
+      month, recording_students: i < 3 ? null : 120 + i * 40, active_students: i < 3 ? null : 200 + i * 50, dashboard_twice_rate: i < 3 ? null : 0.42,
+      second_month_base: i < 4 ? null : 60, second_month_rate: i < 4 ? null : 0.61, entry_duration_p50_ms: i < 3 ? null : 185000,
+      period_expected: i < 3 ? null : 300, period_completion_rate: i < 3 ? null : 0.58, complete: i < 5,
+    })),
+    cohorts: months.map((month, i) => ({ month, size: i < 3 ? null : 90, m1_rate: i < 3 ? null : (i < 5 ? 0.66 : null), m3_rate: null, m1_due: i < 5, m3_due: i < 2 })),
+    sources: [{ source: 'academy_menu', profiles: 210, share: 0.7 }, { source: 'reminder', profiles: 75, share: 0.25 }, { source: 'other', profiles: null, share: null }],
+    grades: [{ grade_code: 'G10', recording_students: 160 }, { grade_code: 'G12', recording_students: null }],
+  }
+}
+
 function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
   const state = { calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal) }
   const user = () => ({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'admin@example.com', app_metadata: {}, user_metadata: {}, factors: state.factors })
@@ -117,6 +138,7 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       consents: [{ purpose: 'module_processing', notice_version: '2026-10', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }],
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
+    academic_admin_usage_metrics: () => metricsFixture(),
     academic_admin_test_alert: () => ({ id: 'al-test' }),
     academic_support_break_glass: () => ({ session_id: 'bg1', expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }),
     academic_support_view_scores: () => ({
@@ -513,6 +535,39 @@ try {
     assert.equal(await ops.page.getByRole('button', { name: 'Health' }).count(), 0)
     await ops.context.close()
     pass('Health: verdicts per target (icon + label), latency and error charts with table views, job results, backup and drill status, test alert queued and e-mailed; Operations has no Health tab')
+  }
+
+  // Metrics (ANL-002): headline tiles, small groups hidden, pending rates, definitions, admin only.
+  {
+    const { context, page, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=metrics`, { waitUntil: 'domcontentloaded' })
+    const tiles = page.getByRole('region', { name: 'Headline metrics' })
+    await tiles.getByText(/^Recording students, Sept? 2026$/).waitFor()
+    await tiles.getByText('280').waitFor()
+    await tiles.getByText('This month so far: 320').waitFor()
+    await page.getByText('Students with usage statistics on: 412; off: 37.', { exact: false }).waitFor()
+    await page.locator('.recharts-line-curve').first().waitFor()
+    const funnel = page.locator('section', { has: page.getByRole('heading', { name: 'Weekly funnel' }) })
+    assert.ok(await funnel.getByText('<20').count() >= 2, 'small weekly groups hidden')
+    assert.equal(await funnel.getByText('not yet').count(), 2, 'first-entry rates of the last two weeks pending')
+    const monthly = page.locator('section', { has: page.getByRole('heading', { name: 'Monthly recording' }) })
+    await monthly.getByText('Oct 2026 (so far)').waitFor()
+    await monthly.getByText('3.1 min').first().waitFor()
+    await page.getByText('Profile page link').count().then(n => assert.equal(n, 0))
+    await page.getByText('Academy menu').waitFor()
+    await page.getByText('Not collected yet: Phase 1 has no rating prompt.').waitFor()
+    await shot(page, 'admin-10-metrics')
+    await axe(page)
+    await page.getByRole('button', { name: 'Show table' }).first().click()
+    await page.getByRole('columnheader', { name: 'Recording students' }).waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await ops.page.goto(`${base}/academy-admin/scores?tab=metrics`, { waitUntil: 'domcontentloaded' })
+    await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
+    assert.equal(await ops.page.getByRole('button', { name: 'Metrics' }).count(), 0)
+    await ops.context.close()
+    pass('Metrics: headline tiles, monthly chart with table view, groups under 20 hidden, pending rates marked, sources and definitions; Operations has no Metrics tab')
   }
 
   // Finance: no access; phone width has no horizontal scroll.

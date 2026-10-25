@@ -513,3 +513,47 @@ export function useTestAlert() {
     return data as { claimed: number; sent: number; failed: number; skipped?: string }
   })
 }
+
+// ─── Usage metrics (ANL-002, migration 125) ──────────────────────────────────
+// Counts of 1–19 students and rates over fewer than 20 arrive as null.
+
+export interface UsageMetrics {
+  generated_at: string
+  timezone: string
+  min_group: number
+  tracking_since: string | null
+  statistics: { on: number | null; off: number | null }
+  weeks: Array<{
+    week_start: string
+    profiles_created: number | null
+    onboarding_started: number | null
+    onboarding_completed: number | null
+    onboarding_rate: number | null
+    first_entry_cohort: number | null
+    first_entry_rate: number | null
+    first_entry_final: boolean
+  }>
+  months: Array<{
+    month: string
+    recording_students: number | null
+    active_students: number | null
+    dashboard_twice_rate: number | null
+    second_month_base: number | null
+    second_month_rate: number | null
+    entry_duration_p50_ms: number | null
+    period_expected: number | null
+    period_completion_rate: number | null
+    complete: boolean
+  }>
+  cohorts: Array<{ month: string; size: number | null; m1_rate: number | null; m3_rate: number | null; m1_due: boolean; m3_due: boolean }>
+  sources: Array<{ source: string; profiles: number | null; share: number | null }>
+  grades: Array<{ grade_code: string; recording_students: number | null }>
+}
+
+export function useUsageMetrics() {
+  return useQuery({
+    queryKey: [...adminKey, 'usage-metrics'],
+    queryFn: () => callAcademicRpc<UsageMetrics>('academic_admin_usage_metrics'),
+    staleTime: 5 * 60_000,
+  })
+}

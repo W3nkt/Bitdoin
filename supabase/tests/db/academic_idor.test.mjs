@@ -77,7 +77,7 @@ const STAFF_ONLY = [
   'academic_admin_create_school_calendar(uuid,uuid,jsonb)', 'academic_admin_merge_schools(uuid,uuid,text)',
   'academic_admin_resolve_school_task(uuid,uuid,text)', 'academic_admin_set_user_role(uuid,text,text)',
   'academic_support_lookup(text)', 'academic_support_break_glass(uuid,text)', 'academic_support_view_scores(uuid)',
-  'academic_admin_health()', 'academic_admin_test_alert()',
+  'academic_admin_health()', 'academic_admin_test_alert()', 'academic_admin_usage_metrics()',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -202,6 +202,7 @@ const staffCalls = {
   'academic_support_view_scores(uuid)': `public.academic_support_view_scores('${a.profile_id}')`,
   'academic_admin_health()': `public.academic_admin_health()`,
   'academic_admin_test_alert()': `public.academic_admin_test_alert()`,
+  'academic_admin_usage_metrics()': `public.academic_admin_usage_metrics()`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

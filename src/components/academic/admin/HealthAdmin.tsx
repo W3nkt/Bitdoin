@@ -11,7 +11,7 @@ import { Empty, Panel, adminErrorText, formatDateTime } from './AdminKit'
 
 // Service levels for Schooling (OPS-002, NFR-001/002/005/017; migration 122).
 // Colours are the validated dataviz pair already used by the student charts.
-const SERIES = {
+export const SERIES = {
   light: { read: '#2a78d6', write: '#eb6834', grid: '#e5e7eb' },
   dark: { read: '#3987e5', write: '#d95926', grid: '#1f2937' },
 }
@@ -47,7 +47,7 @@ function verdict(value: number | null, target: number, lowerIsBetter: boolean, e
   return (lowerIsBetter ? value <= target : value >= target) ? 'met' : 'missed'
 }
 
-function ChartPanel({ title, description, table, children }: { title: string; description: string; table: ReactNode; children: ReactNode }) {
+export function ChartPanel({ title, description, table, children }: { title: string; description: string; table: ReactNode; children: ReactNode }) {
   const [asTable, setAsTable] = useState(false)
   return (
     <Panel title={title} description={description}

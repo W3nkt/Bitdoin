@@ -54,15 +54,12 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration `124` (#44, usage events) and function `send-push`. Push
-  reminder links now carry `?from=reminder`. Apply soon after the
-  frontend deploy: until then, the app's event batches get a 404 (harmless)
-  and the new usage-statistics switch in My data cannot be turned on.
-  Applying it changes the notice version, so every student agrees to the
-  updated notice once.
+- Migration `125` (#45, Metrics tab). Until it is applied, the Metrics
+  tab shows an error; nothing else depends on it.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
-migrations 122 and 123 on 2026-10-25. **Database backup** is set up; its
+migrations 122, 123 and 124 on 2026-10-25, with `send-push` and the three
+admin e-mail functions. **Database backup** is set up; its
 first backup and drill passed on 2026-10-25
 ([backup-restore.md](backup-restore.md)).
 

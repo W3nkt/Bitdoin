@@ -86,3 +86,27 @@ select count(*) filter (where name = 'onboarding_completed')::numeric
      / nullif(count(*) filter (where name = 'onboarding_started'), 0)
 from academic_usage_events where occurred_at > now() - interval '7 days';
 ```
+
+## Metrics tab (ANL-002, #45)
+
+Admin → Schooling → **Metrics** (ADMIN with MFA) shows the Phase 1 metrics of
+PRD §32.2 from `academic_admin_usage_metrics()` (migration 125):
+
+- **Headline tiles:**
+  - recording students (North Star) for the last full month and the month so far;
+  - active students;
+  - onboarding completion over the last 4 weeks;
+  - the latest final first-entry rate.
+- **Students per month:** a chart with a table view.
+- **Weekly funnel**, 12 weeks: new profiles, set-ups started and completed, completion, and first entry within 7 days.
+- **Monthly recording**, 6 months: second-month recording, period completion, dashboard used twice, and median entry time.
+- **Returning students:** the share active one and three months after joining, by joining month.
+- **Sources and grades:** new students by source over 90 days, and recording students by grade this month.
+- **Definitions:** the formulas above, as shown on the tab.
+
+Counts of 1–19 students show as "<20", and rates over fewer than 20 as "—".
+Figures that need more time show "not yet": first entry until 14 days after
+the week starts, and retention until the month has passed. Period completion
+counts only students with statistics on; everything else comes from the
+events. Targets are set after the pilot (§32.5). The tab describes what
+students did, not what Schooling caused (§32.4).
