@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Hourglass } from 'lucide-react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
 import { MyScoresNotice, MyScoresShell } from '@/components/academic/MyScoresShell'
 import { Onboarding } from '@/components/academic/Onboarding'
@@ -10,6 +10,8 @@ import { MyData } from '@/components/academic/MyData'
 import { ScoreEntry } from '@/components/academic/ScoreEntry'
 import { History } from '@/components/academic/History'
 import { Inbox } from '@/components/academic/Inbox'
+import { QuizResult, QuizRunner } from '@/components/academic/Quiz'
+import { PracticeRunner } from '@/components/academic/Practice'
 
 // Charts (Recharts) load only with the dashboard.
 const Dashboard = lazy(() => import('@/components/academic/Dashboard'))
@@ -99,6 +101,24 @@ export function MyScores() {
           : <Navigate to="/academy/scores" replace />}
       />
       <Route
+        path="quiz/result/:attemptId"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('quiz.result.title')} backTo="/academy/scores" inbox><QuizResultRoute /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="quiz/:diagnosticId"
+        element={data.next_step === 'ready'
+          ? <MyScoresShell subtitle={t('quiz.title')} backTo="/academy/scores" inbox><QuizRunnerRoute /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="practice/:topicId"
+        element={data.next_step === 'ready'
+          ? <MyScoresShell subtitle={t('practice.title')} backTo="/academy/scores" inbox><PracticeRoute /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
         path="inbox"
         element={data.profile
           ? <MyScoresShell subtitle={t('inbox.title')} backTo="/academy/scores"><Inbox noticeVersion={data.notice_version} /></MyScoresShell>
@@ -107,6 +127,21 @@ export function MyScores() {
       <Route path="*" element={<MyScoresShell inbox={inbox}><StepScreen session={data} userId={profile.id} /></MyScoresShell>} />
     </Routes>
   )
+}
+
+function QuizRunnerRoute() {
+  const { diagnosticId = '' } = useParams()
+  return <QuizRunner key={diagnosticId} diagnosticId={diagnosticId} />
+}
+
+function PracticeRoute() {
+  const { topicId = '' } = useParams()
+  return <PracticeRunner key={topicId} topicId={topicId} />
+}
+
+function QuizResultRoute() {
+  const { attemptId = '' } = useParams()
+  return <QuizResult attemptId={attemptId} />
 }
 
 function StepScreen({ session, userId }: { session: AcademicSession; userId: string }) {

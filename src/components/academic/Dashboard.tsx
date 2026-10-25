@@ -5,8 +5,9 @@ import {
 } from 'recharts'
 import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
-import { useDashboard, usePeriods, type Change, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
+import { useDashboard, usePeriods, type Change, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
+import { explainSubject, labelReason, selectInsights } from '@/lib/academic/insights'
 import { plainNumber } from '@/lib/academic/scoreInput'
 import { useChartTheme, useTheme } from '@/lib/theme'
 import { MyScoresNotice } from './MyScoresShell'
@@ -15,6 +16,8 @@ import { useDashboardTiming } from '@/lib/academic/telemetry'
 import { useTrackUsage, type UsageEvents } from '@/lib/academic/usageEvents'
 import { ReminderBanner } from './Inbox'
 import { FeedbackCard } from './FeedbackCard'
+import { QuizOffer } from './Quiz'
+import { WeekCard } from './WeekCard'
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -88,6 +91,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   }
 
   const subject = subjectId ? view.subjects.find(item => item.subject_enrolment_id === subjectId) : undefined
+  const openSubject = (id: string) => setParams(current => { const next = new URLSearchParams(current); next.set('subject', id); return next })
   return (
     <div className="space-y-6">
       {!subject && <ReminderBanner />}
@@ -102,10 +106,12 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
       ) : (
         <>
           <SummaryCard view={view} periodLabel={id => { const p = periodById.get(id); return p ? label(p) : '' }} actions={actions} />
+          {!view.stale_since && <WeekCard />}
+          <InsightsCard view={view} onOpen={openSubject} />
           {!view.stale_since && <FeedbackCard userId={userId} recordedMonths={view.periods.length} />}
           <TrendCard view={view} monthLabels={new Map((periods.data?.periods ?? []).filter(p => p.period_type === 'monthly').map(p => [p.sequence, label(p)]))} />
           <LatestCard view={view} />
-          <SubjectList view={view} onOpen={id => setParams(current => { const next = new URLSearchParams(current); next.set('subject', id); return next })} />
+          <SubjectList view={view} onOpen={openSubject} />
         </>
       )}
       <p className="px-1 text-xs text-slate-600 dark:text-slate-400">{t('dash.selfReported')}</p>
@@ -152,6 +158,102 @@ function SummaryCard({ view, periodLabel, actions }: { view: DashboardView; peri
         </p>
       </div>
       <div className="mt-5">{actions}</div>
+    </section>
+  )
+}
+
+// ─── Stronger and needing attention (DASH-005) ───────────────────────────────
+
+function ConfidenceChip({ confidence }: { confidence: Confidence }) {
+  const { t } = useAcademicCopy()
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 dark:text-slate-200 dark:ring-slate-600">
+      {t(`insights.confidence.${confidence}`)}
+    </span>
+  )
+}
+
+/**
+ * Subjects the engine labels relatively stronger or lower than the student's
+ * own average, each with the rule that selected it and a confidence chip.
+ * Not shown while the snapshot has no labels (insights switched off).
+ */
+function InsightsCard({ view, onOpen }: { view: DashboardView; onOpen: (id: string) => void }) {
+  const { t, lo } = useAcademicCopy()
+  const { state, stronger, attention } = selectInsights(view)
+  if (state === 'hidden') return null
+  const group = (title: string, Icon: typeof ArrowUpRight, subjects: DashboardSubject[]) => (
+    <div>
+      <h3 className="flex items-center gap-1.5 text-sm font-black"><Icon aria-hidden className="h-4 w-4 shrink-0" />{title}</h3>
+      {subjects.length === 0 ? (
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('insights.emptyList')}</p>
+      ) : (
+        <ul className="mt-1 divide-y divide-slate-100 dark:divide-slate-800">
+          {subjects.map(subject => (
+            <li key={subject.subject_enrolment_id}>
+              <button type="button" onClick={() => onOpen(subject.subject_enrolment_id)}
+                className="flex w-full items-start gap-3 py-2.5 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800/60">
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words font-bold">{lo ? subject.name_lo : subject.name_en}</span>
+                  <span className="block text-xs text-slate-600 dark:text-slate-400">{labelReason(subject, view.scale, t)}</span>
+                </span>
+                {subject.label?.confidence && <ConfidenceChip confidence={subject.label.confidence} />}
+                <ChevronRight aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
+      <h2 className="text-lg font-black">{t('insights.title')}</h2>
+      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('insights.note')}</p>
+      {state === 'ready' ? (
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          {group(t('insights.stronger'), ArrowUpRight, stronger)}
+          {group(t('insights.attention'), ArrowDownRight, attention)}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400">
+          {t(state === 'insufficient' ? 'insights.insufficient' : 'insights.none')}
+        </p>
+      )}
+    </section>
+  )
+}
+
+/** ANALYSIS-004: what the scores show, then suggestions phrased as suggestions. */
+function ExplanationCard({ view, subject, name }: { view: DashboardView; subject: DashboardSubject; name: string }) {
+  const { t } = useAcademicCopy()
+  if (!subject.label && !subject.trend) return null
+  const { facts, suggestions } = explainSubject(subject, view.scale, name, t)
+  if (facts.length === 0) return null
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
+      <h2 className="text-lg font-black">{t('explain.title')}</h2>
+      <ul className="mt-2 space-y-3">
+        {facts.map(fact => (
+          <li key={fact.text}>
+            <p className="text-sm text-slate-800 dark:text-slate-200">{fact.text}</p>
+            {fact.confidence && (
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <ConfidenceChip confidence={fact.confidence} />{t(`insights.confidenceText.${fact.confidence}`)}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+      {suggestions.length > 0 && (
+        <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
+          <h3 className="text-sm font-black">{t('explain.helps')}</h3>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-300">
+            {suggestions.map(text => <li key={text}>{text}</li>)}
+          </ul>
+          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">{t('explain.helpsNote')}</p>
+        </div>
+      )}
     </section>
   )
 }
@@ -428,6 +530,8 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
           </ResponsiveContainer>
         </div>
       </ChartCard>
+      <ExplanationCard view={view} subject={subject} name={name} />
+      <QuizOffer subjectEnrolmentId={subject.subject_enrolment_id} needsAttention={subject.label?.value === 'relatively_lower'} />
     </div>
   )
 }

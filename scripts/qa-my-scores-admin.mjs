@@ -125,10 +125,45 @@ function metricsFixture() {
   }
 }
 
+function quizItem(fields) {
+  return {
+    item_key: `k-${fields.id}`, item_version: 1, stem_en: null, explanation_en: null, explanation_origin: 'human', licence: 'original', source: null,
+    reviewer_name: null, review_note: null, reviewed_at: null, updated_at: '2026-10-25T06:00:00Z', live_version: null, problems: {}, can_approve: false,
+    ...fields,
+  }
+}
+
+/** Diagnostic item bank (migration 131): one item to approve, one the admin wrote, one incomplete draft. */
+function quizFixture() {
+  const options = [{ key: 'A', text_lo: '2' }, { key: 'B', text_lo: '3' }, { key: 'C', text_lo: '4' }, { key: 'D', text_lo: '5' }]
+  return {
+    four_eyes: true,
+    topics: [{ id: 't1', subject_id: 's-math', grade_id: 'g11', code: 'algebra', name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra', display_order: 0, active: true, subject_code: 'MATH', grade_code: 'G11', approved_items: 0, open_items: 3 }],
+    items: [
+      quizItem({ id: 'q1', topic_id: 't1', stem_lo: 'ຖ້າ x + 2 = 5, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If x + 2 = 5, what is x?', options, correct_key: 'B', explanation_lo: 'ລົບ 2 ອອກທັງສອງຂ້າງ.', status: 'in_review', author_name: 'Admin Two', can_approve: true }),
+      quizItem({ id: 'q2', topic_id: 't1', stem_lo: 'ຖ້າ 2x = 8, x ເທົ່າກັບເທົ່າໃດ?', options, correct_key: 'C', explanation_lo: 'ຫານດ້ວຍ 2.', status: 'in_review', author_name: 'Admin Me', can_approve: false }),
+      quizItem({ id: 'q3', topic_id: 't1', stem_lo: 'x − 1 = 3', options, correct_key: 'C', explanation_lo: null, status: 'draft', author_name: 'Admin Me', problems: { explanation_lo: 'Write the explanation in Lao (QUIZ-003)' } }),
+    ],
+  }
+}
+
 function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
   const state = {
     calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal),
     pilot: { pilot_mode: false, cohorts: [{ id: 'pc1', code: 'ABC234', name: 'Matthayom Thotlong', school_id: null, school_name: null, max_students: 60, active: true, created_at: '2026-10-25T04:00:00Z', students: 41 }] },
+    quiz: quizFixture(),
+    diagnostics: {
+      rules: { min_items: 10, max_items: 15, min_per_topic: 3, resume_days: 7 },
+      diagnostics: [{ id: 'dg1', subject_id: 's-math', grade_id: 'g11', parallel_of: null, subject_code: 'MATH', grade_code: 'G11', title_lo: 'ກວດຄະນິດສາດ ມ.6', title_en: 'Grade 11 Mathematics check',
+        status: 'draft', published_at: null, item_ids: Array.from({ length: 10 }, (_, i) => `x${i}`), problems: {}, attempts: 0, completed: 0 }],
+    },
+    content: [],
+    reports: [
+      { id: 'pr1', category: 'guardian_link', priority: 'priority', screen: '/academy/scores/data', description: 'Someone I do not know is linked as my parent.', status: 'open',
+        first_response_due: '2026-10-24T03:00:00Z', responded_at: null, overdue: true, reporter_member_code: 'DAN9XY', handled_by_name: null, resolution_note: null, resolved_at: null, created_at: '2026-10-23T03:00:00Z' },
+      { id: 'pr2', category: 'other', priority: 'normal', screen: '/academy/scores', description: 'The chart is hard to read on my phone.', status: 'in_progress',
+        first_response_due: '2026-10-28T03:00:00Z', responded_at: '2026-10-24T05:00:00Z', overdue: false, reporter_member_code: 'KQ7ZPA', handled_by_name: 'Ops Agent', resolution_note: null, resolved_at: null, created_at: '2026-10-23T05:00:00Z' },
+    ],
   }
   const user = () => ({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'admin@example.com', app_metadata: {}, user_metadata: {}, factors: state.factors })
 
@@ -155,6 +190,43 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       return state.pilot
     },
     academic_admin_set_pilot_mode: (args) => { state.pilot.pilot_mode = args.p_enabled; return state.pilot },
+    academic_admin_list_quiz_bank: (args) => (args.p_filter?.status ? { ...state.quiz, items: state.quiz.items.filter(item => item.status === args.p_filter.status) } : state.quiz),
+    academic_admin_list_diagnostics: () => state.diagnostics,
+    academic_admin_list_content: () => state.content,
+    academic_admin_content_gaps: () => [{ rule_id: 'R3', subject_code: 'MATH', grade_code: 'G11', topic_id: 't1', topic_name: 'Algebra', students: 4, last_seen: '2026-10-25' }],
+    academic_admin_search_external_content: (args) => (args.p_kind === 'practice_set'
+      ? [{ id: 't1', title_en: 'Algebra', title_lo: 'ພຶດຊະຄະນິດ', detail: 'MATH · G11', available: true, tagged: state.content.some(c => c.external_id === 't1') }]
+      : [{ id: 'l1', title_en: 'English tenses', title_lo: 'ການໃຊ້ Tense', detail: 'PUBLISHED', available: true, tagged: false }]),
+    academic_admin_save_content: (args) => {
+      const item = { id: `c${state.content.length + 1}`, published_at: null, external: { title_en: 'Algebra', title_lo: 'ພຶດຊະຄະນິດ', available: true, route: '/academy/scores/practice/t1', membership: false }, subject_codes: ['MATH'], topic_names: ['Algebra'], ...args.p_input }
+      state.content.push(item)
+      return item
+    },
+    academic_support_list_reports: (args) => state.reports.filter(r => (args.p_status ? args.p_status === 'all' || r.status === args.p_status : r.status !== 'resolved')),
+    academic_support_update_report: (args) => {
+      const report = state.reports.find(r => r.id === args.p_report_id)
+      Object.assign(report, { status: args.p_status, overdue: false, responded_at: report.responded_at ?? '2026-10-25T06:00:00Z', resolution_note: args.p_note ?? report.resolution_note })
+      return { id: report.id, status: report.status }
+    },
+    academic_admin_save_diagnostic: (args) => {
+      state.diagnostics.diagnostics.push({ id: `dg${state.diagnostics.diagnostics.length + 1}`, subject_code: 'MATH', grade_code: 'G11', status: 'draft', published_at: null, problems: { items: 'Use 10 to 15 items' }, attempts: 0, completed: 0, ...args.p_input })
+      return state.diagnostics
+    },
+    academic_admin_set_diagnostic_status: (args) => {
+      Object.assign(state.diagnostics.diagnostics.find(d => d.id === args.p_diagnostic_id), { status: args.p_action === 'publish' ? 'published' : 'retired', published_at: '2026-10-25T07:00:00Z' })
+      return state.diagnostics
+    },
+    academic_admin_save_quiz_item: (args) => {
+      const item = quizItem({ ...args.p_input, id: args.p_input.id ?? `q${state.quiz.items.length + 1}`, status: 'draft', author_name: 'Admin Me', problems: {} })
+      state.quiz.items = [item, ...state.quiz.items.filter(other => other.id !== item.id)]
+      return item
+    },
+    academic_admin_review_quiz_item: (args) => {
+      const item = state.quiz.items.find(other => other.id === args.p_item_id)
+      const next = { submit: 'in_review', approve: 'approved', return: 'draft', retire: 'retired' }[args.p_action]
+      Object.assign(item, { status: next, can_approve: false, review_note: args.p_note, reviewer_name: args.p_action === 'submit' ? item.reviewer_name : 'Admin Me', live_version: next === 'approved' ? item.item_version : item.live_version })
+      return item
+    },
     academic_admin_test_alert: () => ({ id: 'al-test' }),
     academic_support_break_glass: () => ({ session_id: 'bg1', expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }),
     academic_support_view_scores: () => ({
@@ -461,7 +533,7 @@ try {
     await page.goto(`${base}/academy-admin/scores?tab=subjects`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     const tabs = await page.getByRole('navigation', { name: 'Schooling admin sections' }).getByRole('button').allInnerTexts()
-    assert.deepEqual(tabs.map(text => text.trim()), ['Support', 'Audit log'])
+    assert.deepEqual(tabs.map(text => text.trim()), ['Support', 'Reports', 'Audit log'])
     await page.getByLabel('Member code or user ID').fill('BA-ACA-NOPE00')
     await page.getByRole('button', { name: 'Look up' }).click()
     await page.getByText('No Schooling account for that reference.').waitFor()
@@ -486,7 +558,7 @@ try {
     assert.equal(await page.getByRole('heading', { name: 'Alerts to review' }).count(), 0)
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Support (Operations): two tabs only, lookup without scores, emergency access needs 10+ char reason, 30-min countdown, no CSV export or alerts')
+    pass('Support (Operations): support, reports and audit tabs only, lookup without scores, emergency access needs 10+ char reason, 30-min countdown, no CSV export or alerts')
   }
 
   // Audit (ADMIN): filters reach the query; CSV export neutralises formulas.
@@ -621,6 +693,133 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Pilot: cohorts listed with codes and counts, new cohort gets a code, gate switched on with an audited reason')
+  }
+
+  // Quiz items (ADMIN-007, QUIZ-005): approve another admin's item, not your own; return with a note; new item payload.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=quiz`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('cell', { name: /ພຶດຊະຄະນິດ/ }).waitFor()
+    await page.getByRole('button', { name: 'In review (2)' }).click()
+    const card = (text) => page.locator('li', { hasText: text }).filter({ has: page.getByRole('button') }).first()
+
+    const theirs = card('If x + 2 = 5, what is x?')
+    assert.match(await theirs.innerText(), /B\.\s*3\s*Correct/, 'correct answer marked with text, not colour only')
+    await theirs.getByRole('button', { name: 'Approve' }).click()
+    await page.getByText('Approved. Students can now get this item.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_review_quiz_item').args, { p_item_id: 'q1', p_action: 'approve', p_note: null })
+
+    const mine = card('ຖ້າ 2x = 8')
+    assert.equal(await mine.getByRole('button', { name: 'Approve' }).isDisabled(), true, 'authors cannot approve their own version')
+    await mine.getByText('another admin must approve it').waitFor()
+    await mine.getByRole('button', { name: 'Return to author' }).click()
+    const confirm = page.getByRole('button', { name: 'Return', exact: true })
+    assert.equal(await confirm.isDisabled(), true, 'a note is required')
+    await page.getByLabel('Reason (saved in the audit log)').fill('Add the English question')
+    await confirm.click()
+    await page.getByText('Returned to draft.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_review_quiz_item').args, { p_item_id: 'q2', p_action: 'return', p_note: 'Add the English question' })
+
+    await page.getByRole('button', { name: /^Draft \(/ }).click()
+    const incomplete = card('x − 1 = 3')
+    assert.equal(await incomplete.getByRole('button', { name: 'Send for review' }).isDisabled(), true)
+    await incomplete.getByText('Lao explanation:').waitFor()
+
+    await page.getByRole('button', { name: 'New item' }).click()
+    await page.getByLabel('Question (Lao)').fill('3 × 4 ເທົ່າກັບເທົ່າໃດ?')
+    for (const [key, text] of [['A', '7'], ['B', '12'], ['C', '34'], ['D', '1']]) await page.getByLabel(`Option ${key} (Lao)`).fill(text)
+    await page.getByLabel('B is correct').check()
+    await page.getByRole('button', { name: 'Remove option D' }).click()
+    await page.getByLabel(/^Explanation \(Lao\)/).fill('3 ບວກກັນ 4 ເທື່ອ ໄດ້ 12.')
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    await page.getByText('Saved as a draft.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_save_quiz_item').args.p_input, {
+      topic_id: 't1', stem_lo: '3 × 4 ເທົ່າກັບເທົ່າໃດ?', stem_en: null,
+      options: [{ key: 'A', text_lo: '7' }, { key: 'B', text_lo: '12' }, { key: 'C', text_lo: '34' }], correct_key: 'B',
+      explanation_lo: '3 ບວກກັນ 4 ເທື່ອ ໄດ້ 12.', explanation_en: null, explanation_origin: 'human', licence: 'original', source: null,
+    })
+    await page.getByRole('button', { name: /^All \(/ }).click()
+    await shot(page, 'admin-12-quiz-items')
+
+    // Diagnostics: publish a ready draft; a new one lists approved items of its subject and grade only.
+    const diagnostics = page.locator('section', { has: page.getByRole('heading', { name: 'Diagnostics' }) })
+    await diagnostics.getByText('Grade 11 Mathematics check').waitFor()
+    await diagnostics.getByRole('button', { name: 'Publish' }).click()
+    await page.getByText('Published. Students who need it will see it.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_set_diagnostic_status').args, { p_diagnostic_id: 'dg1', p_action: 'publish', p_note: null })
+    await diagnostics.getByRole('button', { name: 'New diagnostic' }).click()
+    await diagnostics.getByLabel('Grade').selectOption({ label: 'Grade 11' })
+    await diagnostics.getByLabel('Title (Lao)').fill('ກວດພຶດຊະຄະນິດ')
+    await diagnostics.getByLabel('Title (English)').fill('Algebra check')
+    const choices = diagnostics.getByRole('checkbox')
+    assert.equal(await choices.count(), 1, 'only the approved Grade 11 Mathematics item is offered')
+    await choices.first().check()
+    await diagnostics.getByRole('button', { name: 'Save draft' }).click()
+    await page.getByText('Diagnostic saved as a draft.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_save_diagnostic').args.p_input, { subject_id: 's-math', grade_id: 'g11', title_lo: 'ກວດພຶດຊະຄະນິດ', title_en: 'Algebra check', item_ids: ['q1'], parallel_of: null })
+    const draftCard = diagnostics.locator('li', { hasText: 'Algebra check' })
+    assert.equal(await draftCard.getByRole('button', { name: 'Publish' }).isDisabled(), true, 'an incomplete diagnostic cannot be published')
+    await draftCard.getByText('Use 10 to 15 items').waitFor()
+    await shot(page, 'admin-13-diagnostics')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Quiz items: another admin\'s item approved, own item cannot be approved, returned with a note, incomplete draft blocked, new item saved with exact payload; diagnostic published, new diagnostic offers only approved items of its subject and grade')
+  }
+
+  // Content catalogue (LEARN-004): a practice set tagged with subject, topic and level.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=content`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Nothing catalogued yet.').waitFor()
+    // LEARN-003: gaps for the content team, as student counts.
+    assert.match((await page.locator('section', { has: page.getByRole('heading', { name: 'Content gaps' }) }).locator('tbody tr').innerText()).replace(/\s+/g, ' '),
+      /MATH · G11 Algebra Foundation practice \(difficulty 1\) 4 2026-10-25/)
+    await page.getByRole('button', { name: 'Add content' }).click()
+    await page.getByRole('radio', { name: /Algebra · ພຶດຊະຄະນິດ/ }).check()
+    await page.getByRole('checkbox', { name: 'MATH · Mathematics' }).check()
+    assert.equal(await page.getByRole('checkbox', { name: 'MATH G11 · Algebra' }).isChecked(), true, 'a practice set is tagged with its own topic')
+    await page.getByLabel('Minutes').fill('8')
+    await page.getByLabel(/^Status/).selectOption('published')
+    await page.getByLabel('Learning objectives (English, one per line)').fill('Solve linear equations\n\nCheck a solution')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await page.getByText('Content saved.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_save_content').args.p_input, {
+      kind: 'practice_set', external_id: 't1', subject_ids: ['s-math'], grade_min: 10, grade_max: 12, topic_ids: ['t1'], difficulty: 2, language: 'lo',
+      est_minutes: 8, objectives_lo: [], objectives_en: ['Solve linear equations', 'Check a solution'], quality_score: null, status: 'published',
+    })
+    await page.getByRole('cell', { name: /Practice set · LO · 8 min/ }).waitFor()
+    await shot(page, 'admin-15-content')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Content: practice set picked from existing topics, tagged with subject, topic, level and objectives, exact payload, listed')
+  }
+
+  // Problem reports (PRIV-008), as Operations: priority and overdue first, start, resolve with a note.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=reports`, { waitUntil: 'domcontentloaded' })
+    const first = page.locator('li', { hasText: 'Someone I do not know is linked as my parent.' })
+    await first.waitFor()
+    assert.match(await first.innerText(), /Priority\s+Open\s+Overdue\s+Wrong guardian link\s+from DAN9XY/i)
+    await first.getByRole('button', { name: 'Start' }).click()
+    await page.getByText('Marked in progress.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_support_update_report').args, { p_report_id: 'pr1', p_status: 'in_progress', p_note: null })
+    const second = page.locator('li', { hasText: 'The chart is hard to read' })
+    await second.getByRole('button', { name: 'Resolve' }).click()
+    const confirm = page.getByRole('button', { name: 'Resolve', exact: true }).last()
+    await page.getByLabel('Reason (saved in the audit log)').fill('Explained the table view.')
+    await confirm.click()
+    await page.getByText('Report resolved.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_support_update_report').args, { p_report_id: 'pr2', p_status: 'resolved', p_note: 'Explained the table view.' })
+    await page.getByRole('button', { name: 'Resolved', exact: true }).click()
+    await page.getByText('Resolved: Explained the table view.').waitFor()
+    await shot(page, 'admin-14-reports')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Reports (Operations): priority and overdue shown, started, resolved with a note, resolved filter')
   }
 
   // Finance: no access; phone width has no horizontal scroll.

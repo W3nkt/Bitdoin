@@ -42,9 +42,9 @@ diagnostics, recommendations, AI chat, guardians and payments (PRD §36.2).
 | Usage events and pilot metrics | #44, #45; ratings and go/no-go panel (#46). | Done |
 | **Legal review of the consent approach** | Counsel's answer on #4. | Done (#4 closed 2026-10-25) |
 | **UAT S1–S4 and A1–A2** with 10 students and 2 admins | #40 | Done (#40 closed 2026-10-25) |
-| **Lao copy approved by two native educators** | #39 checklist | **Open** |
-| **TalkBack and 200% text on a real Android phone** | #39 checklist | **Open** |
-| Performance NFR-001/002 on the reference device | Health tab during UAT: dashboard p75 ≤ 2.5 s, reads p95 ≤ 300 ms, writes p95 ≤ 500 ms. | Measure during UAT |
+| **Lao copy approved by two native educators** | #39 checklist | Waived by the owner 2026-10-25; not reviewed |
+| **TalkBack and 200% text on a real Android phone** | #39 checklist | Waived by the owner 2026-10-25; not tested |
+| Performance NFR-001/002 on the reference device | Health tab during UAT: dashboard p75 ≤ 2.5 s, reads p95 ≤ 300 ms, writes p95 ≤ 500 ms. | Waived by the owner 2026-10-25; not measured, watch the Health tab during the pilot |
 | Support ready | This plan §6, macros in `support-macros.md` reviewed in Lao, agents with the OPERATIONS role and an authenticator app. | Macros drafted; Lao review open |
 
 ## 4. Run sheet

@@ -406,6 +406,35 @@ export interface DashboardSubject {
   mean: number | null
   latest: { period_id: string; sequence: number; status: EntryLine['status']; value: number | string | null } | null
   change: Change | null
+  /** Engine v2 (migration 129); absent while insights_enabled is off (migration 130), null on ordinal scales. */
+  label?: SubjectLabel | null
+  trend?: SubjectTrend | null
+}
+
+export type Confidence = 'high' | 'medium' | 'low'
+
+/** ANALYSIS-002: the subject against the student's own period means, last 6 periods. */
+export interface SubjectLabel {
+  value: 'insufficient_evidence' | 'relatively_stronger' | 'relatively_lower' | 'neutral'
+  confidence: Confidence | null
+  rule: string
+  /** Periods in the window that have both a score and a shown average. */
+  n: number
+  mean_deviation: number | null
+  periods_above: number
+  periods_below: number
+}
+
+/** ANALYSIS-003: direction over the whole school year (CALC-4). */
+export interface SubjectTrend {
+  value: 'insufficient_evidence' | 'volatile' | 'improving' | 'declining' | 'no_clear_trend'
+  confidence: Confidence | null
+  rule: string
+  n: number
+  slope: number | null
+  p: number | null
+  sd: number | null
+  direction: 'up' | 'down' | 'flat' | null
 }
 
 export interface DashboardView {
@@ -475,7 +504,15 @@ export function useGrantUsageStatistics() {
   })
 }
 
-export const exportMyData = () => callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data')
+export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
+  const [data, quizzes, reports] = await Promise.all([
+    callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
+    // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
+    callAcademicRpc<{ attempts: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
+    callAcademicRpc<{ reports: Record<string, unknown>[] } | null>('academic_export_my_reports'),
+  ])
+  return { ...data, quizzes: quizzes?.attempts ?? [], reports: reports?.reports ?? [] }
+}
 
 export interface DeletionStatus {
   status: 'active' | 'read_only' | 'deletion_pending'
@@ -601,5 +638,184 @@ export function useSetNotificationPreference() {
     mutationFn: ({ inApp, push }: { inApp: boolean; push: boolean }) =>
       callAcademicRpc<NotificationPreferences>('academic_set_notification_preference', { p_category: 'score_reminder', p_in_app: inApp, p_push: push }),
     onSuccess: prefs => queryClient.setQueryData(preferencesKey, prefs),
+  })
+}
+
+// ─── Diagnostic quizzes (QUIZ-001..003, ANALYSIS-005; migration 132) ─────────
+
+export interface QuizOffer {
+  /** The main form for the subject and grade. */
+  diagnostic: { id: string; title_lo: string; title_en: string; items: number } | null
+  /** The form to open now (resume, first try or a parallel form); null while a retake waits. */
+  start_id: string | null
+  /** QUIZ-004: when the next attempt opens. */
+  retake_from: string | null
+  attempt: { id: string; answered: number; total: number; expires_at: string } | null
+  /** strong: >= 80% in every tested topic (ANALYSIS-007). */
+  last_result: { id: string; completed_at: string; strong: boolean } | null
+}
+
+export interface QuizOptionView { key: string; text_lo: string; text_en: string | null }
+
+export interface QuizAttemptView {
+  attempt_id: string
+  status: 'in_progress' | 'completed' | 'expired'
+  expires_at: string
+  diagnostic: { id: string; title_lo: string; title_en: string }
+  items: { id: string; position: number; topic: { name_lo: string; name_en: string }; stem_lo: string; stem_en: string | null; options: QuizOptionView[] }[]
+  /** item id -> chosen option key */
+  answers: Record<string, string>
+}
+
+export type MasteryBand = 'secure' | 'developing' | 'needs_practice' | 'not_enough'
+
+export interface QuizTopicResult { topic_id: string; name_lo: string; name_en: string; correct: number; total: number; band: MasteryBand }
+
+export interface QuizResultView {
+  attempt_id: string
+  completed_at: string
+  diagnostic: { id: string; title_lo: string; title_en: string }
+  topics: QuizTopicResult[]
+  /** QUIZ-004: the previous finished attempt of the same quiz family. */
+  previous: { attempt_id: string; completed_at: string; topics: QuizTopicResult[] } | null
+  items: {
+    position: number
+    topic: { name_lo: string; name_en: string }
+    stem_lo: string
+    stem_en: string | null
+    options: QuizOptionView[]
+    chosen_key: string | null
+    correct_key: string
+    is_correct: boolean
+    explanation_lo: string | null
+    explanation_en: string | null
+    explanation_origin: 'human' | 'ai'
+  }[]
+}
+
+/** The "Find which topics to practise" offer for a subject; null diagnostic hides it. */
+export function useQuizOffer(subjectEnrolmentId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'quiz-offer', subjectEnrolmentId],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<QuizOffer>('academic_get_quiz_offer', { p_subject_enrolment_id: subjectEnrolmentId }),
+  })
+}
+
+/** Starts the quiz, or resumes the unfinished attempt (same result on every call within 7 days). */
+export function useQuizAttempt(diagnosticId: string) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'quiz-attempt', diagnosticId],
+    retry: shouldRetryAcademic,
+    refetchOnWindowFocus: false,
+    queryFn: () => callAcademicRpc<QuizAttemptView>('academic_start_quiz', { p_diagnostic_id: diagnosticId }),
+  })
+}
+
+export function useAnswerQuizItem() {
+  return useMutation({
+    mutationFn: ({ attemptId, itemId, key }: { attemptId: string; itemId: string; key: string }) =>
+      callAcademicRpc<{ answered: number; total: number }>('academic_answer_quiz_item', { p_attempt_id: attemptId, p_item_id: itemId, p_key: key }),
+  })
+}
+
+export function useFinishQuiz() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (attemptId: string) => callAcademicRpc<QuizResultView>('academic_finish_quiz', { p_attempt_id: attemptId }),
+    onSuccess: result => {
+      queryClient.setQueryData([...academicKeys.all, 'quiz-result', result.attempt_id], result)
+      return queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'quiz-offer'] })
+    },
+  })
+}
+
+export function useQuizResult(attemptId: string) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'quiz-result', attemptId],
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<QuizResultView>('academic_get_quiz_result', { p_attempt_id: attemptId }),
+  })
+}
+
+// ─── Report a problem (PRIV-008, migration 133) ──────────────────────────────
+
+export type ProblemCategory = 'guardian_link' | 'ai_answer' | 'account_misuse' | 'other'
+
+export function useReportProblem() {
+  return useMutation({
+    mutationFn: (input: { category: ProblemCategory; description: string; screen: string }) =>
+      callAcademicRpc<{ id: string; priority: 'priority' | 'normal'; first_response_due: string }>('academic_report_problem', { p_input: input }),
+  })
+}
+
+// ─── Weekly next actions and practice sets (LEARN-001, REC-PRACTICE; migrations 136–137) ──
+
+export interface Recommendation {
+  key: string
+  rule_id: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7'
+  kind: 'enter_scores' | 'diagnostic' | 'practice_set' | 'academy_lesson' | 'academy_challenge' | 'gap'
+  title_lo: string
+  title_en: string
+  est_minutes: number | null
+  /** Where the action opens; null for a content-gap card. */
+  route: string | null
+  priority: number
+  reason: {
+    code: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7' | 'gap'
+    subject_lo?: string; subject_en?: string; topic_lo?: string; topic_en?: string
+    period_lo?: string; period_en?: string; band?: string; date?: string; label?: string; trend?: string
+  }
+}
+
+export function useRecommendations(enabled = true) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'recommendations'],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: async () => (await callAcademicRpc<{ items: Recommendation[] }>('academic_get_recommendations')).items,
+  })
+}
+
+export interface PracticeFeedback {
+  chosen_key: string
+  is_correct: boolean
+  correct_key: string
+  explanation_lo: string | null
+  explanation_en: string | null
+  explanation_origin: 'human' | 'ai'
+}
+
+export interface PracticeView {
+  attempt_id: string
+  status: 'in_progress' | 'completed' | 'expired'
+  correct: number | null
+  topic: { id: string; name_lo: string; name_en: string }
+  items: { id: string; position: number; stem_lo: string; stem_en: string | null; options: QuizOptionView[]; feedback: PracticeFeedback | null }[]
+}
+
+/** Starts or resumes practice for a topic (same attempt on every call until finished). */
+export function usePracticeSet(topicId: string) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'practice', topicId],
+    retry: shouldRetryAcademic,
+    refetchOnWindowFocus: false,
+    queryFn: () => callAcademicRpc<PracticeView>('academic_start_practice', { p_topic_id: topicId }),
+  })
+}
+
+export function useAnswerPractice() {
+  return useMutation({
+    mutationFn: ({ attemptId, itemId, key }: { attemptId: string; itemId: string; key: string }) =>
+      callAcademicRpc<PracticeFeedback>('academic_answer_practice_item', { p_attempt_id: attemptId, p_item_id: itemId, p_key: key }),
+  })
+}
+
+export function useFinishPractice() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (attemptId: string) => callAcademicRpc<{ attempt_id: string; correct: number; total: number }>('academic_finish_practice', { p_attempt_id: attemptId }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'recommendations'] }),
   })
 }

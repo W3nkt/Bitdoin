@@ -11,6 +11,10 @@ export interface ExportData {
   scores: Record<string, unknown>[]
   revisions: Record<string, unknown>[]
   consents: Record<string, unknown>[]
+  /** Diagnostic quiz attempts with topic results and answers (migration 132). */
+  quizzes?: Record<string, unknown>[]
+  /** "Report a problem" reports the user sent (migration 133). */
+  reports?: Record<string, unknown>[]
 }
 
 const SCORE_COLUMNS = [
@@ -40,6 +44,8 @@ export function exportFiles(data: ExportData) {
     { name: 'scores.csv', content: toCsv(data.scores, SCORE_COLUMNS) },
     { name: 'revisions.csv', content: toCsv(data.revisions, REVISION_COLUMNS) },
     { name: 'consents.json', content: json(data.consents) },
+    { name: 'quizzes.json', content: json(data.quizzes ?? []) },
+    { name: 'reports.json', content: json(data.reports ?? []) },
   ]
 }
 

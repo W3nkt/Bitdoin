@@ -423,12 +423,13 @@ export type AlertKind =
   | 'multi_profile_access' | 'access_denied_burst'
   | 'slo_availability' | 'slo_latency' | 'slo_dashboard' | 'job_failed' | 'job_stale' | 'push_backlog' | 'test'
   | 'backup_failed' | 'backup_stale' | 'drill_failed' | 'drill_stale'
+  | 'priority_report'
 
 export interface AcademicAlert {
   id: string
   kind: AlertKind
   actor_user_id: string | null
-  details: { profiles_24h?: number; denied_1h?: number; threshold?: number; actor_role?: string; job?: string; stuck?: number; run_url?: string }
+  details: { profiles_24h?: number; denied_1h?: number; threshold?: number; actor_role?: string; job?: string; stuck?: number; run_url?: string; category?: string; first_response_due?: string }
   status: 'open' | 'acknowledged'
   acknowledged_at: string | null
   created_at: string
@@ -600,4 +601,205 @@ export function useSavePilotCohort() {
 export function useSetPilotMode() {
   return useAdminMutation(({ enabled, reason }: { enabled: boolean; reason: string }) =>
     callAcademicRpc<PilotView>('academic_admin_set_pilot_mode', { p_enabled: enabled, p_reason: reason }))
+}
+
+// ─── Diagnostic item bank (ADMIN-007, QUIZ-005, migration 131) ───────────────
+
+export type QuizItemStatus = 'draft' | 'in_review' | 'approved' | 'retired'
+
+export interface QuizTopic {
+  id: string
+  subject_id: string
+  grade_id: string
+  code: string
+  name_lo: string
+  name_en: string
+  display_order: number
+  active: boolean
+  subject_code: string
+  grade_code: string
+  approved_items: number
+  open_items: number
+}
+
+export interface QuizOption { key: string; text_lo: string; text_en?: string | null }
+
+export interface QuizItem {
+  id: string
+  item_key: string
+  item_version: number
+  topic_id: string
+  stem_lo: string
+  stem_en: string | null
+  options: QuizOption[]
+  correct_key: string
+  explanation_lo: string | null
+  explanation_en: string | null
+  explanation_origin: 'human' | 'ai'
+  licence: 'original' | 'cc-by-4.0' | 'cc-by-sa-4.0' | 'licensed'
+  source: string | null
+  status: QuizItemStatus
+  author_name: string | null
+  reviewer_name: string | null
+  review_note: string | null
+  reviewed_at: string | null
+  updated_at: string
+  /** The approved item_version of this item, if any. */
+  live_version: number | null
+  /** Field -> what stops it going to review; empty when complete. */
+  problems: Record<string, string>
+  can_approve: boolean
+}
+
+export interface QuizBank { four_eyes: boolean; topics: QuizTopic[]; items: QuizItem[] }
+
+export type QuizItemInput = Pick<QuizItem, 'topic_id' | 'stem_lo' | 'stem_en' | 'options' | 'correct_key' | 'explanation_lo' | 'explanation_en' | 'explanation_origin' | 'licence' | 'source'>
+  & { id?: string; item_key?: string }
+
+/** status: every version in that status (e.g. approved items for a diagnostic); otherwise the newest version per item. */
+export function useQuizBank(status?: QuizItemStatus) {
+  return useQuery({
+    queryKey: [...adminKey, 'quiz-bank', status ?? 'newest'],
+    queryFn: () => callAcademicRpc<QuizBank>('academic_admin_list_quiz_bank', status ? { p_filter: { status } } : {}),
+  })
+}
+
+export function useSaveQuizTopic() {
+  return useAdminMutation((input: Pick<QuizTopic, 'subject_id' | 'grade_id' | 'code' | 'name_lo' | 'name_en' | 'active'> & { id?: string; display_order?: number }) =>
+    callAcademicRpc<QuizBank>('academic_admin_save_quiz_topic', { p_input: input }))
+}
+
+export function useSaveQuizItem() {
+  return useAdminMutation((input: QuizItemInput) => callAcademicRpc<QuizItem>('academic_admin_save_quiz_item', { p_input: input }))
+}
+
+export function useReviewQuizItem() {
+  return useAdminMutation(({ id, action, note }: { id: string; action: 'submit' | 'approve' | 'return' | 'retire'; note?: string }) =>
+    callAcademicRpc<QuizItem>('academic_admin_review_quiz_item', { p_item_id: id, p_action: action, p_note: note ?? null }))
+}
+
+// ─── Diagnostics (QUIZ-001, migration 132) ───────────────────────────────────
+
+export interface AdminDiagnostic {
+  id: string
+  subject_id: string
+  grade_id: string
+  subject_code: string
+  grade_code: string
+  /** QUIZ-004: the main form this is a parallel form of. */
+  parallel_of: string | null
+  title_lo: string
+  title_en: string
+  status: 'draft' | 'published' | 'retired'
+  published_at: string | null
+  item_ids: string[]
+  problems: Record<string, string>
+  attempts: number
+  completed: number
+}
+
+export interface DiagnosticsView {
+  rules: { min_items: number; max_items: number; min_per_topic: number; resume_days: number; retake_days?: number }
+  diagnostics: AdminDiagnostic[]
+}
+
+export function useDiagnostics() {
+  return useQuery({ queryKey: [...adminKey, 'diagnostics'], queryFn: () => callAcademicRpc<DiagnosticsView>('academic_admin_list_diagnostics') })
+}
+
+export function useSaveDiagnostic() {
+  return useAdminMutation((input: Pick<AdminDiagnostic, 'subject_id' | 'grade_id' | 'title_lo' | 'title_en' | 'item_ids' | 'parallel_of'> & { id?: string }) =>
+    callAcademicRpc<DiagnosticsView>('academic_admin_save_diagnostic', { p_input: input }))
+}
+
+export function useSetDiagnosticStatus() {
+  return useAdminMutation(({ id, action, note }: { id: string; action: 'publish' | 'retire'; note?: string }) =>
+    callAcademicRpc<DiagnosticsView>('academic_admin_set_diagnostic_status', { p_diagnostic_id: id, p_action: action, p_note: note ?? null }))
+}
+
+// ─── Problem reports (PRIV-008, migration 133) ───────────────────────────────
+
+export interface ProblemReport {
+  id: string
+  category: 'guardian_link' | 'ai_answer' | 'account_misuse' | 'other'
+  priority: 'priority' | 'normal'
+  screen: string | null
+  description: string
+  status: 'open' | 'in_progress' | 'resolved'
+  first_response_due: string
+  responded_at: string | null
+  overdue: boolean
+  reporter_member_code: string | null
+  handled_by_name: string | null
+  resolution_note: string | null
+  resolved_at: string | null
+  created_at: string
+}
+
+/** status: undefined = open and in progress; 'all' or one status otherwise. */
+export function useProblemReports(status?: 'all' | ProblemReport['status']) {
+  return useQuery({
+    queryKey: [...adminKey, 'reports', status ?? 'active'],
+    queryFn: () => callAcademicRpc<ProblemReport[]>('academic_support_list_reports', status ? { p_status: status } : {}),
+  })
+}
+
+export function useUpdateProblemReport() {
+  return useAdminMutation(({ id, status, note }: { id: string; status: 'in_progress' | 'resolved'; note?: string }) =>
+    callAcademicRpc<{ id: string; status: string }>('academic_support_update_report', { p_report_id: id, p_status: status, p_note: note ?? null }))
+}
+
+// ─── Content catalogue (LEARN-004, migration 135) ────────────────────────────
+
+export type ContentKind = 'academy_lesson' | 'academy_challenge' | 'practice_set'
+
+export interface ExternalContent { title_lo: string; title_en: string; available: boolean; route: string; membership: boolean }
+
+export interface ContentItem {
+  id: string
+  kind: ContentKind
+  external_id: string
+  subject_ids: string[]
+  grade_min: number
+  grade_max: number
+  topic_ids: string[]
+  difficulty: 1 | 2 | 3
+  language: 'lo' | 'en'
+  est_minutes: number
+  objectives_lo: string[]
+  objectives_en: string[]
+  quality_score: number | null
+  status: 'draft' | 'published' | 'retired'
+  published_at: string | null
+  /** The Academy lesson, challenge or quiz topic it points at (null if it no longer exists). */
+  external: ExternalContent | null
+  subject_codes: string[]
+  topic_names: string[]
+}
+
+export interface ExternalCandidate { id: string; title_en: string; title_lo: string; detail: string; available: boolean; tagged: boolean }
+
+export type ContentInput = Omit<ContentItem, 'id' | 'published_at' | 'external' | 'subject_codes' | 'topic_names'> & { id?: string }
+
+export function useContentItems() {
+  return useQuery({ queryKey: [...adminKey, 'content'], queryFn: () => callAcademicRpc<ContentItem[]>('academic_admin_list_content') })
+}
+
+export function useExternalContent(kind: ContentKind, search: string) {
+  return useQuery({
+    queryKey: [...adminKey, 'content-search', kind, search],
+    queryFn: () => callAcademicRpc<ExternalCandidate[]>('academic_admin_search_external_content', { p_kind: kind, p_search: search }),
+  })
+}
+
+export function useSaveContent() {
+  return useAdminMutation((input: ContentInput) => callAcademicRpc<ContentItem>('academic_admin_save_content', { p_input: input }))
+}
+
+// ─── Content gaps (LEARN-003, migration 136) ─────────────────────────────────
+
+export interface ContentGap { rule_id: 'R3' | 'R4' | 'R7'; subject_code: string | null; grade_code: string | null; topic_id: string | null; topic_name: string | null; students: number; last_seen: string }
+
+export function useContentGaps() {
+  return useQuery({ queryKey: [...adminKey, 'content-gaps'], queryFn: () => callAcademicRpc<ContentGap[]>('academic_admin_content_gaps') })
 }

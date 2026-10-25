@@ -1,0 +1,1228 @@
+{
+  "version": "f6-f10.v1",
+  "engine": "f1-f10@2.0.0",
+  "config": {
+    "window_size": 6,
+    "label_min_n": 3,
+    "deviation": "0.75",
+    "consistency": "0.6",
+    "label_high_n": 6,
+    "label_high_factor": "1.5",
+    "label_high_consistency": "0.8",
+    "label_medium_n": 4,
+    "trend_min_n": 4,
+    "slope": "0.15",
+    "significance": 0.2,
+    "volatility_sd": "1",
+    "trend_high_n": 8,
+    "trend_high_p": 0.05,
+    "trend_medium_n": 6
+  },
+  "generated_by": "supabase/tests/golden/reference.mjs (exact fractions, independent of the SQL engine)",
+  "notes": "Expected values are exact fractions as strings, except p (a number). Engine output must match to 1e-9; SD is compared as sqrt(variance). Periods are monthly sequences of the 2026-2027 national calendar (1 = September).",
+  "cases": [
+    {
+      "id": "L01",
+      "title": "PRD §20.9 worked example: labels, trends and confidence for six subjects",
+      "source": "PRD §20.9",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "MATH": 6,
+            "PHYS": 7,
+            "CHEM": 7.5,
+            "BIO": 8.5,
+            "LAO": 8,
+            "ENG": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "MATH": 7,
+            "PHYS": 6,
+            "CHEM": 8,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 7
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "MATH": 6.5,
+            "PHYS": 6.5,
+            "CHEM": 8,
+            "BIO": 8.5,
+            "LAO": 7.5,
+            "ENG": 5
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "MATH": 5.5,
+            "PHYS": 6,
+            "CHEM": 8.5,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 8
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "MATH": 5,
+            "PHYS": "missing",
+            "CHEM": 8,
+            "BIO": 9,
+            "LAO": 8,
+            "ENG": 6
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "MATH": 5.5,
+            "PHYS": 6,
+            "CHEM": 8.5,
+            "BIO": 9.5,
+            "LAO": 8,
+            "ENG": 7.5
+          }
+        }
+      ],
+      "prd": {
+        "MATH": {
+          "D": -1.39,
+          "above": 0,
+          "sd": 0.74,
+          "slope": -0.33,
+          "p": 0.18,
+          "label": "relatively_lower",
+          "label_confidence": "high",
+          "trend": "declining",
+          "trend_confidence": "medium"
+        },
+        "PHYS": {
+          "D": -1.03,
+          "above": 0,
+          "sd": 0.45,
+          "slope": -0.18,
+          "p": 0.27,
+          "label": "relatively_lower",
+          "label_confidence": "medium",
+          "trend": "no_clear_trend",
+          "trend_confidence": null
+        },
+        "CHEM": {
+          "D": 0.77,
+          "above": 6,
+          "sd": 0.38,
+          "slope": 0.17,
+          "p": 0.1,
+          "label": "relatively_stronger",
+          "label_confidence": "medium",
+          "trend": "improving",
+          "trend_confidence": "medium"
+        },
+        "BIO": {
+          "D": 1.61,
+          "above": 6,
+          "sd": 0.38,
+          "slope": 0.17,
+          "p": 0.1,
+          "label": "relatively_stronger",
+          "label_confidence": "high",
+          "trend": "improving",
+          "trend_confidence": "medium"
+        },
+        "LAO": {
+          "D": 0.61,
+          "above": 6,
+          "sd": 0.2,
+          "slope": 0,
+          "p": 1,
+          "label": "neutral",
+          "label_confidence": null,
+          "trend": "no_clear_trend",
+          "trend_confidence": null
+        },
+        "ENG": {
+          "D": -0.73,
+          "above": 1,
+          "sd": 1.11,
+          "slope": 0.3,
+          "p": 0.57,
+          "label": "neutral",
+          "label_confidence": null,
+          "trend": "volatile",
+          "trend_confidence": "medium"
+        }
+      },
+      "expected": {
+        "MATH": {
+          "label": {
+            "value": "relatively_lower",
+            "confidence": "high",
+            "n": 6,
+            "mean_deviation": "-251/180",
+            "above": 0,
+            "below": 6
+          },
+          "trend": {
+            "value": "declining",
+            "confidence": "medium",
+            "n": 6,
+            "slope": "-1/3",
+            "variance": "13/24",
+            "p": 0.1805996164939243,
+            "direction": "down"
+          }
+        },
+        "PHYS": {
+          "label": {
+            "value": "relatively_lower",
+            "confidence": "medium",
+            "n": 5,
+            "mean_deviation": "-31/30",
+            "above": 0,
+            "below": 5
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "-11/60",
+            "variance": "1/5",
+            "p": 0.26725749315438807,
+            "direction": "down"
+          }
+        },
+        "CHEM": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "medium",
+            "n": 6,
+            "mean_deviation": "139/180",
+            "above": 6,
+            "below": 0
+          },
+          "trend": {
+            "value": "improving",
+            "confidence": "medium",
+            "n": 6,
+            "slope": "1/6",
+            "variance": "17/120",
+            "p": 0.10008268496672557,
+            "direction": "up"
+          }
+        },
+        "BIO": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "high",
+            "n": 6,
+            "mean_deviation": "289/180",
+            "above": 6,
+            "below": 0
+          },
+          "trend": {
+            "value": "improving",
+            "confidence": "medium",
+            "n": 6,
+            "slope": "1/6",
+            "variance": "17/120",
+            "p": 0.10008268496672557,
+            "direction": "up"
+          }
+        },
+        "LAO": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 6,
+            "mean_deviation": "109/180",
+            "above": 6,
+            "below": 0
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 6,
+            "slope": "0",
+            "variance": "1/24",
+            "p": 1,
+            "direction": "flat"
+          }
+        },
+        "ENG": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 6,
+            "mean_deviation": "-131/180",
+            "above": 1,
+            "below": 4
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "medium",
+            "n": 6,
+            "slope": "3/10",
+            "variance": "149/120",
+            "p": 0.56609026181685,
+            "direction": "up"
+          }
+        }
+      }
+    },
+    {
+      "id": "L02",
+      "title": "Label thresholds met exactly: D = ±0.75 and 3 of 5 months on the same side",
+      "source": "§20.3, §20.4",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 9,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 9,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 9,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 5.5,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 5,
+            "S2": 6
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "medium",
+            "n": 5,
+            "mean_deviation": "3/4",
+            "above": 3,
+            "below": 2
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "low",
+            "n": 5,
+            "slope": "-13/12",
+            "variance": "17/4",
+            "p": 0.09609232945567314,
+            "direction": "down"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "relatively_lower",
+            "confidence": "medium",
+            "n": 5,
+            "mean_deviation": "-3/4",
+            "above": 2,
+            "below": 3
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L03",
+      "title": "Deviation over the threshold but on the same side in only 2 of 5 months; a month at the mean counts for neither side",
+      "source": "CALC-5",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 10,
+            "S2": 5
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 10,
+            "S2": 5
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 4.5,
+            "S2": 5
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 4.5,
+            "S2": 5
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 5,
+            "S2": 5
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "9/10",
+            "above": 2,
+            "below": 2
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "low",
+            "n": 5,
+            "slope": "-35/24",
+            "variance": "343/40",
+            "p": 0.43342193095607384,
+            "direction": "down"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "-9/10",
+            "above": 2,
+            "below": 2
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L04",
+      "title": "Minimum data: a label needs 3 months with a shown mean, a trend needs 4 scores",
+      "source": "§20.3 minimum values",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": "missing",
+            "S2": 6,
+            "S3": 6
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "insufficient_evidence",
+            "confidence": null,
+            "n": 2,
+            "mean_deviation": "4/3",
+            "above": 2,
+            "below": 0
+          },
+          "trend": {
+            "value": "insufficient_evidence",
+            "confidence": null,
+            "n": 2,
+            "slope": null,
+            "variance": null,
+            "p": null,
+            "direction": null
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 3,
+            "mean_deviation": "-4/9",
+            "above": 0,
+            "below": 2
+          },
+          "trend": {
+            "value": "insufficient_evidence",
+            "confidence": null,
+            "n": 3,
+            "slope": null,
+            "variance": null,
+            "p": null,
+            "direction": null
+          }
+        },
+        "S3": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 3,
+            "mean_deviation": "-4/9",
+            "above": 0,
+            "below": 2
+          },
+          "trend": {
+            "value": "insufficient_evidence",
+            "confidence": null,
+            "n": 3,
+            "slope": null,
+            "variance": null,
+            "p": null,
+            "direction": null
+          }
+        }
+      }
+    },
+    {
+      "id": "L05",
+      "title": "A month whose mean is hidden (coverage 1/4) gives no deviation but still counts for the trend",
+      "source": "§20.7, CALC-4",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 9,
+            "S2": "missing",
+            "S3": "missing",
+            "S4": "missing"
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 8,
+            "S2": 6,
+            "S3": 6,
+            "S4": 6
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "medium",
+            "n": 4,
+            "mean_deviation": "3/2",
+            "above": 4,
+            "below": 0
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "0",
+            "variance": "1/5",
+            "p": 1,
+            "direction": "flat"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 4,
+            "mean_deviation": "-1/2",
+            "above": 0,
+            "below": 4
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 4,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        },
+        "S3": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 4,
+            "mean_deviation": "-1/2",
+            "above": 0,
+            "below": 4
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 4,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        },
+        "S4": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 4,
+            "mean_deviation": "-1/2",
+            "above": 0,
+            "below": 4
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 4,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L06",
+      "title": "0–50 scale: slope exactly 0.75 (0.15 × 5) is improving, a slope of 0.5 is not",
+      "source": "§20.3 scale adjustment",
+      "scale": {
+        "school": "school50",
+        "min": 0,
+        "max": 50
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 30,
+            "S2": 30
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 30,
+            "S2": 30
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 31,
+            "S2": 31
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 31,
+            "S2": 31
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 34,
+            "S2": 32
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "1/5",
+            "above": 1,
+            "below": 0
+          },
+          "trend": {
+            "value": "improving",
+            "confidence": "low",
+            "n": 5,
+            "slope": "3/4",
+            "variance": "27/10",
+            "p": 0.0675772630558703,
+            "direction": "up"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "-1/5",
+            "above": 0,
+            "below": 1
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "1/2",
+            "variance": "7/10",
+            "p": 0.0675772630558703,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L07",
+      "title": "0–50 scale: D exactly ±3.75 (0.75 × 5) gives a label; SD exactly 5 (1.0 × 5) is volatile",
+      "source": "§20.3 scale adjustment",
+      "scale": {
+        "school": "school50",
+        "min": 0,
+        "max": 50
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 40,
+            "S2": 30
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 40,
+            "S2": 30
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 40,
+            "S2": 30
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 30,
+            "S2": 30
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "medium",
+            "n": 4,
+            "mean_deviation": "15/4",
+            "above": 3,
+            "below": 0
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "low",
+            "n": 4,
+            "slope": "-5/3",
+            "variance": "25",
+            "p": 0.37109336952269734,
+            "direction": "down"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "relatively_lower",
+            "confidence": "medium",
+            "n": 4,
+            "mean_deviation": "-15/4",
+            "above": 0,
+            "below": 3
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 4,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L08",
+      "title": "Volatility at exactly SD 1.0",
+      "source": "§20.5",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 8,
+            "S2": 8
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 6,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 8,
+            "S2": 7.5
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 7,
+            "S2": 7
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "1/20",
+            "above": 1,
+            "below": 0
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "low",
+            "n": 5,
+            "slope": "1/8",
+            "variance": "1",
+            "p": 0.794002680192762,
+            "direction": "flat"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 5,
+            "mean_deviation": "-1/20",
+            "above": 0,
+            "below": 1
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 5,
+            "slope": "1/8",
+            "variance": "4/5",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L09",
+      "title": "Eight months: high label and trend confidence; labels use the last six months, trends the whole enrolment",
+      "source": "§20.6, CALC-4",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 6,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 6,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 6.5,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 6.5,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 7,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "S1": 7,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 7,
+          "lines": {
+            "S1": 7.5,
+            "S2": 4
+          }
+        },
+        {
+          "seq": 8,
+          "lines": {
+            "S1": 7.5,
+            "S2": 4
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "relatively_stronger",
+            "confidence": "high",
+            "n": 6,
+            "mean_deviation": "3/2",
+            "above": 6,
+            "below": 0
+          },
+          "trend": {
+            "value": "improving",
+            "confidence": "high",
+            "n": 8,
+            "slope": "1/4",
+            "variance": "5/14",
+            "p": 0.00331580440157464,
+            "direction": "up"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "relatively_lower",
+            "confidence": "high",
+            "n": 6,
+            "mean_deviation": "-3/2",
+            "above": 0,
+            "below": 6
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 8,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L10",
+      "title": "Declining with a month not recorded: Theil–Sen uses the real month numbers",
+      "source": "§20.7 missing whole period",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 8,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 7.5,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 7,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 6.5,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "S1": 6.5,
+            "S2": 6
+          }
+        },
+        {
+          "seq": 7,
+          "lines": {
+            "S1": 6,
+            "S2": 6
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 6,
+            "mean_deviation": "11/24",
+            "above": 5,
+            "below": 0
+          },
+          "trend": {
+            "value": "declining",
+            "confidence": "medium",
+            "n": 6,
+            "slope": "-1/3",
+            "variance": "13/24",
+            "p": 0.01289887393508149,
+            "direction": "down"
+          }
+        },
+        "S2": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 6,
+            "mean_deviation": "-11/24",
+            "above": 0,
+            "below": 5
+          },
+          "trend": {
+            "value": "no_clear_trend",
+            "confidence": null,
+            "n": 6,
+            "slope": "0",
+            "variance": "0",
+            "p": 1,
+            "direction": "flat"
+          }
+        }
+      }
+    },
+    {
+      "id": "L11",
+      "title": "A steady rise of 0.5 a month for 8 months is \"volatile\": SD ≥ 1.0 wins over the slope as §20.5 is written",
+      "source": "§20.5 (to calibrate with reviewers)",
+      "scale": {
+        "school": "school",
+        "min": 0,
+        "max": 10
+      },
+      "months": [
+        {
+          "seq": 1,
+          "lines": {
+            "S1": 4
+          }
+        },
+        {
+          "seq": 2,
+          "lines": {
+            "S1": 4.5
+          }
+        },
+        {
+          "seq": 3,
+          "lines": {
+            "S1": 5
+          }
+        },
+        {
+          "seq": 4,
+          "lines": {
+            "S1": 5.5
+          }
+        },
+        {
+          "seq": 5,
+          "lines": {
+            "S1": 6
+          }
+        },
+        {
+          "seq": 6,
+          "lines": {
+            "S1": 6.5
+          }
+        },
+        {
+          "seq": 7,
+          "lines": {
+            "S1": 7
+          }
+        },
+        {
+          "seq": 8,
+          "lines": {
+            "S1": 7.5
+          }
+        }
+      ],
+      "expected": {
+        "S1": {
+          "label": {
+            "value": "neutral",
+            "confidence": null,
+            "n": 6,
+            "mean_deviation": "0",
+            "above": 0,
+            "below": 0
+          },
+          "trend": {
+            "value": "volatile",
+            "confidence": "high",
+            "n": 8,
+            "slope": "1/2",
+            "variance": "3/2",
+            "p": 0.0008366271311187612,
+            "direction": "up"
+          }
+        }
+      }
+    }
+  ]
+}

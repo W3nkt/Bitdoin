@@ -5,6 +5,7 @@ import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import { cn } from '@/lib/utils'
 import { InboxButton } from './Inbox'
+import { ReportProblem } from './ReportProblem'
 
 /** Page frame for every My Scores screen, matching the other Academy pages. */
 export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
@@ -42,7 +43,10 @@ export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
           <AcademyHeaderActions />
         </div>
       </header>
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:py-10">{children}</div>
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
+        {children}
+        <ReportProblem />
+      </div>
     </main>
   )
 }

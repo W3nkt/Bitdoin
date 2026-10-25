@@ -54,7 +54,34 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Nothing.
+- Migrations 129 (analysis engine v2: labels and trends, #49) and 130
+  (`insights_enabled` switch, off). Safe to apply during the pilot: students
+  see no change until the switch is on. Every dashboard rebuilds its snapshot
+  once on the next view (the engine version is part of the input hash).
+- Migration 131 (diagnostic item bank and review workflow, #49): admin-only
+  tables and RPCs, new **Quiz items** tab. Nothing reaches students yet.
+- Migration 132 (diagnostic quizzes, #49): diagnostics in the Quiz items tab;
+  students see a quiz only on a subject needing attention, and only while
+  `insights_enabled` is on. Also replaces `academic_purge_due_deletions()` so
+  the 'scores' deletion scope removes quiz attempts. Includes parallel forms
+  and retakes (QUIZ-004) and the conflicting-evidence note (ANALYSIS-007).
+- Migration 133 ("Report a problem", PRIV-008): live for every student as soon
+  as it is applied (not behind `insights_enabled`); new **Reports** tab for
+  ADMIN and OPERATIONS. Redeploy the `academic-alerts` function so priority
+  reports get their own e-mail wording.
+- Migration 134 switches `insights_enabled` **on** (owner approval 2026-10-25).
+  Apply it together with the frontend deploy: students then see labels,
+  trends, explanations and diagnostic quizzes. During the pilot this also
+  changes what pilot students see; note the date in the weekly pilot report.
+  To release 129–133 without switching on, apply up to 133 first.
+- Migration 135 (content catalogue for recommendations, #50): admin-only
+  table and RPCs, new **Content** tab; reads Academy lessons and challenges
+  read-only (OD-05). Nothing reaches students yet.
+- Migration 136 (weekly next actions engine, #50): `academic_get_recommendations()`
+  and the content-gap log (Content tab).
+- Migration 137 (practice sets, #50): students see the **This week** card on
+  the dashboard and can practise topics at `/academy/scores/practice/:topic`
+  (behind `insights_enabled`). Practice is exported and deleted with scores.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
 migrations 122–127 on 2026-10-25, with `send-push` and the three admin
@@ -78,6 +105,18 @@ Privacy actions (export, consent withdrawal, deletion) keep working while the
 module is off (PRIV-003..005). Other switches in the same table:
 `admin_mfa_required`, `scale_four_eyes_required`, `break_glass_minutes`,
 `score_reminders`, `notification_quiet_hours`, `push_caps`, `rate_limits`.
+
+Subject labels, trends and diagnostic quizzes (Phase 2, #49) have their own
+switch, on from migration 134. The owner approved the Lao strings, the
+explanation templates (ANALYSIS-004) and the decisions on 2026-10-25, including
+§20.5 as written (a steady rise with SD ≥ 1.0 reads as "volatile", golden case L11).
+
+```sql
+-- On: "Compared with your own average" card and "What your scores show" appear.
+update public.academic_settings set value = 'true' where key = 'insights_enabled';
+-- Off again: the dashboard stops returning labels and trends; snapshots keep them.
+update public.academic_settings set value = 'false' where key = 'insights_enabled';
+```
 
 ## Monitoring (OPS-002, migration 122)
 

@@ -37,6 +37,23 @@ const b = await rpc(B, `public.academic_create_profile(${json({ ...profile, disp
 const aSubjects = (await db.query(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}' order by display_order`)).rows.map((row) => row.id)
 const lines = aSubjects.map((id, i) => (i === 0 ? { subject_enrolment_id: id, status: 'scored', value: 7.5 } : { subject_enrolment_id: id, status: 'missing' }))
 await rpc(A, `public.academic_submit_score_entry('${a.enrolment_id}', '${period(2)}', ${json(lines)}, 'a-oct')`)
+
+// A has an unfinished diagnostic quiz with one answer (migrations 131–132).
+await ok(db, 'quiz bank', `update academic_settings set value = 'true' where key = 'insights_enabled';
+  insert into academic_quiz_topics (id, subject_id, grade_id, code, name_lo, name_en) values ('${RANDOM.replace('f0e1', 'ab01')}', '${ID.math}', '${ID.g11}', 'algebra', 'ພຶດຊະຄະນິດ', 'Algebra');
+  insert into academic_quiz_items (topic_id, stem_lo, options, correct_key, explanation_lo, status)
+  select '${RANDOM.replace('f0e1', 'ab01')}', 'Q' || n, '[{"key":"A","text_lo":"1"},{"key":"B","text_lo":"2"}]', 'B', 'x', 'approved' from generate_series(1, 10) n;
+  insert into academic_diagnostics (id, subject_id, grade_id, title_lo, title_en, status) values ('${RANDOM.replace('f0e1', 'ab02')}', '${ID.math}', '${ID.g11}', 'ກວດ', 'Check', 'published');
+  insert into academic_diagnostic_items (diagnostic_id, item_id, position) select '${RANDOM.replace('f0e1', 'ab02')}', id, row_number() over (order by stem_lo) from academic_quiz_items`)
+const aQuiz = await rpc(A, `public.academic_start_quiz('${RANDOM.replace('f0e1', 'ab02')}')`)
+const aAttempt = aQuiz.attempt_id
+const quizItem = aQuiz.items[0].id
+await rpc(A, `public.academic_answer_quiz_item('${aAttempt}', '${quizItem}', 'A')`)
+const aMath = (await one(`select id from academic_subject_enrolments where enrolment_id = '${a.enrolment_id}' and subject_id = '${ID.math}'`)).id
+// ...and an unfinished practice set (migration 137).
+await ok(db, 'practice set', `insert into academic_content_items (kind, external_id, subject_ids, grade_min, grade_max, topic_ids, difficulty, language, est_minutes, status)
+  values ('practice_set', '${RANDOM.replace('f0e1', 'ab01')}', array['${ID.math}']::uuid[], 10, 12, array['${RANDOM.replace('f0e1', 'ab01')}']::uuid[], 1, 'lo', 8, 'published')`)
+const aPractice = await rpc(A, `public.academic_start_practice('${RANDOM.replace('f0e1', 'ab01')}')`)
 const aLine = await one(`select l.id, l.version from academic_score_lines l join academic_score_entries e on e.id = l.score_entry_id where e.enrolment_id = '${a.enrolment_id}' and l.status = 'scored'`)
 await rpc(A, `public.academic_correct_score_line('${aLine.id}', ${aLine.version}, ${json({ status: 'scored', value: 8 })}, 'typo')`)
 await ok(db, 'A reminder', `insert into academic_notifications (id, user_id, student_profile_id, category, code, channel, state, dedupe_key, sent_at)
@@ -56,10 +73,19 @@ const BY_ID = [
   'academic_set_subjects(uuid,jsonb,integer)',
   'academic_dismiss_notification(uuid)',
   'academic_mark_notifications_read(uuid[])',
+  'academic_get_quiz_offer(uuid)',
+  'academic_answer_quiz_item(uuid,uuid,text)',
+  'academic_finish_quiz(uuid)',
+  'academic_get_quiz_result(uuid)',
+  'academic_answer_practice_item(uuid,uuid,text)',
+  'academic_finish_practice(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
   'academic_list_my_consents()', 'academic_get_notification_preferences()', 'academic_list_notifications(integer,timestamp with time zone)',
+  'academic_export_my_quizzes()', 'academic_export_my_reports()',
+  // Builds the caller's own next actions and logs their impressions (migration 136).
+  'academic_get_recommendations()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -73,6 +99,12 @@ const OWN_WRITE = [
   'academic_track_events(jsonb)',
   // Pilot invite check: returns only the cohort name for a valid code (migration 128).
   'academic_check_pilot_code(text)',
+  // Takes a published diagnostic's id (shared content); eligibility comes from the caller's own enrolment (migration 132).
+  'academic_start_quiz(uuid)',
+  // Problem report about the caller; takes no IDs (migration 133).
+  'academic_report_problem(jsonb)',
+  // Takes a quiz topic's id (shared content); the attempt is the caller's own (migration 137).
+  'academic_start_practice(uuid)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -81,6 +113,12 @@ const STAFF_ONLY = [
   'academic_support_lookup(text)', 'academic_support_break_glass(uuid,text)', 'academic_support_view_scores(uuid)',
   'academic_admin_health()', 'academic_admin_test_alert()', 'academic_admin_usage_metrics(uuid)',
   'academic_admin_list_pilot()', 'academic_admin_save_pilot_cohort(jsonb)', 'academic_admin_set_pilot_mode(boolean,text)',
+  'academic_admin_list_quiz_bank(jsonb)', 'academic_admin_save_quiz_topic(jsonb)', 'academic_admin_save_quiz_item(jsonb)',
+  'academic_admin_review_quiz_item(uuid,text,text)',
+  'academic_admin_list_diagnostics()', 'academic_admin_save_diagnostic(jsonb)', 'academic_admin_set_diagnostic_status(uuid,text,text)',
+  'academic_support_list_reports(text)', 'academic_support_update_report(uuid,text,text)',
+  'academic_admin_list_content()', 'academic_admin_search_external_content(text,text)', 'academic_admin_save_content(jsonb)',
+  'academic_admin_content_gaps()',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -123,6 +161,12 @@ const attacks = [
   ['academic_get_dashboard(uuid)', a.enrolment_id, (id) => `public.academic_get_dashboard('${id}')`],
   ['academic_set_subjects(uuid,jsonb,integer)', a.enrolment_id, (id) => `public.academic_set_subjects('${id}', ${json([{ subject_id: ID.math }])})`],
   ['academic_dismiss_notification(uuid)', aNote, (id) => `public.academic_dismiss_notification('${id}')`],
+  ['academic_get_quiz_offer(uuid)', aMath, (id) => `public.academic_get_quiz_offer('${id}')`],
+  ['academic_answer_quiz_item(uuid,uuid,text)', aAttempt, (id) => `public.academic_answer_quiz_item('${id}', '${quizItem}', 'B')`],
+  ['academic_finish_quiz(uuid)', aAttempt, (id) => `public.academic_finish_quiz('${id}')`],
+  ['academic_get_quiz_result(uuid)', aAttempt, (id) => `public.academic_get_quiz_result('${id}')`],
+  ['academic_answer_practice_item(uuid,uuid,text)', aPractice.attempt_id, (id) => `public.academic_answer_practice_item('${id}', '${aPractice.items[0].id}', 'B')`],
+  ['academic_finish_practice(uuid)', aPractice.attempt_id, (id) => `public.academic_finish_practice('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -130,7 +174,8 @@ const before = await one(`select
   (select md5(string_agg(to_jsonb(l)::text, '' order by l.id)) from academic_score_lines l join academic_score_entries e on e.id = l.score_entry_id where e.enrolment_id = '${a.enrolment_id}') as lines,
   (select md5(string_agg(to_jsonb(s)::text, '' order by s.id)) from academic_subject_enrolments s where s.enrolment_id = '${a.enrolment_id}') as subjects,
   (select count(*)::int from academic_score_entries where enrolment_id = '${a.enrolment_id}') as entries,
-  (select state from academic_notifications where id = '${aNote}') as note`)
+  (select state from academic_notifications where id = '${aNote}') as note,
+  (select status || ':' || (select string_agg(item_id || chosen_key, ',') from academic_quiz_answers where attempt_id = q.id) from academic_quiz_attempts q where q.id = '${aAttempt}') as quiz`)
 
 for (const [sig, target, call] of attacks) {
   const deniedBefore = await deniedFor(target)
@@ -146,13 +191,14 @@ const after = await one(`select
   (select md5(string_agg(to_jsonb(l)::text, '' order by l.id)) from academic_score_lines l join academic_score_entries e on e.id = l.score_entry_id where e.enrolment_id = '${a.enrolment_id}') as lines,
   (select md5(string_agg(to_jsonb(s)::text, '' order by s.id)) from academic_subject_enrolments s where s.enrolment_id = '${a.enrolment_id}') as subjects,
   (select count(*)::int from academic_score_entries where enrolment_id = '${a.enrolment_id}') as entries,
-  (select state from academic_notifications where id = '${aNote}') as note`)
+  (select state from academic_notifications where id = '${aNote}') as note,
+  (select status || ':' || (select string_agg(item_id || chosen_key, ',') from academic_quiz_answers where attempt_id = q.id) from academic_quiz_attempts q where q.id = '${aAttempt}') as quiz`)
 eq("A's scores, subjects, entries and reminder are untouched", after, before)
 eq('B never sees A in its own denials (the denied event is filed under B)', (await one(`select count(*)::int as n from academic_audit_events where actor_user_id = '${B}' and student_profile_id = '${a.profile_id}'`)).n, 0)
 
 // ─── 3. Own-scoped reads and writes ──────────────────────────────────────────
 
-const secrets = [A, a.profile_id, a.enrolment_id, aLine.id, aNote, 'Secret A']
+const secrets = [A, a.profile_id, a.enrolment_id, aLine.id, aNote, aAttempt, 'Secret A']
 const leaks = (value) => secrets.filter((secret) => JSON.stringify(value).includes(secret))
 const ownReads = {
   'academic_get_session()': 'public.academic_get_session()',
@@ -162,6 +208,9 @@ const ownReads = {
   'academic_list_my_consents()': 'public.academic_list_my_consents()',
   'academic_get_notification_preferences()': 'public.academic_get_notification_preferences()',
   'academic_list_notifications(integer,timestamp with time zone)': 'public.academic_list_notifications(50)',
+  'academic_export_my_quizzes()': 'public.academic_export_my_quizzes()',
+  'academic_export_my_reports()': 'public.academic_export_my_reports()',
+  'academic_get_recommendations()': 'public.academic_get_recommendations()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -209,6 +258,19 @@ const staffCalls = {
   'academic_admin_list_pilot()': `public.academic_admin_list_pilot()`,
   'academic_admin_save_pilot_cohort(jsonb)': `public.academic_admin_save_pilot_cohort('{"name": "x"}')`,
   'academic_admin_set_pilot_mode(boolean,text)': `public.academic_admin_set_pilot_mode(false, 'testing')`,
+  'academic_admin_list_quiz_bank(jsonb)': `public.academic_admin_list_quiz_bank()`,
+  'academic_admin_save_quiz_topic(jsonb)': `public.academic_admin_save_quiz_topic('{"code": "x"}')`,
+  'academic_admin_save_quiz_item(jsonb)': `public.academic_admin_save_quiz_item('{"stem_lo": "x"}')`,
+  'academic_admin_review_quiz_item(uuid,text,text)': `public.academic_admin_review_quiz_item('${RANDOM}', 'approve')`,
+  'academic_admin_list_diagnostics()': `public.academic_admin_list_diagnostics()`,
+  'academic_admin_save_diagnostic(jsonb)': `public.academic_admin_save_diagnostic('{"item_ids": []}')`,
+  'academic_admin_set_diagnostic_status(uuid,text,text)': `public.academic_admin_set_diagnostic_status('${RANDOM}', 'publish')`,
+  'academic_support_list_reports(text)': `public.academic_support_list_reports()`,
+  'academic_support_update_report(uuid,text,text)': `public.academic_support_update_report('${RANDOM}', 'in_progress')`,
+  'academic_admin_list_content()': `public.academic_admin_list_content()`,
+  'academic_admin_search_external_content(text,text)': `public.academic_admin_search_external_content('academy_lesson', '')`,
+  'academic_admin_save_content(jsonb)': `public.academic_admin_save_content('{"kind": "practice_set"}')`,
+  'academic_admin_content_gaps()': `public.academic_admin_content_gaps()`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

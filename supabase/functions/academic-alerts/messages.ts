@@ -72,6 +72,13 @@ export function describeAlert(alert: AlertLike): { subject: string; lines: strin
         subject: 'No restore drill in the last 8 days',
         lines: [`Last good drill: ${when(d.last_success)}. Run the Database backup workflow with "drill".`],
       }
+    case 'priority_report': {
+      const category = ({ guardian_link: 'wrong guardian link', ai_answer: 'inappropriate AI answer', account_misuse: 'account misuse or impersonation' } as Record<string, string>)[String(d.category)] ?? String(d.category)
+      return {
+        subject: `Priority problem report: ${category}`,
+        lines: [`A user reported a ${category} (PRIV-008). First response is due by ${when(d.first_response_due)}. Open it on the Reports tab.`],
+      }
+    }
     case 'test':
       return { subject: 'Test alert', lines: ['This is a test from the My Scores admin. Alerts reach this address.'] }
     default:

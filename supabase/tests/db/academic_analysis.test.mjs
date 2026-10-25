@@ -52,7 +52,7 @@ for (let m = 0; m < 6; m++) {
 }
 
 let dash = await dashboard(A)
-eq('engine and config versions recorded', [dash.engine_version, dash.config_version, dash.numeric], ['f1-f5@1.0.0', 1, true])
+eq('engine and config versions recorded', [dash.engine_version, dash.config_version, dash.numeric], ['f1-f10@2.0.0', 2, true])
 eq('F1 period means', dash.periods.map((p) => r2(p.mean)), [7.17, 7.5, 7, 7.5, 7.2, 7.5])
 eq('F3 changes vs previous valid period', dash.periods.map((p) => p.change && [r2(p.change.value), p.change.direction, p.change.skipped_periods]),
   [null, [0.33, 'up', 0], [-0.5, 'down', 0], [0.5, 'up', 0], [-0.3, 'down', 0], [0.3, 'up', 0]])

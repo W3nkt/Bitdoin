@@ -1,4 +1,8 @@
 import { useLanguage } from '@/context/LanguageContext'
+import { insightsCopy } from './insightsCopy'
+import { quizCopy } from './quizCopy'
+import { reportCopy } from './reportCopy'
+import { recommendationCopy } from './recommendationCopy'
 
 // Every Schooling interface string, in one place.
 //
@@ -376,6 +380,15 @@ const copy = {
   'consent.usageStats.off': { en: 'Off', lo: 'ປິດຢູ່' },
   'consent.usageStats.turnOff': { en: 'Turn off', lo: 'ປິດ' },
   'consent.usageStats.turnOn': { en: 'Turn on', lo: 'ເປີດ' },
+
+  // Subject labels, trends and explanations (P2-ANL)
+  ...insightsCopy,
+  // Diagnostic quizzes (P2-ANL)
+  ...quizCopy,
+  // Report a problem (PRIV-008)
+  ...reportCopy,
+  // Weekly next actions and practice sets (P2-REC)
+  ...recommendationCopy,
 } as const satisfies Record<string, { en: string; lo: string }>
 
 export type AcademicCopyKey = keyof typeof copy

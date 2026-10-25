@@ -138,6 +138,41 @@ function backend(initial) {
     },
     academic_get_line_revisions: (args) => ({ score_line_id: args.p_line_id, revisions: [...state.revisions].reverse() }),
     academic_get_dashboard: () => state.dashboard ?? emptyDashboard(),
+    // Diagnostic quiz (migration 132): Mathematics has one; other subjects none.
+    // After finishing, a retake (another form) waits 7 days; "strong" = >= 80% in every topic (ANALYSIS-007).
+    academic_get_quiz_offer: (args) => (args.p_subject_enrolment_id === 'se-math'
+      ? {
+          diagnostic: { id: 'dg1', title_lo: 'ກວດຄະນິດສາດ ມ.6', title_en: 'Grade 11 Mathematics check', items: QUIZ_ITEMS.length },
+          start_id: state.quizDone ? null : 'dg1', retake_from: state.quizDone ? '2026-11-01T08:00:00Z' : null,
+          attempt: state.quizAnswers && !state.quizDone && Object.keys(state.quizAnswers).length < QUIZ_ITEMS.length ? { id: 'at1', answered: Object.keys(state.quizAnswers).length, total: QUIZ_ITEMS.length, expires_at: '2026-11-01T00:00:00Z' } : null,
+          last_result: state.quizDone ? { id: 'at1', completed_at: '2026-10-25T08:00:00Z', strong: quizResult(state.quizAnswers).topics.every(t => t.correct * 10 >= t.total * 8) } : null,
+        }
+      : { diagnostic: null, start_id: null, retake_from: null, attempt: null, last_result: null }),
+    academic_start_quiz: () => {
+      state.quizAnswers ??= {}
+      return { attempt_id: 'at1', status: 'in_progress', expires_at: '2026-11-01T00:00:00Z', diagnostic: { id: 'dg1', title_lo: 'ກວດຄະນິດສາດ ມ.6', title_en: 'Grade 11 Mathematics check' },
+        items: QUIZ_ITEMS.map(({ correct_key, explanation_lo, explanation_en, explanation_origin, ...item }) => item), answers: { ...state.quizAnswers } }
+    },
+    academic_answer_quiz_item: (args) => { state.quizAnswers[args.p_item_id] = args.p_key; return { answered: Object.keys(state.quizAnswers).length, total: QUIZ_ITEMS.length } },
+    academic_finish_quiz: () => { state.quizDone = true; return quizResult(state.quizAnswers, state.quizPrevious) },
+    academic_get_quiz_result: () => quizResult(state.quizAnswers ?? {}, state.quizPrevious),
+    // Next actions (migration 136) and practice sets (137).
+    academic_get_recommendations: () => ({ items: state.recommendations ?? [] }),
+    academic_start_practice: () => ({
+      attempt_id: 'pa1', status: 'in_progress', correct: null, topic: { id: 't1', name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra' },
+      items: PRACTICE_ITEMS.map(({ correct_key, explanation_lo, explanation_en, explanation_origin, ...item }) => ({ ...item, feedback: state.practice?.[item.id] ?? null })),
+    }),
+    academic_answer_practice_item: (args) => {
+      const item = PRACTICE_ITEMS.find(i => i.id === args.p_item_id)
+      const feedback = { chosen_key: args.p_key, is_correct: args.p_key === item.correct_key, correct_key: item.correct_key, explanation_lo: item.explanation_lo, explanation_en: item.explanation_en, explanation_origin: item.explanation_origin }
+      state.practice = { ...(state.practice ?? {}), [item.id]: feedback }
+      return feedback
+    },
+    academic_finish_practice: () => ({ attempt_id: 'pa1', correct: Object.values(state.practice ?? {}).filter(f => f.is_correct).length, total: PRACTICE_ITEMS.length }),
+    academic_report_problem: (args) => {
+      state.problemReports = [...(state.problemReports ?? []), args.p_input]
+      return { id: 'pr1', priority: args.p_input.category === 'other' ? 'normal' : 'priority', first_response_due: '2026-10-27T03:00:00Z' }
+    },
     academic_list_notifications: (args) => ({
       items: state.notes.filter(n => n.state === 'sent' || n.state === 'read').slice(0, args.p_limit ?? 20),
       unread_count: state.notes.filter(n => n.state === 'sent').length,
@@ -271,6 +306,74 @@ function workedExampleDashboard() {
     ...emptyDashboard(), snapshot_id: 's1', periods, subjects,
     summary: { latest_period_id: 'p6', mean: 7.5, coverage: { recorded: 6, active: 6 }, missing: 0, change: periods[5].change, rolling_mean: 7.4 },
   }
+}
+
+/** A two-item practice set; the second explanation is AI-drafted. */
+const PRACTICE_ITEMS = [
+  { id: 'pi1', position: 1, stem_lo: 'ຖ້າ x + 1 = 4, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If x + 1 = 4, what is x?', correct_key: 'B', explanation_lo: 'ລົບ 1 ອອກທັງສອງຂ້າງ.', explanation_en: 'Take 1 from both sides.', explanation_origin: 'human',
+    options: [{ key: 'A', text_lo: '5', text_en: null }, { key: 'B', text_lo: '3', text_en: null }] },
+  { id: 'pi2', position: 2, stem_lo: 'ຖ້າ 3x = 9, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If 3x = 9, what is x?', correct_key: 'A', explanation_lo: 'ຫານດ້ວຍ 3.', explanation_en: 'Divide by 3.', explanation_origin: 'ai',
+    options: [{ key: 'A', text_lo: '3', text_en: null }, { key: 'B', text_lo: '6', text_en: null }] },
+]
+
+/** Next actions as the engine returns them (golden case: free student). */
+const WEEK = [
+  { key: 'R1:p7', rule_id: 'R1', kind: 'enter_scores', title_lo: 'ມີນາ', title_en: 'March', est_minutes: 2, route: '/academy/scores/entry', priority: 100, reason: { code: 'R1', period_lo: 'ມີນາ', period_en: 'March' } },
+  { key: 'practice_set:c1', rule_id: 'R3', kind: 'practice_set', title_lo: 'ພຶດຊະຄະນິດ', title_en: 'Algebra', est_minutes: 8, route: '/academy/scores/practice/t1', priority: 80,
+    reason: { code: 'R3', subject_lo: 'ຄະນິດສາດ', subject_en: 'Mathematics', topic_lo: 'ພຶດຊະຄະນິດ', topic_en: 'Algebra', band: 'needs_practice', date: '2026-10-12T05:00:00Z' } },
+  { key: 'gap:t2', rule_id: 'R3', kind: 'gap', title_lo: 'ເລຂາຄະນິດ', title_en: 'Geometry', est_minutes: null, route: null, priority: 80,
+    reason: { code: 'gap', subject_lo: 'ຄະນິດສາດ', subject_en: 'Mathematics', topic_lo: 'ເລຂາຄະນິດ', topic_en: 'Geometry' } },
+]
+
+/** A short diagnostic: two algebra items and one geometry item; the second algebra explanation is AI-drafted. */
+const QUIZ_ITEMS = [
+  { id: 'qi1', position: 1, topic: { name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra' }, stem_lo: 'ຖ້າ x + 2 = 5, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If x + 2 = 5, what is x?', correct_key: 'B', explanation_lo: 'ລົບ 2 ອອກທັງສອງຂ້າງ.', explanation_en: 'Take 2 from both sides.', explanation_origin: 'human',
+    options: [{ key: 'A', text_lo: '2', text_en: null }, { key: 'B', text_lo: '3', text_en: null }, { key: 'C', text_lo: '7', text_en: null }] },
+  { id: 'qi2', position: 2, topic: { name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra' }, stem_lo: 'ຖ້າ 2x = 8, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If 2x = 8, what is x?', correct_key: 'C', explanation_lo: 'ຫານທັງສອງຂ້າງດ້ວຍ 2.', explanation_en: 'Divide both sides by 2.', explanation_origin: 'ai',
+    options: [{ key: 'A', text_lo: '2', text_en: null }, { key: 'B', text_lo: '6', text_en: null }, { key: 'C', text_lo: '4', text_en: null }] },
+  { id: 'qi3', position: 3, topic: { name_lo: 'ເລຂາຄະນິດ', name_en: 'Geometry' }, stem_lo: 'ຮູບສາມແຈ ມີຈັກມຸມ?', stem_en: 'How many angles does a triangle have?', correct_key: 'A', explanation_lo: 'ສາມແຈ ມີ 3 ມຸມ.', explanation_en: 'A triangle has 3 angles.', explanation_origin: 'human',
+    options: [{ key: 'A', text_lo: '3', text_en: null }, { key: 'B', text_lo: '4', text_en: null }] },
+]
+
+QUIZ_ITEMS.splice(2, 0, { id: 'qi4', position: 3, topic: { name_lo: 'ພຶດຊະຄະນິດ', name_en: 'Algebra' }, stem_lo: 'ຖ້າ x − 4 = 1, x ເທົ່າກັບເທົ່າໃດ?', stem_en: 'If x − 4 = 1, what is x?', correct_key: 'A', explanation_lo: 'ບວກ 4 ທັງສອງຂ້າງ.', explanation_en: 'Add 4 to both sides.', explanation_origin: 'human',
+  options: [{ key: 'A', text_lo: '5', text_en: null }, { key: 'B', text_lo: '3', text_en: null }] })
+QUIZ_ITEMS[3].position = 4
+
+/** As the engine scores it (QUIZ-002): fewer than 3 items -> not_enough; >= 80% secure; >= 50% developing. */
+function quizResult(answers, previousAnswers = null) {
+  const items = QUIZ_ITEMS.map(({ id, ...item }) => ({ ...item, chosen_key: answers[id] ?? null, is_correct: answers[id] === item.correct_key }))
+  const band = (correct, total) => (total < 3 ? 'not_enough' : correct * 10 >= total * 8 ? 'secure' : correct * 2 >= total ? 'developing' : 'needs_practice')
+  const topics = ['Algebra', 'Geometry'].map((name, i) => {
+    const own = items.filter(item => item.topic.name_en === name)
+    const correct = own.filter(item => item.is_correct).length
+    return { topic_id: `t${i + 1}`, name_lo: own[0].topic.name_lo, name_en: name, correct, total: own.length, band: band(correct, own.length) }
+  })
+  const previous = previousAnswers && { attempt_id: 'at0', completed_at: '2026-10-10T08:00:00Z', topics: quizResult(previousAnswers).topics }
+  return { attempt_id: 'at1', completed_at: '2026-10-25T08:00:00Z', diagnostic: { id: 'dg1', title_lo: 'ກວດຄະນິດສາດ ມ.6', title_en: 'Grade 11 Mathematics check' }, topics, previous, items }
+}
+
+/** The worked example with engine v2 labels and trends (golden case L01; insights switched on). */
+function insightsDashboard() {
+  const view = workedExampleDashboard()
+  // label, confidence, n, D, above, below | trend, confidence, n, slope, p, sd, direction
+  const v2 = {
+    MATH: ['relatively_lower', 'high', 6, -1.3944, 0, 6, 'declining', 'medium', 6, -0.3333, 0.1806, 0.736, 'down'],
+    PHYS: ['relatively_lower', 'medium', 5, -1.0333, 0, 5, 'no_clear_trend', null, 5, -0.1833, 0.2673, 0.4472, 'down'],
+    CHEM: ['relatively_stronger', 'medium', 6, 0.7722, 6, 0, 'improving', 'medium', 6, 0.1667, 0.1001, 0.3764, 'up'],
+    BIO: ['relatively_stronger', 'high', 6, 1.6056, 6, 0, 'improving', 'medium', 6, 0.1667, 0.1001, 0.3764, 'up'],
+    LAO: ['neutral', null, 6, 0.6056, 6, 0, 'no_clear_trend', null, 6, 0, 1, 0.2041, 'flat'],
+    ENG: ['neutral', null, 6, -0.7278, 1, 4, 'volatile', 'medium', 6, 0.3, 0.5661, 1.1143, 'up'],
+  }
+  view.engine_version = 'f1-f10@2.0.0'
+  view.subjects = view.subjects.map(subject => {
+    const [label, lc, ln, d, above, below, trend, tc, tn, slope, p, sd, direction] = v2[subject.code]
+    return {
+      ...subject,
+      label: { value: label, confidence: lc, rule: `ANALYSIS-002.${label}`, n: ln, mean_deviation: d, periods_above: above, periods_below: below },
+      trend: { value: trend, confidence: tc, rule: `ANALYSIS-003.${trend}`, n: tn, slope, p, sd, direction },
+    }
+  })
+  return view
 }
 
 // Only the preview server and the mocked Supabase are reachable.
@@ -863,6 +966,192 @@ try {
     pass('Dashboard: empty state, summary, trend with rolling mean, sorted bars, table views, axe clean, subject detail, offline stale copy')
   }
 
+  // Subject labels, trends and explanations (P2-ANL #49: DASH-005, ANALYSIS-004).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    // Insights switched off: the dashboard has no labels, so no card.
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Up 0.3 since January').waitFor()
+    assert.equal(await page.getByRole('heading', { name: 'Compared with your own average' }).count(), 0, 'no card without labels')
+
+    mock.state.dashboard = insightsDashboard()
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Compared with your own average' }) })
+    await card.waitFor()
+    assert.match(await card.innerText(), /never with other students/)
+    const group = (name) => card.locator('div:has(> h3)').filter({ has: page.getByRole('heading', { name }) }).locator('li')
+    const stronger = group('Stronger subjects')
+    const attention = group('Subjects needing attention')
+    assert.deepEqual(await stronger.allInnerTexts().then(rows => rows.map(r => r.replace(/\s+/g, ' ').trim())), [
+      'Biology Above your average in 6 of the last 6 months, by about 1.6 High confidence',
+      'Chemistry Above your average in 6 of the last 6 months, by about 0.8 Medium confidence',
+    ])
+    assert.deepEqual(await attention.allInnerTexts().then(rows => rows.map(r => r.replace(/\s+/g, ' ').trim())), [
+      'Mathematics Below your average in 6 of the last 6 months, by about 1.4 High confidence',
+      'Physics Below your average in 5 of the last 5 months, by about 1.0 Medium confidence',
+    ])
+    await shot(page, 'my-scores-18-insights-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    const axe = await page.evaluate(async () => {
+      const result = await window.axe.run(document, { resultTypes: ['violations'] })
+      return result.violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)
+    })
+    assert.deepEqual(axe, [])
+
+    // Opening Mathematics from the card: facts first, then suggestions.
+    await attention.first().getByRole('button').click()
+    const explain = page.locator('section', { has: page.getByRole('heading', { name: 'What your scores show' }) })
+    await explain.waitFor()
+    const text = (await explain.innerText()).replace(/\s+/g, ' ')
+    assert.match(text, /In the last 6 months, Mathematics was below your overall average in 6 of them, by about 1\.4 on average\. High confidence This pattern has been clear for several months\./)
+    assert.match(text, /This school year \(6 months of scores\) it has gone down, by about 0\.3 a month\. Medium confidence This pattern shows up in most months so far\./)
+    assert.match(text, /Things that sometimes help .*Looking back at recent tests.*Suggestions only: monthly scores cannot show why a result changed\./)
+    await shot(page, 'my-scores-19-explanation-en-mobile')
+    await page.getByRole('button', { name: 'All subjects' }).click()
+
+    // A volatile, neutral subject: the range, and help for up-and-down months.
+    await page.getByRole('button', { name: /^English/ }).last().click()
+    const english = (await explain.innerText()).replace(/\s+/g, ' ')
+    assert.match(english, /English is close to your overall average\./)
+    assert.match(english, /It has changed a lot from month to month, between 5 and 8\./)
+    assert.match(english, /Writing down when tests happen/)
+    await page.getByRole('button', { name: 'All subjects' }).click()
+
+    assert.deepEqual(errors, [])
+    await context.close()
+
+    // Lao: same card, Lao headings and reasons.
+    const lao = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    lao.mock.state.dashboard = insightsDashboard()
+    await lao.page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await lao.page.getByRole('heading', { name: 'ທຽບກັບຄ່າສະເລ່ຍຂອງເຈົ້າເອງ' }).waitFor()
+    await lao.page.getByText('ຕ່ຳກວ່າຄ່າສະເລ່ຍຂອງເຈົ້າ 6 ຈາກ 6 ເດືອນຫຼ້າສຸດ, ປະມານ 1.4').waitFor()
+    await shot(lao.page, 'my-scores-20-insights-lo-mobile')
+    assert.deepEqual(lao.errors, [])
+    await lao.context.close()
+    // Diagnostic quiz (ANALYSIS-005, QUIZ-001..003): offered on Mathematics only, answered, resumed, scored and reviewed.
+    const quiz = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    quiz.mock.state.dashboard = insightsDashboard()
+    await quiz.page.goto(`${base}/academy/scores?subject=se-phys`, { waitUntil: 'domcontentloaded' })
+    await quiz.page.getByRole('heading', { name: 'What your scores show' }).waitFor()
+    await quiz.page.waitForTimeout(300)
+    assert.equal(await quiz.page.getByRole('heading', { name: /Find which topics to practise/ }).count(), 0, 'no placeholder when a subject has no diagnostic')
+    await quiz.page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    await quiz.page.getByText('A short quiz of 4 questions shows which topics').waitFor()
+    await quiz.page.getByRole('link', { name: 'Find which topics to practise (8–12 min)' }).click()
+    await quiz.page.getByText('Question 1 of 4').waitFor()
+    const next = quiz.page.getByRole('button', { name: 'Next' })
+    assert.equal(await next.isDisabled(), true, 'an answer is needed first')
+    await quiz.page.getByRole('radio', { name: 'B. 3' }).check()
+    await next.click()
+    await quiz.page.getByText('Question 2 of 4').waitFor()
+    await quiz.page.getByRole('radio', { name: 'A. 2' }).check()
+    await quiz.page.waitForTimeout(200)
+    assert.deepEqual(quiz.mock.state.quizAnswers, { qi1: 'B', qi2: 'A' }, 'every answer saved as it is chosen')
+    await shot(quiz.page, 'my-scores-21-quiz-en-mobile')
+    // Leaving and coming back resumes at the first unanswered question.
+    await quiz.page.reload({ waitUntil: 'domcontentloaded' })
+    await quiz.page.getByText('Question 3 of 4').waitFor()
+    await quiz.page.getByRole('radio', { name: 'A. 5' }).check()
+    await next.click()
+    await quiz.page.getByRole('radio', { name: 'A. 3' }).check()
+    await quiz.page.getByRole('button', { name: 'See my results' }).click()
+    await quiz.page.getByRole('heading', { name: 'Your topics' }).waitFor()
+    const topicRows = await quiz.page.locator('section').first().locator('li').allInnerTexts()
+    assert.deepEqual(topicRows.map(r => r.replace(/\s+/g, ' ').trim()), ['Algebra 2 of 3 correct Developing', 'Geometry 1 of 1 correct Not enough questions to judge'])
+    const review = (await quiz.page.locator('section').nth(1).innerText()).replace(/\s+/g, ' ')
+    assert.match(review, /If 2x = 8, what is x\? Your answer: A\. 2 \(Not correct\) Correct answer: C\. 4 Why: Divide both sides by 2\. Explanation drafted with AI and checked by a teacher/)
+    assert.match(review, /Your answer: B\. 3 \(Correct\) Why: Take 2 from both sides\./)
+    await shot(quiz.page, 'my-scores-22-quiz-result-en-mobile')
+    await quiz.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await quiz.page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)), [])
+    await quiz.page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    await quiz.page.getByRole('link', { name: 'See your last quiz results' }).waitFor()
+    // QUIZ-004: the retake waits a week; ANALYSIS-007: no conflict note while a topic is below 80%.
+    await quiz.page.getByText('You can try a different set of questions from 1 Nov 2026, after some practice.').waitFor()
+    assert.equal(await quiz.page.getByRole('link', { name: /Find which topics|Try a different set/ }).count(), 0, 'no start button while the retake waits')
+    assert.equal(await quiz.page.getByRole('note').count(), 0)
+    quiz.mock.state.quizAnswers = { qi1: 'B', qi2: 'C', qi4: 'A', qi3: 'A' }
+    await quiz.page.reload({ waitUntil: 'domcontentloaded' })
+    await quiz.page.getByRole('note').filter({ hasText: 'Your quiz results are strong, but school scores are lower – topics outside this quiz or test conditions may matter.' }).waitFor()
+    await shot(quiz.page, 'my-scores-23-quiz-conflict-en-mobile')
+    // Results compare each topic with the previous attempt.
+    quiz.mock.state.quizPrevious = { qi1: 'A', qi2: 'A', qi4: 'A', qi3: 'B' }
+    await quiz.page.goto(`${base}/academy/scores/quiz/result/at1`, { waitUntil: 'domcontentloaded' })
+    await quiz.page.getByText('3 of 3 correct · Last time: 1 of 3').waitFor()
+    await quiz.page.getByText('1 of 1 correct · Last time: 0 of 1').waitFor()
+    assert.deepEqual(quiz.errors, [])
+    await quiz.context.close()
+
+    pass('Insights: hidden without labels; stronger and needing-attention lists with reasons and confidence; axe clean; explanation facts then suggestions; volatile range; Lao; diagnostic quiz offered on Mathematics only, answered, resumed, scored and reviewed with the AI label; retake waits a week; conflicting-evidence note only when strong; change per topic shown')
+  }
+
+  // This week (LEARN-001) and a practice set (REC-PRACTICE).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Up 0.3 since January').waitFor()
+    assert.equal(await page.getByRole('heading', { name: 'This week' }).count(), 0, 'no card without next actions')
+    mock.state.recommendations = WEEK
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    const week = page.locator('section', { has: page.getByRole('heading', { name: 'This week' }) })
+    await week.waitFor()
+    const rows = (await week.locator('li').allInnerTexts()).map(r => r.replace(/\s+/g, ' ').trim())
+    assert.deepEqual(rows, [
+      'Enter your March scores March scores are not entered yet. About 2 min Enter scores',
+      'Practice: Algebra Because Algebra was Needs practice in your quiz on 12 Oct 2026. About 8 min Practise',
+      "We don't have practice for Geometry yet.",
+    ])
+    await shot(page, 'my-scores-25-week-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)), [])
+
+    await week.getByRole('link', { name: 'Practise' }).click()
+    await page.getByText('Question 1 of 2').waitFor()
+    const check = page.getByRole('button', { name: 'Check answer' })
+    assert.equal(await check.isDisabled(), true, 'choose an answer first')
+    await page.getByRole('radio', { name: 'A. 5' }).check()
+    await check.click()
+    await page.getByRole('status').filter({ hasText: 'Not quite. The answer is B. 3.' }).filter({ hasText: 'Why: Take 1 from both sides.' }).waitFor()
+    assert.equal(await page.getByRole('radio', { name: 'B. 3' }).isDisabled(), true, 'answers are final')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('radio', { name: 'A. 3' }).check()
+    await page.getByRole('button', { name: 'Check answer' }).click()
+    await page.getByRole('status').filter({ hasText: 'Correct' }).filter({ hasText: 'Explanation drafted with AI and checked by a teacher' }).waitFor()
+    await shot(page, 'my-scores-26-practice-en-mobile')
+    await page.getByRole('button', { name: 'Finish' }).click()
+    await page.getByRole('heading', { name: 'Practice done' }).waitFor()
+    await page.getByText('1 of 2 correct').waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('This week: up to three actions with reasons, times and actions, gap card, axe clean; practice set answered with instant feedback, final answers, AI label, summary')
+  }
+
+  // Report a problem (PRIV-008) from the dashboard.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: 'Report a problem' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByText('Tell us what went wrong.').waitFor()
+    const sendButton = dialog.getByRole('button', { name: 'Send report' })
+    assert.equal(await sendButton.isDisabled(), true, 'a category and a description are needed')
+    await dialog.getByRole('radio', { name: 'An AI answer that was wrong or not appropriate' }).check()
+    await dialog.getByLabel(/^What happened\?/).fill('The explanation said something rude.')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { resultTypes: ['violations'] })).violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)), [])
+    await shot(page, 'my-scores-24-report-en-mobile')
+    await sendButton.click()
+    await page.getByText('Thank you. Our support team will reply by 27 Oct 2026.').waitFor()
+    assert.deepEqual(mock.state.problemReports, [{ category: 'ai_answer', description: 'The explanation said something rude.', screen: '/academy/scores' }])
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Report a problem: category and description required, axe clean, sent with the screen, reply date shown')
+  }
+
   // Lao dashboard on desktop, with a gap month and low coverage.
   {
     const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'lo', step: 'ready', enrolment: 'e1' })
@@ -960,13 +1249,13 @@ try {
     assert.equal(bytes.readUInt32LE(0), 0x04034b50, 'starts with a ZIP local header')
     const eocd = bytes.length - 22
     assert.equal(bytes.readUInt32LE(eocd), 0x06054b50, 'ends with a ZIP directory record')
-    assert.equal(bytes.readUInt16LE(eocd + 10), 5, 'five files')
-    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
+    assert.equal(bytes.readUInt16LE(eocd + 10), 7, 'seven files')
+    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json', 'quizzes.json', 'reports.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
     assert.ok(bytes.includes(Buffer.from('ຄະນິດສາດ')), 'Lao text kept as UTF-8')
     await page.getByText('Your data was downloaded.').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json')
+    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json, quizzes.json, reports.json')
   }
 
   // Export on an old session asks for a fresh sign-in first (PRD §29.6 T3, S-02).
@@ -1150,6 +1439,13 @@ try {
       { name: 'set-up notice', path: '/academy/scores', state: { step: 'onboarding' } },
       { name: 'updated notice', path: '/academy/scores', state: { step: 'consent', enrolment: 'e1' } },
       { name: 'dashboard', path: '/academy/scores', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = workedExampleDashboard() } },
+      { name: 'dashboard with insights', path: '/academy/scores', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = insightsDashboard() } },
+      { name: 'subject explanation', path: '/academy/scores?subject=se-math', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = insightsDashboard() } },
+      { name: 'quiz question', path: '/academy/scores/quiz/dg1', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.quizAnswers = { qi1: 'B' } } },
+      { name: 'quiz results', path: '/academy/scores/quiz/result/at1', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.quizAnswers = { qi1: 'B', qi2: 'A', qi4: 'A', qi3: 'A' }; mock.state.quizPrevious = { qi1: 'A', qi2: 'A', qi4: 'A', qi3: 'B' } } },
+      { name: 'this week', path: '/academy/scores', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = workedExampleDashboard(); mock.state.recommendations = WEEK } },
+      { name: 'practice feedback', path: '/academy/scores/practice/t1', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.practice = { pi1: { chosen_key: 'A', is_correct: false, correct_key: 'B', explanation_lo: 'ລົບ 1 ອອກທັງສອງຂ້າງ.', explanation_en: 'Take 1 from both sides.', explanation_origin: 'human' } } } },
+      { name: 'quiz conflict note', path: '/academy/scores?subject=se-math', state: { step: 'ready', enrolment: 'e1' }, setup: mock => { mock.state.dashboard = insightsDashboard(); mock.state.quizDone = true; mock.state.quizAnswers = { qi1: 'B', qi2: 'C', qi4: 'A', qi3: 'A' } } },
       { name: 'score entry', path: '/academy/scores/entry', state: { step: 'ready', enrolment: 'e1' } },
       { name: 'history', path: '/academy/scores/history', state: { step: 'ready', enrolment: 'e1' } },
       { name: 'my data', path: '/academy/scores/data', state: { step: 'ready', enrolment: 'e1' } },

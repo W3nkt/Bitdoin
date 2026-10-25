@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -14,18 +14,24 @@ import { AuditAdmin } from '@/components/academic/admin/AuditAdmin'
 import { HealthAdmin } from '@/components/academic/admin/HealthAdmin'
 import { MetricsAdmin } from '@/components/academic/admin/MetricsAdmin'
 import { PilotAdmin } from '@/components/academic/admin/PilotAdmin'
+import { QuizBankAdmin } from '@/components/academic/admin/QuizBankAdmin'
+import { ReportsAdmin } from '@/components/academic/admin/ReportsAdmin'
+import { ContentAdmin } from '@/components/academic/admin/ContentAdmin'
 import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
 import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
-type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit' | 'health' | 'metrics' | 'pilot'
+type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'pilot'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[] }> = [
   { id: 'subjects', label: 'Subjects', icon: BookOpenCheck, roles: ['ADMIN'] },
   { id: 'scales', label: 'Grading scales', icon: Ruler, roles: ['ADMIN'] },
   { id: 'schools', label: 'Schools', icon: School, roles: ['ADMIN'] },
   { id: 'calendars', label: 'Calendars', icon: CalendarDays, roles: ['ADMIN'] },
+  { id: 'quiz', label: 'Quiz items', icon: ListChecks, roles: ['ADMIN'] },
+  { id: 'content', label: 'Content', icon: Tags, roles: ['ADMIN'] },
   { id: 'roles', label: 'Roles', icon: Users, roles: ['ADMIN'] },
   { id: 'support', label: 'Support', icon: LifeBuoy, roles: ['ADMIN', 'OPERATIONS'] },
+  { id: 'reports', label: 'Reports', icon: MessageSquareWarning, roles: ['ADMIN', 'OPERATIONS'] },
   { id: 'audit', label: 'Audit log', icon: ScrollText, roles: ['ADMIN', 'OPERATIONS'] },
   { id: 'health', label: 'Health', icon: Activity, roles: ['ADMIN'] },
   { id: 'metrics', label: 'Metrics', icon: BarChart3, roles: ['ADMIN'] },
@@ -89,8 +95,11 @@ export function MyScoresAdmin() {
               {active.id === 'scales' && <ScalesAdmin />}
               {active.id === 'schools' && <SchoolsAdmin />}
               {active.id === 'calendars' && <CalendarsAdmin />}
+              {active.id === 'quiz' && <QuizBankAdmin />}
+              {active.id === 'content' && <ContentAdmin />}
               {active.id === 'roles' && <RolesAdmin />}
               {active.id === 'support' && <SupportAdmin />}
+              {active.id === 'reports' && <ReportsAdmin />}
               {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
               {active.id === 'health' && <HealthAdmin />}
               {active.id === 'metrics' && <MetricsAdmin />}

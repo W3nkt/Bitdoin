@@ -15,6 +15,7 @@ await ok(db, 'config', CONFIG_SQL)
 // Every month of 2026-27 is open for entry.
 await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2027-05-20' $$`)
 
+// Engine v2 (f1-f10@2.0.0) adds labels and trends and leaves F1–F5 unchanged.
 eq('fixture version matches the engine', fixture.engine, 'f1-f5@1.0.0')
 const close = (a, b) => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9)
 const seqOf = (periodId) => (periodId ? Number(periodId.slice(-4)) : null)

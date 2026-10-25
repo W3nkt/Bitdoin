@@ -55,6 +55,7 @@ function alertTitle(alert: AcademicAlert): string {
     case 'drill_failed': return 'Weekly restore drill failed'
     case 'drill_stale': return 'No restore drill in the last 8 days'
     case 'test': return 'Test alert'
+    case 'priority_report': return `Priority problem report (${String(d.category ?? '?').replace(/_/g, ' ')}): see the Reports tab`
     default: return `Alert: ${alert.kind}`
   }
 }

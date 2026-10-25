@@ -81,3 +81,47 @@ create table public.push_subscriptions (
 );
 create function public.default_telegram_reminder_slot(p_user_id uuid) returns text
 language sql stable as $$ select 'MORNING' $$;
+
+-- Academy learning hub (migration 054), only the columns the recommendations
+-- adapter reads (P2-REC #50, migrations 135+).
+create table public.premium_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  status text not null default 'ACTIVE',
+  ends_at timestamptz
+);
+create function public.has_active_premium_subscription(p_user_id uuid default auth.uid()) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.premium_subscriptions s where s.user_id = p_user_id and s.status = 'ACTIVE' and (s.ends_at is null or s.ends_at > now()))
+$$;
+create table public.premium_lessons (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title_en text not null,
+  title_lo text not null,
+  difficulty text not null default 'BEGINNER',
+  estimated_minutes integer not null default 10,
+  status text not null default 'DRAFT',
+  published_at timestamptz
+);
+create table public.premium_lesson_progress (
+  user_id uuid not null references public.users(id) on delete cascade,
+  lesson_id uuid not null references public.premium_lessons(id) on delete cascade,
+  completed_at timestamptz,
+  unique (user_id, lesson_id)
+);
+create table public.premium_weekly_challenges (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title_en text not null,
+  title_lo text not null,
+  starts_on date not null,
+  ends_on date not null,
+  is_active boolean not null default true
+);
+create table public.premium_weekly_challenge_progress (
+  user_id uuid not null references public.users(id) on delete cascade,
+  challenge_id uuid not null references public.premium_weekly_challenges(id) on delete cascade,
+  completed_at timestamptz,
+  unique (user_id, challenge_id)
+);
