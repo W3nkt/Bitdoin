@@ -171,9 +171,9 @@ begin
   -- succeeded within the window (26 hours / 8 days, from monitoring start).
   for v_run in
     select k.kind, k.max_gap,
-           (select r.ok from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc limit 1) as last_ok,
+           (select r.ok from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc, r.ok limit 1) as last_ok,
            (select max(r.finished_at) from public.academic_backup_runs r where r.kind = k.kind and r.ok) as last_success,
-           (select r.details->>'run_url' from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc limit 1) as run_url
+           (select r.details->>'run_url' from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc, r.ok limit 1) as run_url
     from (values ('backup', interval '26 hours'), ('drill', interval '8 days')) as k(kind, max_gap)
   loop
     if v_run.last_ok is false then
@@ -245,7 +245,7 @@ begin
     'backups', (
       select jsonb_object_agg(k.kind, jsonb_build_object(
         'last', (select jsonb_build_object('ok', r.ok, 'finished_at', r.finished_at, 'details', r.details)
-                 from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc limit 1),
+                 from public.academic_backup_runs r where r.kind = k.kind order by r.finished_at desc, r.ok limit 1),
         'last_success_at', (select max(r.finished_at) from public.academic_backup_runs r where r.kind = k.kind and r.ok),
         'runs_30d', (select count(*) from public.academic_backup_runs r where r.kind = k.kind and r.finished_at > now() - interval '30 days'),
         'failed_30d', (select count(*) from public.academic_backup_runs r where r.kind = k.kind and not r.ok and r.finished_at > now() - interval '30 days')

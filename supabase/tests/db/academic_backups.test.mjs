@@ -56,15 +56,16 @@ await ok(db, 'old runs only', `update academic_backup_runs set finished_at = now
 eq('backup older than 26 h and drill older than 8 days: overdue', await health(), ['backup_stale', 'drill_stale'])
 
 await ok(db, 'clean', `delete from academic_alerts; delete from academic_backup_runs`)
-await record('backup', true, { run_url: RUN })
-await record('backup', false, { run_url: `${RUN}0` })
-await record('drill', false, { problems: 2 })
+await ok(db, 'latest runs failed', `insert into academic_backup_runs (kind, ok, finished_at, details) values
+  ('backup', true, now() - interval '3 hours', '{"run_url": "${RUN}"}'),
+  ('backup', false, now() - interval '1 hour', '{"run_url": "${RUN}0"}'),
+  ('drill', false, now() - interval '2 hours', '{"problems": 2}')`)
 eq('latest run failed: failure alerts, not staleness', await health(), ['backup_failed', 'drill_failed'])
 const failed = await one(`select details from academic_alerts where kind = 'backup_failed'`)
 eq('failure alert links the run and the last success', [failed.details.run_url, typeof failed.details.last_success], [`${RUN}0`, 'string'])
 eq('failure alerts are e-mailed like the others', (await one(`select array_agg(kind order by kind) as kinds from public.academic_claim_alert_emails(20)`)).kinds, ['backup_failed', 'drill_failed'])
 
-await record('backup', true, {})
+await ok(db, 'success after the failure', `insert into academic_backup_runs (kind, ok, finished_at) values ('backup', true, now() - interval '1 minute')`)
 await ok(db, 'clean', `delete from academic_alerts`)
 eq('a later success clears the backup failure', await health(), ['drill_failed'])
 
@@ -75,5 +76,9 @@ eq('Health tab lists backup and drill', Object.keys(view.backups).sort(), ['back
 eq('latest backup shown with 30-day counts', [view.backups.backup.last.ok, view.backups.backup.runs_30d, view.backups.backup.failed_30d], [true, 3, 1])
 eq('latest drill shown as failed', [view.backups.drill.last.ok, view.backups.drill.last.details.problems, view.backups.drill.last_success_at], [false, 2, null])
 eq('students cannot read it', (await rpcError(S, `public.academic_admin_health()`, STAFF))?.code, 'FORBIDDEN_ROLE')
+
+await ok(db, 'tie', `delete from academic_alerts; delete from academic_backup_runs;
+  insert into academic_backup_runs (kind, ok, finished_at) values ('backup', true, '2026-10-25 01:00+00'), ('backup', false, '2026-10-25 01:00+00')`)
+eq('runs finishing at the same instant: the failure counts', (await one(`select public.academic_check_health() as r`)).r.raised.includes('backup_failed'), true)
 
 done()
