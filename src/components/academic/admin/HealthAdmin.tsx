@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { AlertTriangle, CheckCircle2, CircleDashed, Mail, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CircleDashed, ExternalLink, Mail, XCircle } from 'lucide-react'
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
-import { useHealth, useTestAlert, type HealthView } from '@/lib/academic/adminApi'
+import { useHealth, useTestAlert, type BackupStatus, type HealthView } from '@/lib/academic/adminApi'
 import { useChartTheme, useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { Empty, Panel, adminErrorText, formatDateTime } from './AdminKit'
@@ -127,7 +127,59 @@ function ErrorChart({ view }: { view: HealthView }) {
   )
 }
 
-/** The Health tab: are the service levels met, are the jobs running, do alerts arrive. */
+const HOUR_S = 3600
+const duration = (seconds: number | undefined) => seconds === undefined ? '—'
+  : seconds < 60 ? `${Math.round(seconds)} s` : seconds < HOUR_S ? `${Math.round(seconds / 60)} min` : `${(seconds / HOUR_S).toFixed(1)} h`
+const megabytes = (bytes: number | undefined) => (bytes === undefined ? '—' : `${(bytes / 1_000_000).toFixed(1)} MB`)
+
+/** Met while the latest run passed and is recent enough; missed when it failed or is overdue. */
+function backupVerdict(status: BackupStatus, maxAgeHours: number): Verdict {
+  if (!status.last) return 'no-data'
+  if (!status.last.ok || !status.last_success_at) return 'missed'
+  return Date.now() - new Date(status.last_success_at).getTime() <= maxAgeHours * HOUR_S * 1000 ? 'met' : 'missed'
+}
+
+function BackupColumn({ title, status, maxAgeHours, facts }: { title: string; status: BackupStatus; maxAgeHours: number; facts: Array<[string, string]> }) {
+  const url = status.last?.details.run_url
+  return (
+    <div className="rounded-xl bg-slate-50 p-4 dark:bg-gray-800/60">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-black">{title}</h3>
+        <Status verdict={backupVerdict(status, maxAgeHours)} />
+      </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div><dt className="text-xs font-black text-slate-500 dark:text-slate-400">Last success</dt><dd className="mt-0.5">{formatDateTime(status.last_success_at)}</dd></div>
+        <div><dt className="text-xs font-black text-slate-500 dark:text-slate-400">Last 30 days</dt><dd className="mt-0.5 tabular-nums">{status.runs_30d} runs, {status.failed_30d} failed</dd></div>
+        {facts.map(([label, value]) => (
+          <div key={label}><dt className="text-xs font-black text-slate-500 dark:text-slate-400">{label}</dt><dd className="mt-0.5 tabular-nums">{value}</dd></div>
+        ))}
+      </dl>
+      {status.last && !status.last.ok && <p className="mt-3 inline-flex items-start gap-1 text-sm text-red-700 dark:text-red-400"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />The latest run failed on {formatDateTime(status.last.finished_at)}.</p>}
+      {url && <p className="mt-3 text-sm"><a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-blue-700 underline-offset-2 hover:underline dark:text-blue-400">Open the workflow run<ExternalLink className="h-3.5 w-3.5" aria-hidden /></a></p>}
+    </div>
+  )
+}
+
+function BackupsPanel({ backups }: { backups: NonNullable<HealthView['backups']> }) {
+  const backup = backups.backup.last?.details ?? {}
+  const drill = backups.drill.last?.details ?? {}
+  return (
+    <Panel title="Backups" description="Every night the whole database is copied, encrypted and kept for 30 days outside Supabase. Every week the latest copy is restored into an empty database and checked table by table. Targets: lose at most 24 hours of data, be back within 4 hours.">
+      <div className="grid gap-4 md:grid-cols-2">
+        <BackupColumn title="Nightly backup" status={backups.backup} maxAgeHours={26} facts={[
+          ['Size (encrypted)', megabytes(backup.bytes)],
+          ['Tables and rows', backup.tables === undefined ? '—' : `${backup.tables} / ${(backup.rows ?? 0).toLocaleString('en')}`],
+        ]} />
+        <BackupColumn title="Weekly restore drill" status={backups.drill} maxAgeHours={8 * 24} facts={[
+          ['Recovery time', drill.rto_s === undefined ? '—' : `${duration(drill.rto_s)} (target 4 h)`],
+          ['Differences found', drill.problems === undefined ? '—' : String(drill.problems)],
+        ]} />
+      </div>
+    </Panel>
+  )
+}
+
+/** The Health tab: are the service levels met, are the jobs running, do alerts arrive, are backups restorable. */
 export function HealthAdmin() {
   const toast = useToast()
   const health = useHealth()
@@ -176,6 +228,8 @@ export function HealthAdmin() {
         )}
         <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">Push reminders waiting to be sent: <span className="font-bold tabular-nums">{view.pending_push}</span></p>
       </Panel>
+
+      {view.backups && <BackupsPanel backups={view.backups} />}
 
       <Panel title="Alert e-mails" description="Every alert is e-mailed to the on-call address within 5 minutes. Review and acknowledge alerts on the Audit log tab."
         actions={<Button size="sm" variant="outline" icon={<Mail className="h-4 w-4" />} loading={testAlert.isPending}

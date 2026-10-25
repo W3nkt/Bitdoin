@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { AUDIT_PAGE, adminKey, auditExportRows, useAcknowledgeAlert, useAlerts, useAuditEvents, type AuditFilters } from '@/lib/academic/adminApi'
+import { AUDIT_PAGE, adminKey, auditExportRows, useAcknowledgeAlert, useAlerts, useAuditEvents, type AcademicAlert, type AuditFilters } from '@/lib/academic/adminApi'
 import { toCsv } from '@/lib/academic/exportZip'
 import { Empty, Field, Panel, Pill, adminErrorText, formatDateTime } from './AdminKit'
 
@@ -37,10 +37,33 @@ function useUserNames(ids: string[]) {
   })
 }
 
+const isAccessAlert = (alert: AcademicAlert) => alert.kind === 'multi_profile_access' || alert.kind === 'access_denied_burst'
+
+function alertTitle(alert: AcademicAlert): string {
+  const d = alert.details
+  switch (alert.kind) {
+    case 'multi_profile_access': return `Opened ${d.profiles_24h ?? '?'} students' records in 24 hours`
+    case 'access_denied_burst': return `Refused ${d.denied_1h ?? '?'} times in an hour`
+    case 'slo_availability': return 'Availability below target'
+    case 'slo_latency': return 'Server response time above target'
+    case 'slo_dashboard': return 'Dashboard loading slower than target'
+    case 'job_failed': return `Scheduled job failed: ${d.job ?? '?'}`
+    case 'job_stale': return `Scheduled job not running: ${d.job ?? '?'}`
+    case 'push_backlog': return `${d.stuck ?? '?'} push reminders not delivered`
+    case 'backup_failed': return 'Nightly database backup failed'
+    case 'backup_stale': return 'No database backup in the last 26 hours'
+    case 'drill_failed': return 'Weekly restore drill failed'
+    case 'drill_stale': return 'No restore drill in the last 8 days'
+    case 'test': return 'Test alert'
+    default: return `Alert: ${alert.kind}`
+  }
+}
+
 /**
- * Anomaly alerts from migration 117: someone opened more than 3 other
- * students' records in 24 h, or hit many denials in an hour (T6, T12).
- * Admins review and acknowledge them here.
+ * Alerts: someone opened more than 3 other students' records in 24 h or hit
+ * many denials in an hour (T6, T12; migration 117), and operational alerts
+ * (service levels, jobs, backups; migrations 122–123, details on the Health
+ * tab). Admins review and acknowledge them here.
  */
 function AlertsPanel() {
   const toast = useToast()
@@ -51,7 +74,7 @@ function AlertsPanel() {
   const open = (alerts.data ?? []).filter(alert => alert.status === 'open').length
 
   return (
-    <Panel title="Alerts to review" description="Raised automatically when someone opens more than 3 other students' records in 24 hours, or is refused access many times in an hour. Check the audit entries for that person, then mark the alert reviewed.">
+    <Panel title="Alerts to review" description="Raised automatically when someone opens more than 3 other students' records in 24 hours or is refused access many times in an hour (check the audit entries for that person), and when service levels, scheduled jobs or backups need attention (see the Health tab). Then mark the alert reviewed.">
       {alerts.isPending ? <Skeleton className="h-20 w-full rounded-xl" />
         : alerts.isError ? <Empty>{adminErrorText(alerts.error)}</Empty>
         : alerts.data.length === 0 ? <Empty>No alerts.</Empty>
@@ -63,13 +86,12 @@ function AlertsPanel() {
                 <li key={alert.id} className="flex flex-wrap items-center gap-3 py-3">
                   <ShieldAlert className={alert.status === 'open' ? 'h-5 w-5 shrink-0 text-red-600 dark:text-red-400' : 'h-5 w-5 shrink-0 text-slate-400'} aria-hidden />
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">
-                      {alert.kind === 'multi_profile_access'
-                        ? `Opened ${alert.details.profiles_24h ?? '?'} students' records in 24 hours`
-                        : `Refused ${alert.details.denied_1h ?? '?'} times in an hour`}
-                    </p>
+                    <p className="font-bold">{alertTitle(alert)}</p>
                     <p className="text-xs text-slate-600 dark:text-slate-400">
-                      {(alert.actor_user_id && names.data?.get(alert.actor_user_id)) ?? alert.actor_user_id ?? 'Unknown'} · {alert.details.actor_role ?? ''} · {formatDateTime(alert.created_at)}
+                      {isAccessAlert(alert)
+                        ? <>{(alert.actor_user_id && names.data?.get(alert.actor_user_id)) ?? alert.actor_user_id ?? 'Unknown'} · {alert.details.actor_role ?? ''} · </>
+                        : alert.kind === 'test' ? 'Requested from the Health tab · ' : 'System · '}
+                      {formatDateTime(alert.created_at)}
                     </p>
                   </div>
                   {alert.status === 'open' ? (

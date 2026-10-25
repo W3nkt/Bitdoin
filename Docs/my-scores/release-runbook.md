@@ -54,8 +54,13 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-Nothing. Applied 2026-10-24: migrations 120 and 121, and the `send-push`
-redeploy.
+- Function `academic-alerts` (#42): not deployed yet; migration 122 is applied.
+- Migration `123` (#43, backup monitoring).
+- The `backup` environment's two Supabase secrets, then a first run of
+  **Database backup** ([backup-restore.md](backup-restore.md#one-time-setup)).
+
+Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
+migration 122 by 2026-10-25.
 
 ## Feature flag
 
@@ -107,6 +112,9 @@ so set `FROM_EMAIL` to a verified domain sender or use that address. Optional
 secret `ADMIN_APP_URL` adds a link to the Health tab in each e-mail.
 
 Targets live in `academic_settings` → `slo_targets`.
+
+The tab's **Backups** panel and the backup and drill alerts (migration 123)
+are covered in [backup-restore.md](backup-restore.md).
 
 ## Rollback, fastest first
 

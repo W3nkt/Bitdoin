@@ -1,0 +1,205 @@
+name: Database backup
+
+# Nightly encrypted backup of the production database, and a weekly drill that
+# restores the latest backup into an empty Supabase stack and checks every
+# table against it (OPS-003, #43). The Free plan keeps no backups of its own.
+# Both jobs report to the database; the hourly health check e-mails an alert
+# when a run fails or none arrives (migration 123).
+#
+# Environment "backup" (Settings > Environments; deployment branches: main only,
+# no required reviewers, so the schedule can run unattended):
+#   secrets  SUPABASE_ACCESS_TOKEN  personal access token
+#            SUPABASE_DB_PASSWORD   production database password
+#            BACKUP_AGE_KEY         age secret key (AGE-SECRET-KEY-1...), used by the drill.
+#                                   Keep a copy offline: without it no backup can be read.
+#   vars     SUPABASE_PROJECT_REF   bzyvzftnfuuxcseuqrnj
+#            BACKUP_AGE_RECIPIENT   the matching age public key (age1...)
+#
+# Backups are artifacts of this public repository: only the encrypted file is
+# ever uploaded, and logs show counts only. Runbook: Docs/my-scores/backup-restore.md
+
+on:
+  schedule:
+    - cron: '30 19 * * *'   # backup, 02:30 in Vientiane
+    - cron: '30 20 * * 0'   # drill, Monday 03:30 in Vientiane
+  workflow_dispatch:
+    inputs:
+      run:
+        description: What to run
+        type: choice
+        options: [backup and drill, backup, drill]
+        default: backup and drill
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+env:
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  backup:
+    name: Nightly backup
+    if: github.event.schedule == '30 19 * * *' || (github.event_name == 'workflow_dispatch' && inputs.run != 'drill')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: backup
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check configuration
+        run: |
+          missing=0
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD PROJECT_REF RECIPIENT; do
+            if [[ -z "${!name}" ]]; then echo "::error::$name is not set in the backup environment."; missing=1; fi
+          done
+          if [[ -n "$RECIPIENT" && "$RECIPIENT" != age1* ]]; then echo '::error::BACKUP_AGE_RECIPIENT must be an age public key (age1...).'; missing=1; fi
+          exit $missing
+
+      - name: Install age
+        run: sudo apt-get install -y -qq age > /dev/null
+
+      - name: Connect
+        run: bash scripts/backup/connect.sh
+
+      - name: Dump
+        id: dump
+        run: |
+          started=$SECONDS
+          bash scripts/backup/dump.sh "$RUNNER_TEMP/backup"
+          echo "seconds=$((SECONDS - started))" >> "$GITHUB_OUTPUT"
+
+      - name: Encrypt
+        id: encrypt
+        env:
+          DUMP_S: ${{ steps.dump.outputs.seconds }}
+        run: |
+          tar -czf - -C "$RUNNER_TEMP/backup" . | age -r "$RECIPIENT" -o db-backup.tar.gz.age
+          details=$(node -e '
+            const m = require(process.argv[1])
+            const bytes = require("node:fs").statSync("db-backup.tar.gz.age").size
+            console.log(JSON.stringify({ bytes, tables: Object.keys(m.tables).length, rows: m.rows_total, migration: m.migration,
+              cron_jobs: m.cron_jobs, dump_s: Number(process.env.DUMP_S), run_url: process.env.RUN_URL }))
+          ' "$RUNNER_TEMP/backup/manifest.json")
+          rm -rf "$RUNNER_TEMP/backup"
+          echo "details=$details" >> "$GITHUB_OUTPUT"
+          echo "$details" | jq -r '"### Backup\n\n\(.tables) tables, \(.rows) rows, migration \(.migration), \(.cron_jobs) cron jobs; \(.bytes / 1e6 * 10 | round / 10) MB encrypted, dumped in \(.dump_s) s. Kept 30 days."' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: db-backup.tar.gz.age
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+
+      - name: Report to the health check
+        if: always() && env.DATABASE_URL != ''
+        continue-on-error: true
+        env:
+          DETAILS: ${{ steps.encrypt.outputs.details }}
+        run: bash scripts/backup/report.sh backup ${{ job.status == 'success' }} "$DETAILS"
+
+  drill:
+    name: Restore drill
+    needs: backup
+    if: ${{ !cancelled() && (github.event.schedule == '30 20 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.run != 'backup')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: backup
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      AGE_KEY: ${{ secrets.BACKUP_AGE_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Check configuration
+        run: |
+          missing=0
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD PROJECT_REF AGE_KEY; do
+            if [[ -z "${!name}" ]]; then echo "::error::$name is not set in the backup environment."; missing=1; fi
+          done
+          if [[ -n "$AGE_KEY" && "$AGE_KEY" != AGE-SECRET-KEY-1* ]]; then echo '::error::BACKUP_AGE_KEY must be an age secret key (AGE-SECRET-KEY-1...).'; missing=1; fi
+          exit $missing
+
+      - name: Install age
+        run: sudo apt-get install -y -qq age > /dev/null
+
+      - name: Find the latest backup
+        id: latest
+        run: |
+          echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
+          read -r name run_id created < <(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '
+            [.artifacts[] | select((.name | startswith("db-backup-")) and (.expired | not))]
+            | sort_by(.created_at) | last // empty | [.name, .workflow_run.id, .created_at] | @tsv') || true
+          if [[ -z "${name:-}" ]]; then echo '::error::No backup to drill: run the backup first.'; exit 1; fi
+          echo "Drilling $name from $created"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.latest.outputs.name }}
+          run-id: ${{ steps.latest.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/download
+
+      - name: Restore and verify
+        id: drill
+        env:
+          STARTED: ${{ steps.latest.outputs.started }}
+        run: |
+          export DOWNLOAD_S=$(($(date +%s) - STARTED))
+          key="$RUNNER_TEMP/age-key.txt"
+          (umask 077 && printf '%s\n' "$AGE_KEY" > "$key")
+          status=0
+          bash scripts/backup/drill.sh "$RUNNER_TEMP/download/db-backup.tar.gz.age" "$key" "$RUNNER_TEMP/drill" || status=$?
+          rm -f "$key"
+          details=$(node -e '
+            const d = require(process.argv[1])
+            const download = Number(process.env.DOWNLOAD_S)
+            console.log(JSON.stringify({ tables: d.tables, rows: d.rows, migration: d.migration, cron_jobs: d.cron_jobs, problems: d.problems,
+              download_s: download, stack_s: d.stack_s, restore_s: d.restore_s, verify_s: d.verify_s,
+              rto_s: download + d.decrypt_s + d.stack_s + d.restore_s + d.verify_s, backup_age_s: d.backup_age_s, run_url: process.env.RUN_URL }))
+          ' "$RUNNER_TEMP/drill/drill.json") || true
+          rm -rf "$RUNNER_TEMP/drill" "$RUNNER_TEMP/download"
+          if [[ -n "$details" ]]; then
+            echo "details=$details" >> "$GITHUB_OUTPUT"
+            echo "$details" | jq -r '"### Restore drill: \(if .problems == 0 then "passed" else "FAILED" end)\n\n| Step | Time |\n|---|---|\n| Download | \(.download_s) s |\n| Empty stack | \(.stack_s) s |\n| Restore | \(.restore_s) s |\n| Verify | \(.verify_s) s |\n| **Data back and checked** | **\(.rto_s) s** (target 4 h) |\n\n\(.tables) tables and \(.rows) rows match the backup; migration \(.migration); \(.cron_jobs) cron jobs. Backup age at the drill: \(.backup_age_s / 3600 * 10 | round / 10) h (nightly backups: at most 24 h of data lost)."' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
+
+      - name: Connect
+        if: always()
+        run: bash scripts/backup/connect.sh
+
+      - name: Report to the health check
+        if: always() && env.DATABASE_URL != ''
+        continue-on-error: true
+        env:
+          DETAILS: ${{ steps.drill.outputs.details }}
+        run: bash scripts/backup/report.sh drill ${{ job.status == 'success' }} "$DETAILS"

@@ -419,11 +419,16 @@ export const auditExportRows = (filters: AuditFilters) => auditQuery(filters, 0,
 
 // ─── Anomaly alerts (T6, T12; migration 117) ─────────────────────────────────
 
+export type AlertKind =
+  | 'multi_profile_access' | 'access_denied_burst'
+  | 'slo_availability' | 'slo_latency' | 'slo_dashboard' | 'job_failed' | 'job_stale' | 'push_backlog' | 'test'
+  | 'backup_failed' | 'backup_stale' | 'drill_failed' | 'drill_stale'
+
 export interface AcademicAlert {
   id: string
-  kind: 'multi_profile_access' | 'access_denied_burst'
+  kind: AlertKind
   actor_user_id: string | null
-  details: { profiles_24h?: number; denied_1h?: number; threshold?: number; actor_role?: string }
+  details: { profiles_24h?: number; denied_1h?: number; threshold?: number; actor_role?: string; job?: string; stuck?: number; run_url?: string }
   status: 'open' | 'acknowledged'
   acknowledged_at: string | null
   created_at: string
@@ -472,6 +477,23 @@ export interface HealthView {
   jobs: Array<{ job: string; schedule: string; last_run: string | null; last_status: string | null; failed_24h: number }>
   alerts: { open: number; unsent: number; last_error: string | null }
   pending_push: number
+  /** Migration 123; absent until it is applied. */
+  backups?: Record<'backup' | 'drill', BackupStatus>
+}
+
+// ─── Backups (OPS-003, migration 123) ────────────────────────────────────────
+
+export interface BackupRunDetails {
+  bytes?: number; tables?: number; rows?: number; migration?: string; cron_jobs?: number; problems?: number
+  dump_s?: number; download_s?: number; stack_s?: number; restore_s?: number; verify_s?: number; rto_s?: number; backup_age_s?: number
+  run_url?: string
+}
+
+export interface BackupStatus {
+  last: { ok: boolean; finished_at: string; details: BackupRunDetails } | null
+  last_success_at: string | null
+  runs_30d: number
+  failed_30d: number
 }
 
 export function useHealth() {

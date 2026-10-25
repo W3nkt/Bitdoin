@@ -8,6 +8,8 @@ export interface AlertLike {
 
 const num = (value: unknown) => (typeof value === 'number' ? value.toLocaleString('en') : String(value ?? '—'))
 const ms = (value: unknown) => (typeof value === 'number' ? `${value.toLocaleString('en')} ms` : 'no data')
+const when = (value: unknown) => (typeof value === 'string' ? `${new Date(value).toISOString().slice(0, 16).replace('T', ' ')} UTC` : 'none yet')
+const runLink = (value: unknown) => (typeof value === 'string' ? [`Workflow run: ${value}`] : [])
 
 /** Subject and plain sentences for each alert kind. */
 export function describeAlert(alert: AlertLike): { subject: string; lines: string[] } {
@@ -49,6 +51,26 @@ export function describeAlert(alert: AlertLike): { subject: string; lines: strin
       return {
         subject: 'Many refused requests',
         lines: [`A ${d.actor_role ?? 'user'} account was refused ${num(d.denied_1h)} times in an hour (threshold ${num(d.threshold)}). Review it on the Audit tab.`],
+      }
+    case 'backup_failed':
+      return {
+        subject: 'Nightly database backup failed',
+        lines: [`The latest backup did not complete. Last good backup: ${when(d.last_success)}.`, ...runLink(d.run_url)],
+      }
+    case 'backup_stale':
+      return {
+        subject: 'No database backup in the last 26 hours',
+        lines: [`Last good backup: ${when(d.last_success)}. Check that the Database backup workflow is enabled in GitHub Actions (scheduled runs stop after 60 days without repository activity).`],
+      }
+    case 'drill_failed':
+      return {
+        subject: 'Weekly restore drill failed',
+        lines: [`The latest backup could not be restored and checked. Last good drill: ${when(d.last_success)}. Until a drill passes, treat recent backups as unverified.`, ...runLink(d.run_url)],
+      }
+    case 'drill_stale':
+      return {
+        subject: 'No restore drill in the last 8 days',
+        lines: [`Last good drill: ${when(d.last_success)}. Run the Database backup workflow with "drill".`],
       }
     case 'test':
       return { subject: 'Test alert', lines: ['This is a test from the My Scores admin. Alerts reach this address.'] }

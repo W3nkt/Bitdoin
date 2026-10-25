@@ -60,6 +60,7 @@ function fixtures(role) {
     academic_reporting_periods: [],
     academic_alerts: [
       { id: 'al1', kind: 'multi_profile_access', actor_user_id: 'u-ops', details: { profiles_24h: 4, threshold: 3, actor_role: 'support' }, status: 'open', acknowledged_at: null, created_at: '2026-10-23T09:00:00Z' },
+      { id: 'al2', kind: 'backup_failed', actor_user_id: null, details: { run_url: 'https://github.com/W3nkt/Bitdoin/actions/runs/1' }, status: 'acknowledged', acknowledged_at: '2026-10-23T08:30:00Z', created_at: '2026-10-23T08:00:00Z' },
     ],
     academic_audit_events: [
       { id: 'ev1', occurred_at: '2026-10-23T08:00:00Z', actor_user_id: USER_ID, actor_role: 'admin', action: 'config.update', target_type: 'subjects', target_id: 's-math', student_profile_id: null, outcome: 'success', reason: null },
@@ -89,6 +90,12 @@ function healthFixture() {
     ],
     alerts: { open: 2, unsent: 0, last_error: null },
     pending_push: 0,
+    backups: {
+      backup: { last: { ok: true, finished_at: new Date(now - 3 * 3600_000).toISOString(), details: { bytes: 5_200_000, tables: 128, rows: 12345, migration: '123', run_url: 'https://github.com/W3nkt/Bitdoin/actions/runs/11' } },
+        last_success_at: new Date(now - 3 * 3600_000).toISOString(), runs_30d: 30, failed_30d: 0 },
+      drill: { last: { ok: false, finished_at: new Date(now - 2 * 86400_000).toISOString(), details: { problems: 2, rto_s: 420, run_url: 'https://github.com/W3nkt/Bitdoin/actions/runs/12' } },
+        last_success_at: new Date(now - 9 * 86400_000).toISOString(), runs_30d: 4, failed_30d: 1 },
+    },
   }
 }
 
@@ -451,6 +458,8 @@ try {
     await page.getByText('3 entries · page 1 of 1').waitFor()
     await page.getByText("Opened 4 students' records in 24 hours").waitFor()
     await page.getByText('1 open').waitFor()
+    await page.getByText('Nightly database backup failed').waitFor()
+    assert.equal(await page.getByText(/^System · /).count(), 1, 'operational alerts have no actor')
     await page.getByRole('button', { name: 'Mark reviewed' }).click()
     await page.getByText('All reviewed').waitFor()
     const ack = lastWrite(mock, 'academic_alerts', 'PATCH')
@@ -468,7 +477,7 @@ try {
     assert.equal(csv.trim().split('\r\n').length, 3)
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Audit: alert reviewed (who and when saved), action filter applied, actor names shown, CSV export with formula cells neutralised')
+    pass('Audit: alert reviewed (who and when saved), operational alerts titled, action filter applied, actor names shown, CSV export with formula cells neutralised')
   }
 
   // Health (OPS-002): service levels with verdicts, charts with table views, jobs, test alert.
@@ -481,6 +490,13 @@ try {
     assert.equal(await tiles.getByText('Met').count(), 3)
     await page.locator('.recharts-line-curve').first().waitFor()
     await page.getByText('academic-push-reminders').waitFor()
+    const backups = page.locator('section', { has: page.getByRole('heading', { name: 'Backups' }) })
+    await backups.getByText('5.2 MB').waitFor()
+    await backups.getByText('7 min (target 4 h)').waitFor()
+    assert.equal(await backups.getByText('Met').count(), 1, 'backup 3 h old')
+    assert.equal(await backups.getByText('Missed').count(), 1, 'latest drill failed')
+    await backups.getByText(/The latest run failed on/).waitFor()
+    assert.equal(await backups.getByRole('link', { name: 'Open the workflow run' }).count(), 2)
     await shot(page, 'admin-9-health')
     await axe(page)
     await page.getByRole('button', { name: 'Show table' }).first().click()
@@ -496,7 +512,7 @@ try {
     await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     assert.equal(await ops.page.getByRole('button', { name: 'Health' }).count(), 0)
     await ops.context.close()
-    pass('Health: verdicts per target (icon + label), latency and error charts with table views, job results, test alert queued and e-mailed; Operations has no Health tab')
+    pass('Health: verdicts per target (icon + label), latency and error charts with table views, job results, backup and drill status, test alert queued and e-mailed; Operations has no Health tab')
   }
 
   // Finance: no access; phone width has no horizontal scroll.
