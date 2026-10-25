@@ -53,6 +53,8 @@ export function WeekCard() {
               </div>
               {item.route && (
                 <Link to={item.route}
+                  // LEARN-007: Academy pages show a way back to Schooling.
+                  state={item.kind === 'academy_lesson' || item.kind === 'academy_challenge' ? { returnTo: '/academy/scores' } : undefined}
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
                   {t(`week.action.${item.kind}` as AcademicCopyKey)}<ArrowRight aria-hidden className="h-4 w-4" />
                 </Link>

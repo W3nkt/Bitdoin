@@ -264,7 +264,7 @@ function backend(initial) {
       const all = { ...settings, pilot_mode: !!state.pilot }
       return json(key in all ? { value: all[key] } : null)
     }
-    const rows = tables[table] ?? []
+    const rows = state.tables?.[table] ?? tables[table] ?? []
     return json(single ? rows[0] ?? null : rows)
   }
   return { state, handle, rpc }
@@ -1139,6 +1139,48 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('This week: up to three actions with reasons, times and actions, gap card, axe clean; practice set answered with instant feedback, final answers, AI label, summary')
+  }
+
+  // LEARN-007: a recommended Academy lesson opens in the Academy, even before daily
+  // pacing unlocks it (REC-OPEN), and its back button returns to Schooling.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    const category = { id: 'cat1', slug: 'maths', name_en: 'Maths', name_lo: 'ເລກ', description_en: '', description_lo: '', icon: 'Calculator', accent: '#3b82f6' }
+    const lesson = (n, slug, title) => ({ id: `les${n}`, category_id: 'cat1', slug, title_en: title, title_lo: title, summary_en: 'Summary', summary_lo: 'Summary', deck_en: null, deck_lo: null,
+      content_en: [{ heading: 'Step one', body: 'Move the number to the other side.' }], content_lo: [{ heading: 'Step one', body: 'Move the number to the other side.' }],
+      glossary_en: [], glossary_lo: [], reflection_questions_en: [], reflection_questions_lo: [], key_takeaways_en: [], key_takeaways_lo: [],
+      difficulty: 'BEGINNER', estimated_minutes: 15, lesson_type: 'LESSON', source_url: null, source_verified_at: null, application_deadline: null, book_id: null, category, book: null })
+    mock.state.tables = {
+      premium_subscriptions: [{ id: 'sub1' }],
+      premium_learning_categories: [category],
+      premium_lessons: [lesson(1, 'numbers', 'Numbers'), lesson(2, 'fractions', 'Fractions'), lesson(3, 'linear-equations', 'Linear equations lesson')],
+    }
+    // Pacing has unlocked one lesson of the student's shuffled order: find one it still locks
+    // (opened directly, the Academy sends it back to the category).
+    let locked = null
+    for (const slug of ['numbers', 'fractions', 'linear-equations']) {
+      await page.goto(`${base}/academy/lesson/${slug}`, { waitUntil: 'domcontentloaded' })
+      const landed = await Promise.race([
+        page.waitForURL(/\/academy\/learn\/maths$/, { timeout: 8000 }).then(() => 'category'),
+        page.getByText('Move the number to the other side.').waitFor({ timeout: 8000 }).then(() => 'lesson'),
+      ])
+      if (landed === 'category') { locked = slug; break }
+    }
+    assert.ok(locked, 'pacing locks at least one of the three lessons')
+
+    mock.state.dashboard = workedExampleDashboard()
+    mock.state.recommendations = [{ key: 'academy_lesson:c9', rule_id: 'R3', kind: 'academy_lesson', title_lo: 'Locked lesson', title_en: 'Locked lesson', est_minutes: 15,
+      route: `/academy/lesson/${locked}`, priority: 80, reason: { code: 'R3', topic_lo: 'ພຶດຊະຄະນິດ', topic_en: 'Algebra', band: 'needs_practice', date: '2026-10-12T05:00:00Z' } }]
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'Open the lesson' }).click()
+    await page.getByText('Move the number to the other side.').waitFor()
+    assert.ok(page.url().endsWith(`/academy/lesson/${locked}`), 'the recommended lesson opens although pacing still locks it')
+    await page.getByRole('button', { name: 'Go back' }).click()
+    await page.getByRole('heading', { name: 'This week' }).waitFor()
+    assert.match(page.url(), /\/academy\/scores$/)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Academy lesson from This week: opens before pacing unlocks it, back returns to Schooling; opened directly, pacing still redirects (LEARN-007)')
   }
 
   // Report a problem (PRIV-008) from the dashboard.

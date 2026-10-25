@@ -238,6 +238,16 @@ function PremiumGate({ children, requireSubscription = true }: { children: React
   return <>{children}</>
 }
 
+/**
+ * Where to go back to when a page was opened from a Schooling next action
+ * (LEARN-007): the link sets `state.returnTo`; only Schooling paths count.
+ */
+function useSchoolingReturn() {
+  const location = useLocation()
+  const returnTo = (location.state as { returnTo?: unknown } | null)?.returnTo
+  return typeof returnTo === 'string' && returnTo.startsWith('/academy/scores') ? returnTo : null
+}
+
 function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', requireSubscription = true }: {
   children: React.ReactNode; title: string; eyebrow: string; backTo?: string | null
   requireSubscription?: boolean
@@ -739,6 +749,7 @@ export function LessonReaderPage() {
   const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
+  const fromSchooling = useSchoolingReturn()
   const { lessons, progress, categoryUnlocks, activeDays, access } = useLearningData()
   const lesson = lessons.data?.find(item => item.slug === lessonSlug)
   const { ordered, unlockedCount } = useCategoryLessonOrder(lesson?.category_id, lesson?.category?.slug, lessons.data, profile?.id, categoryUnlocks.data, activeDays.data, Boolean(access.data), progress.data)
@@ -782,7 +793,8 @@ export function LessonReaderPage() {
   if (lessons.isLoading || access.isLoading) return <AcademyPageSkeleton />
   if (!lesson) return <Navigate to="/academy/learn" replace />
   const lessonIndex = ordered.findIndex(item => item.id === lesson.id)
-  if (lessonIndex >= unlockedCount) return <Navigate to={`/academy/learn/${lesson.category?.slug ?? ''}`} replace />
+  // A lesson recommended by Schooling opens even before daily pacing unlocks it (REC-OPEN).
+  if (lessonIndex >= unlockedCount && !fromSchooling) return <Navigate to={`/academy/learn/${lesson.category?.slug ?? ''}`} replace />
   const sections = language === 'lo' ? lesson.content_lo : lesson.content_en
   const takeaways = language === 'lo' ? lesson.key_takeaways_lo : lesson.key_takeaways_en
   const glossary = language === 'lo' ? lesson.glossary_lo : lesson.glossary_en
@@ -790,8 +802,9 @@ export function LessonReaderPage() {
   const itemProgress = progress.data?.find(item => item.lesson_id === lesson.id)
   const allAnswered = !questions.data?.length || questions.data.every(q => answers[q.id] !== undefined)
   if (lesson.lesson_type === 'READING_SUMMARY') {
-    const backTo = `/academy/learn/${lesson.category?.slug ?? ''}`
-    // From the closet the dialog is one step on top of it, so closing steps back; opened by link it goes to the closet.
+    const backTo = fromSchooling ?? `/academy/learn/${lesson.category?.slug ?? ''}`
+    // From the closet the dialog is one step on top of it, so closing steps back; opened by link it goes to the closet
+    // (or back to Schooling when a next action opened it, LEARN-007).
     const exit = () => {
       markReturningFromBook()
       if ((location.state as { fromCloset?: boolean } | null)?.fromCloset) navigate(-1)
@@ -834,7 +847,7 @@ export function LessonReaderPage() {
     )
   }
   return (
-    <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`}>
+    <LearningShell title={localize(language, lesson.title_en, lesson.title_lo)} eyebrow={`${lesson.estimated_minutes} min · ${lesson.difficulty.toLowerCase()}`} backTo={fromSchooling ?? undefined}>
       <article className="mx-auto max-w-3xl px-4 py-10 pb-28">
         <header className="border-b border-slate-200 dark:border-slate-700 pb-10">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-primary-600 dark:text-primary-400">{lesson.lesson_type.replace('_', ' ')}</p>
@@ -961,6 +974,7 @@ export function LessonReaderPage() {
 }
 
 export function WeeklyChallengesPage() {
+  const fromSchooling = useSchoolingReturn()
   const { language } = useLanguage()
   const { profile } = useAuth()
   const qc = useQueryClient()
@@ -1004,7 +1018,7 @@ export function WeeklyChallengesPage() {
   const data = challenge.data
   const steps = data ? (language === 'lo' ? data.steps_lo : data.steps_en) : []
   return (
-    <LearningShell title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} eyebrow={localize(language, 'Build momentum', 'ສ້າງແຮງສົ່ງ')}>
+    <LearningShell title={localize(language, 'Weekly challenge', 'ຄວາມທ້າທາຍອາທິດ')} eyebrow={localize(language, 'Build momentum', 'ສ້າງແຮງສົ່ງ')} backTo={fromSchooling ?? undefined}>
       <main className="mx-auto max-w-3xl px-4 py-10 pb-24">
         {challenge.isLoading ? <PanelSkeleton lines={5} /> : data ? (
           <>

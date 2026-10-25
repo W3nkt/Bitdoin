@@ -20,6 +20,7 @@ All automated suites run in CI on every push and gate the Pages deploy
 | Next actions (LEARN-001..003) | Rules R1–R5, R7 on the PRD §20.9 student; ranking, caps and top 3; members-only Academy items; completed lessons skipped; gap card and log; impressions once a day; determinism; insights switch | `npm run test:db` → `academic_recommendations` |
 | Practice sets (REC-PRACTICE) | Published entry and grade required, no answers up front, final answers with instant feedback, least-practised first, other students' attempts (IDOR), done for 14 days, R5 trigger, export, deletion | `npm run test:db` → `academic_practice_sets`, `academic_idor` |
 | Feedback (LEARN-005) | Not now 14 days, not helpful 180 days, done 30 days, at most 3 days in 30 (R1 exempt), next actions fill the space, own keys only, export | `npm run test:db` → `academic_recommendation_feedback` |
+| Academy hand-off (LEARN-007) | A recommended lesson pacing still locks opens from This week; its back button returns to Schooling | `npm run test:e2e` → My Scores browser checks |
 | Explanations (ANALYSIS-004) | Every template in Lao and English, every label × trend × confidence and every F6–F10 golden case through the cause filter; DASH-005 reasons | `npm run test:insights` |
 | API / contract | Every RPC: error contract, idempotency, rate limits, validation | `npm run test:db` (PGlite, all module migrations) |
 | Security (IDOR) | Registry of every callable RPC × other students' ids; RLS backstop | `academic_idor`, `academic_policies` |
