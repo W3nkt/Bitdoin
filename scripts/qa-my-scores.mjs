@@ -53,6 +53,8 @@ function backend(initial) {
     academic_get_session: () => session(),
     // Usage events (ANL-001): kept for the assertions below.
     academic_track_events: (args) => {
+      // Like the database: nothing is kept while consent is outstanding.
+      if (state.step === 'consent') return { accepted: 0, duplicates: 0, dropped: args.p_events.length, tracking: false }
       state.events.push(...args.p_events)
       return { accepted: args.p_events.length, duplicates: 0, dropped: 0, tracking: true }
     },
@@ -421,17 +423,24 @@ try {
 
   // Re-acknowledge after withdrawal (PRIV-001/003).
   {
-    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'consent', enrolment: 'e1', consentState: 'withdrawn' })
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'consent', enrolment: 'e1', consentState: 'withdrawn', clock: true })
     await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: 'Schooling is paused' }).waitFor()
     await shot(page, 'my-scores-7-consent-paused-en-mobile')
+    // The landing event goes out while consent is outstanding and is refused (tracking: false).
+    await page.clock.fastForward(11_000)
+    for (let i = 0; i < 50 && !mock.state.calls.some(call => call.fn === 'academic_track_events'); i++) await page.waitForTimeout(100)
     await page.getByLabel('I have read this and agree').check()
     await page.getByRole('button', { name: 'Agree and continue' }).click()
     await page.getByRole('link', { name: 'My data and privacy' }).waitFor()
     assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'module_processing', p_notice_version: '2026-10-draft' })
+    // Agreeing switches statistics on: the app sends again.
+    await page.clock.fastForward(11_000)
+    for (let i = 0; i < 50 && !mock.state.events.some(e => e.name === 'dashboard_viewed'); i++) await page.waitForTimeout(100)
+    assert.ok(mock.state.events.some(e => e.name === 'dashboard_viewed'), 'events resume after agreeing to the notice')
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Consent review: paused state, re-agreement sends module_processing with the current notice')
+    pass('Consent review: paused state, re-agreement sends module_processing with the current notice; usage events resume afterwards')
   }
 
   // New school year (PROFILE-004).

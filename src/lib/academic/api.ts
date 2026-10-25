@@ -177,7 +177,11 @@ export function useGrantConsent() {
   return useMutation({
     mutationFn: ({ purpose, noticeVersion }: { purpose: string; noticeVersion: string }) =>
       callAcademicRpc('academic_grant_consent', { p_purpose: purpose, p_notice_version: noticeVersion }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      // Agreeing to the notice can switch usage statistics on (migration 124).
+      resumeUsageEvents()
+      return invalidate()
+    },
   })
 }
 
