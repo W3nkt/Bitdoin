@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Session, User as SupabaseUser } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { rememberOAuthReturnPath } from '@/lib/authRedirect'
 import { clearAllDrafts } from '@/lib/academic/drafts'
+import { discardUsageEvents, resumeUsageEvents } from '@/lib/academic/usageEvents'
 import type { User, UserRole } from '@/types'
 
 interface AuthResult {
@@ -34,6 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  // Shared phones: when the account changes (sign-out, expiry, someone else
+  // signing in), nothing loaded for the previous account may be shown or sent.
+  const accountId = useRef<string | null | undefined>(undefined)
+  const forgetPreviousAccount = (nextId: string | null) => {
+    if (accountId.current !== undefined && accountId.current !== nextId) {
+      queryClient.clear()
+      discardUsageEvents()
+      resumeUsageEvents()
+    }
+    accountId.current = nextId
+  }
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -56,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const applySession = (nextSession: Session | null) => {
       if (!active) return
+      forgetPreviousAccount(nextSession?.user?.id ?? null)
       setSession(nextSession)
       setSupabaseUser(nextSession?.user ?? null)
 
@@ -152,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
     // Shared phones: My Scores drafts must not outlive the account session.
     clearAllDrafts()
+    forgetPreviousAccount(null)
     setProfile(null)
   }
 

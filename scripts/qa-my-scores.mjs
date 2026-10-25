@@ -32,10 +32,13 @@ const SCHOOLS = [
   { id: 'school-3', name_lo: 'ໂຮງຮຽນ ຜົ້ງສາລີ', name_en: 'Phongsaly Secondary School', romanised_name: null, province_code: 'phongsaly', district_code: '2-01' },
 ]
 
-function fakeJwt() {
+function fakeJwt(sub = USER_ID) {
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const exp = Math.floor(Date.now() / 1000) + 3600
-  return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: USER_ID, role: 'authenticated', aud: 'authenticated', exp })}.sig`
+  return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub, role: 'authenticated', aud: 'authenticated', exp })}.sig`
+}
+const subOf = (authorization) => {
+  try { return JSON.parse(Buffer.from((authorization ?? '').split('.')[1] ?? '', 'base64url').toString()).sub } catch { return undefined }
 }
 
 /** A mocked backend whose session moves through the module states. */
@@ -220,7 +223,7 @@ function backend(initial) {
     const rows = tables[table] ?? []
     return json(single ? rows[0] ?? null : rows)
   }
-  return { state, handle }
+  return { state, handle, rpc }
 }
 
 const SCALE_10 = { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null }
@@ -693,6 +696,64 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Shared phone: drafts of another account are purged when Schooling opens')
+  }
+
+  // Shared phone: one student signs out, another signs in on the same tab (no
+  // reload). Nothing loaded for the first account may appear (#38).
+  {
+    const SECOND = '00000000-0000-0000-0000-0000000000b2'
+    const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'ready', enrolment: 'e1' })
+    const json = (route, body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+    const secondUser = { id: SECOND, aud: 'authenticated', role: 'authenticated', email: 'kham@example.com', app_metadata: {}, user_metadata: {} }
+    // Registered after the main mock, so it runs first; anything else falls through.
+    await context.route(`${SUPABASE}/**`, async route => {
+      const request = route.request()
+      const url = new URL(request.url())
+      if (url.pathname === '/auth/v1/logout') return route.fulfill({ status: 204 })
+      if (url.pathname === '/auth/v1/token') {
+        return json(route, { access_token: fakeJwt(SECOND), token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, refresh_token: 'r2', user: secondUser })
+      }
+      if (subOf(request.headers().authorization) !== SECOND) return route.fallback()
+      if (url.pathname === '/auth/v1/user') return json(route, secondUser)
+      if (url.pathname === '/rest/v1/users') return json(route, { id: SECOND, name: 'Kham', phone: null, email: 'kham@example.com', avatar_url: null, cover_image_url: null, member_code: 'KHAM01', role: 'CUSTOMER', language: 'en', currency: 'LAK', created_at: '2026-10-01', updated_at: '2026-10-01' })
+      // The second student has a profile of their own, served slowly.
+      if (url.pathname === '/rest/v1/rpc/academic_get_session') {
+        return json(route, { ...mock.rpc.academic_get_session(), user: { id: SECOND, role: 'CUSTOMER', language: 'en' }, profile: { id: 'p2', display_name: 'Kham', age_band: '18_plus', status: 'active', consent_state: 'active', version: 1 }, active_enrolment_id: 'e2' })
+      }
+      if (url.pathname === '/rest/v1/rpc/academic_get_my_data_summary') {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        const summary = mock.rpc.academic_get_my_data_summary()
+        return json(route, { ...summary, profile: { ...summary.profile, id: 'p2', display_name: 'Kham' } })
+      }
+      return route.fallback()
+    })
+    const goInApp = (path) => page.evaluate(p => { history.pushState({}, '', p); window.dispatchEvent(new PopStateEvent('popstate')) }, path)
+
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const firstAccountOnly = page.getByText('Noy', { exact: true })
+    await firstAccountOnly.first().waitFor()
+    await goInApp('/academy/profile')
+    await page.getByRole('button', { name: 'Open profile menu' }).click()
+    await page.getByRole('button', { name: 'Sign out' }).first().click()
+    await page.getByText('Sign out?').waitFor()
+    await page.getByRole('button', { name: 'Sign out' }).last().click()
+    await page.waitForURL(url => new URL(url).pathname === '/')
+    await goInApp('/auth')
+    await page.getByLabel('Email').fill('kham@example.com')
+    await page.getByLabel('Password', { exact: true }).fill('correct horse')
+    await page.locator('form button[type="submit"]').first().click()
+    await page.waitForURL(url => new URL(url).pathname !== '/auth')
+    await goInApp('/academy/scores/data')
+    // The second student's summary takes 1.5 s: the first student's must not show meanwhile.
+    for (let i = 0; i < 12; i++) {
+      assert.equal(await firstAccountOnly.count(), 0, 'previous account data shown to the next student')
+      await page.waitForTimeout(100)
+    }
+    await page.getByText('Kham', { exact: true }).first().waitFor()
+    assert.ok(mock.state.calls.length > 0)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Shared phone: after sign-out, the next student signing in on the same tab never sees data from the previous account')
   }
 
   // ─── Dashboard (FE-005) ───────────────────────────────────────────────────
