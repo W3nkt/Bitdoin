@@ -39,9 +39,9 @@ diagnostics, recommendations, AI chat, guardians and payments (PRD §36.2).
 | No high or critical security findings | `security-review.md` (#35). | Done |
 | Monitoring and alerts | Health tab; alert e-mails verified (#42). | Done |
 | Backups and restore drill | Nightly backup; weekly drill passed (#43). | Done |
-| Usage events and pilot metrics | #44, #45; ratings and go/no-go panel (this issue). | Done |
-| **Legal review of the consent approach** | Counsel's answer on #4. | **Open: blocker** |
-| **UAT S1–S4 and A1–A2** with 10 students and 2 admins | #40 | **Open** |
+| Usage events and pilot metrics | #44, #45; ratings and go/no-go panel (#46). | Done |
+| **Legal review of the consent approach** | Counsel's answer on #4. | Done (#4 closed 2026-10-25) |
+| **UAT S1–S4 and A1–A2** with 10 students and 2 admins | #40 | Done (#40 closed 2026-10-25) |
 | **Lao copy approved by two native educators** | #39 checklist | **Open** |
 | **TalkBack and 200% text on a real Android phone** | #39 checklist | **Open** |
 | Performance NFR-001/002 on the reference device | Health tab during UAT: dashboard p75 ≤ 2.5 s, reads p95 ≤ 300 ms, writes p95 ≤ 500 ms. | Measure during UAT |
