@@ -71,13 +71,16 @@ const OWN_WRITE = [
   'academic_record_metrics(jsonb)',
   // Usage events: no IDs accepted except reporting periods (shared configuration), migration 124.
   'academic_track_events(jsonb)',
+  // Pilot invite check: returns only the cohort name for a valid code (migration 128).
+  'academic_check_pilot_code(text)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
   'academic_admin_create_school_calendar(uuid,uuid,jsonb)', 'academic_admin_merge_schools(uuid,uuid,text)',
   'academic_admin_resolve_school_task(uuid,uuid,text)', 'academic_admin_set_user_role(uuid,text,text)',
   'academic_support_lookup(text)', 'academic_support_break_glass(uuid,text)', 'academic_support_view_scores(uuid)',
-  'academic_admin_health()', 'academic_admin_test_alert()', 'academic_admin_usage_metrics()',
+  'academic_admin_health()', 'academic_admin_test_alert()', 'academic_admin_usage_metrics(uuid)',
+  'academic_admin_list_pilot()', 'academic_admin_save_pilot_cohort(jsonb)', 'academic_admin_set_pilot_mode(boolean,text)',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -202,7 +205,10 @@ const staffCalls = {
   'academic_support_view_scores(uuid)': `public.academic_support_view_scores('${a.profile_id}')`,
   'academic_admin_health()': `public.academic_admin_health()`,
   'academic_admin_test_alert()': `public.academic_admin_test_alert()`,
-  'academic_admin_usage_metrics()': `public.academic_admin_usage_metrics()`,
+  'academic_admin_usage_metrics(uuid)': `public.academic_admin_usage_metrics()`,
+  'academic_admin_list_pilot()': `public.academic_admin_list_pilot()`,
+  'academic_admin_save_pilot_cohort(jsonb)': `public.academic_admin_save_pilot_cohort('{"name": "x"}')`,
+  'academic_admin_set_pilot_mode(boolean,text)': `public.academic_admin_set_pilot_mode(false, 'testing')`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

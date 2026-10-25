@@ -54,12 +54,14 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration `125` (#45, Metrics tab). Until it is applied, the Metrics
-  tab shows an error; nothing else depends on it.
+- Migration `128` (#46, pilot cohorts, ratings and the go/no-go panel).
+  Apply soon after the frontend deploy: until then, the Metrics and Pilot
+  tabs show an error. The pilot gate stays off until an admin switches it on
+  in the Pilot tab.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
-migrations 122, 123 and 124 on 2026-10-25, with `send-push` and the three
-admin e-mail functions. **Database backup** is set up; its
+migrations 122–127 on 2026-10-25, with `send-push` and the three admin
+e-mail functions. **Database backup** is set up; its
 first backup and drill passed on 2026-10-25
 ([backup-restore.md](backup-restore.md)).
 

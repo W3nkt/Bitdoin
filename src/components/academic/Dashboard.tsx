@@ -14,6 +14,7 @@ import { academicErrorText } from './errorText'
 import { useDashboardTiming } from '@/lib/academic/telemetry'
 import { useTrackUsage, type UsageEvents } from '@/lib/academic/usageEvents'
 import { ReminderBanner } from './Inbox'
+import { FeedbackCard } from './FeedbackCard'
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -101,6 +102,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
       ) : (
         <>
           <SummaryCard view={view} periodLabel={id => { const p = periodById.get(id); return p ? label(p) : '' }} actions={actions} />
+          {!view.stale_since && <FeedbackCard userId={userId} recordedMonths={view.periods.length} />}
           <TrendCard view={view} monthLabels={new Map((periods.data?.periods ?? []).filter(p => p.period_type === 'monthly').map(p => [p.sequence, label(p)]))} />
           <LatestCard view={view} />
           <SubjectList view={view} onOpen={id => setParams(current => { const next = new URLSearchParams(current); next.set('subject', id); return next })} />

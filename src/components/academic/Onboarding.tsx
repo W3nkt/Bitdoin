@@ -5,7 +5,7 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
 import { LAOS_ADMIN_DIVISIONS } from '@/data/laosAdministrativeDivisions'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
-import { defaultSubjectsFor, useAcademicConfig, useCreateProfile, type AgeBand, type SubjectItem } from '@/lib/academic/api'
+import { checkPilotCode, defaultSubjectsFor, useAcademicConfig, useCreateProfile, type AgeBand, type SubjectItem } from '@/lib/academic/api'
 import { AcademicError } from '@/lib/academic/errors'
 import { discardUsageEvents, durationSince, flushUsageEvents, getLandingSource, useTrackUsage } from '@/lib/academic/usageEvents'
 import { cn } from '@/lib/utils'
@@ -57,6 +57,11 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
   const [goalText, setGoalText] = useState('')
   const [interests, setInterests] = useState<string[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // REL-001: in pilot mode a valid invite code comes first.
+  const [pilotCode, setPilotCode] = useState('')
+  const [pilotName, setPilotName] = useState<string | null>(null)
+  const [pilotError, setPilotError] = useState<string | null>(null)
+  const [checkingCode, setCheckingCode] = useState(false)
 
   // Usage events (ANL-001): anonymous until the profile exists.
   const track = useTrackUsage()
@@ -103,6 +108,37 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
     )
   }
 
+  if (config.isPending) return <div className="mx-auto h-80 max-w-2xl animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
+
+  if (config.data?.pilotMode && !pilotName) {
+    const check = async () => {
+      setCheckingCode(true)
+      setPilotError(null)
+      try {
+        const cohort = await checkPilotCode(pilotCode)
+        setPilotName(cohort.name)
+        toast.success(t('pilot.joined', { name: cohort.name }))
+      } catch (error) {
+        setPilotError(academicErrorText(t, error))
+      } finally {
+        setCheckingCode(false)
+      }
+    }
+    return (
+      <section className="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-8">
+        <StepBody title={t('pilot.title')} hint={t('pilot.hint')}>
+          <form onSubmit={event => { event.preventDefault(); if (pilotCode.trim()) void check() }}>
+            <Input label={t('pilot.code')} value={pilotCode} maxLength={9} autoComplete="off" autoCapitalize="characters" spellCheck={false}
+              onChange={event => { setPilotCode(event.target.value.toUpperCase()); setPilotError(null) }} error={pilotError ?? undefined}
+              className="font-mono text-lg tracking-[0.3em]" />
+            <Button type="submit" className="mt-6" fullWidth size="lg" loading={checkingCode} disabled={!pilotCode.trim()}>{t('common.next')}</Button>
+          </form>
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">{t('pilot.noCode')}</p>
+        </StepBody>
+      </section>
+    )
+  }
+
   if (step === 'notice') {
     return <PrivacyNotice version={noticeVersion} onAccept={() => advance('age')} />
   }
@@ -136,6 +172,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
       goals: goalsValue,
       interest_subject_codes: withGoals ? interests : [],
       notice_version: noticeVersion,
+      ...(pilotName ? { pilot_code: pilotCode } : {}),
     }, {
       onSuccess: () => {
         track('profile_created', { source: getLandingSource() })
@@ -148,6 +185,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
           if (target) setStep(target)
         }
         if (error instanceof AcademicError && error.code === 'NOTICE_OUTDATED') setStep('notice')
+        if (error instanceof AcademicError && error.code.startsWith('PILOT_')) { setPilotName(null); setStep('notice') }
         toast.error(academicErrorText(t, error))
       },
     })

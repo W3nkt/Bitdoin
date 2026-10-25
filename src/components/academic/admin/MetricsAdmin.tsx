@@ -1,8 +1,8 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Info } from 'lucide-react'
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useUsageMetrics, type UsageMetrics } from '@/lib/academic/adminApi'
+import { usePilot, useUsageMetrics, type UsageMetrics } from '@/lib/academic/adminApi'
 import { useChartTheme, useTheme } from '@/lib/theme'
 import { Empty, Panel, adminErrorText, formatDateTime } from './AdminKit'
 import { ChartPanel, SERIES } from './HealthAdmin'
@@ -87,12 +87,59 @@ const DEFINITIONS: Array<[string, string]> = [
   ['Period completion', 'Monthly periods that ended in the month with submitted scores ÷ periods expected for active enrolments (students with statistics on only).'],
   ['Entry time', 'Median time from opening a month to submitting it.'],
   ['Returning M1 / M3', 'Of the students who created a profile in the month, the share active one month / three months later.'],
-  ['Usefulness rating', 'Not collected yet: Phase 1 has no rating prompt.'],
+  ['Usefulness and ease ratings', 'Students rate both 1–5 once, after their second recorded month; the latest answer per student in the last 90 days counts. Share = ratings of 4 or 5.'],
+  ['Returning entry time', 'Median time to submit a month, leaving out each student’s first month (PRD §36.4).'],
 ]
 
-/** The Metrics tab: activation, recording, retention and funnel (PRD §32.2). */
+type Verdict = 'go' | 'iterate' | 'stop' | 'no-data'
+const VERDICT: Record<Verdict, { label: string; tone: string }> = {
+  go: { label: 'Go', tone: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' },
+  iterate: { label: 'Iterate', tone: 'bg-amber-100 text-amber-900 dark:bg-amber-500/15 dark:text-amber-300' },
+  stop: { label: 'Stop / rethink', tone: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300' },
+  'no-data': { label: 'Not enough data', tone: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+}
+// PRD §36.4 (higher is better unless `lowerIsBetter`).
+const judge = (value: number | null | undefined, go: number, iterate: number, lowerIsBetter = false): Verdict => {
+  if (value === null || value === undefined) return 'no-data'
+  if (lowerIsBetter) return value <= go ? 'go' : value <= iterate ? 'iterate' : 'stop'
+  return value >= go ? 'go' : value >= iterate ? 'iterate' : 'stop'
+}
+
+function GoNoGo({ view }: { view: UsageMetrics }) {
+  const p = view.pilot
+  const ease = view.ratings?.entry_ease
+  const rows: Array<[string, ReactNode, string, Verdict]> = [
+    ['First entry within 7 days', rate(p?.first_entry_rate ?? null), 'Go ≥ 60% · iterate 40–59% · stop < 40%', judge(p?.first_entry_rate, 0.6, 0.4)],
+    ['Second-month recording', rate(p?.second_month_rate ?? null), 'Go ≥ 50% · iterate 30–49% · stop < 30%', judge(p?.second_month_rate, 0.5, 0.3)],
+    ['Median entry time, returning', p?.returning_entry_p50_ms == null ? rate(null) : `${Math.round(p.returning_entry_p50_ms / 1000)} s`, 'Go ≤ 90 s · iterate 91–150 s · stop > 150 s', judge(p?.returning_entry_p50_ms, 90_000, 150_000, true)],
+    ['Usefulness rated 4–5', rate(p?.usefulness_rate ?? null), 'Go ≥ 60% · iterate 40–59% · stop < 40%', judge(p?.usefulness_rate, 0.6, 0.4)],
+    ['Entry rated easy (4–5), UAT exit', rate(ease?.share_4_or_5 ?? null), 'Pass ≥ 80% (§35.5)', ease?.share_4_or_5 == null ? 'no-data' : ease.share_4_or_5 >= 0.8 ? 'go' : 'stop'],
+  ]
+  return (
+    <Panel title="Pilot go / no-go" description="PRD §36.4 thresholds over the last 60 days (first entry), last full month (second month), last 30 days (entry time) and 90 days (ratings). Severe privacy or security incidents (go = 0) are judged from the incident log, not here. The named owner decides; this panel only informs.">
+      <Table head={['Measure', 'Now', 'Thresholds', 'Reading']}
+        rows={rows.map(([measure, value, thresholds, verdict]) => [measure, value, <span className="text-xs text-slate-600 dark:text-slate-400">{thresholds}</span>,
+          <span className={`rounded-full px-2.5 py-1 text-xs font-black ${VERDICT[verdict].tone}`}>{VERDICT[verdict].label}</span>])} />
+    </Panel>
+  )
+}
+
+/** The Metrics tab: activation, recording, retention and funnel (PRD §32.2), per pilot cohort if chosen. */
 export function MetricsAdmin() {
-  const metrics = useUsageMetrics()
+  const [cohortId, setCohortId] = useState<string | null>(null)
+  const pilot = usePilot()
+  const metrics = useUsageMetrics(cohortId)
+  const cohorts = pilot.data?.cohorts ?? []
+  const chooser = cohorts.length > 0 && (
+    <label className="flex flex-wrap items-center gap-2 text-sm font-bold">
+      Showing
+      <select value={cohortId ?? ''} onChange={event => setCohortId(event.target.value || null)}
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium dark:border-slate-700 dark:bg-gray-900">
+        <option value="">All students</option>
+        {cohorts.map(cohort => <option key={cohort.id} value={cohort.id}>Pilot: {cohort.name}</option>)}
+      </select>
+    </label>
+  )
   if (metrics.isPending) return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
   if (metrics.isError) return <Empty>{adminErrorText(metrics.error)}</Empty>
   const view = metrics.data
@@ -104,6 +151,7 @@ export function MetricsAdmin() {
 
   return (
     <div className="grid gap-6">
+      {chooser}
       <p className="flex items-start gap-2 rounded-2xl bg-white p-4 text-sm text-slate-700 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:text-slate-300 dark:ring-slate-700">
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <span>
@@ -122,6 +170,8 @@ export function MetricsAdmin() {
         <Tile label={`First entry within 7 days, week of ${lastFinalWeek ? weekLabel(lastFinalWeek.week_start) : '—'}`} value={rate(lastFinalWeek?.first_entry_rate ?? null)}
           note={`${lastFinalWeek ? (lastFinalWeek.first_entry_cohort === null ? '<20' : lastFinalWeek.first_entry_cohort) : 0} new profiles`} />
       </section>
+
+      {view.pilot && <GoNoGo view={view} />}
 
       <StudentsChart months={view.months} />
 

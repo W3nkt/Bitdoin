@@ -58,6 +58,9 @@ function backend(initial) {
   })
   const rpc = {
     academic_get_session: () => session(),
+    academic_check_pilot_code: (args) => String(args.p_code).replace(/[s-]/g, '').toUpperCase() === 'ABC234'
+      ? { code: 'ABC234', name: 'Matthayom Thotlong' }
+      : pgError(422, 'PILOT_CODE_INVALID', { field: 'pilot_code' }),
     // Usage events (ANL-001): kept for the assertions below.
     academic_track_events: (args) => {
       // Like the database: nothing is kept while consent is outstanding.
@@ -218,7 +221,8 @@ function backend(initial) {
     const table = url.pathname.replace('/rest/v1/', '')
     if (table === 'academic_settings') {
       const key = (url.searchParams.get('key') ?? '').replace(/^eq\./, '')
-      return json(key in settings ? { value: settings[key] } : null)
+      const all = { ...settings, pilot_mode: !!state.pilot }
+      return json(key in all ? { value: all[key] } : null)
     }
     const rows = tables[table] ?? []
     return json(single ? rows[0] ?? null : rows)
@@ -455,6 +459,37 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Desktop/English: unlisted school as free text, goals skipped, grade 12 defaults; onboarding events sent before the profile exists, without personal data')
+  }
+
+  // Closed pilot (REL-001): a valid code comes first and is sent with the profile.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: DESKTOP, lang: 'en', step: 'onboarding' })
+    mock.state.pilot = true
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'Enter your pilot code' }).waitFor()
+    await page.getByLabel('Pilot code').fill('zzz999')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByText('This code is not valid. Check it with your school.').waitFor()
+    await page.getByLabel('Pilot code').fill('abc-234')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByText('Code accepted: Matthayom Thotlong').waitFor()
+    await page.getByLabel('I have read this and agree').check()
+    await page.getByRole('button', { name: 'Agree and continue' }).click()
+    await page.getByRole('button', { name: '18 or older' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByLabel('Name to show').fill('Noy')
+    await page.getByLabel('Grade').selectOption('g12')
+    await page.getByLabel('Province').selectOption('champasak')
+    await page.getByRole('searchbox').fill('Ban Nong Hai')
+    await page.getByRole('button', { name: 'My school is not listed: use “Ban Nong Hai”' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: 'Skip for now' }).click()
+    await page.getByRole('link', { name: 'My data and privacy' }).waitFor()
+    assert.equal(lastCall(mock, 'academic_create_profile').args.p_input.pilot_code, 'ABC-234')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Pilot: code asked first, wrong code explained, accepted code names the school and is sent with the profile')
   }
 
   // Under 13 is not supported (PRIV-002).
@@ -1074,6 +1109,35 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Reminders (English): empty inbox and settings')
+  }
+
+  // Pilot ratings (REL-001): asked after the second month, only with statistics on; answers become usage events.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1', clock: true })
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'networkidle' })
+    await page.getByText('Up 0.3 since January').waitFor()
+    assert.equal(await page.getByRole('heading', { name: 'Two quick questions' }).count(), 0, 'not asked while usage statistics are off')
+    mock.state.consents.push({ id: 'c9', purpose: 'usage_statistics', notice_version: '2026-10-draft', granted_at: '2026-10-25T02:00:00Z', withdrawn_at: null })
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByRole('heading', { name: 'Two quick questions' }).waitFor()
+    const send = page.getByRole('button', { name: 'Send' })
+    assert.equal(await send.isDisabled(), true, 'both questions answered first')
+    await page.getByRole('group', { name: 'How useful is Schooling for you?' }).getByRole('button', { name: '5 / 5 · Very useful' }).click()
+    await page.getByRole('group', { name: 'How easy is it to enter your scores?' }).getByRole('button', { name: '4 / 5' }).click()
+    await shot(page, 'my-scores-26-ratings-en-mobile')
+    await send.click()
+    await page.getByText('Thank you! This helps us improve Schooling.').waitFor()
+    await page.clock.fastForward(11_000)
+    for (let i = 0; i < 50 && mock.state.events.filter(e => e.name === 'feedback_submitted').length < 2; i++) await page.waitForTimeout(100)
+    assert.deepEqual(mock.state.events.filter(e => e.name === 'feedback_submitted').map(e => e.props).sort((a, b) => a.question.localeCompare(b.question)),
+      [{ question: 'entry_ease', rating: '4' }, { question: 'usefulness', rating: '5' }])
+    await page.reload({ waitUntil: 'networkidle' })
+    await page.getByText('Up 0.3 since January').waitFor()
+    assert.equal(await page.getByRole('heading', { name: 'Two quick questions' }).count(), 0, 'asked once')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Ratings: asked after two months with statistics on, both answers required, sent as usage events, not asked again')
   }
 
   // ─── Localisation and accessibility sweep (QA-003, #39; PRD §35.3) ────────

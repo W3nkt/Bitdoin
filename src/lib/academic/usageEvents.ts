@@ -33,6 +33,7 @@ export interface UsageEvents {
   export_requested: None
   deletion_requested: None
   deletion_cancelled: None
+  feedback_submitted: { question: 'usefulness' | 'entry_ease'; rating: '1' | '2' | '3' | '4' | '5' }
 }
 export type UsageEventName = keyof UsageEvents
 

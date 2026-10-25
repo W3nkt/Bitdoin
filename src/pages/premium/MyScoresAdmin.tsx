@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, Moon, Ruler, School, ScrollText, Sun, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { cn } from '@/lib/utils'
@@ -13,8 +13,9 @@ import { SupportAdmin } from '@/components/academic/admin/SupportAdmin'
 import { AuditAdmin } from '@/components/academic/admin/AuditAdmin'
 import { HealthAdmin } from '@/components/academic/admin/HealthAdmin'
 import { MetricsAdmin } from '@/components/academic/admin/MetricsAdmin'
+import { PilotAdmin } from '@/components/academic/admin/PilotAdmin'
 
-type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit' | 'health' | 'metrics'
+type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'roles' | 'support' | 'audit' | 'health' | 'metrics' | 'pilot'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[] }> = [
   { id: 'subjects', label: 'Subjects', icon: BookOpenCheck, roles: ['ADMIN'] },
@@ -26,6 +27,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[
   { id: 'audit', label: 'Audit log', icon: ScrollText, roles: ['ADMIN', 'OPERATIONS'] },
   { id: 'health', label: 'Health', icon: Activity, roles: ['ADMIN'] },
   { id: 'metrics', label: 'Metrics', icon: BarChart3, roles: ['ADMIN'] },
+  { id: 'pilot', label: 'Pilot', icon: Flag, roles: ['ADMIN'] },
 ]
 
 /**
@@ -88,6 +90,7 @@ export function MyScoresAdmin() {
               {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
               {active.id === 'health' && <HealthAdmin />}
               {active.id === 'metrics' && <MetricsAdmin />}
+              {active.id === 'pilot' && <PilotAdmin />}
             </MfaGate>
           </>
         )}

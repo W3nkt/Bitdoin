@@ -41,6 +41,8 @@ export interface AcademicConfig {
   subjects: AcademicSubject[]
   activeYear: AcademicYear | null
   maxSubjects: number
+  /** REL-001 (migration 128): set-up needs a pilot invite code. */
+  pilotMode: boolean
 }
 
 export interface SchoolMatch {
@@ -69,6 +71,7 @@ export interface ProfileInput {
   goals?: { chips?: string[]; text?: string } | null
   interest_subject_codes?: string[]
   notice_version: string
+  pilot_code?: string
 }
 
 export interface MyDataSummary {
@@ -120,12 +123,13 @@ export function useAcademicConfig(enabled = true) {
     enabled,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<AcademicConfig> => {
-      const [grades, subjects, year, levels, maxSubjects] = await Promise.all([
+      const [grades, subjects, year, levels, maxSubjects, pilotMode] = await Promise.all([
         supabase.from('academic_grades').select('id,code,ordinal,level,label_lo,label_en').eq('status', 'active').order('ordinal'),
         supabase.from('academic_subjects').select('id,code,name_lo,name_en,grade_min,grade_max,is_default').eq('status', 'active').order('code'),
         supabase.from('academic_years').select('id,code,start_date,end_date').eq('status', 'active').maybeSingle(),
         readSetting<string[]>('allowed_grade_levels', ['upper_secondary']),
         readSetting<number>('max_subjects_per_enrolment', 25),
+        readSetting<boolean>('pilot_mode', false),
       ])
       for (const result of [grades, subjects, year]) if (result.error) throw result.error
       return {
@@ -133,6 +137,7 @@ export function useAcademicConfig(enabled = true) {
         subjects: (subjects.data ?? []) as AcademicSubject[],
         activeYear: (year.data ?? null) as AcademicYear | null,
         maxSubjects: Number(maxSubjects) || 25,
+        pilotMode: pilotMode === true,
       }
     },
   })
@@ -174,6 +179,9 @@ export function useCreateProfile() {
     onSuccess: invalidate,
   })
 }
+
+/** Checks a pilot invite code; resolves with the cohort's name. */
+export const checkPilotCode = (code: string) => callAcademicRpc<{ code: string; name: string }>('academic_check_pilot_code', { p_code: code })
 
 export function useGrantConsent() {
   const invalidate = useInvalidateAcademic()

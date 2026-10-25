@@ -546,14 +546,58 @@ export interface UsageMetrics {
     complete: boolean
   }>
   cohorts: Array<{ month: string; size: number | null; m1_rate: number | null; m3_rate: number | null; m1_due: boolean; m3_due: boolean }>
+  /** Migration 128: the pilot cohort the figures are for (null = everyone). */
+  cohort_id?: string | null
+  ratings?: Record<'usefulness' | 'entry_ease', { respondents: number | null; share_4_or_5: number | null }>
+  pilot?: {
+    first_entry_rate: number | null
+    first_entry_cohort: number | null
+    second_month_rate: number | null
+    second_month_base: number | null
+    returning_entry_p50_ms: number | null
+    returning_entries: number | null
+    usefulness_rate: number | null
+    usefulness_respondents: number | null
+  }
   sources: Array<{ source: string; profiles: number | null; share: number | null }>
   grades: Array<{ grade_code: string; recording_students: number | null }>
 }
 
-export function useUsageMetrics() {
+/** All students, or one pilot cohort (migration 128). */
+export function useUsageMetrics(cohortId: string | null = null) {
   return useQuery({
-    queryKey: [...adminKey, 'usage-metrics'],
-    queryFn: () => callAcademicRpc<UsageMetrics>('academic_admin_usage_metrics'),
+    queryKey: [...adminKey, 'usage-metrics', cohortId],
+    queryFn: () => callAcademicRpc<UsageMetrics>('academic_admin_usage_metrics', cohortId ? { p_cohort: cohortId } : {}),
     staleTime: 5 * 60_000,
   })
+}
+
+// ─── Pilot (REL-001, migration 128) ──────────────────────────────────────────
+
+export interface PilotCohort {
+  id: string
+  code: string
+  name: string
+  school_id: string | null
+  school_name: string | null
+  max_students: number | null
+  active: boolean
+  created_at: string
+  students: number
+}
+
+export interface PilotView { pilot_mode: boolean; cohorts: PilotCohort[] }
+
+export function usePilot() {
+  return useQuery({ queryKey: [...adminKey, 'pilot'], queryFn: () => callAcademicRpc<PilotView>('academic_admin_list_pilot') })
+}
+
+export function useSavePilotCohort() {
+  return useAdminMutation((input: { id?: string; name: string; school_id: string | null; max_students: number | null; active?: boolean }) =>
+    callAcademicRpc<PilotView>('academic_admin_save_pilot_cohort', { p_input: input }))
+}
+
+export function useSetPilotMode() {
+  return useAdminMutation(({ enabled, reason }: { enabled: boolean; reason: string }) =>
+    callAcademicRpc<PilotView>('academic_admin_set_pilot_mode', { p_enabled: enabled, p_reason: reason }))
 }

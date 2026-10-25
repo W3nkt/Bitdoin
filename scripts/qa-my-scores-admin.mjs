@@ -117,11 +117,19 @@ function metricsFixture() {
     cohorts: months.map((month, i) => ({ month, size: i < 3 ? null : 90, m1_rate: i < 3 ? null : (i < 5 ? 0.66 : null), m3_rate: null, m1_due: i < 5, m3_due: i < 2 })),
     sources: [{ source: 'academy_menu', profiles: 210, share: 0.7 }, { source: 'reminder', profiles: 75, share: 0.25 }, { source: 'other', profiles: null, share: null }],
     grades: [{ grade_code: 'G10', recording_students: 160 }, { grade_code: 'G12', recording_students: null }],
+    ratings: { usefulness: { respondents: 120, share_4_or_5: 0.66 }, entry_ease: { respondents: 118, share_4_or_5: 0.74 } },
+    pilot: {
+      first_entry_rate: 0.62, first_entry_cohort: 140, second_month_rate: 0.45, second_month_base: 90,
+      returning_entry_p50_ms: 160000, returning_entries: 210, usefulness_rate: 0.66, usefulness_respondents: 120,
+    },
   }
 }
 
 function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
-  const state = { calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal) }
+  const state = {
+    calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal),
+    pilot: { pilot_mode: false, cohorts: [{ id: 'pc1', code: 'ABC234', name: 'Matthayom Thotlong', school_id: null, school_name: null, max_students: 60, active: true, created_at: '2026-10-25T04:00:00Z', students: 41 }] },
+  }
   const user = () => ({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'admin@example.com', app_metadata: {}, user_metadata: {}, factors: state.factors })
 
   const rpc = {
@@ -138,7 +146,15 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       consents: [{ purpose: 'module_processing', notice_version: '2026-10', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }],
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
-    academic_admin_usage_metrics: () => metricsFixture(),
+    academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    academic_admin_list_pilot: () => state.pilot,
+    academic_admin_save_pilot_cohort: (args) => {
+      const input = args.p_input
+      if (input.id) Object.assign(state.pilot.cohorts.find(c => c.id === input.id), input)
+      else state.pilot.cohorts.push({ id: `pc${state.pilot.cohorts.length + 1}`, code: 'K7MQ2X', school_name: null, created_at: '2026-10-25T05:00:00Z', students: 0, active: true, ...input })
+      return state.pilot
+    },
+    academic_admin_set_pilot_mode: (args) => { state.pilot.pilot_mode = args.p_enabled; return state.pilot },
     academic_admin_test_alert: () => ({ id: 'al-test' }),
     academic_support_break_glass: () => ({ session_id: 'bg1', expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() }),
     academic_support_view_scores: () => ({
@@ -539,7 +555,7 @@ try {
 
   // Metrics (ANL-002): headline tiles, small groups hidden, pending rates, definitions, admin only.
   {
-    const { context, page, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores?tab=metrics`, { waitUntil: 'domcontentloaded' })
     const tiles = page.getByRole('region', { name: 'Headline metrics' })
     await tiles.getByText(/^Recording students, Sept? 2026$/).waitFor()
@@ -555,11 +571,21 @@ try {
     await monthly.getByText('3.1 min').first().waitFor()
     await page.getByText('Profile page link').count().then(n => assert.equal(n, 0))
     await page.getByText('Academy menu').waitFor()
-    await page.getByText('Not collected yet: Phase 1 has no rating prompt.').waitFor()
+    // Pilot go/no-go (PRD §36.4): 62% go, 45% iterate, 160 s stop, 66% go, 74% easy fails the UAT 80%.
+    const gate = page.locator('section', { has: page.getByRole('heading', { name: 'Pilot go / no-go' }) })
+    const readings = await gate.locator('tbody tr').evaluateAll(rows => rows.map(row => [row.cells[0].textContent, row.cells[1].textContent, row.cells[3].textContent]))
+    assert.deepEqual(readings, [
+      ['First entry within 7 days', '62.0%', 'Go'], ['Second-month recording', '45.0%', 'Iterate'], ['Median entry time, returning', '160 s', 'Stop / rethink'],
+      ['Usefulness rated 4–5', '66.0%', 'Go'], ['Entry rated easy (4–5), UAT exit', '74.0%', 'Stop / rethink'],
+    ])
     await shot(page, 'admin-10-metrics')
     await axe(page)
     await page.getByRole('button', { name: 'Show table' }).first().click()
     await page.getByRole('columnheader', { name: 'Recording students' }).waitFor()
+    // One pilot cohort.
+    await page.getByLabel('Showing').selectOption({ label: 'Pilot: Matthayom Thotlong' })
+    await page.waitForTimeout(300)
+    assert.deepEqual(lastCall(mock, 'academic_admin_usage_metrics').args, { p_cohort: 'pc1' })
     assert.deepEqual(errors, [])
     await context.close()
     const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
@@ -567,7 +593,34 @@ try {
     await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     assert.equal(await ops.page.getByRole('button', { name: 'Metrics' }).count(), 0)
     await ops.context.close()
-    pass('Metrics: headline tiles, monthly chart with table view, groups under 20 hidden, pending rates marked, sources and definitions; Operations has no Metrics tab')
+    pass('Metrics: headline tiles, pilot go/no-go readings, monthly chart with table view, groups under 20 hidden, pending rates marked, per-cohort view; Operations has no Metrics tab')
+  }
+
+  // Pilot (REL-001): cohorts with codes, a new cohort, and the gate switched with a reason.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=pilot`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('ABC234').waitFor()
+    await page.getByText('41 / 60').waitFor()
+    await page.getByText('Off: anyone in the Academy can set up Schooling').waitFor()
+    await page.getByRole('button', { name: 'New cohort' }).click()
+    await page.getByLabel('Cohort name').fill('Youth club Pakse')
+    await page.getByLabel('Cap (optional)').fill('40')
+    await page.getByRole('button', { name: 'Create and get a code' }).click()
+    await page.getByText('K7MQ2X').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_save_pilot_cohort').args.p_input, { name: 'Youth club Pakse', school_id: null, max_students: 40 })
+    await page.getByRole('button', { name: 'Turn the gate on' }).click()
+    const confirm = page.getByRole('button', { name: 'Turn on' })
+    assert.equal(await confirm.isDisabled(), true, 'a reason is required')
+    await page.getByLabel('Reason (saved in the audit log)').fill('Pilot starts with two schools')
+    await confirm.click()
+    await page.getByText('On: new students need a code').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_set_pilot_mode').args, { p_enabled: true, p_reason: 'Pilot starts with two schools' })
+    await shot(page, 'admin-11-pilot')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Pilot: cohorts listed with codes and counts, new cohort gets a code, gate switched on with an audited reason')
   }
 
   // Finance: no access; phone width has no horizontal scroll.

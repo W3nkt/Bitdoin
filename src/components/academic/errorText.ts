@@ -7,6 +7,9 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   VERSION_CONFLICT: 'error.versionConflict',
   CALENDAR_NOT_CONFIGURED: 'error.calendarMissing',
   SCALE_NOT_CONFIGURED: 'error.calendarMissing',
+  PILOT_CODE_REQUIRED: 'pilot.error.required',
+  PILOT_CODE_INVALID: 'pilot.error.invalid',
+  PILOT_FULL: 'pilot.error.full',
 }
 
 /** A student-facing message for any My Scores error. */
