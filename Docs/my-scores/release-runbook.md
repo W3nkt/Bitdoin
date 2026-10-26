@@ -93,11 +93,22 @@ Not helpful buttons; Lao strings approved by the owner.
 In this order; until then `ocr_enabled` stays `false`:
 1. Vendor assessment for DashScope (no training on inputs, retention, Singapore region) recorded in the processing register (PRIV-006).
 2. QG-3 passed on the #9 hold-out set with `npm run eval:ocr -- <dir>` (scripts/ocr-eval.mjs; label format in its header): numeric accuracy >= 90% on clear photos, silent errors <= 2%, flag recall >= 98%.
-3. A privacy-notice version naming the provider and region (counsel), published as `consent_notice_version`.
+3. A privacy-notice version naming the provider and region (counsel). Deploy the matching English and Lao `notice.full` text in `src/lib/academic/copy.ts`, then publish that version as `consent_notice_version`. The full notice reuses the approved OCR consent wording from `ocrCopy.ts`.
 4. Owner review of the Lao scan strings (`src/lib/academic/ocrCopy.ts`), including the consent text.
 5. Add `ocr_processing` to `consent_purposes_enabled`, then set `ocr_enabled` to `true`.
 6. Check the hourly purge runs: `select status, return_message from cron.job_run_details d join cron.job j using (jobid) where j.jobname = 'academic-ocr-purge' order by start_time desc limit 3`.
 7. Watch **Scan quality** in the admin daily for the first two weeks (alerts: corrections > 15% or failures > 20% over 7 days).
+
+For step 5, use [`enable_academic_ocr.sql`](../../supabase/scripts/enable_academic_ocr.sql).
+It is configured for notice version `2026-10-26` and checks that this version
+is already published. It preserves the other consent
+purposes, and enables both settings in one transaction. It does not certify
+the vendor assessment, quality gate, or counsel approval.
+
+Owner confirmations received 2026-10-26: the OCR notice is reviewed and
+approved, and both the DashScope vendor assessment and QG-3 evaluation have
+passed. These confirmations were supplied by the owner; the underlying
+assessment and evaluation reports were not inspected in this session.
 
 ## Feature flag
 

@@ -942,7 +942,7 @@ try {
     await page.getByText('ເຄີຍສະແກນແລ້ວບໍ?').waitFor()
     await shot(page, 'my-scores-scan-3-duplicate-lo-mobile')
     await page.getByRole('button', { name: 'ໃຊ້ຜົນເທື່ອນັ້ນ' }).click()
-    await page.getByText('ກວດຄະແນນຂອງເຈົ້າ').waitFor()
+    await page.getByText('ກວດສອບຄະແນນຂອງທ່ານ').waitFor()
     assert.equal(mock.state.ocrUploads, undefined, 'a reused result is not sent to the provider again')
     await page.getByRole('button', { name: 'ພິມຄະແນນແທນ' }).click()
     await page.waitForFunction(() => document.querySelector('#score-se-math')?.value === '7.5')
@@ -964,7 +964,7 @@ try {
     mock.state.ocrUsed = 10
     await page.getByRole('button', { name: 'ພິມຄະແນນ', exact: true }).click()
     await page.reload({ waitUntil: 'domcontentloaded' })
-    await page.getByText(/ເຈົ້າໃຊ້ການສະແກນຄົບ 10 ຄັ້ງ/).waitFor()
+    await page.getByText(/ທ່ານໃຊ້ການສະແກນຄົບ 10 ຄັ້ງ/).waitFor()
     assert.equal(await page.getByRole('button', { name: 'ສະແກນປຶ້ມຄະແນນ' }).isDisabled(), true)
     assert.equal(await page.getByLabel('ຄະນິດສາດ', { exact: true }).isEditable(), true, 'typing stays available')
     assert.deepEqual(errors, [])
