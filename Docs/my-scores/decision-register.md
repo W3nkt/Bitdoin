@@ -1,4 +1,4 @@
-# My Scores — Decision register (PM-002, #3)
+| GATES |undefined| Owner | 2026-10-26 || ENT-RULES |undefined| Owner | 2026-10-26 |# My Scores — Decision register (PM-002, #3)
 
 Only rows with a decision and date are approved. Every other row is still open and keeps the PRD
 draft recommendation as a proposal, not an approval.

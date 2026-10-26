@@ -66,6 +66,13 @@ code, grant or revoke with a reason code; a confirmed transfer needs its referen
 
 ### Switching premium locks on (P3-BIL #51)
 
+**Done 2026-10-26:** prices and the Free tier approved by the owner as configured (scans 10 / 20,
+AI Coach 10 / 300), Lao strings approved, the plans page lists what each plan gives in Schooling
+(commit 3490222), and `entitlements_enforced` set to `true` in the SQL editor. At switch-on: 3
+student profiles, 1 Premium (everything open), 2 Free (summary view). Mention it in the weekly
+pilot report. To switch off again: `update academic_settings set value = 'false' where key = 'entitlements_enforced';`
+
+
 1. Owner decides prices and what Free includes (OD-11); edit `entitlement_features` (configuration only).
 2. Owner review of the Lao strings in `src/lib/academic/entitlementCopy.ts`.
 3. Update the Academy subscription page so it lists what Premium adds in Schooling (PRD §30.2).
