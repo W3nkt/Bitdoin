@@ -980,3 +980,96 @@ export function useEntitlements(enabled = true) {
     queryFn: () => callAcademicRpc<Entitlements>('academic_my_entitlements'),
   })
 }
+
+// ─── Study planner (P3-PLAN #54, migration 143) ──────────────────────────────
+
+export type Feasibility = 'steady' | 'stretch' | 'ambitious' | 'maintain'
+type PeriodRef = { id: string; label_lo: string; label_en: string }
+
+export interface LearningGoal {
+  id: string
+  subject_enrolment_id: string
+  subject_lo: string
+  subject_en: string
+  baseline: number
+  target: number
+  months_remaining: number
+  required_gain: number
+  feasibility: Feasibility
+  target_period: PeriodRef
+  milestone: { value: number; period: PeriodRef | null } | null
+  latest: number | null
+  status: 'active' | 'archived'
+  version: number
+}
+
+export interface StudyTask {
+  id: string
+  date: string
+  first_date: string
+  kind: 'diagnostic' | 'practice_set' | 'academy_lesson' | 'academy_challenge' | 'self_study'
+  title_lo: string | null
+  title_en: string | null
+  subject_lo: string | null
+  subject_en: string | null
+  route: string | null
+  est_minutes: number
+  state: 'scheduled' | 'done' | 'skipped'
+  moved: boolean
+  needs_decision: boolean
+  done_by: 'student' | 'activity' | null
+}
+
+export interface PlannerView {
+  entitled: boolean
+  free_goals: number
+  minutes_options: number[]
+  today: string
+  scale: ScoreEntryView['scale']
+  goals: LearningGoal[]
+  subjects: { subject_enrolment_id: string; name_lo: string; name_en: string; baseline: number | null }[]
+  periods: (PeriodRef & { months: number })[]
+  plan: { days: number[]; minutes_per_day: number; paused_until: string | null; starts_on: string } | null
+  week: { week_start: string; tasks: StudyTask[]; decisions: StudyTask[] } | null
+  review: { week_start: string; planned: number; done: number; minutes: number; topics: { lo: string | null; en: string | null }[] } | null
+  suggestion: { subject_enrolment_id: string; name_lo: string; name_en: string; baseline: number; target: number } | null
+}
+
+export interface GoalPreview {
+  subject_enrolment_id: string
+  baseline: number
+  target: number
+  target_period_id: string
+  months_remaining: number
+  required_gain: number
+  feasibility: Feasibility
+  milestone_value: number | null
+  milestone_period_id: string | null
+}
+
+const plannerKey = [...academicKeys.all, 'planner'] as const
+
+export function usePlanner() {
+  return useQuery({
+    queryKey: plannerKey,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<PlannerView>('academic_get_planner'),
+  })
+}
+
+export const previewGoal = (subjectEnrolmentId: string, target: number, periodId: string) =>
+  callAcademicRpc<GoalPreview>('academic_preview_goal', { p_subject_enrolment_id: subjectEnrolmentId, p_target: target, p_target_period_id: periodId })
+
+function usePlannerMutation<A, R>(fn: (args: A) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => queryClient.invalidateQueries({ queryKey: plannerKey }) })
+}
+
+export const useSaveGoal = () => usePlannerMutation((input: { id?: string; subject_enrolment_id?: string; target: number; target_period_id: string }) =>
+  callAcademicRpc<LearningGoal>('academic_save_goal', { p_input: input }))
+export const useArchiveGoal = () => usePlannerMutation((goalId: string) => callAcademicRpc<LearningGoal>('academic_archive_goal', { p_goal_id: goalId }))
+export const useSavePlan = () => usePlannerMutation((input: { days: number[]; minutes_per_day: number }) =>
+  callAcademicRpc<PlannerView>('academic_save_plan', { p_input: input }))
+export const usePausePlan = () => usePlannerMutation((until: string | null) => callAcademicRpc<PlannerView>('academic_pause_plan', { p_until: until }))
+export const useUpdateTask = () => usePlannerMutation(({ taskId, action }: { taskId: string; action: 'done' | 'undo' | 'skip' | 'keep' }) =>
+  callAcademicRpc<StudyTask>('academic_update_task', { p_task_id: taskId, p_action: action }))

@@ -68,6 +68,12 @@ await rpc(A, `public.academic_correct_score_line('${aLine.id}', ${aLine.version}
 await ok(db, 'A reminder', `insert into academic_notifications (id, user_id, student_profile_id, category, code, channel, state, dedupe_key, sent_at)
   values ('${RANDOM.replace('f0e1', 'aaaa')}', '${A}', '${a.profile_id}', 'score_reminder', 'score_reminder.first', 'in_app', 'sent', 'idor:a', now())`)
 const aNote = RANDOM.replace('f0e1', 'aaaa')
+// A's goal and a planned task (migration 143).
+const aGoalSubject = (await one(`select subject_enrolment_id from academic_score_lines where id = '${aLine.id}'`)).subject_enrolment_id
+const aGoal = (await rpc(A, `public.academic_save_goal(${json({ subject_enrolment_id: aGoalSubject, target: 9, target_period_id: period(9) })})`)).id
+await rpc(A, `public.academic_save_plan(${json({ days: [1, 3, 6], minutes_per_day: 20 })})`)
+const aTask = (await one(`insert into academic_study_tasks (student_profile_id, week_start, scheduled_date, first_date, kind, est_minutes)
+  values ('${a.profile_id}', current_date, current_date, current_date, 'self_study', 20) returning id`)).id
 
 // ─── 1. Coverage registry ────────────────────────────────────────────────────
 
@@ -94,6 +100,10 @@ const BY_ID = [
   'academic_confirm_ocr_job(uuid,uuid,jsonb,jsonb,integer,boolean)',
   'academic_discard_ocr_job(uuid)',
   'academic_delete_ocr_image(uuid)',
+  'academic_preview_goal(uuid,numeric,uuid)',
+  'academic_save_goal(jsonb)',
+  'academic_archive_goal(uuid)',
+  'academic_update_task(uuid,text)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -103,6 +113,8 @@ const OWN_READ = [
   'academic_get_recommendations()',
   'academic_export_my_recommendations()',
   'academic_ocr_status()', 'academic_list_ocr_photos()', 'academic_my_entitlements()',
+  // The caller's own goals, plan and tasks (migration 143).
+  'academic_get_planner()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -124,6 +136,8 @@ const OWN_WRITE = [
   'academic_start_practice(uuid)',
   // Feedback on a next action: accepts only keys from the caller's own impressions (migration 138).
   'academic_recommendation_feedback(text,text)',
+  // The caller's own study plan; no IDs accepted (migration 143).
+  'academic_save_plan(jsonb)', 'academic_pause_plan(date)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -193,6 +207,10 @@ const attacks = [
   ['academic_confirm_ocr_job(uuid,uuid,jsonb,jsonb,integer,boolean)', aScan, (id) => `public.academic_confirm_ocr_job('${id}', '${period(3)}', '[]', '[]')`],
   ['academic_discard_ocr_job(uuid)', aScan, (id) => `public.academic_discard_ocr_job('${id}')`],
   ['academic_delete_ocr_image(uuid)', aScan, (id) => `public.academic_delete_ocr_image('${id}')`],
+  ['academic_preview_goal(uuid,numeric,uuid)', aGoalSubject, (id) => `public.academic_preview_goal('${id}', 9, '${period(9)}')`],
+  ['academic_save_goal(jsonb)', aGoal, (id) => `public.academic_save_goal(${json({ id, target: 8, target_period_id: period(9) })})`],
+  ['academic_archive_goal(uuid)', aGoal, (id) => `public.academic_archive_goal('${id}')`],
+  ['academic_update_task(uuid,text)', aTask, (id) => `public.academic_update_task('${id}', 'done')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -241,6 +259,7 @@ const ownReads = {
   'academic_ocr_status()': 'public.academic_ocr_status()',
   'academic_list_ocr_photos()': 'public.academic_list_ocr_photos()',
   'academic_my_entitlements()': 'public.academic_my_entitlements()',
+  'academic_get_planner()': 'public.academic_get_planner()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

@@ -180,6 +180,37 @@ function backend(initial) {
     },
     // Next actions (migration 136) and practice sets (137).
     academic_get_recommendations: () => ({ items: state.recommendations ?? [], more_locked: state.recsLocked ?? 0 }),
+    // Study planner (migration 143): a small stateful stand-in.
+    academic_get_planner: () => plannerView(),
+    academic_preview_goal: (args) => goalPreview(args.p_subject_enrolment_id, Number(args.p_target), args.p_target_period_id),
+    academic_save_goal: (args) => {
+      const p = goalPreview(args.p_input.subject_enrolment_id ?? state.goals.find(g => g.id === args.p_input.id).subject_enrolment_id, Number(args.p_input.target), args.p_input.target_period_id)
+      const period = PLANNER_PERIODS.find(x => x.id === p.target_period_id)
+      const subject = PLANNER_SUBJECTS.find(x => x.subject_enrolment_id === p.subject_enrolment_id)
+      const half = PLANNER_PERIODS.find(x => x.months === Math.ceil(p.months_remaining / 2))
+      const goal = { id: args.p_input.id ?? `goal-${state.goals.length + 1}`, subject_enrolment_id: p.subject_enrolment_id, subject_lo: subject.name_lo, subject_en: subject.name_en,
+        baseline: p.baseline, target: p.target, months_remaining: p.months_remaining, required_gain: p.required_gain, feasibility: p.feasibility,
+        target_period: period, milestone: p.milestone_value === null ? null : { value: p.milestone_value, period: half }, latest: p.baseline, status: 'active', version: 1 }
+      state.goals = [...state.goals.filter(g => g.id !== goal.id), goal]
+      return goal
+    },
+    academic_archive_goal: (args) => { state.goals = state.goals.filter(g => g.id !== args.p_goal_id); return { id: args.p_goal_id, status: 'archived' } },
+    academic_save_plan: (args) => {
+      state.plan = { days: args.p_input.days, minutes_per_day: args.p_input.minutes_per_day, paused_until: null, starts_on: '2026-11-18' }
+      state.tasks = [
+        plannerTask('t1', '2026-11-18', 'practice_set', { title_en: 'Algebra practice', title_lo: 'ຝຶກພຶດຊະຄະນິດ', route: '/academy/scores/practice/t1', est_minutes: 8 }),
+        plannerTask('t2', '2026-11-21', 'self_study', { subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ', est_minutes: 20 }),
+        plannerTask('t0', '2026-11-18', 'self_study', { subject_en: 'Physics', subject_lo: 'ຟີຊິກສາດ', est_minutes: 20, moved: true, first_date: '2026-11-14', needs_decision: true }),
+      ]
+      return plannerView()
+    },
+    academic_pause_plan: (args) => { state.plan.paused_until = args.p_until; return plannerView() },
+    academic_update_task: (args) => {
+      const task = state.tasks.find(t => t.id === args.p_task_id)
+      if (args.p_action === 'done') Object.assign(task, { state: 'done', done_by: 'student' })
+      if (args.p_action === 'skip') Object.assign(task, { state: 'skipped', needs_decision: false })
+      return task
+    },
     // Entitlements (migration 141): Free and not enforced unless a scenario says otherwise.
     academic_my_entitlements: () => state.entitlements ?? {
       enforced: false, tier: 'free', premium: { active: false, source: null, until: null }, period_key: '2026-10', resets_at: '2026-10-31T17:00:00Z',
@@ -235,6 +266,26 @@ function backend(initial) {
     quiet_hours: { start: '21:00', end: '07:00' },
   })
   state.entries ??= {}
+  state.goals ??= []
+  state.tasks ??= []
+  const goalPreview = (subjectId, target, periodId) => {
+    const baseline = PLANNER_SUBJECTS.find(x => x.subject_enrolment_id === subjectId).baseline
+    const months = PLANNER_PERIODS.find(x => x.id === periodId).months
+    const gain = (target - baseline) / months
+    const feasibility = target <= baseline ? 'maintain' : gain <= 0.25 ? 'steady' : gain <= 0.5 ? 'stretch' : 'ambitious'
+    return { subject_enrolment_id: subjectId, baseline, target, target_period_id: periodId, months_remaining: months, required_gain: Math.round(gain * 1000) / 1000, feasibility,
+      milestone_value: feasibility === 'ambitious' ? Math.min(target, baseline + 0.5 * Math.ceil(months / 2)) : null, milestone_period_id: null }
+  }
+  const plannerTask = (id, date, kind, extra = {}) => ({ id, date, first_date: date, kind, title_lo: null, title_en: null, subject_lo: null, subject_en: null, route: null,
+    est_minutes: 20, state: 'scheduled', moved: false, needs_decision: false, done_by: null, ...extra })
+  const plannerView = () => ({
+    entitled: !state.plannerFree, free_goals: 1, minutes_options: [10, 15, 20, 30, 45], today: '2026-11-18',
+    scale: { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null },
+    goals: state.goals, subjects: PLANNER_SUBJECTS, periods: PLANNER_PERIODS, plan: state.plan ?? null,
+    week: state.plan && !state.plannerFree ? { week_start: '2026-11-16', tasks: state.tasks, decisions: state.tasks.filter(t => t.needs_decision && t.state === 'scheduled') } : null,
+    review: state.plan ? { week_start: '2026-11-09', planned: 4, done: 3, minutes: 55, topics: [{ lo: 'ຝຶກພຶດຊະຄະນິດ', en: 'Algebra practice' }] } : null,
+    suggestion: state.goals.length ? null : { subject_enrolment_id: 'se-math', name_lo: 'ຄະນິດສາດ', name_en: 'Mathematics', baseline: 5.5, target: 6.5 },
+  })
   state.consents ??= [{ id: 'c1', purpose: 'module_processing', notice_version: '2026-10-draft', granted_at: '2026-10-01T02:00:00Z', withdrawn_at: null }]
   state.revisions = []
   state.abort ??= {}
@@ -306,6 +357,13 @@ function backend(initial) {
   }
   return { state, handle, rpc }
 }
+
+const PLANNER_SUBJECTS = [
+  { subject_enrolment_id: 'se-math', name_lo: 'ຄະນິດສາດ', name_en: 'Mathematics', baseline: 5.5 },
+  { subject_enrolment_id: 'se-lao', name_lo: 'ພາສາລາວ', name_en: 'Lao Language', baseline: 7 },
+  { subject_enrolment_id: 'se-phys', name_lo: 'ຟີຊິກສາດ', name_en: 'Physics', baseline: null },
+]
+const PLANNER_PERIODS = ['December', 'January', 'February', 'March', 'April', 'May'].map((label_en, i) => ({ id: `m${i + 4}`, label_lo: `ເດືອນ ${i + 4}`, label_en, months: i + 1 }))
 
 // A scan of September (migration 139 shape): Mathematics clear, Lao Language
 // uncertain, Physics unreadable (suggested match), one row with no subject.
@@ -1332,6 +1390,59 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('This week: up to three actions with reasons, times and actions, gap card, axe clean; practice set answered with instant feedback, final answers, AI label, summary')
+  }
+
+  // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'Study planner' }).click()
+    await page.getByText('Suggested: Mathematics from 5.5 to 6.5').waitFor()
+    await page.getByRole('button', { name: 'Use this' }).click()
+    await page.getByLabel('Target').fill('8')
+    await page.getByLabel('By').selectOption({ label: 'March (4 months)' })
+    await page.getByRole('status').getByText('About +0.63 a month. That is a lot; a halfway goal can help.').waitFor()
+    await page.getByRole('button', { name: 'Save goal' }).click()
+    await page.getByText('Mathematics: 5.5 → 8 by March').waitFor()
+    await page.getByText('Halfway goal: 6.5 by January').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_save_goal').args.p_input, { subject_enrolment_id: 'se-math', target: 8, target_period_id: 'm7' })
+
+    await page.getByRole('button', { name: 'Sun' }).click()
+    await page.getByRole('button', { name: '20 min' }).click()
+    await page.getByRole('button', { name: 'Start my plan' }).click()
+    assert.deepEqual(lastCall(mock, 'academic_save_plan').args.p_input, { days: [1, 3, 6, 7], minutes_per_day: 20 })
+    await page.getByText('Mon, Wed, Sat, Sun · 20 min a day').waitFor()
+    const week = page.locator('section', { has: page.getByRole('heading', { name: 'This week' }) })
+    await week.getByText('Algebra practice').waitFor()
+    await week.getByText('Review Mathematics: redo exercises you found hard').waitFor()
+    await week.getByText('Still want to do this? It has moved once already.').waitFor()
+    await page.getByText('3 of 4 tasks done · 55 min').waitFor()
+    assert.equal(await page.getByText(/streak|missed|failed/i).count(), 0, 'no streaks or negative words')
+    await shot(page, 'my-scores-planner-1-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    const violations = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' '))))
+    assert.deepEqual(violations, [])
+    await week.getByRole('button', { name: 'Skip' }).click()
+    await page.waitForTimeout(200)
+    assert.deepEqual(lastCall(mock, 'academic_update_task').args, { p_task_id: 't0', p_action: 'skip' })
+    await page.getByTestId('task-t1').getByRole('button', { name: 'Done' }).click()
+    await page.getByTestId('task-t1').getByText('Done', { exact: true }).waitFor()
+    await page.getByRole('button', { name: 'Pause' }).click()
+    await page.getByLabel('Pause until').fill('2026-12-07')
+    await page.getByRole('button', { name: 'Pause' }).last().click()
+    await page.getByText(/^Paused until 7 Dec 2026/).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_pause_plan').args, { p_until: '2026-12-07' })
+
+    mock.state.plannerFree = true
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.getByText('Mathematics: 5.5 → 8 by March').waitFor()
+    assert.equal(await page.getByText('Weekly study plans and more goals come with Academy Premium.').count(), 2, 'Free: no weekly plan and no second goal')
+    assert.equal(await page.getByRole('button', { name: 'Add a goal' }).count(), 0)
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Planner: suggested goal, live feasibility with a halfway goal, exact goal and plan payloads, week with Open/Done, skip or keep, neutral review, pause, axe clean; Free: one goal, no weekly plan')
   }
 
   // Premium gates (P3-BIL #51, migration 142): summary insights, top action only, re-test locked; nothing recorded is hidden.

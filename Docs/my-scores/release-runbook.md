@@ -64,6 +64,10 @@ the screens that explain a lock, the "Your plan" card and the Premium-ending not
 while locks are off. The admin page has an **Entitlements** tab for ADMIN and FINANCE (look up by member
 code, grant or revoke with a reason code; a confirmed transfer needs its reference).
 
+Applied 2026-10-26 (#54): 143 (study planner: goals, plan, weekly tasks), then the Planner screen
+(`/academy/scores/planner`, linked from the dashboard). Lao strings in `plannerCopy.ts` need the
+owner's review. Free students can set one goal; weekly plans need Premium (locks are on).
+
 ### Switching premium locks on (P3-BIL #51)
 
 **Done 2026-10-26:** prices and the Free tier approved by the owner as configured (scans 10 / 20,

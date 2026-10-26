@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck } from 'lucide-react'
+import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck, Target } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useDashboard, usePeriods, type Change, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
@@ -77,6 +77,11 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
       <Link to="/academy/scores/history" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
         <HistoryIcon className="h-4 w-4" />{t('history.link')}
       </Link>
+      {!view.enrolment.read_only && (
+        <Link to="/academy/scores/planner" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
+          <Target className="h-4 w-4" />{t('planner.link')}
+        </Link>
+      )}
       <Link to="/academy/scores/data" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
         <ShieldCheck className="h-4 w-4" />{t('data.link')}
       </Link>
