@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarClock, Download, KeyRound, LogIn, Trash2 } from 'lucide-react'
+import { CalendarClock, Camera, Download, KeyRound, LogIn, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  exportMyData, useCancelDeletion, useGrantUsageStatistics, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
+  exportMyData, useCancelDeletion, useDeleteOcrPhoto, useGrantUsageStatistics, useOcrPhotos, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
 } from '@/lib/academic/api'
 import { useAcademicSession } from '@/lib/academic/session'
 import { useTrackUsage } from '@/lib/academic/usageEvents'
@@ -127,6 +127,41 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
           </div>
         </div>
       )}
+    </PrivacyCard>
+  )
+}
+
+// ─── Score-book photos (OCR-011) ─────────────────────────────────────────────
+
+/** Photos from score-book scans that are still stored; any can be deleted now. Hidden when there are none. */
+export function OcrPhotos() {
+  const { t, language } = useAcademicCopy()
+  const toast = useToast()
+  const photos = useOcrPhotos()
+  const remove = useDeleteOcrPhoto()
+  if (!photos.data?.length) return null
+  return (
+    <PrivacyCard icon={<Camera className="h-5 w-5" />} title={t('scan.photos.title')}>
+      <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">{t('scan.photos.body')}</p>
+      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        {photos.data.map(photo => (
+          <li key={photo.job_id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <span>
+              <span className="block font-bold">{t('scan.photos.taken', { date: formatDate(photo.created_at, language) })}</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                {photo.delete_after ? t('scan.photos.until', { date: formatDate(photo.delete_after, language) }) : t('scan.photos.kept')}
+              </span>
+            </span>
+            <Button size="sm" variant="ghost" icon={<Trash2 className="h-4 w-4" />} loading={remove.isPending && remove.variables === photo.job_id}
+              onClick={() => remove.mutate(photo.job_id, {
+                onSuccess: () => toast.success(t('scan.photoDeleted')),
+                onError: error => toast.error(academicErrorText(t, error)),
+              })}>
+              {t('scan.photos.delete')}
+            </Button>
+          </li>
+        ))}
+      </ul>
     </PrivacyCard>
   )
 }

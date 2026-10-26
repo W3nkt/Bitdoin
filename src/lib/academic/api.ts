@@ -923,3 +923,23 @@ export async function processOcrJob(jobId: string, imageBase64: string, imageQua
   }
   return data as OcrJob
 }
+
+export interface OcrPhoto { job_id: string; created_at: string; status: OcrJob['status']; keep_photo: boolean; delete_after: string | null }
+
+/** OCR-011: the score-book photos still stored for the student. */
+export function useOcrPhotos(enabled = true) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'ocr-photos'],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: async () => (await callAcademicRpc<{ photos: OcrPhoto[] } | null>('academic_list_ocr_photos'))?.photos ?? [],
+  })
+}
+
+export function useDeleteOcrPhoto() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (jobId: string) => deleteOcrImage(jobId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'ocr-photos'] }),
+  })
+}

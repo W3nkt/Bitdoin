@@ -54,9 +54,13 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 ### Pending right now
 
-- Migration 139 (score-book scanning: jobs, allowance, duplicates, subject matching, confirmation,
-  retention; **off**) and the new `academic-ocr` Edge Function (`verify_jwt = false`; it checks the
-  student session itself). Nothing changes for students until OCR is switched on.
+- Nothing pending.
+
+Applied 2026-10-26 (#48, scanning **off**): 139 and the `academic-ocr` Edge Function
+(`verify_jwt = false`; it checks the student session itself), commit f1c15a3; the scan screens
+(a2e363c); then 140 (photo list, photos deleted when photo-processing consent is withdrawn, the
+OCR quality view, a fix that keeps "Keep my photo" on, and the hourly `academic-ocr-purge` cron job).
+Nothing changes for students until OCR is switched on.
 
 Applied: migrations 120 and 121 and the `send-push` redeploy on 2026-10-24;
 migrations 122–127 on 2026-10-25, with `send-push` and the three admin
@@ -86,8 +90,10 @@ In this order; until then `ocr_enabled` stays `false`:
 1. Vendor assessment for DashScope (no training on inputs, retention, Singapore region) recorded in the processing register (PRIV-006).
 2. QG-3 passed on the #9 hold-out set with `scripts/ocr-eval.mjs`: numeric accuracy >= 90% on clear photos, silent errors <= 2%, flag recall >= 98%.
 3. A privacy-notice version naming the provider and region (counsel), published as `consent_notice_version`.
-4. Add `ocr_processing` to `consent_purposes_enabled`, then set `ocr_enabled` to `true`.
-5. Schedule the storage purge (hourly POST `{"action":"purge"}` to `academic-ocr`).
+4. Owner review of the Lao scan strings (`src/lib/academic/ocrCopy.ts`), including the consent text.
+5. Add `ocr_processing` to `consent_purposes_enabled`, then set `ocr_enabled` to `true`.
+6. Check the hourly purge runs: `select status, return_message from cron.job_run_details d join cron.job j using (jobid) where j.jobname = 'academic-ocr-purge' order by start_time desc limit 3`.
+7. Watch **Scan quality** in the admin daily for the first two weeks (alerts: corrections > 15% or failures > 20% over 7 days).
 
 ## Feature flag
 

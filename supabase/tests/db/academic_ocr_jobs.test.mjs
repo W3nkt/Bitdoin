@@ -111,7 +111,12 @@ eq('the dashboard sees the scores', (await rpc(A, `public.academic_get_dashboard
 eq('discarding a result saves nothing', [(await rpc(A, `public.academic_discard_ocr_job('${reused.job_id}')`)).status, (await one(`select count(*)::int as n from academic_score_entries where enrolment_id = '${a.enrolment_id}'`)).n], ['discarded', 1])
 const due = async () => (await db.query(`select storage_path from public.academic_ocr_images_due()`)).rows.map((r) => r.storage_path).sort()
 eq('kept and fresh photos are not due', await due(), [])
+const photos = async (user) => (await rpc(user, `public.academic_list_ocr_photos()`)).photos
+const kept = (await photos(A)).find((p) => p.job_id === job.job_id)
+eq('the student sees a kept photo with no deletion date', [kept?.keep_photo, kept?.delete_after], [true, null])
+eq("B's photo list has none of A's", (await photos(B)).some((p) => p.job_id === job.job_id), false)
 await rpc(A, `public.academic_delete_ocr_image('${job.job_id}')`)
+eq('a photo asked to be deleted leaves the list at once', (await photos(A)).some((p) => p.job_id === job.job_id), false)
 eq('"Delete photo now" queues it even if kept', await due(), [`${A}/${job.job_id}.jpg`])
 await ok(db, 'purged', `select public.academic_ocr_images_deleted(array['${A}/${job.job_id}.jpg'])`)
 eq('deleted once purged', [await due(), (await rpc(A, `public.academic_get_ocr_job('${job.job_id}')`)).has_image], [[], false])
@@ -119,6 +124,28 @@ await ok(db, 'settled 31 days ago', `update academic_ocr_jobs set settled_at = n
 await ok(db, 'second fails to settle it', `select public.academic_ocr_fail('${second.job_id}', 'provider_error')`)
 await ok(db, 'settled 31 days ago again', `update academic_ocr_jobs set settled_at = now() - interval '31 days' where id = '${second.job_id}'`)
 eq('after 30 days unkept photos are due (OCR-011)', (await due()).includes(`${A}/${second.job_id}.jpg`), true)
+
+// Withdrawing photo-processing consent deletes the student's photos.
+const bJob = (await rpc(B, `public.academic_start_ocr_job('${b.enrolment_id}', '${FAR}')`)).job
+await begin(bJob.job_id, B)
+eq("B's photo is listed with a deletion date", (await photos(B)).find((p) => p.job_id === bJob.job_id)?.delete_after !== null, true)
+await rpc(B, `public.academic_withdraw_consent('ocr_processing')`)
+eq('withdrawn: the photo is queued for deletion and no longer listed', [(await due()).includes(`${B}/${bJob.job_id}.jpg`), (await photos(B)).length], [true, 0])
+eq('withdrawn: no new scans', (await errorOf(B, `public.academic_start_ocr_job('${b.enrolment_id}', '${FAR}')`))?.code, 'CONSENT_REQUIRED')
+
+// ─── Quality view (ADMIN-008) ────────────────────────────────────────────────
+
+const ADM = '00000000-0000-0000-0000-0000000000ad'
+await ok(db, 'admin', `insert into public.users (id, name, role) values ('${ADM}', 'Admin', 'ADMIN')`)
+eq('students cannot read OCR quality', (await errorOf(A, `public.academic_admin_ocr_quality()`))?.code, 'FORBIDDEN_ROLE')
+const quality = await rpc(ADM, `public.academic_admin_ocr_quality(30)`, { aal: 'aal2' })
+eq('daily rows by model and prompt version', quality.daily.some((d) => d.model_id === 'qwen-vl-max' && d.prompt_version === 'ocr_extract.v1.0' && d.confirmed >= 1), true)
+eq('reused duplicates are not counted as model calls', quality.daily.reduce((n, d) => n + d.jobs, 0), (await one(`select count(*)::int as n from academic_ocr_jobs where duplicate_of is null and status <> 'awaiting_upload'`)).n)
+eq('corrections per subject', quality.subjects.map((s) => [s.subject_code, s.fields, s.edited, s.correction_rate]).sort(), [['MATH', 1, 0, 0], ['PHYS', 1, 1, 1]])
+eq('7-day correction rate, no alert under 20 fields', [quality.last_7_days.fields, quality.last_7_days.correction_rate, quality.last_7_days.alerts], [2, 0.5, []])
+await ok(db, 'lower the field minimum', `update academic_settings set value = value || '{"min_fields": 2}' where key = 'ocr_alerts'`)
+eq('alert when corrections pass 15%', (await rpc(ADM, `public.academic_admin_ocr_quality(7)`, { aal: 'aal2' })).last_7_days.alerts, ['correction_rate'])
+eq('the hourly purge is scheduled', (await one(`select schedule, command like '%"action":"purge"%' as purge from cron.job where jobname = 'academic-ocr-purge'`)), { schedule: '17 * * * *', purge: true })
 
 await rpc(A, `public.academic_request_deletion('profile')`)
 await ok(db, 'age request', `update academic_student_profiles set deletion_requested_at = now() - interval '15 days' where user_id = '${A}'`)

@@ -803,3 +803,26 @@ export interface ContentGap { rule_id: 'R3' | 'R4' | 'R7'; subject_code: string 
 export function useContentGaps() {
   return useQuery({ queryKey: [...adminKey, 'content-gaps'], queryFn: () => callAcademicRpc<ContentGap[]>('academic_admin_content_gaps') })
 }
+
+// ─── OCR quality (ADMIN-008, migration 140) ──────────────────────────────────
+
+export interface OcrQuality {
+  days: number
+  daily: { day: string; model_id: string; prompt_version: string; jobs: number; failed: number; abandoned: number; confirmed: number; latency_p50_ms: number | null; latency_p95_ms: number | null; cost_usd: number }[]
+  errors: { error_code: string | null; count: number }[]
+  subjects: { subject_code: string; fields: number; edited: number; correction_rate: number }[]
+  last_7_days: {
+    jobs: number; failed: number; fields: number; edited: number
+    failure_rate: number | null; correction_rate: number | null
+    alerts: ('correction_rate' | 'failure_rate')[]
+    thresholds: { correction_rate?: number; failure_rate?: number; min_fields?: number; min_jobs?: number }
+  }
+}
+
+export function useOcrQuality(days = 30) {
+  return useQuery({
+    queryKey: [...adminKey, 'ocr-quality', days],
+    queryFn: () => callAcademicRpc<OcrQuality>('academic_admin_ocr_quality', { p_days: days }),
+    staleTime: 5 * 60_000,
+  })
+}

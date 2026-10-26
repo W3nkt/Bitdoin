@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, ScanLine, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { MfaGate } from '@/components/academic/admin/MfaGate'
@@ -16,10 +16,11 @@ import { PilotAdmin } from '@/components/academic/admin/PilotAdmin'
 import { QuizBankAdmin } from '@/components/academic/admin/QuizBankAdmin'
 import { ReportsAdmin } from '@/components/academic/admin/ReportsAdmin'
 import { ContentAdmin } from '@/components/academic/admin/ContentAdmin'
+import { OcrQualityAdmin } from '@/components/academic/admin/OcrQualityAdmin'
 import { ResponsiveAcademyMenu } from '@/components/academy/AcademyMenu'
 import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
-type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'pilot'
+type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'scans' | 'pilot'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[] }> = [
   { id: 'subjects', label: 'Subjects', icon: BookOpenCheck, roles: ['ADMIN'] },
@@ -34,6 +35,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[
   { id: 'audit', label: 'Audit log', icon: ScrollText, roles: ['ADMIN', 'OPERATIONS'] },
   { id: 'health', label: 'Health', icon: Activity, roles: ['ADMIN'] },
   { id: 'metrics', label: 'Metrics', icon: BarChart3, roles: ['ADMIN'] },
+  { id: 'scans', label: 'Scan quality', icon: ScanLine, roles: ['ADMIN'] },
   { id: 'pilot', label: 'Pilot', icon: Flag, roles: ['ADMIN'] },
 ]
 
@@ -106,6 +108,7 @@ export function MyScoresAdmin() {
               {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
               {active.id === 'health' && <HealthAdmin />}
               {active.id === 'metrics' && <MetricsAdmin />}
+              {active.id === 'scans' && <OcrQualityAdmin />}
               {active.id === 'pilot' && <PilotAdmin />}
             </MfaGate>
           </>

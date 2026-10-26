@@ -95,5 +95,11 @@ export const ocrCopy = {
   'scan.photoDeleted': { en: 'Photo deleted.', lo: 'ລຶບຮູບແລ້ວ.' },
   'scan.error.unavailable': { en: 'Scanning is not available right now. You can type your scores.', lo: 'ຕອນນີ້ຍັງສະແກນບໍ່ໄດ້. ເຈົ້າພິມຄະແນນໄດ້.' },
   'scan.error.allowance': { en: 'This month’s scans are used up. You can type your scores.', lo: 'ການສະແກນຂອງເດືອນນີ້ໝົດແລ້ວ. ເຈົ້າພິມຄະແນນໄດ້.' },
+  'scan.photos.title': { en: 'Score-book photos', lo: 'ຮູບປຶ້ມຄະແນນ' },
+  'scan.photos.body': { en: 'Photos from your scans that are still stored. Only you can delete them here.', lo: 'ຮູບຈາກການສະແກນທີ່ຍັງເກັບໄວ້. ເຈົ້າລຶບໄດ້ຢູ່ບ່ອນນີ້.' },
+  'scan.photos.taken': { en: 'Scanned {date}', lo: 'ສະແກນວັນທີ {date}' },
+  'scan.photos.until': { en: 'Deleted automatically on {date}', lo: 'ຈະຖືກລຶບອັດຕະໂນມັດວັນທີ {date}' },
+  'scan.photos.kept': { en: 'Kept until you delete it', lo: 'ເກັບໄວ້ຈົນກວ່າເຈົ້າຈະລຶບ' },
+  'scan.photos.delete': { en: 'Delete', lo: 'ລຶບ' },
   'consent.purpose.ocr_processing': { en: 'Read my score-book photos', lo: 'ອ່ານຮູບປຶ້ມຄະແນນຂອງຂ້ອຍ' },
 } as const

@@ -102,7 +102,7 @@ const OWN_READ = [
   // Builds the caller's own next actions and logs their impressions (migration 136).
   'academic_get_recommendations()',
   'academic_export_my_recommendations()',
-  'academic_ocr_status()',
+  'academic_ocr_status()', 'academic_list_ocr_photos()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -137,7 +137,7 @@ const STAFF_ONLY = [
   'academic_admin_list_diagnostics()', 'academic_admin_save_diagnostic(jsonb)', 'academic_admin_set_diagnostic_status(uuid,text,text)',
   'academic_support_list_reports(text)', 'academic_support_update_report(uuid,text,text)',
   'academic_admin_list_content()', 'academic_admin_search_external_content(text,text)', 'academic_admin_save_content(jsonb)',
-  'academic_admin_content_gaps()',
+  'academic_admin_content_gaps()', 'academic_admin_ocr_quality(integer)',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -238,6 +238,7 @@ const ownReads = {
   'academic_get_recommendations()': 'public.academic_get_recommendations()',
   'academic_export_my_recommendations()': 'public.academic_export_my_recommendations()',
   'academic_ocr_status()': 'public.academic_ocr_status()',
+  'academic_list_ocr_photos()': 'public.academic_list_ocr_photos()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -298,6 +299,7 @@ const staffCalls = {
   'academic_admin_search_external_content(text,text)': `public.academic_admin_search_external_content('academy_lesson', '')`,
   'academic_admin_save_content(jsonb)': `public.academic_admin_save_content('{"kind": "practice_set"}')`,
   'academic_admin_content_gaps()': `public.academic_admin_content_gaps()`,
+  'academic_admin_ocr_quality(integer)': `public.academic_admin_ocr_quality()`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

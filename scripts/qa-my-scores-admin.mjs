@@ -182,6 +182,18 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
     academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    // Scan quality (ADMIN-008, migration 140).
+    academic_admin_ocr_quality: (args) => ({
+      days: args.p_days ?? 30,
+      daily: [
+        { day: '2026-10-25', model_id: 'qwen3-vl-plus', prompt_version: 'ocr_extract.v1.0', jobs: 14, failed: 3, abandoned: 1, confirmed: 9, latency_p50_ms: 11200, latency_p95_ms: 24800, cost_usd: 0.0412 },
+        { day: '2026-10-24', model_id: 'qwen3-vl-plus', prompt_version: 'ocr_extract.v1.0', jobs: 8, failed: 1, abandoned: 0, confirmed: 7, latency_p50_ms: 9800, latency_p95_ms: 19000, cost_usd: 0.0233 },
+      ],
+      errors: [{ error_code: 'timeout', count: 3 }, { error_code: 'schema_invalid', count: 1 }],
+      subjects: [{ subject_code: 'MATH', fields: 16, edited: 4, correction_rate: 0.25 }, { subject_code: 'LAO', fields: 16, edited: 1, correction_rate: 0.063 }],
+      last_7_days: { jobs: 22, failed: 4, fields: 32, edited: 5, failure_rate: 0.182, correction_rate: 0.156, alerts: ['correction_rate'],
+        thresholds: { correction_rate: 0.15, failure_rate: 0.2, min_fields: 20, min_jobs: 10 } },
+    }),
     academic_admin_list_pilot: () => state.pilot,
     academic_admin_save_pilot_cohort: (args) => {
       const input = args.p_input
@@ -672,6 +684,33 @@ try {
     assert.equal(await ops.page.getByRole('button', { name: 'Metrics' }).count(), 0)
     await ops.context.close()
     pass('Metrics: headline tiles, pilot go/no-go readings, monthly chart with table view, groups under 20 hidden, pending rates marked, per-cohort view; Operations has no Metrics tab')
+  }
+
+  // Scan quality (ADMIN-008): 7-day rates with alerts, daily rows by model, corrections by subject, admin only.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=scans`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('alert').getByText('Students corrected more than 15.0% of values in the last 7 days.').waitFor()
+    await page.getByText('15.6%').waitFor()
+    await page.getByText('18.2%').waitFor()
+    const daily = page.locator('section', { has: page.getByRole('heading', { name: 'By day and model' }) })
+    const firstRow = await daily.locator('tbody tr').first().evaluate(row => [...row.cells].map(cell => cell.textContent))
+    assert.deepEqual(firstRow, ['2026-10-25', 'qwen3-vl-plus', 'ocr_extract.v1.0', '14', '3', '1', '9', '11.2 s', '24.8 s', '0.0412'])
+    const subjects = page.locator('section', { has: page.getByRole('heading', { name: 'Corrections by subject' }) })
+    await subjects.getByText('25.0%').waitFor()
+    await shot(page, 'admin-11-scan-quality')
+    await axe(page)
+    await daily.getByLabel('Period').selectOption('7')
+    await page.waitForTimeout(300)
+    assert.deepEqual(lastCall(mock, 'academic_admin_ocr_quality').args, { p_days: 7 })
+    assert.deepEqual(errors, [])
+    await context.close()
+    const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await ops.page.goto(`${base}/academy-admin/scores?tab=scans`, { waitUntil: 'domcontentloaded' })
+    await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
+    assert.equal(await ops.page.getByRole('button', { name: 'Scan quality' }).count(), 0)
+    await ops.context.close()
+    pass('Scan quality: 7-day failure and correction rates with the alert, daily rows by model and prompt, corrections by subject, period switch, axe clean; Operations has no tab')
   }
 
   // Pilot (REL-001): cohorts with codes, a new cohort, and the gate switched with a reason.

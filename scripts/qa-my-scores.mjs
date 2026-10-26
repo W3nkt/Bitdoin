@@ -168,6 +168,7 @@ function backend(initial) {
     academic_reuse_ocr_job: () => ({ job: ocrJob('ocr-2', 'succeeded', OCR_EXTRACTION, 'ocr-old') }),
     academic_get_ocr_job: (args) => ocrJob(args.p_job_id, 'succeeded', OCR_EXTRACTION),
     academic_discard_ocr_job: (args) => { (state.ocrDiscarded ??= []).push(args.p_job_id); return ocrJob(args.p_job_id, 'discarded') },
+    academic_list_ocr_photos: () => ({ photos: (state.ocrPhotos ?? []).filter(p => !(state.ocrDeleted ?? []).includes(p.job_id)) }),
     academic_delete_ocr_image: (args) => { (state.ocrDeleted ??= []).push(args.p_job_id); return { ...ocrJob(args.p_job_id, 'confirmed'), has_image: false } },
     academic_confirm_ocr_job: (args) => {
       const entry = state.entries[args.p_period_id] ??= { state: 'draft', version: 1, lines: {} }
@@ -911,6 +912,18 @@ try {
     await page.getByText('Saved 20 Oct 2026').waitFor()
     assert.equal(mock.state.ocrDiscarded, undefined, 'a confirmed scan is not discarded')
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    // OCR-011: stored photos listed in My data, each deletable now.
+    mock.state.ocrPhotos = [
+      { job_id: 'ocr-7', created_at: '2026-10-12T03:00:00Z', status: 'confirmed', keep_photo: true, delete_after: null },
+      { job_id: 'ocr-8', created_at: '2026-10-18T03:00:00Z', status: 'confirmed', keep_photo: false, delete_after: '2026-11-17T03:00:00Z' },
+    ]
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const photoCard = page.locator('section', { has: page.getByRole('heading', { name: 'Score-book photos' }) })
+    await photoCard.getByText('Kept until you delete it').waitFor()
+    await photoCard.getByText('Deleted automatically on 17 Nov 2026').waitFor()
+    await photoCard.getByRole('button', { name: 'Delete' }).first().click()
+    await photoCard.getByText('Kept until you delete it').waitFor({ state: 'detached' })
+    assert.deepEqual(mock.state.ocrDeleted, ['ocr-1', 'ocr-7'])
     assert.deepEqual(errors, [])
     await context.close()
     pass('Scan (Android/English): own consent naming the provider, dark-photo tip, rotate, EXIF-free JPEG and hash sent; uncertain and unread values must be touched, unknown row chosen, other-student warning acknowledged; confirm audit exact; photo deleted on request')
