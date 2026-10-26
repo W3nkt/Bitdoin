@@ -1272,3 +1272,27 @@ export function useGuardianRemoveLink() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: familyKey }),
   })
 }
+
+/** The guardian's view of one child (PARENT-005, migration 153); sections are null when not shared. */
+export interface GuardianChildView {
+  link_id: string
+  name: string
+  relationship: GuardianLink['relationship']
+  scopes: GuardianScopes
+  grade_en: string | null
+  grade_lo: string | null
+  school_year: string | null
+  scores: {
+    scale: { min?: number; max?: number } | null
+    months: { label_en: string; label_lo: string; average: number | null; change: number | null }[]
+    subjects: { name_en: string; name_lo: string; latest: number | string | null; average: number | null; change: number | null; label: string | null; trend: string | null; number_of_scores: number }[]
+  } | null
+  suggestions: { kind: 'ask_hardest' | 'notice_progress' | 'check_in' | 'start_together' | 'ask_support'; subject_en?: string; subject_lo?: string }[]
+  plan: { goals: { subject_en: string; subject_lo: string; target: number; target_period: { label_en: string; label_lo: string } }[]; week: { done: number; total: number }; has_plan: boolean } | null
+  careers: { interests: Record<string, { level: string }> | null; saved: { title_en: string; title_lo: string }[] } | null
+  goals_text: { chips?: string[]; text?: string } | null
+}
+
+export function useGuardianChild(linkId: string) {
+  return useQuery({ queryKey: ['family', 'child', linkId], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<GuardianChildView>('academic_guardian_child', { p_link_id: linkId }) })
+}

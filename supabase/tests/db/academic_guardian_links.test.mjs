@@ -103,6 +103,19 @@ eq('the guardian agreed: consent recorded, the student can go on', [(await rpc(K
   (await one(`select grantor_role, method from academic_consent_records where purpose = 'guardian_consent'`))], ['ready', { grantor_role: 'guardian', method: 'guardian_link_flow' }])
 eq('the guardian still sees nothing until the student confirms them', await canRead(G2), false)
 
+// ─── The guardian's view of a child (PARENT-005, migration 153) ──────────────
+
+let child = await rpc(G, `public.academic_guardian_child('${again.id}')`)
+eq('the guardian sees the shared scores: months and subjects', [child.name, child.scores.months.length, child.scores.subjects.map((x) => [x.name_en, Number(x.latest)])], ['Noy', 1, [['Mathematics', 8], ['Physics', 7]]])
+eq('sections the student did not share are left out', [child.plan !== null, child.careers, child.goals_text], [true, null, null])
+eq('suggestions are ways to support, at most three', [child.suggestions.length <= 3, child.suggestions.some((x) => x.kind === 'ask_support')], [true, true])
+await rpc(S, `public.academic_set_guardian_scopes('${again.id}', ${json({ scores: false, plan: false })})`)
+child = await rpc(G, `public.academic_guardian_child('${again.id}')`)
+eq('turning scores and plan off removes them at once', [child.scores, child.plan, child.suggestions], [null, null, []])
+eq('every view is audit-logged', (await one(`select count(*)::int as n from academic_audit_events where action = 'guardian.view'`)).n, 2)
+eq('another guardian cannot open this child', await rpc(G2, `public.academic_guardian_child('${again.id}')`), { error: { code: 'NOT_FOUND', status: 404 } })
+eq('the student cannot open it as a guardian', await rpc(S, `public.academic_guardian_child('${again.id}')`), { error: { code: 'NOT_FOUND', status: 404 } })
+
 // ─── Schedule ────────────────────────────────────────────────────────────────
 
 eq('the daily job is scheduled', (await db.query(`select schedule from cron.job where jobname = 'academic-guardian-daily'`)).rows, [{ schedule: '40 19 * * *' }])

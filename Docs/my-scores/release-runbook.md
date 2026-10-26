@@ -108,6 +108,9 @@ support suspension and admin reinstatement, guardian consent for ages 13–15, r
 daily job at 02:40 Vientiane time). Students manage guardians in My data; guardians use /academy/family.
 No 13–15 profiles existed when it was applied.
 
+Applied 2026-10-27 (#52, piece 2): 153 (the guardian's view of each child at /academy/family/<link>,
+only what the child shares, with supportive suggestions; every view audit-logged).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

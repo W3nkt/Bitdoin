@@ -222,6 +222,15 @@ function backend(initial) {
     academic_preview_guardian_invite: (args) => args.p_code === 'K7MQ2XPA' ? { student_name: 'Noy', purpose: state.invitePurpose ?? 'link', scopes: { scores: true, plan: true, careers: true, goals_text: false }, expires_at: '2026-10-29T05:00:00Z' } : pgError(404, 'GUARDIAN_CODE_INVALID'),
     academic_accept_guardian_invite: (args) => { (state.family ??= []).push({ id: 'gl9', status: 'pending_student', purpose: 'link', relationship: args.p_relationship, scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', declared_at: '2026-10-26T05:00:00Z', confirm_by: '2026-11-02T05:00:00Z', confirmed_at: null, reconfirm_by: null, removed_at: null, removed_by: null }); return state.family.at(-1) },
     academic_get_family: () => ({ links: state.family ?? [], notices: [] }),
+    academic_guardian_child: (args) => args.p_link_id !== 'gl7' ? pgError(404, 'NOT_FOUND') : {
+      link_id: 'gl7', name: 'Noy', relationship: 'mother', scopes: { scores: true, plan: true, careers: false, goals_text: false }, grade_en: 'Grade 11', grade_lo: 'ມ.6', school_year: '2026-2027',
+      scores: { scale: { min: 0, max: 10 }, months: [{ label_en: 'September', label_lo: 'ກັນຍາ', average: 6.75, change: null }, { label_en: 'October', label_lo: 'ຕຸລາ', average: 6.5, change: -0.25 }],
+        subjects: [{ name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ', latest: 6, average: 6.5, change: -1, label: 'relatively_lower', trend: 'declining', number_of_scores: 3 },
+          { name_en: 'Physics', name_lo: 'ຟີຊິກສາດ', latest: 7, average: 6.75, change: 0.5, label: 'neutral', trend: 'insufficient_evidence', number_of_scores: 2 }] },
+      suggestions: [{ kind: 'ask_hardest', subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ' }, { kind: 'check_in' }, { kind: 'ask_support' }],
+      plan: { goals: [{ subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ', target: 8, target_period: { label_en: 'March', label_lo: 'ມີນາ' } }], week: { done: 2, total: 4 }, has_plan: true },
+      careers: null, goals_text: null,
+    },
     // Career guidance (migration 150): a small stateful stand-in.
     academic_get_career_guidance: () => careerView(state),
     academic_career_catalogue: () => ({ careers: CAREERS }),
@@ -1550,11 +1559,25 @@ try {
     await parent.page.getByText('Waiting for Noy to confirm', { exact: false }).waitFor()
     assert.deepEqual(lastCall(parent.mock, 'academic_accept_guardian_invite').args, { p_code: 'K7MQ2XPA', p_relationship: 'mother', p_declaration: true })
     await shot(parent.page, 'my-scores-guardians-3-family-en-mobile')
+    // PARENT-005: one child's page, only what they share, supportive suggestions.
+    parent.mock.state.family = [{ id: 'gl7', status: 'active', purpose: 'link', relationship: 'mother', scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', grade: 'Grade 11',
+      declared_at: '2026-10-20T05:00:00Z', confirm_by: '2026-10-27T05:00:00Z', confirmed_at: '2026-10-21T05:00:00Z', reconfirm_by: null, removed_at: null, removed_by: null }]
+    await parent.page.reload({ waitUntil: 'domcontentloaded' })
+    await parent.page.getByRole('link', { name: 'See progress' }).click()
+    await parent.page.getByRole('heading', { name: 'Noy', level: 1 }).waitFor()
+    await parent.page.getByText('Ask what felt hardest in Mathematics this month, and listen first.').waitFor()
+    await parent.page.getByText('down 0.25').waitFor()
+    await parent.page.getByText('Below their own average · Going down').waitFor()
+    await parent.page.getByText('Fewer than 3 scores: too early to say more.').waitFor()
+    await parent.page.getByText('This week: 2 of 4 tasks done').waitFor()
+    assert.equal(await parent.page.getByText('Noy has not shared this.').count(), 2, 'careers and goals not shared')
+    assert.equal(await parent.page.getByText(/rank|class average|other students/i).count(), 0, 'no comparisons')
+    await shot(parent.page, 'my-scores-guardians-4-child-en-mobile')
     await parent.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await parent.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
-    pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; axe clean')
+    pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; the child page shows only what is shared with supportive suggestions and no comparisons; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons

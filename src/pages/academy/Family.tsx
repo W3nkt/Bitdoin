@@ -1,20 +1,20 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { academicErrorText } from '@/components/academic/errorText'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianRemoveLink,
-  type GuardianLink, type GuardianScope, type GuardianScopes,
+  previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianChild, useGuardianRemoveLink,
+  type GuardianChildView, type GuardianLink, type GuardianScope, type GuardianScopes,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 
 // Family (P3-PAR #52: PARENT-002/003/007): a parent or guardian links to a
 // child with the code the child gave them, says how they are related and
 // confirms they are the parent or guardian. The child then confirms the name.
-// The per-child progress page comes in the next piece (PARENT-005).
+// Each linked child has their own progress page, with only what they share (PARENT-005).
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
 const SCOPES: GuardianScope[] = ['scores', 'plan', 'careers', 'goals_text']
@@ -102,7 +102,9 @@ function ChildCard({ link }: { link: GuardianLink }) {
           : link.status === 'active' ? t('family.active')
           : t(`guardians.status.${link.status}` as AcademicCopyKey)}
       </p>
-      {link.status === 'active' && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.dashboardSoon')}</p>}
+      {link.status === 'active' && (
+        <Link to={`/academy/family/${link.id}`} className="mt-2 inline-block text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('family.seeProgress')}</Link>
+      )}
       {link.status !== 'removed' && (removing ? (
         <div role="alertdialog" aria-labelledby={`stop-${link.id}`} className="mt-3 rounded-2xl bg-amber-50 p-3 dark:bg-amber-500/10">
           <p id={`stop-${link.id}`} className="font-black">{t('family.removeTitle', { name })}</p>
@@ -149,6 +151,118 @@ export function Family() {
             </ul>
           )}
         </section>
+      </div>
+    </div>
+  )
+}
+
+const num = (value: number | string | null | undefined) => (value === null || value === undefined ? '—' : String(Math.round(Number(value) * 100) / 100))
+
+function Change({ value }: { value: number | null }) {
+  const { t } = useAcademicCopy()
+  if (value === null || value === undefined) return null
+  return <>{Number(value) > 0 ? t('family.up', { value: num(value) }) : Number(value) < 0 ? t('family.down', { value: num(Math.abs(Number(value))) }) : t('family.same')}</>
+}
+
+function NotShared({ name }: { name: string }) {
+  const { t } = useAcademicCopy()
+  return <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.notShared', { name })}</p>
+}
+
+/** /academy/family/:linkId — one child, never compared with another (PARENT-005). */
+export function FamilyChild() {
+  const { t, language } = useAcademicCopy()
+  const { linkId = '' } = useParams()
+  const child = useGuardianChild(linkId)
+  const lo = language === 'lo'
+  const view: GuardianChildView | undefined = child.data
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+      <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
+        <Link to="/academy/family" className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">
+          <ArrowLeft aria-hidden className="h-4 w-4" />{t('family.backToFamily')}
+        </Link>
+        {child.isPending ? <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
+          : !view ? <section className={card}><p>{t('family.childGone')}</p></section> : <>
+          <header>
+            <h1 className="text-2xl font-black">{view.name}</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">{[lo ? view.grade_lo : view.grade_en, view.school_year].filter(Boolean).join(' · ')}</p>
+            <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('family.childIntro', { name: view.name })}</p>
+          </header>
+
+          {view.suggestions.length > 0 && (
+            <section className={card}>
+              <h2 className="text-lg font-black">{t('family.support')}</h2>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                {view.suggestions.map((item, index) => <li key={index}>{t(`family.suggest.${item.kind}` as AcademicCopyKey, { subject: (lo ? item.subject_lo : item.subject_en) ?? '' })}</li>)}
+              </ul>
+            </section>
+          )}
+
+          <section className={card}>
+            <h2 className="text-lg font-black">{t('family.months')}</h2>
+            {!view.scores ? <NotShared name={view.name} /> : view.scores.months.length === 0 ? <p className="mt-1 text-sm">{t('family.noMonths')}</p> : (
+              <ul className="mt-2 divide-y divide-slate-100 text-sm dark:divide-slate-800">
+                {view.scores.months.map(month => (
+                  <li key={month.label_en} className="flex items-center justify-between gap-3 py-2">
+                    <span>{lo ? month.label_lo : month.label_en}</span>
+                    <span className="tabular-nums"><span className="font-black">{num(month.average)}</span> <span className="text-slate-600 dark:text-slate-400"><Change value={month.change} /></span></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {view.scores && view.scores.subjects.length > 0 && (
+            <section className={card}>
+              <h2 className="text-lg font-black">{t('family.subjects')}</h2>
+              <ul className="mt-2 grid gap-2">
+                {view.scores.subjects.map(subject => (
+                  <li key={subject.name_en} className="rounded-2xl bg-slate-50 px-3 py-2 text-sm dark:bg-gray-800/60">
+                    <p className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-bold">{lo ? subject.name_lo : subject.name_en}</span>
+                      <span className="tabular-nums">{t('family.latest', { value: num(subject.latest) })} <span className="text-slate-600 dark:text-slate-400"><Change value={subject.change} /></span></span>
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      {subject.number_of_scores < 3 ? t('family.fewScores')
+                        : [subject.label && subject.label !== 'neutral' && subject.label !== 'insufficient_evidence' ? t(`family.label.${subject.label}` as AcademicCopyKey) : null,
+                           subject.trend === 'improving' || subject.trend === 'declining' ? t(`family.trend.${subject.trend}` as AcademicCopyKey) : null].filter(Boolean).join(' · ')}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          <section className={card}>
+            <h2 className="text-lg font-black">{t('family.plan')}</h2>
+            {!view.plan ? <NotShared name={view.name} /> : <>
+              {view.plan.has_plan ? <p className="mt-1 text-sm">{t('family.week', { done: view.plan.week.done, total: view.plan.week.total })}</p> : <p className="mt-1 text-sm">{t('family.noPlan')}</p>}
+              <ul className="mt-1 list-disc pl-5 text-sm">
+                {view.plan.goals.map((goal, index) => <li key={index}>{t('family.goal', { subject: lo ? goal.subject_lo : goal.subject_en, target: num(goal.target), period: lo ? goal.target_period.label_lo : goal.target_period.label_en })}</li>)}
+              </ul>
+            </>}
+          </section>
+
+          <section className={card}>
+            <h2 className="text-lg font-black">{t('family.careers')}</h2>
+            {!view.careers ? <NotShared name={view.name} /> : <>
+              {view.careers.interests && (
+                <ul className="mt-1 flex flex-wrap gap-2 text-sm">
+                  {Object.entries(view.careers.interests).filter(([, v]) => v.level === 'high').map(([area]) => (
+                    <li key={area} className="rounded-full bg-indigo-50 px-3 py-1 font-bold text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-100">{t(`careers.area.${area}` as AcademicCopyKey)}</li>
+                  ))}
+                </ul>
+              )}
+              {view.careers.saved.length > 0 && <p className="mt-2 text-sm">{t('family.saved', { list: view.careers.saved.map(c => lo ? c.title_lo : c.title_en).join(', ') })}</p>}
+            </>}
+          </section>
+
+          <section className={card}>
+            <h2 className="text-lg font-black">{t('family.goals')}</h2>
+            {!view.scopes.goals_text ? <NotShared name={view.name} /> : view.goals_text?.text ? <p className="mt-1 whitespace-pre-line text-sm">{view.goals_text.text}</p> : <p className="mt-1 text-sm">{t('family.noGoals')}</p>}
+          </section>
+        </>}
       </div>
     </div>
   )

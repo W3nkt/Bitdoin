@@ -116,6 +116,8 @@ const BY_ID = [
   // Guardian links and invites (migration 152): the student's own, or the guardian's own for guardian_remove_link.
   'academic_confirm_guardian_link(uuid,boolean)', 'academic_set_guardian_scopes(uuid,jsonb)', 'academic_keep_guardian_link(uuid)',
   'academic_remove_guardian_link(uuid)', 'academic_guardian_remove_link(uuid)', 'academic_revoke_guardian_invite(uuid)',
+  // The guardian's view of a child, by their own active link (migration 153).
+  'academic_guardian_child(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -245,6 +247,7 @@ const attacks = [
   ['academic_remove_guardian_link(uuid)', aLink, (id) => `public.academic_remove_guardian_link('${id}')`],
   ['academic_guardian_remove_link(uuid)', aLink, (id) => `public.academic_guardian_remove_link('${id}')`],
   ['academic_revoke_guardian_invite(uuid)', aInvite, (id) => `public.academic_revoke_guardian_invite('${id}')`],
+  ['academic_guardian_child(uuid)', aLink, (id) => `public.academic_guardian_child('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
