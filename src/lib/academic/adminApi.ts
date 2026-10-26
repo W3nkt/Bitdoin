@@ -826,3 +826,49 @@ export function useOcrQuality(days = 30) {
     staleTime: 5 * 60_000,
   })
 }
+
+// ─── Entitlements (BILLING-007, migration 141) ───────────────────────────────
+
+export interface EntitlementGrant {
+  id: string
+  feature_code: string
+  source: 'manual_grant' | 'trial' | 'one_time_purchase'
+  reason_code: string
+  note: string | null
+  reference: string | null
+  amount_lak: number | null
+  starts_at: string
+  ends_at: string
+  created_at: string
+  granted_by: string | null
+  revoked_at: string | null
+  revoked_by: string | null
+  revoke_reason: string | null
+  active: boolean
+}
+
+export interface MemberEntitlements {
+  user: { id: string; name: string; member_code: string | null }
+  subscriptions: { plan: string; price_lak: number; status: string; starts_at: string | null; ends_at: string | null }[]
+  entitlements: import('./api').Entitlements
+  grants: EntitlementGrant[]
+}
+
+export interface GrantInput {
+  feature_code: string
+  source: EntitlementGrant['source']
+  reason_code: string
+  ends_at: string
+  note?: string
+  reference?: string
+  amount_lak?: number
+}
+
+export const lookupMemberEntitlements = (memberCode: string) =>
+  callAcademicRpc<MemberEntitlements>('academic_admin_member_entitlements', { p_member_code: memberCode })
+
+export const grantEntitlement = (userId: string, input: GrantInput) =>
+  callAcademicRpc<EntitlementGrant>('academic_admin_grant_entitlement', { p_user_id: userId, p_input: input })
+
+export const revokeEntitlement = (grantId: string, reason: string) =>
+  callAcademicRpc<EntitlementGrant>('academic_admin_revoke_entitlement', { p_grant_id: grantId, p_reason: reason })

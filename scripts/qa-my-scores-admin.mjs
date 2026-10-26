@@ -182,6 +182,30 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
     academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    // Entitlements (BILLING-007, migration 141).
+    academic_admin_member_entitlements: (args) => String(args.p_member_code).toUpperCase() !== 'DAN9XY' ? { error: { code: 'NOT_FOUND', status: 404 } } : {
+      user: { id: 'u-noy', name: 'Noy Student', member_code: 'DAN9XY' },
+      subscriptions: [{ plan: 'Free', price_lak: 0, status: 'ACTIVE', starts_at: '2026-09-01T00:00:00Z', ends_at: null }],
+      entitlements: {
+        enforced: false, tier: state.grants?.some(g => g.feature_code === 'premium' && !g.revoked_at) ? 'premium' : 'free',
+        premium: state.grants?.some(g => g.feature_code === 'premium' && !g.revoked_at) ? { active: true, source: 'manual_grant', until: '2026-11-26T16:59:59Z' } : { active: false, source: null, until: null },
+        period_key: '2026-10', resets_at: '2026-10-31T17:00:00Z',
+        features: { advanced_analysis: { enabled: true, source: 'open', until: null, quota: null }, ocr_upload: { enabled: true, source: 'free', until: null, quota: { limit: 10, used: 2, remaining: 8 } } },
+      },
+      grants: [...(state.grants ?? [])].reverse(),
+    },
+    academic_admin_grant_entitlement: (args) => {
+      if (args.p_input.reason_code === 'bank_transfer_confirmed' && !args.p_input.reference) return { error: { code: 'VALIDATION_FAILED', status: 422, details: { field: 'reference' } } }
+      const grant = { id: `g${(state.grants ?? []).length + 1}`, ...args.p_input, note: args.p_input.note ?? null, reference: args.p_input.reference ?? null, amount_lak: args.p_input.amount_lak ?? null,
+        starts_at: '2026-10-26T05:00:00Z', created_at: '2026-10-26T05:00:00Z', granted_by: 'Finance Keo', revoked_at: null, revoked_by: null, revoke_reason: null, active: true }
+      ;(state.grants ??= []).push(grant)
+      return grant
+    },
+    academic_admin_revoke_entitlement: (args) => {
+      const grant = state.grants.find(g => g.id === args.p_grant_id)
+      Object.assign(grant, { revoked_at: '2026-10-26T06:00:00Z', revoked_by: 'Finance Keo', revoke_reason: args.p_reason, active: false })
+      return grant
+    },
     // Scan quality (ADMIN-008, migration 140).
     academic_admin_ocr_quality: (args) => ({
       days: args.p_days ?? 30,
@@ -867,11 +891,38 @@ try {
     pass('Reports (Operations): priority and overdue shown, started, resolved with a note, resolved filter')
   }
 
-  // Finance: no access; phone width has no horizontal scroll.
+  // Finance: Entitlements only (BILLING-007); phone width has no horizontal scroll.
   {
-    const { context, page, errors } = await openAs(browser, { role: 'FINANCE', aal: 'aal2', factors: VERIFIED })
+    const { context, page, mock, errors } = await openAs(browser, { role: 'FINANCE', aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores`, { waitUntil: 'domcontentloaded' })
-    await page.getByRole('heading', { name: 'No Schooling access' }).waitFor()
+    await page.getByRole('heading', { name: 'Entitlements', exact: true }).waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Support' }).count(), 0, 'Finance sees no support tools')
+    await page.getByLabel('Member code').fill('NOPE11')
+    await page.getByRole('button', { name: 'Find' }).click()
+    await page.getByText('No member with that code.').waitFor()
+    await page.getByLabel('Member code').fill('dan9xy')
+    await page.getByRole('button', { name: 'Find' }).click()
+    await page.getByRole('heading', { name: 'Noy Student · DAN9XY' }).waitFor()
+    await page.getByText('Locks off: all features open').waitFor()
+    await page.getByText('2/10 this month').waitFor()
+    const grantPanel = page.locator('section', { has: page.getByRole('heading', { name: 'Grant access' }) })
+    await grantPanel.getByLabel('Payment reference (required)').fill('BCEL-778812')
+    await grantPanel.getByLabel('Amount (LAK)').fill('39000')
+    await grantPanel.getByRole('button', { name: 'Grant' }).click()
+    await page.getByText('Granted. It starts now.').waitFor()
+    const granted = lastCall(mock, 'academic_admin_grant_entitlement').args
+    assert.deepEqual([granted.p_user_id, granted.p_input.feature_code, granted.p_input.reason_code, granted.p_input.reference, granted.p_input.amount_lak, granted.p_input.ends_at.endsWith("T23:59:59+07:00")],
+      ['u-noy', 'premium', 'bank_transfer_confirmed', 'BCEL-778812', 39000, true])
+    await page.getByText(/^Premium \(manual grant\) until /).waitFor()
+    await shot(page, 'admin-12-entitlements')
+    await axe(page)
+    await page.getByRole('button', { name: 'Revoke' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Revoke grant' })
+    await dialog.getByLabel('Reason (saved in the audit log)').fill('Payment reversed by the bank')
+    await dialog.getByRole('button', { name: 'Revoke' }).click()
+    await page.getByText('Grant revoked.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_revoke_entitlement').args, { p_grant_id: 'g1', p_reason: 'Payment reversed by the bank' })
+    await page.getByText('Finance Keo: Payment reversed by the bank').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
     const phone = await openAs(browser, { aal: 'aal2', factors: VERIFIED }, devices['Pixel 7'])
@@ -881,7 +932,7 @@ try {
     await shot(phone.page, 'admin-8-schools-phone')
     assert.deepEqual(phone.errors, [])
     await phone.context.close()
-    pass('Finance: no access message; phone width: no horizontal scroll')
+    pass('Finance: Entitlements tab only; unknown code explained; member plan and quotas shown; Premium granted from a confirmed transfer with reference and amount, ends end of day Vientiane; revoked with a reason; axe clean; phone width: no horizontal scroll')
   }
 
   console.log(`\n${results.length} scenarios passed`)

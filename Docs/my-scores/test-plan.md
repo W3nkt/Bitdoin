@@ -31,7 +31,7 @@ All automated suites run in CI on every push and gate the Pages deploy
 | Explanations (ANALYSIS-004) | Every template in Lao and English, every label × trend × confidence and every F6–F10 golden case through the cause filter; DASH-005 reasons | `npm run test:insights` |
 | API / contract | Every RPC: error contract, idempotency, rate limits, validation | `npm run test:db` (PGlite, all module migrations) |
 | Security (IDOR) | Registry of every callable RPC × other students' ids; RLS backstop | `academic_idor`, `academic_policies` |
-| End-to-end | 24 student and 13 admin journeys, Android 360 px and desktop, Lao and English, with axe checks | `npm run test:e2e` |
+| End-to-end | 24 student and 13 admin journeys (Finance: Entitlements), Android 360 px and desktop, Lao and English, with axe checks | `npm run test:e2e` |
 | Migration | Rollback rehearsal; production restore drill (weekly) | `academic_rollback`; workflow *Database backup* |
 | Localisation, accessibility | Checklist §35.3 | #39 |
 | UAT | Appendix E scripts with pilot users | #40 |

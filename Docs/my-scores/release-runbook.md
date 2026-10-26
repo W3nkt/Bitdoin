@@ -61,7 +61,8 @@ with reason codes; scans now take from the `ocr_upload` quota and get it back on
 changes for students: `entitlements_enforced` is false, and the free scan allowance stays 10.
 Then 142 (premium gates: dashboard detail, This week top 1, one diagnostic per subject each term) and
 the screens that explain a lock, the "Your plan" card and the Premium-ending notice. Still no change
-while locks are off.
+while locks are off. The admin page has an **Entitlements** tab for ADMIN and FINANCE (look up by member
+code, grant or revoke with a reason code; a confirmed transfer needs its reference).
 
 ### Switching premium locks on (P3-BIL #51)
 
