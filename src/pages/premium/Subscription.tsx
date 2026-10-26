@@ -23,6 +23,7 @@ import {
   RefreshCw,
   ReceiptText,
   Rocket,
+  School,
   ShieldCheck,
   Sparkles,
   Target,
@@ -174,6 +175,24 @@ interface PremiumMemberDashboardData {
   member: PremiumMemberStats
   leaderboard: PremiumLeaderboardEntry[]
 }
+
+// What each plan gives in Schooling (P3-BIL #51, PRD §30.3). Premium opens
+// every Schooling feature; scores, history and charts are free for everyone.
+const SCHOOLING_PLAN = {
+  premiumTitle: { en: 'Full access to every Schooling feature', lo: 'ໃຊ້ໄດ້ທຸກຟັງຊັນໃນ ໂຮງຮຽນ' },
+  freeTitle: { en: 'Schooling basics, free forever', lo: 'ພື້ນຖານ ໂຮງຮຽນ ຟຣີຕະຫຼອດ' },
+  premium: [
+    { en: 'Full analysis of each subject: the evidence and how sure each result is', lo: 'ການວິເຄາະເຕັມຂອງແຕ່ລະວິຊາ: ຫຼັກຖານ ແລະ ຄວາມໝັ້ນໃຈຂອງແຕ່ລະຜົນ' },
+    { en: 'Explanations of what your scores show, month by month', lo: 'ຄຳອະທິບາຍວ່າຄະແນນຂອງເຈົ້າສະແດງຫຍັງ ແຕ່ລະເດືອນ' },
+    { en: 'All of this week’s suggestions (up to 3), not just the first', lo: 'ຄຳແນະນຳທັງໝົດຂອງອາທິດນີ້ (ສູງສຸດ 3), ບໍ່ແມ່ນແຕ່ອັນທຳອິດ' },
+    { en: 'Unlimited diagnostic quizzes and re-tests', lo: 'ແບບທົດສອບວິນິດໄສ ແລະ ການກວດຄືນ ບໍ່ຈຳກັດ' },
+  ],
+  free: [
+    { en: 'Enter scores, history and charts', lo: 'ປ້ອນຄະແນນ, ປະຫວັດ ແລະ ກຣາຟ' },
+    { en: 'Stronger and needing-attention subjects, with a short reason', lo: 'ວິຊາທີ່ເກັ່ງ ແລະ ທີ່ຄວນເອົາໃຈໃສ່ ພ້ອມເຫດຜົນສັ້ນໆ' },
+    { en: 'One suggestion a week and one diagnostic quiz per subject each term', lo: 'ຄຳແນະນຳໜຶ່ງຢ່າງຕໍ່ອາທິດ ແລະ ແບບທົດສອບວິນິດໄສໜຶ່ງຄັ້ງຕໍ່ວິຊາ ຕໍ່ພາກຮຽນ' },
+  ],
+} as const
 
 const FALLBACK_PLANS: PremiumPlan[] = [
   {
@@ -1392,6 +1411,18 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
                           <span>{feature}</span>
                         </div>
                       ))}
+                    </div>
+
+                    {/* What the plan gives in Schooling (P3-BIL #51, PRD §30.3). */}
+                    <div className="mt-4 rounded-xl bg-primary-50/70 p-3 dark:bg-primary-900/20">
+                      <p className="flex items-center gap-1.5 text-sm font-black text-primary-800 dark:text-primary-200">
+                        <School className="h-4 w-4" />{isPremium ? SCHOOLING_PLAN.premiumTitle[language === 'lo' ? 'lo' : 'en'] : SCHOOLING_PLAN.freeTitle[language === 'lo' ? 'lo' : 'en']}
+                      </p>
+                      <ul className="mt-1.5 space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                        {(isPremium ? SCHOOLING_PLAN.premium : SCHOOLING_PLAN.free).map(item => (
+                          <li key={item.en} className="flex items-start gap-1.5"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />{item[language === 'lo' ? 'lo' : 'en']}</li>
+                        ))}
+                      </ul>
                     </div>
 
                     <div className="mt-6">

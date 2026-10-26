@@ -373,6 +373,10 @@ try {
   const guest = await openAs(browser, { tier: 'guest' })
   await guest.page.goto(`${base}/academy/plans`)
   await guest.page.locator('#plans').waitFor()
+  // P3-BIL #51: each plan says what it gives in Schooling.
+  await guest.page.getByText('Full access to every Schooling feature').first().waitFor()
+  await guest.page.getByText('Schooling basics, free forever').waitFor()
+  await guest.page.locator('#plans').screenshot({ path: `${output}/plans-schooling.png` })
   assert.equal(await guest.page.locator('.academy-menu-trigger').count(), 0)
   assert.equal(await guest.page.locator('#membership').count(), 1)
   assert.equal(await guest.page.locator('#mentor').count(), 0)
