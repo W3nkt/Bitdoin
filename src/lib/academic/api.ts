@@ -495,6 +495,16 @@ export function useWithdrawConsent() {
   })
 }
 
+/** Turns on an optional purpose from My data, such as letting reviewers read Coach chats (migration 146). */
+export function useGrantOptionalConsent() {
+  const invalidate = useInvalidateAcademic()
+  return useMutation({
+    mutationFn: ({ purpose, noticeVersion }: { purpose: string; noticeVersion: string }) =>
+      callAcademicRpc('academic_grant_consent', { p_purpose: purpose, p_notice_version: noticeVersion }),
+    onSuccess: invalidate,
+  })
+}
+
 /** Usage statistics back on (migration 124): the app starts sending again. */
 export function useGrantUsageStatistics() {
   const invalidate = useInvalidateAcademic()

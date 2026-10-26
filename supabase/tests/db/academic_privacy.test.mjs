@@ -30,7 +30,7 @@ await ok(db, 'B score', `insert into academic_score_entries (enrolment_id, repor
 // ─── Consent (PRIV-001/003) ──────────────────────────────────────────────────
 
 let consents = await rpc(A, `public.academic_list_my_consents()`)
-eq('only current purposes offered', consents.purposes_available, ['module_processing', 'email', 'push', 'usage_statistics'])
+eq('only current purposes offered', consents.purposes_available, ['module_processing', 'email', 'push', 'usage_statistics', 'coach_review'])
 eq('AI/OCR purposes closed in Phase 1', (await rpcError(A, `public.academic_grant_consent('ai_processing', '2026-10-25')`))?.code, 'VALIDATION_FAILED')
 eq('outdated notice refused', (await rpcError(A, `public.academic_grant_consent('push', '2025-01')`))?.code, 'NOTICE_OUTDATED')
 consents = await rpc(A, `public.academic_grant_consent('push', '2026-10-25')`)

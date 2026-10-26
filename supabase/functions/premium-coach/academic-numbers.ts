@@ -62,10 +62,13 @@ export function allowedNumbers(context: CoachContext, question = ''): Set<number
   return allowed
 }
 
+// Study advice, not claims about scores: "15 minutes", "a 10-question quiz", "10 ຂໍ້".
+const ADVICE = /\d+(?:[.,]\d+)?(?:\s*|-)(?:minutes?|mins?|hours?|questions?|exercises?|ນາທີ|ຊົ່ວໂມງ|ຂໍ້)/gi
+
 /** AI-003: numbers the answer states that the data do not support. */
 export function unsupportedNumbers(answer: string, context: CoachContext, question = ''): number[] {
   const allowed = allowedNumbers(context, question)
-  return numbersIn(answer).filter((n) => ![...allowed].some((a) => Math.abs(a - n) < 0.001))
+  return numbersIn(toWestern(answer).replace(ADVICE, ' ')).filter((n) => ![...allowed].some((a) => Math.abs(a - n) < 0.001))
 }
 
 const fmt = (value: number | string | null | undefined) => (value === null || value === undefined ? '' : String(Math.round(Number(value) * 100) / 100))
@@ -80,7 +83,10 @@ export function dataBlock(context: CoachContext, lang: Lang): string {
     subjects: (context.subjects ?? []).map((s) => ({
       subject: lang === 'lo' ? s.subject_lo : s.subject_en,
       scores: s.scores.map((p) => ({ month: month(p), score: p.status === 'scored' ? p.score : p.status })),
-      number_of_scores: s.number_of_scores, average: s.average, latest: s.latest, change: s.change,
+      number_of_scores: s.number_of_scores,
+      // AI-003: how many more months before a trend can be shown.
+      ...(s.number_of_scores < 3 ? { more_months_needed: 3 - s.number_of_scores } : {}),
+      average: s.average, latest: s.latest, change: s.change,
       compared_with_own_average: s.label ?? null, trend: s.trend ?? null,
     })),
     goals: context.goals ?? [],

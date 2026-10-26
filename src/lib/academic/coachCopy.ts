@@ -15,4 +15,10 @@ export const coachCopy = {
   'coach.summary.ai': { en: 'Written by AI and checked against your scores.', lo: 'ຂຽນໂດຍ AI ແລະ ກວດກັບຄະແນນຂອງເຈົ້າແລ້ວ.' },
   'coach.summary.template': { en: 'Written from your scores.', lo: 'ຂຽນຈາກຄະແນນຂອງເຈົ້າ.' },
   'coach.summary.error': { en: 'The summary could not be made right now.', lo: 'ຕອນນີ້ສ້າງສະຫຼຸບບໍ່ໄດ້.' },
+  // Consent for the weekly reviewer sample (ADMIN-009, migration 146).
+  'consent.purpose.coach_review': { en: 'Let reviewers check Coach answers', lo: 'ໃຫ້ຜູ້ກວດສອບກວດຄຳຕອບຂອງຄູຝຶກ' },
+  'consent.coachReview.body': {
+    en: 'Each week a Bitdoin reviewer may read a few of your Coach chats about your scores, to check the answers are correct, safe and in good Lao. Your name is not shown. You can turn this off at any time.',
+    lo: 'ແຕ່ລະອາທິດ ຜູ້ກວດສອບຂອງ Bitdoin ອາດຈະອ່ານບາງບົດສົນທະນາກັບຄູຝຶກກ່ຽວກັບຄະແນນຂອງເຈົ້າ, ເພື່ອກວດວ່າຄຳຕອບຖືກຕ້ອງ, ປອດໄພ ແລະ ໃຊ້ພາສາລາວທີ່ດີ. ຊື່ຂອງເຈົ້າຈະບໍ່ຖືກສະແດງ. ເຈົ້າປິດໄດ້ທຸກເວລາ.',
+  },
 } as const

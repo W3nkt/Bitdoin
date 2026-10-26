@@ -185,12 +185,16 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     // AI Coach review (ADMIN-009, migration 145).
     academic_admin_ai_review: (args) => ({
       items: (state.aiReviewed ? [] : [
-        { id: 'fb1', conversation_id: '7d0c4a1e-1111-4222-8333-444455556666', rating: -1, report_category: 'unsafe', priority: true, share_text: true, comment: 'Felt wrong',
+        { id: 'fb1', conversation_id: '7d0c4a1e-1111-4222-8333-444455556666', rating: -1, report_category: 'unsafe', priority: true, source: 'student', sample_week: null, share_text: true, comment: 'Felt wrong',
           status: 'open', created_at: '2026-10-26T03:00:00Z', question: 'Why did my maths fall?', answer: 'Mathematics went from 7 to 6.', prompt_version: '1.0.0', model_id: 'qwen-plus', numbers_checked: true, safety_category: null, review: null },
-        { id: 'fb2', conversation_id: '8e1d5b2f-1111-4222-8333-444455556666', rating: -1, report_category: null, priority: false, share_text: false, comment: null,
+        { id: 'fb2', conversation_id: '8e1d5b2f-1111-4222-8333-444455556666', rating: -1, report_category: null, priority: false, source: 'student', sample_week: null, share_text: false, comment: null,
           status: 'open', created_at: '2026-10-26T04:00:00Z', question: null, answer: null, prompt_version: '1.0.0', model_id: 'qwen-plus', numbers_checked: false, safety_category: null, review: null },
+        { id: 'fb3', conversation_id: '9f2e6c3a-1111-4222-8333-444455556666', rating: null, report_category: null, priority: false, source: 'sample', sample_week: '2026-10-19', share_text: true, comment: null,
+          status: 'open', created_at: '2026-10-26T18:30:00Z', question: 'How is my physics?', answer: 'Physics went from 6.5 to 7.', prompt_version: '1.0.0', model_id: 'qwen-plus', numbers_checked: true, safety_category: null, review: null },
       ]).filter(() => (args.p_status ?? 'open') === 'open'),
       last_7_days: { answers: 42, safety_redirects: 2, numbers_fallbacks: 1, thumbs_up: 9, thumbs_down: 2, provider_failures: 0 },
+      sample: { week: '2026-10-19', items: 1, consenting_students: 3, rule: { rate: 0.01, minimum: 50 } },
+      ratings: [{ prompt_version: '1.0.0', model_id: 'qwen-plus', reviewed: 12, accuracy: 4.5, lao: 3.8, safety: 5 }],
     }),
     academic_admin_rate_ai: (args) => { state.aiRated = args; return { id: args.p_feedback_id, status: 'reviewed' } },
     // Entitlements (BILLING-007, migration 141).
@@ -730,6 +734,14 @@ try {
     await page.getByText('The student did not share the text.', { exact: false }).waitFor()
     const first = page.locator('li', { hasText: 'Why did my maths fall?' })
     await first.getByText('Priority').waitFor()
+    // Weekly random sample from consenting students (migration 146), after the reports.
+    await page.getByText('Weekly sample for the week of 19 Oct 2026: 1 answers.', { exact: false }).waitFor()
+    const sampled = page.locator('li', { hasText: 'How is my physics?' })
+    await sampled.getByText('Weekly sample').waitFor()
+    assert.ok((await page.locator('li', { hasText: 'Question:' }).allTextContents()).at(-1).includes('How is my physics?'), 'samples come after reports')
+    // Review results by prompt version and model feed the release check (AI-010).
+    await page.getByRole('heading', { name: 'Review results by prompt version' }).waitFor()
+    await page.getByRole('cell', { name: '3.8', exact: true }).waitFor()
     await first.getByLabel('Accuracy').selectOption('5')
     await first.getByLabel('Lao quality').selectOption('4')
     await first.getByLabel('Safety').selectOption('5')
@@ -746,7 +758,7 @@ try {
     await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     assert.equal(await ops.page.getByRole('button', { name: 'AI review' }).count(), 0)
     await ops.context.close()
-    pass('AI review: reported answers with unsafe first, text only when shared, prompt version and model shown, rubric (accuracy, Lao, safety) saved, axe clean; Operations has no tab')
+    pass('AI review: reported answers with unsafe first, then the weekly sample, text only when shared, review results by prompt version, prompt version and model shown, rubric (accuracy, Lao, safety) saved, axe clean; Operations has no tab')
   }
 
   // Scan quality (ADMIN-008): 7-day rates with alerts, daily rows by model, corrections by subject, admin only.

@@ -1,0 +1,860 @@
+[
+  {
+    "id": "c1",
+    "snapshot_id": "eval-c1",
+    "detail_locked": false,
+    "enrolment": {
+      "academic_year": "2026-2027",
+      "grade": "Grade 11"
+    },
+    "scale": {
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "months": [
+      {
+        "month_en": "September",
+        "month_lo": "ກັນຍາ",
+        "average": 6.8,
+        "change": null
+      },
+      {
+        "month_en": "October",
+        "month_lo": "ຕຸລາ",
+        "average": 7.13,
+        "change": 0.33
+      },
+      {
+        "month_en": "November",
+        "month_lo": "ພະຈິກ",
+        "average": 7,
+        "change": -0.13
+      }
+    ],
+    "subjects": [
+      {
+        "subject_en": "Mathematics",
+        "subject_lo": "ຄະນິດສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 6.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 6,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 6.5,
+        "latest": 6,
+        "change": -0.5,
+        "label": "neutral",
+        "trend": "declining"
+      },
+      {
+        "subject_en": "Physics",
+        "subject_lo": "ຟີຊິກສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 6.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 7,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 6.5,
+        "latest": 7,
+        "change": 0.5,
+        "label": "neutral",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "Chemistry",
+        "subject_lo": "ເຄມີສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 5.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": null,
+            "status": "missing"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 6,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 2,
+        "average": 5.75,
+        "latest": 6,
+        "change": 0.5,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Lao language",
+        "subject_lo": "ພາສາລາວ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 8.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 8.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 8.33,
+        "latest": 8.5,
+        "change": 0,
+        "label": "relatively_stronger",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "English",
+        "subject_lo": "ພາສາອັງກິດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 7.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 7.33,
+        "latest": 7.5,
+        "change": 0.5,
+        "label": "neutral",
+        "trend": "steady"
+      }
+    ],
+    "goals": []
+  },
+  {
+    "id": "c2",
+    "snapshot_id": "eval-c2",
+    "detail_locked": false,
+    "enrolment": {
+      "academic_year": "2026-2027",
+      "grade": "Grade 12"
+    },
+    "scale": {
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "months": [
+      {
+        "month_en": "September",
+        "month_lo": "ກັນຍາ",
+        "average": 7.33,
+        "change": null
+      },
+      {
+        "month_en": "October",
+        "month_lo": "ຕຸລາ",
+        "average": 7.25,
+        "change": -0.08
+      },
+      {
+        "month_en": "November",
+        "month_lo": "ພະຈິກ",
+        "average": 7.5,
+        "change": 0.25
+      },
+      {
+        "month_en": "December",
+        "month_lo": "ທັນວາ",
+        "average": 7.5,
+        "change": 0
+      }
+    ],
+    "subjects": [
+      {
+        "subject_en": "Mathematics",
+        "subject_lo": "ຄະນິດສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 7.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 8.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 4,
+        "average": 8,
+        "latest": 8.5,
+        "change": 0.5,
+        "label": "neutral",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "Physics",
+        "subject_lo": "ຟີຊິກສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 5.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 5,
+            "status": "scored"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 5.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 4,
+        "average": 5.5,
+        "latest": 5.5,
+        "change": 0.5,
+        "label": "relatively_lower",
+        "trend": "declining"
+      },
+      {
+        "subject_en": "Chemistry",
+        "subject_lo": "ເຄມີສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 7.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 7,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 4,
+        "average": 7.13,
+        "latest": 7,
+        "change": -0.5,
+        "label": "neutral",
+        "trend": "steady"
+      },
+      {
+        "subject_en": "Biology",
+        "subject_lo": "ຊີວະສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 9,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 8.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 9,
+            "status": "scored"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 9,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 4,
+        "average": 8.88,
+        "latest": 9,
+        "change": 0,
+        "label": "relatively_stronger",
+        "trend": "steady"
+      },
+      {
+        "subject_en": "Lao language",
+        "subject_lo": "ພາສາລາວ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 8,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 4,
+        "average": 7.88,
+        "latest": 8,
+        "change": 0,
+        "label": "neutral",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "History",
+        "subject_lo": "ປະຫວັດສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": null,
+            "status": "excused"
+          },
+          {
+            "month_en": "December",
+            "month_lo": "ທັນວາ",
+            "score": 7,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 6.83,
+        "latest": 7,
+        "change": 0,
+        "label": "neutral",
+        "trend": "improving"
+      }
+    ],
+    "goals": [
+      {
+        "subject_en": "Physics",
+        "target": 7,
+        "by_en": "March",
+        "feasibility": "stretch"
+      }
+    ]
+  },
+  {
+    "id": "c3",
+    "snapshot_id": "eval-c3",
+    "detail_locked": false,
+    "enrolment": {
+      "academic_year": "2026-2027",
+      "grade": "Grade 10"
+    },
+    "scale": {
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "months": [
+      {
+        "month_en": "September",
+        "month_lo": "ກັນຍາ",
+        "average": 6.25,
+        "change": null
+      }
+    ],
+    "subjects": [
+      {
+        "subject_en": "Mathematics",
+        "subject_lo": "ຄະນິດສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 1,
+        "average": 6,
+        "latest": 6,
+        "change": null,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Lao language",
+        "subject_lo": "ພາສາລາວ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 1,
+        "average": 7.5,
+        "latest": 7.5,
+        "change": null,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "English",
+        "subject_lo": "ພາສາອັງກິດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 1,
+        "average": 5,
+        "latest": 5,
+        "change": null,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Physics",
+        "subject_lo": "ຟີຊິກສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 1,
+        "average": 6.5,
+        "latest": 6.5,
+        "change": null,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      }
+    ],
+    "goals": []
+  },
+  {
+    "id": "c4",
+    "snapshot_id": "eval-c4",
+    "detail_locked": false,
+    "enrolment": {
+      "academic_year": "2026-2027",
+      "grade": "Grade 11"
+    },
+    "scale": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "months": [
+      {
+        "month_en": "October",
+        "month_lo": "ຕຸລາ",
+        "average": 69.75,
+        "change": null
+      },
+      {
+        "month_en": "November",
+        "month_lo": "ພະຈິກ",
+        "average": 67,
+        "change": -2.75
+      }
+    ],
+    "subjects": [
+      {
+        "subject_en": "Mathematics",
+        "subject_lo": "ຄະນິດສາດ",
+        "scores": [
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 72,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 65,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 2,
+        "average": 68.5,
+        "latest": 65,
+        "change": -7,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Physics",
+        "subject_lo": "ຟີຊິກສາດ",
+        "scores": [
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 58,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 61,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 2,
+        "average": 59.5,
+        "latest": 61,
+        "change": 3,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Lao language",
+        "subject_lo": "ພາສາລາວ",
+        "scores": [
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 80,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 84,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 2,
+        "average": 82,
+        "latest": 84,
+        "change": 4,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "English",
+        "subject_lo": "ພາສາອັງກິດ",
+        "scores": [
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 69,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 70,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 2,
+        "average": 69.5,
+        "latest": 70,
+        "change": 1,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      },
+      {
+        "subject_en": "Chemistry",
+        "subject_lo": "ເຄມີສາດ",
+        "scores": [
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": null,
+            "status": "missing"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 55,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 1,
+        "average": 55,
+        "latest": 55,
+        "change": null,
+        "label": "insufficient_evidence",
+        "trend": "insufficient_evidence"
+      }
+    ],
+    "goals": []
+  },
+  {
+    "id": "c5",
+    "snapshot_id": "eval-c5",
+    "detail_locked": true,
+    "enrolment": {
+      "academic_year": "2026-2027",
+      "grade": "Grade 12"
+    },
+    "scale": {
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "months": [
+      {
+        "month_en": "September",
+        "month_lo": "ກັນຍາ",
+        "average": 6.5,
+        "change": null
+      },
+      {
+        "month_en": "October",
+        "month_lo": "ຕຸລາ",
+        "average": 6.5,
+        "change": 0
+      },
+      {
+        "month_en": "November",
+        "month_lo": "ພະຈິກ",
+        "average": 6.5,
+        "change": 0
+      }
+    ],
+    "subjects": [
+      {
+        "subject_en": "Mathematics",
+        "subject_lo": "ຄະນິດສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 5,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 5.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 6,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 5.5,
+        "latest": 6,
+        "change": 0.5,
+        "label": "relatively_lower",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "Physics",
+        "subject_lo": "ຟີຊິກສາດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 7,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 6.5,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 6,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 6.5,
+        "latest": 6,
+        "change": -0.5,
+        "label": "neutral",
+        "trend": "declining"
+      },
+      {
+        "subject_en": "Lao language",
+        "subject_lo": "ພາສາລາວ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 6,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 6,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 6.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 6.17,
+        "latest": 6.5,
+        "change": 0.5,
+        "label": "neutral",
+        "trend": "improving"
+      },
+      {
+        "subject_en": "English",
+        "subject_lo": "ພາສາອັງກິດ",
+        "scores": [
+          {
+            "month_en": "September",
+            "month_lo": "ກັນຍາ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "October",
+            "month_lo": "ຕຸລາ",
+            "score": 8,
+            "status": "scored"
+          },
+          {
+            "month_en": "November",
+            "month_lo": "ພະຈິກ",
+            "score": 7.5,
+            "status": "scored"
+          }
+        ],
+        "number_of_scores": 3,
+        "average": 7.83,
+        "latest": 7.5,
+        "change": -0.5,
+        "label": "relatively_stronger",
+        "trend": "declining"
+      }
+    ],
+    "goals": []
+  }
+]

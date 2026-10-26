@@ -15,10 +15,14 @@ export type SafetyCategory = 'self_harm' | 'abuse' | 'sexual' | 'contact' | 'oth
 export interface Resource { key: string; name_en: string; name_lo: string; phone: string; note_en?: string; note_lo?: string }
 type Lang = 'en' | 'lo'
 
-const PATTERNS: Record<SafetyCategory, { en: RegExp; lo: string[] }> = {
+// Capitalised words that are not people's names.
+const NOT_NAMES = '(?:January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Today|Yesterday|This|That|Last|Next|My|Your|Our|It|What|Which|Who|How|Why|When|Where|Can|Could|Should|Please|Show|Give|Tell|List|Share|Compare|Rank|Explain|Is|Am|Are|Did|Does|Do|The|A|An|I|Mathematics|Maths|Math|Physics|Chemistry|Biology|English|Lao|History|Geography|Grade|Term|Month|Week|Year|Bitdoin|Coach|Mentor)'
+
+// `cased`: checked without ignoring case, for names ("Noy's scores").
+const PATTERNS: Record<SafetyCategory, { en: RegExp; lo: string[]; cased?: RegExp }> = {
   self_harm: {
-    en: /\b(kill(ing)? myself|suicid\w*|end(ing)? (my life|it all)|want(ed)? to die|wanna die|don'?t want to (live|be alive)|hurt(ing)? myself|self[- ]?harm\w*|cut(ting)? myself|no reason to live|better off dead)\b/i,
-    lo: ['ຂ້າຕົວຕາຍ', 'ຂ້າໂຕຕາຍ', 'ຢາກຕາຍ', 'ທຳຮ້າຍຕົວເອງ', 'ທຳຮ້າຍໂຕເອງ', 'ບໍ່ຢາກມີຊີວິດ', 'ຈົບຊີວິດ', 'ກິນຢາຕາຍ', 'ບໍ່ຢາກມີຊີວິດຢູ່'],
+    en: /\b(kill(ing)? myself|suicid\w*|end(ing)? (my life|it all)|want(ed)? to die|wanna die|don'?t want to (live|be alive)|hurt(ing)? myself|self[- ]?harm\w*|cut(ting)? myself|no reason to live|better off dead|better off without me|(no ?one|nobody) would (miss|care about) me)\b/i,
+    lo: ['ຂ້າຕົວຕາຍ', 'ຂ້າໂຕຕາຍ', 'ຢາກຕາຍ', 'ທຳຮ້າຍຕົວເອງ', 'ທຳຮ້າຍໂຕເອງ', 'ບໍ່ຢາກມີຊີວິດ', 'ຈົບຊີວິດ', 'ກິນຢາຕາຍ', 'ບໍ່ຢາກມີຊີວິດຢູ່', 'ຖ້າບໍ່ມີຂ້ອຍ', 'ບໍ່ມີໃຜຄິດຮອດຂ້ອຍ'],
   },
   abuse: {
     en: /\b(hits? me|beats? me|beat me up|abus(e|es|ed|ing) me|touch(ed|es|ing) me|rap(e|ed|ing)|molest\w*|sexually assault\w*|threaten(s|ed|ing)? (me|to)|forc(e|es|ed) me)\b/i,
@@ -33,8 +37,10 @@ const PATTERNS: Record<SafetyCategory, { en: RegExp; lo: string[] }> = {
     lo: ['ເບີໂທຂອງເຈົ້າ', 'ສົ່ງຮູບ', 'ນັດພົບ', 'ພົບກັນບໍ', 'ເຈົ້າຢູ່ໃສ', 'ຂໍເບີ'],
   },
   other_student: {
-    en: /\b(other students?'? (scores?|grades?|marks?|results?)|(my )?(friend|classmate|sister|brother)'?s? (scores?|grades?|marks?|results?)|someone else'?s|another student|(rank|compare) me (with|to|against) (others|my class|other students)|who (is|was) (top|best|first) in (my|the) class)\b/i,
-    lo: ['ຄະແນນຂອງໝູ່', 'ຄະແນນໝູ່', 'ນັກຮຽນຄົນອື່ນ', 'ຄະແນນຄົນອື່ນ', 'ທຽບກັບໝູ່', 'ໃຜໄດ້ທີ່ໜຶ່ງ'],
+    en: /\b(other students?'? (scores?|grades?|marks?|results?)|(my )?(friend|classmate|sister|brother|child|son|daughter|kid)['’]?s? (scores?|grades?|marks?|results?)|someone else'?s|another student|(rank|compare) me (with|to|against) (others|my class|other students)|who (is|was) (top|best|first) in (my|the) class|i(['’]m| am) (the |a |an |his |her |their |\w+['’]s )?(teacher|admin\w*|parent|mother|father|mom|mum|dad|guardian|principal)|pretend (you(['’]re| are)|to be) (an? |the )?(admin\w*|teacher|developer|principal))\b/i,
+    lo: ['ຄະແນນຂອງໝູ່', 'ຄະແນນໝູ່', 'ນັກຮຽນຄົນອື່ນ', 'ຄະແນນຄົນອື່ນ', 'ທຽບກັບໝູ່', 'ໃຜໄດ້ທີ່ໜຶ່ງ', 'ຄະແນນຂອງເພື່ອນ', 'ຄະແນນເພື່ອນ', 'ຄະແນນຂອງເອື້ອຍ', 'ຄະແນນຂອງອ້າຍ', 'ຄະແນນຂອງນ້ອງ', 'ຄະແນນລູກຂ້ອຍ', 'ຂ້ອຍເປັນພໍ່ແມ່', 'ຂ້ອຍແມ່ນຄູ', 'ຂ້ອຍເປັນຄູ', 'ທຳທ່າເປັນຜູ້ດູແລ'],
+    // A name's scores ("Noy's scores", "did Noy get"), but not "October's average".
+    cased: new RegExp(`\\b(?!${NOT_NAMES}\\b)[A-Z][a-z]+['’]s ([A-Za-z]+ ){0,2}(scores?|grades?|marks?|results?|average|data|report)\\b|\\b(did|does|has|is) (?!${NOT_NAMES}\\b)[A-Z][a-z]+ (get|gets|got|score|scored|do|doing|pass|fail)\\b`),
   },
   companion: {
     en: /\b(be my (girl ?friend|boy ?friend|gf|bf|partner|lover|wife|husband)|i love you|date me|marry me|kiss me)\b/i,
@@ -47,7 +53,7 @@ const ORDER: SafetyCategory[] = ['self_harm', 'abuse', 'sexual', 'contact', 'oth
 
 export function classifyInput(text: string): SafetyCategory | null {
   const value = text.normalize('NFC')
-  return ORDER.find((category) => PATTERNS[category].en.test(value) || PATTERNS[category].lo.some((word) => value.includes(word))) ?? null
+  return ORDER.find((category) => PATTERNS[category].en.test(value) || PATTERNS[category].cased?.test(value) || PATTERNS[category].lo.some((word) => value.includes(word))) ?? null
 }
 
 /**
@@ -63,6 +69,18 @@ export function checkOutput(text: string, resources: Resource[]): 'output' | nul
     if (!allowed.has(match[0].replace(/\D/g, ''))) return 'output'
   }
   return null
+}
+
+/**
+ * AI-002: an answer that gives scores to a person named in the question
+ * ("Souksavanh's scores are…", "Souksavanh got 6"). The model only has the
+ * signed-in student's data, so this would be their own scores under someone
+ * else's name; the caller replaces it with the other_student reply. Names are
+ * recognised by capital letters, so this covers English only.
+ */
+export function attributesToOther(answer: string, question: string): boolean {
+  const names = [...new Set(question.match(new RegExp(`\\b(?!${NOT_NAMES}\\b)[A-Z][a-z]{2,}\\b`, 'g')) ?? [])]
+  return names.some((name) => new RegExp(`\\b${name}(['’]s\\b| (got|gets|scored|scores|has|had|received|is getting|was)\\b)`).test(answer))
 }
 
 const REPLIES: Record<SafetyCategory | 'output', Record<Lang, string>> = {

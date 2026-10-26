@@ -881,6 +881,9 @@ export interface AiReviewItem {
   rating: -1 | 1 | null
   report_category: 'wrong_numbers' | 'unsafe' | 'not_lao' | 'other' | null
   priority: boolean
+  /** 'sample': picked by the weekly random sample (migration 146). */
+  source: 'student' | 'sample'
+  sample_week: string | null
   share_text: boolean
   comment: string | null
   status: 'open' | 'reviewed'
@@ -897,6 +900,9 @@ export interface AiReviewItem {
 export interface AiReview {
   items: AiReviewItem[]
   last_7_days: { answers: number; safety_redirects: number; numbers_fallbacks: number; thumbs_up: number; thumbs_down: number; provider_failures: number }
+  sample: { week: string | null; items: number; consenting_students: number; rule: { rate: number; minimum: number } | null }
+  /** Reviewed items of the last 90 days by prompt version and model (feeds AI-010). */
+  ratings: { prompt_version: string | null; model_id: string; reviewed: number; accuracy: number; lao: number; safety: number }[]
 }
 
 export function useAiReview(status: 'open' | 'reviewed') {

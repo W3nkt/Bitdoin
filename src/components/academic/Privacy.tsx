@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  exportMyData, useCancelDeletion, useDeleteOcrPhoto, useGrantUsageStatistics, useOcrPhotos, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
+  exportMyData, useCancelDeletion, useDeleteOcrPhoto, useGrantOptionalConsent, useGrantUsageStatistics, useOcrPhotos, useRequestDeletion, useWithdrawConsent, type MyDataSummary,
 } from '@/lib/academic/api'
 import { useAcademicSession } from '@/lib/academic/session'
 import { useTrackUsage } from '@/lib/academic/usageEvents'
@@ -61,6 +61,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   const toast = useToast()
   const withdraw = useWithdrawConsent()
   const grantStats = useGrantUsageStatistics()
+  const grantOptional = useGrantOptionalConsent()
   const noticeVersion = useAcademicSession().data?.notice_version ?? null
   const [confirming, setConfirming] = useState(false)
   const active = (purpose: string) => consents.find(consent => consent.purpose === purpose && !consent.withdrawn_at)
@@ -69,6 +70,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   const push = active('push')
   const stats = active('usage_statistics')
   const ocr = active('ocr_processing')
+  const coachReview = active('coach_review')
 
   const row = (purpose: string, current: NonNullable<typeof module>, action: React.ReactNode) => (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -110,6 +112,23 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
               ? <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('usage_statistics', { onError })}>{t('consent.usageStats.turnOff')}</Button>
               : <Button size="sm" variant="outline" loading={grantStats.isPending} disabled={!noticeVersion}
                   onClick={() => noticeVersion && grantStats.mutate(noticeVersion, { onError })}>{t('consent.usageStats.turnOn')}</Button>}
+          </li>
+        )}
+        {/* Coach chats for reviewers (migration 146): off until the student turns it on. */}
+        {module && (
+          <li className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block font-bold">{t('consent.purpose.coach_review')}</span>
+              <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.coachReview.body')}</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                {coachReview ? t('data.consentActive', { date: formatDate(coachReview.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
+            </span>
+            {coachReview
+              ? <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('coach_review', { onError })}>{t('consent.usageStats.turnOff')}</Button>
+              : <Button size="sm" variant="outline" loading={grantOptional.isPending} disabled={!noticeVersion}
+                  aria-label={`${t('consent.usageStats.turnOn')}: ${t('consent.purpose.coach_review')}`}
+                  onClick={() => noticeVersion && grantOptional.mutate({ purpose: 'coach_review', noticeVersion }, { onError })}>{t('consent.usageStats.turnOn')}</Button>}
           </li>
         )}
       </ul>

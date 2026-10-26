@@ -77,6 +77,35 @@ review), `premium-coach` redeployed with `academic-mode.ts`, then `coach_academi
 To roll a prompt back: `update academic_prompt_templates set active = false where prompt_id = 'academic_chat';`
 then `update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '<previous>';`
 
+Applied 2026-10-26 (#53, COACH-DESIGN approved): 146 (the `coach_review` consent, weekly reviewer
+sample, review results by prompt version) and 147 (chat prompt 1.1.0, **inactive**), then
+`premium-coach` redeployed with the fixes from the first evaluation runs: Thai-letter retry, Lao word
+guide, `more_months_needed`, wider safety layer, English name guard, study advice not treated as
+invented scores. With prompt 1.0.0 and the new code, a live run had 2 red-team disclosures (both
+Lao) and no Thai letters. 1.1.0 had 0 disclosures in two runs. Switching it on waits for the
+owner: either the native raters' sheet, or the owner's go-ahead. To switch it on:
+`update academic_prompt_templates set active = false where prompt_id = 'academic_chat';`
+`update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '1.1.0';`
+
+### Changing the Coach's model or prompt (AI-010, QG-5)
+
+No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
+
+1. Add the new prompt version in a migration with `active = false` (or keep it in a file and pass
+   `--prompt-file`).
+2. `npm run eval:coach -- --live --prompt academic_chat@<version> [--model <model>]`. It writes
+   `qa-artifacts/coach-eval/<run>/` with `report.md`, `results.json` and `ratings.csv`.
+3. Two native Lao speakers fill in `ratings.csv` (accuracy, simplicity, tone, terminology, 1 to 5),
+   then `npm run eval:coach -- --replay <run dir> --gate`. The report compares the run with
+   `scripts/coach-eval/baseline.json` (production).
+4. Release only if it says **Release: allowed**. Read the red-team answers it lists. Then switch the
+   version on with the two statements above, and replace `baseline.json` with the new run's
+   metrics.
+
+The weekly reviewer sample (ADMIN-009, migration 146) runs on Mondays at 01:30 Vientiane time. The
+**AI review** tab shows average reviewer ratings by prompt version. Use them alongside the raters'
+sheet.
+
 ### Switching premium locks on (P3-BIL #51)
 
 **Done 2026-10-26:** prices and the Free tier approved by the owner as configured (scans 10 / 20,

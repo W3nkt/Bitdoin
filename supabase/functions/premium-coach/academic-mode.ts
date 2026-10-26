@@ -6,8 +6,9 @@
 // unsupported numbers and unsafe content before the student sees them.
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
-import { checkOutput, classifyInput, safeReply, type Resource } from './academic-safety.ts'
-import { dataBlock, deterministicSummary, groundedFallback, unsupportedNumbers, wordCount, type CoachContext } from './academic-numbers.ts'
+import { attributesToOther, checkOutput, classifyInput, safeReply, type Resource } from './academic-safety.ts'
+import { deterministicSummary, groundedFallback, wordCount } from './academic-numbers.ts'
+import { chatMessages, groundedAnswer, summaryMessages, type Message } from './academic-prompt.ts'
 
 const QWEN_API_KEY = Deno.env.get('QWEN_API_KEY') ?? ''
 const QWEN_BASE_URL = (Deno.env.get('QWEN_BASE_URL') ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1').replace(/\/$/, '')
@@ -15,15 +16,9 @@ const MODEL = Deno.env.get('QWEN_ACADEMIC_MODEL') || Deno.env.get('QWEN_TEXT_MOD
 const FEATURE = 'coach_academic'
 
 type Lang = 'en' | 'lo'
-type Message = { role: 'system' | 'user' | 'assistant'; content: string }
 type Json = (req: Request, body: unknown, status?: number) => Response
 
 interface Rules { timeout_ms?: number; summary_max_words?: number; history_messages?: number }
-
-const LANGUAGE: Record<Lang, string> = {
-  lo: 'Reply in natural, simple Lao as a native speaker in Laos would. Use Lao script only, never Thai script, Thai spelling or Thai-only words. Write month and subject names as they appear in STUDENT DATA.',
-  en: 'Reply in simple English.',
-}
 
 async function setting<T>(admin: SupabaseClient, key: string, fallback: T): Promise<T> {
   const { data } = await admin.from('academic_settings').select('value').eq('key', key).maybeSingle()
@@ -51,21 +46,6 @@ async function callModel(admin: SupabaseClient, messages: Message[], lang: Lang,
   }
 }
 
-/** AI-003: an answer whose numbers are not all in the data is retried once, then replaced. */
-async function groundedAnswer(admin: SupabaseClient, messages: Message[], context: CoachContext, question: string, lang: Lang, timeoutMs: number, extraCheck?: (text: string) => boolean) {
-  let answer = await callModel(admin, messages, lang, timeoutMs)
-  let unsupported = unsupportedNumbers(answer, context, question)
-  if (unsupported.length || (extraCheck && !extraCheck(answer))) {
-    answer = await callModel(admin, [...messages, { role: 'assistant', content: answer }, {
-      role: 'user',
-      content: `Rewrite your answer. ${unsupported.length ? `These numbers are not in STUDENT DATA: ${unsupported.join(', ')}. Use only numbers that appear in STUDENT DATA.` : ''} Keep it under 150 words.`,
-    }], lang, timeoutMs)
-    unsupported = unsupportedNumbers(answer, context, question)
-    if (unsupported.length || (extraCheck && !extraCheck(answer))) return { answer: null, checked: false }
-  }
-  return { answer, checked: true }
-}
-
 export async function handleAcademic({ req, admin, userId, body, json }: { req: Request; admin: SupabaseClient; userId: string; body: Record<string, unknown>; json: Json }) {
   const lang: Lang = body.language === 'lo' ? 'lo' : 'en'
   if ((await setting(admin, 'coach_academic_enabled', false)) !== true) {
@@ -78,6 +58,7 @@ export async function handleAcademic({ req, admin, userId, body, json }: { req: 
   if (!context?.profile_id) return json(req, { error: 'Set up Schooling first.', code: 'PROFILE_REQUIRED' }, 409)
   if (!context.snapshot_id) return json(req, { error: 'Start a school year in Schooling first.', code: 'NO_ACTIVE_ENROLMENT' }, 409)
   const busy = async () => (await admin.rpc('academic_coach_breaker_open', { p_feature: FEATURE })).data === true
+  const call = (messages: Message[]) => callModel(admin, messages, lang, timeoutMs)
 
   // ─── Monthly summary (AI-009) ──────────────────────────────────────────────
   if (body.action === 'summary') {
@@ -91,10 +72,7 @@ export async function handleAcademic({ req, admin, userId, body, json }: { req: 
     if (!taken) return template()
     const maxWords = rules.summary_max_words ?? 150
     try {
-      const result = await groundedAnswer(admin, [
-        { role: 'system', content: `${prompt.body}\n\n${LANGUAGE[lang]}\n\nSTUDENT DATA:\n${dataBlock(context, lang)}` },
-        { role: 'user', content: lang === 'lo' ? 'ສະຫຼຸບເດືອນຫຼ້າສຸດຂອງຂ້ອຍ.' : 'Summarise my latest month.' },
-      ], context, '', lang, timeoutMs, (text) => wordCount(text) <= maxWords)
+      const result = await groundedAnswer(call, summaryMessages(prompt.body, lang, context), context, '', (text) => wordCount(text) <= maxWords, lang)
       const summary = result.answer && !checkOutput(result.answer, resources) ? result.answer : null
       if (!summary) return template()
       await admin.rpc('academic_ai_cache_put', { p_key: cacheKey, p_snapshot_id: context.snapshot_id, p_prompt_version: prompt.version, p_language: lang, p_body: summary, p_source: 'ai', p_model_id: MODEL })
@@ -149,15 +127,11 @@ export async function handleAcademic({ req, admin, userId, body, json }: { req: 
     ? await admin.from('premium_coach_messages').select('role, content').eq('conversation_id', conversationId).eq('user_id', userId)
       .order('created_at', { ascending: false }).limit(rules.history_messages ?? 4)
     : { data: [] }
-  const messages: Message[] = [
-    { role: 'system', content: `${prompt?.body ?? ''}\n\n${LANGUAGE[lang]}\n\nSTUDENT DATA:\n${dataBlock(context, lang)}` },
-    ...((history ?? []) as { role: 'user' | 'assistant'; content: string }[]).reverse().map((item) => ({ role: item.role, content: item.content.slice(0, 1200) })),
-    { role: 'user', content: message },
-  ]
+  const messages = chatMessages(prompt?.body ?? '', lang, context, ((history ?? []) as { role: 'user' | 'assistant'; content: string }[]).reverse(), message)
 
   let result: { answer: string | null; checked: boolean }
   try {
-    result = await groundedAnswer(admin, messages, context, message, lang, timeoutMs)
+    result = await groundedAnswer(call, messages, context, message, undefined, lang)
   } catch {
     await admin.rpc('academic_coach_refund', { p_user_id: userId, p_period: taken.period_key })
     return json(req, { error: 'Coach is busy – try later. Your scores, charts and suggestions still work.', code: 'COACH_BUSY' }, 503)
@@ -167,6 +141,9 @@ export async function handleAcademic({ req, admin, userId, body, json }: { req: 
   if (checkOutput(answer, resources)) {
     answer = safeReply('output', lang, resources)
     safety = 'output'
+  } else if (attributesToOther(answer, message)) {
+    answer = safeReply('other_student', lang, resources)
+    safety = 'other_student'
   }
   const messageId = await save(answer, { prompt_version: prompt?.version, model_id: MODEL, numbers_checked: result.checked, safety_category: safety })
   return json(req, { conversationId, messageId, answer, promptVersion: prompt?.version, remaining: taken.remaining })

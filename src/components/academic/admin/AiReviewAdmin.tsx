@@ -5,10 +5,12 @@ import { useToast } from '@/components/ui/Toast'
 import { useAiReview, useRateAi, type AiReviewItem } from '@/lib/academic/adminApi'
 import { Empty, Field, Panel, Pill, adminErrorText, formatDateTime } from './AdminKit'
 
-// AI Coach review (ADMIN-009, #53; migration 145): reported and thumbs-down
-// answers from the Coach's "My scores" mode, unsafe reports first. The
-// question and answer are shown only when the student chose to share them.
-// Reviewers rate accuracy, Lao quality and safety from 1 to 5.
+// AI Coach review (ADMIN-009, #53; migrations 145, 146): reported and
+// thumbs-down answers from the Coach's "My scores" mode, unsafe reports first,
+// then the weekly random sample from students who agreed to it. The question
+// and answer are shown only when the student shared them. Reviewers rate
+// accuracy, Lao quality and safety from 1 to 5; averages by prompt version
+// and model feed the evaluation before a release (AI-010).
 
 const CATEGORY: Record<string, string> = { wrong_numbers: 'Wrong numbers', unsafe: 'Unsafe or upsetting', not_lao: 'Lao hard to understand', other: 'Something else' }
 
@@ -59,6 +61,7 @@ export function AiReviewAdmin() {
   if (review.isPending) return <Skeleton className="h-96 rounded-2xl" />
   if (review.isError) return <Empty>{adminErrorText(review.error)}</Empty>
   const week = review.data.last_7_days
+  const sample = review.data.sample
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -69,7 +72,7 @@ export function AiReviewAdmin() {
         <Tile label="Number fallbacks" value={week.numbers_fallbacks} />
         <Tile label="Provider failures" value={week.provider_failures} />
       </div>
-      <Panel title="Coach answers to review" description="Reported and thumbs-down answers from the Coach's My scores mode. Text is shown only when the student agreed to share it."
+      <Panel title="Coach answers to review" description="Reported and thumbs-down answers from the Coach's My scores mode, then the weekly random sample. Text is shown only when the student agreed to share it."
         actions={(
           <label className="flex items-center gap-2 text-sm font-bold">Show
             <select value={status} onChange={event => setStatus(event.target.value as 'open' | 'reviewed')} className="rounded-xl border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-600 dark:bg-gray-950">
@@ -78,6 +81,12 @@ export function AiReviewAdmin() {
             </select>
           </label>
         )}>
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+          {sample.week
+            ? `Weekly sample for the week of ${new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(sample.week))}: ${sample.items} answers.`
+            : 'No weekly sample yet.'}
+          {` ${sample.consenting_students} students let reviewers read their chats. Each Monday: ${Math.round((sample.rule?.rate ?? 0.01) * 100)}% of last week's conversations or ${sample.rule?.minimum ?? 50}, whichever is larger, from those students.`}
+        </p>
         {review.data.items.length === 0 ? <Empty>Nothing to review.</Empty> : (
           <ul className="space-y-4">
             {review.data.items.map(item => (
@@ -85,6 +94,7 @@ export function AiReviewAdmin() {
                 <div className="flex flex-wrap items-center gap-2">
                   {item.priority && <Pill tone="red">Priority</Pill>}
                   {item.report_category && <Pill tone="amber">{CATEGORY[item.report_category]}</Pill>}
+                  {item.source === 'sample' && <Pill tone="gray">Weekly sample</Pill>}
                   {item.rating === -1 && <Pill tone="gray">Thumbs down</Pill>}
                   {item.numbers_checked === false && <Pill tone="blue">Number fallback</Pill>}
                   <span className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(item.created_at)} · prompt {item.prompt_version ?? '—'} · {item.model_id ?? '—'}</span>
@@ -102,6 +112,29 @@ export function AiReviewAdmin() {
               </li>
             ))}
           </ul>
+        )}
+      </Panel>
+      <Panel title="Review results by prompt version" description="Average reviewer ratings over the last 90 days. The release check for a new model or prompt needs a Lao rating of at least 4.0.">
+        {review.data.ratings.length === 0 ? <Empty>No reviewed answers yet.</Empty> : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-slate-600 dark:text-slate-400">
+                <tr><th className="py-2 pr-4">Prompt</th><th className="py-2 pr-4">Model</th><th className="py-2 pr-4">Reviewed</th><th className="py-2 pr-4">Accuracy</th><th className="py-2 pr-4">Lao</th><th className="py-2">Safety</th></tr>
+              </thead>
+              <tbody className="tabular-nums">
+                {review.data.ratings.map(row => (
+                  <tr key={`${row.prompt_version}-${row.model_id}`} className="border-t border-slate-100 dark:border-slate-800">
+                    <td className="py-2 pr-4">{row.prompt_version ?? '—'}</td>
+                    <td className="py-2 pr-4">{row.model_id}</td>
+                    <td className="py-2 pr-4">{row.reviewed}</td>
+                    <td className="py-2 pr-4">{Number(row.accuracy).toFixed(1)}</td>
+                    <td className={`py-2 pr-4 ${Number(row.lao) < 4 ? 'font-black text-red-700 dark:text-red-400' : ''}`}>{Number(row.lao).toFixed(1)}</td>
+                    <td className="py-2">{Number(row.safety).toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Panel>
     </div>

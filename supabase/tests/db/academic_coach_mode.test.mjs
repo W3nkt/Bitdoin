@@ -64,8 +64,9 @@ eq('after the window it closes again', (await rpc(A, `public.academic_coach_stat
 
 const prompt = async (id) => (await one(`select public.academic_prompt('${id}') as v`)).v
 eq('active prompts have an id and a semantic version', [(await prompt('academic_chat')).version, (await prompt('academic_feedback')).version], ['1.0.0', '1.0.0'])
+eq('1.1.0 is added switched off until it passes the evaluation (migration 147)', (await one(`select active from academic_prompt_templates where prompt_id = 'academic_chat' and version = '1.1.0'`)).active, false)
 await ok(db, 'switch to 1.1.0', `update academic_prompt_templates set active = false where prompt_id = 'academic_chat';
-  insert into academic_prompt_templates (prompt_id, version, body, active) values ('academic_chat', '1.1.0', 'v1.1', true)`)
+  update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '1.1.0'`)
 eq('switching a version is a configuration change', (await prompt('academic_chat')).version, '1.1.0')
 await ok(db, 'roll back', `update academic_prompt_templates set active = false where prompt_id = 'academic_chat'; update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '1.0.0'`)
 eq('and rolls back the same way', (await prompt('academic_chat')).version, '1.0.0')
@@ -95,6 +96,34 @@ eq('students cannot read the queue', (await rpcError(A, `public.academic_admin_a
 eq('the rubric needs all three ratings', (await rpcError(ADM, `public.academic_admin_rate_ai('${queue.items[0].id}', ${json({ accuracy: 5, lao: 4 })})`, STAFF))?.details?.field, 'safety')
 await rpc(ADM, `public.academic_admin_rate_ai('${queue.items[0].id}', ${json({ accuracy: 5, lao: 4, safety: 5, note: 'Fine' })})`, STAFF)
 eq('reviewed items leave the open queue', [(await rpc(ADM, `public.academic_admin_ai_review('open')`, STAFF)).items.length, (await rpc(ADM, `public.academic_admin_ai_review('reviewed')`, STAFF)).items[0].review.safety], [0, 5])
+eq('review results by prompt version and model feed the evaluation (AI-010)', (await rpc(ADM, `public.academic_admin_ai_review('open')`, STAFF)).ratings.map((r) => [r.prompt_version, r.model_id, Number(r.reviewed), Number(r.lao)]),
+  [['1.0.0', 'qwen-plus', 1, 4]])
+
+// ─── Weekly random sample from consenting students (ADMIN-009, migration 146) ─
+
+// Today is Wednesday 18 November: the sample covers Monday 9 to Sunday 15 November.
+const chat = async (user, profileId, at, model = 'qwen-plus') => {
+  const c = (await one(`insert into premium_coach_conversations (user_id, title, mode, student_profile_id) values ('${user}', 'Week', 'academic', '${profileId}') returning id`)).id
+  await ok(db, 'question', `insert into premium_coach_messages (conversation_id, user_id, role, content, created_at) values ('${c}', '${user}', 'user', 'How is my physics?', '${at}'::timestamptz - interval '1 minute')`)
+  return (await one(`insert into premium_coach_messages (conversation_id, user_id, role, content, model_id, prompt_version, created_at) values ('${c}', '${user}', 'assistant', 'Physics went from 6.5 to 7.', ${model ? `'${model}'` : 'null'}, '1.0.0', '${at}') returning id`)).id
+}
+const aWeek = await chat(A, a.profile_id, '2026-11-10 03:00+00')
+await chat(A, a.profile_id, '2026-11-12 03:00+00', null) // a pre-approved safety reply: not an AI answer
+await chat(A, a.profile_id, '2026-11-17 03:00+00') // this week: sampled next Monday
+await chat(B, b.profile_id, '2026-11-11 03:00+00') // B has not agreed
+const sample = async (week) => (await one(`select public.academic_coach_weekly_sample(${week ? `'${week}'` : ''}) as v`)).v
+eq('nobody agreed yet: nothing is sampled', await sample('2026-11-02'), 0)
+eq('sharing with reviewers is off until the student turns it on', (await one(`select count(*)::int as n from academic_consent_records where purpose = 'coach_review'`)).n, 0)
+await rpc(A, `public.academic_grant_consent('coach_review', '2026-10-25')`)
+eq("last week's AI answers from students who agreed: 1% or 50, whichever is larger, so all of them here", await sample(), 1)
+queue = await rpc(ADM, `public.academic_admin_ai_review('open')`, STAFF)
+eq('the sampled answer is in the queue with its text, after reports', [queue.items.length, queue.items[0].source, queue.items[0].sample_week, queue.items[0].question, queue.items[0].answer, queue.sample.items, Number(queue.sample.consenting_students)],
+  [1, 'sample', '2026-11-09', 'How is my physics?', 'Physics went from 6.5 to 7.', 1, 1])
+eq('a week is sampled once', await sample(), 0)
+eq('the sample runs every Monday morning in Vientiane', (await db.query(`select schedule from cron.job where jobname = 'academic-coach-review-sample'`)).rows, [{ schedule: '30 18 * * 0' }])
+eq('only the server runs the sample', (await rpcError(A, `public.academic_coach_weekly_sample()`))?.status, '42501')
+await rpc(A, `public.academic_withdraw_consent('coach_review')`)
+eq('withdrawing takes the open sampled answers out of the queue', [(await rpc(ADM, `public.academic_admin_ai_review('open')`, STAFF)).items.length, (await one(`select count(*)::int as n from academic_coach_feedback where message_id = '${aWeek}'`)).n], [0, 0])
 
 // ─── Deletion ────────────────────────────────────────────────────────────────
 
@@ -102,7 +131,7 @@ await rpc(A, `public.academic_request_deletion('profile')`)
 await ok(db, 'age request', `update academic_student_profiles set deletion_requested_at = now() - interval '15 days' where user_id = '${A}'`)
 await ok(db, 'purge', `select public.academic_purge_due_deletions()`)
 eq('deleting the profile deletes academic chats and their feedback; the general Coach chat stays',
-  [(await one(`select count(*)::int as n from premium_coach_conversations where mode = 'academic'`)).n, (await one(`select count(*)::int as n from academic_coach_feedback`)).n,
+  [(await one(`select count(*)::int as n from premium_coach_conversations where mode = 'academic' and user_id = '${A}'`)).n, (await one(`select count(*)::int as n from academic_coach_feedback`)).n,
    (await one(`select count(*)::int as n from premium_coach_conversations where id = '${general}'`)).n], [0, 0, 1])
 
 done()

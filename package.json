@@ -14,6 +14,7 @@
     "test:ocr": "node scripts/test-ocr-extract.mjs",
     "eval:ocr": "node scripts/ocr-eval.mjs",
     "test:coach": "node scripts/test-coach.mjs",
+    "eval:coach": "node scripts/coach-eval.mjs",
     "test:e2e": "node scripts/qa-run.mjs"
   },
   "dependencies": {

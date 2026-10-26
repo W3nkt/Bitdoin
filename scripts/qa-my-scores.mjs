@@ -1792,6 +1792,14 @@ try {
     await page.getByRole('button', { name: 'ປິດ', exact: true }).click()
     await page.getByRole('button', { name: 'ເປີດ', exact: true }).waitFor()
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'usage_statistics' })
+    // Coach chats for reviewers (ADMIN-009, migration 146): off until turned on here, and off again.
+    await page.getByText('ໃຫ້ຜູ້ກວດສອບກວດຄຳຕອບຂອງຄູຝຶກ').waitFor()
+    await page.getByRole('button', { name: 'ເປີດ: ໃຫ້ຜູ້ກວດສອບກວດຄຳຕອບຂອງຄູຝຶກ' }).click()
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'coach_review', p_notice_version: '2026-10-draft' })
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).click()
+    await page.getByRole('button', { name: 'ເປີດ: ໃຫ້ຜູ້ກວດສອບກວດຄຳຕອບຂອງຄູຝຶກ' }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'coach_review' })
     await page.getByRole('button', { name: 'ຢຸດ' }).first().click()
     await page.getByText('ຢຸດເກັບຄະແນນໃໝ່ບໍ?').waitFor()
     await shot(page, 'my-scores-21-consents-lo-mobile')
@@ -1800,7 +1808,7 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'module_processing' })
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Consents (Lao): device reminders stopped and hidden until given again; usage statistics switched on and off; module processing withdrawn after a warning, profile shown read-only')
+    pass('Consents (Lao): device reminders stopped and hidden until given again; usage statistics switched on and off; Coach review sharing off by default, switched on and off; module processing withdrawn after a warning, profile shown read-only')
   }
 
   // Reminders (Lao, phone): bell count, dashboard banner, inbox read/dismiss, settings.
