@@ -1022,6 +1022,8 @@ try {
     await page.getByRole('button', { name: 'ພິມຄະແນນແທນ' }).click()
     await page.waitForFunction(() => document.querySelector('#score-se-math')?.value === '7.5')
     assert.equal(await page.getByLabel('ພາສາລາວ', { exact: true }).inputValue(), '', 'an uncertain value is not carried over')
+    // Discard and photo deletion run in the background after leaving the scan.
+    for (let i = 0; i < 50 && !mock.state.ocrDeleted?.includes('ocr-2'); i++) await page.waitForTimeout(100)
     assert.deepEqual([mock.state.ocrDiscarded, mock.state.ocrDeleted], [['ocr-2'], ['ocr-2']])
 
     mock.state.ocrFail = true
@@ -1034,6 +1036,7 @@ try {
     await shot(page, 'my-scores-scan-4-failed-lo-mobile')
     await page.getByRole('button', { name: 'ລອງຮູບອື່ນ' }).click()
     await page.getByText('ຖ່າຍຮູບປຶ້ມຄະແນນ').waitFor()
+    for (let i = 0; i < 50 && !mock.state.ocrDeleted?.includes('ocr-1'); i++) await page.waitForTimeout(100)
     assert.ok(mock.state.ocrDiscarded.includes('ocr-1') && mock.state.ocrDeleted.includes('ocr-1'), 'a failed scan keeps no photo')
 
     mock.state.ocrUsed = 10
