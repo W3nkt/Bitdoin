@@ -196,7 +196,7 @@ function backend(initial) {
     },
     academic_archive_goal: (args) => { state.goals = state.goals.filter(g => g.id !== args.p_goal_id); return { id: args.p_goal_id, status: 'archived' } },
     academic_save_plan: (args) => {
-      state.plan = { days: args.p_input.days, minutes_per_day: args.p_input.minutes_per_day, paused_until: null, starts_on: '2026-11-18' }
+      state.plan = { days: args.p_input.days, minutes_per_day: args.p_input.minutes_per_day, paused_until: null, starts_on: '2026-11-18', xp_opt_in: false, xp_per_task: 10 }
       state.tasks = [
         plannerTask('t1', '2026-11-18', 'practice_set', { title_en: 'Algebra practice', title_lo: 'ຝຶກພຶດຊະຄະນິດ', route: '/academy/scores/practice/t1', est_minutes: 8 }),
         plannerTask('t2', '2026-11-21', 'self_study', { subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ', est_minutes: 20 }),
@@ -205,9 +205,10 @@ function backend(initial) {
       return plannerView()
     },
     academic_pause_plan: (args) => { state.plan.paused_until = args.p_until; return plannerView() },
+    academic_set_planner_xp: (args) => { state.plan.xp_opt_in = args.p_on; return plannerView() },
     academic_update_task: (args) => {
       const task = state.tasks.find(t => t.id === args.p_task_id)
-      if (args.p_action === 'done') Object.assign(task, { state: 'done', done_by: 'student' })
+      if (args.p_action === 'done') Object.assign(task, { state: 'done', done_by: 'student', xp: task.xp || (state.plan.xp_opt_in ? 10 : 0) })
       if (args.p_action === 'skip') Object.assign(task, { state: 'skipped', needs_decision: false })
       return task
     },
@@ -277,7 +278,7 @@ function backend(initial) {
       milestone_value: feasibility === 'ambitious' ? Math.min(target, baseline + 0.5 * Math.ceil(months / 2)) : null, milestone_period_id: null }
   }
   const plannerTask = (id, date, kind, extra = {}) => ({ id, date, first_date: date, kind, title_lo: null, title_en: null, subject_lo: null, subject_en: null, route: null,
-    est_minutes: 20, state: 'scheduled', moved: false, needs_decision: false, done_by: null, ...extra })
+    est_minutes: 20, state: 'scheduled', moved: false, needs_decision: false, done_by: null, xp: 0, ...extra })
   const plannerView = () => ({
     entitled: !state.plannerFree, free_goals: 1, minutes_options: [10, 15, 20, 30, 45], today: '2026-11-18',
     scale: { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null },
@@ -1426,8 +1427,12 @@ try {
     await week.getByRole('button', { name: 'Skip' }).click()
     await page.waitForTimeout(200)
     assert.deepEqual(lastCall(mock, 'academic_update_task').args, { p_task_id: 't0', p_action: 'skip' })
+    await page.getByLabel('Count finished tasks as Academy XP (+10 each)').check()
+    await page.getByText('Missing a day never takes XP away. Turn it off any time.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_set_planner_xp').args, { p_on: true })
     await page.getByTestId('task-t1').getByRole('button', { name: 'Done' }).click()
     await page.getByTestId('task-t1').getByText('Done', { exact: true }).waitFor()
+    await page.getByTestId('task-t1').getByText('+10 XP').waitFor()
     await page.getByRole('button', { name: 'Pause' }).click()
     await page.getByLabel('Pause until').fill('2026-12-07')
     await page.getByRole('button', { name: 'Pause' }).last().click()
@@ -1442,7 +1447,7 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Planner: suggested goal, live feasibility with a halfway goal, exact goal and plan payloads, week with Open/Done, skip or keep, neutral review, pause, axe clean; Free: one goal, no weekly plan')
+    pass('Planner: suggested goal, live feasibility with a halfway goal, exact goal and plan payloads, week with Open/Done, skip or keep, opt-in Academy XP (+10 on a done task), neutral review, pause, axe clean; Free: one goal, no weekly plan')
   }
 
   // Premium gates (P3-BIL #51, migration 142): summary insights, top action only, re-test locked; nothing recorded is hidden.

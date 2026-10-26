@@ -104,6 +104,17 @@ create function public.has_active_premium_subscription(p_user_id uuid default au
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.premium_subscriptions s where s.user_id = p_user_id and s.status = 'ACTIVE' and (s.ends_at is null or s.ends_at > now()))
 $$;
+create table public.premium_learning_activity_attempts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  activity_type text not null constraint premium_learning_activity_attempts_activity_type_check check (activity_type in ('brain_sprint', 'word_match', 'ai_roleplay')),
+  score integer not null,
+  total integer not null,
+  xp_earned integer not null default 0 check (xp_earned between 0 and 20),
+  metadata jsonb not null default '{}'::jsonb,
+  completed_at timestamptz not null default now(),
+  activity_date date not null default timezone('Asia/Vientiane', now())::date
+);
 create table public.premium_lessons (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  previewGoal, useArchiveGoal, usePausePlan, usePlanner, useSaveGoal, useSavePlan, useUpdateTask,
+  previewGoal, useArchiveGoal, usePausePlan, usePlanner, useSaveGoal, useSavePlan, useSetPlannerXp, useUpdateTask,
   type Feasibility, type GoalPreview, type LearningGoal, type PlannerView, type StudyTask,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -185,12 +185,15 @@ function PlanCard({ view }: { view: PlannerView }) {
   const toast = useToast()
   const savePlan = useSavePlan()
   const pause = usePausePlan()
+  const xp = useSetPlannerXp()
   const plan = view.plan
   const [editing, setEditing] = useState(!plan)
   const [days, setDays] = useState<number[]>(plan?.days ?? [1, 3, 6])
   const [minutes, setMinutes] = useState(plan?.minutes_per_day ?? 20)
   const [pausing, setPausing] = useState(false)
   const [until, setUntil] = useState('')
+  const [xpOn, setXpOn] = useState(plan?.xp_opt_in ?? false)
+  useEffect(() => setXpOn(plan?.xp_opt_in ?? false), [plan?.xp_opt_in])
   const onError = (error: unknown) => toast.error(academicErrorText(t, error))
   const dayName = (d: number) => t(`planner.day.${d}` as AcademicCopyKey)
   const maxPause = useMemo(() => new Date(new Date(view.today).getTime() + 90 * 86400_000).toISOString().slice(0, 10), [view.today])
@@ -202,6 +205,17 @@ function PlanCard({ view }: { view: PlannerView }) {
       {plan && !editing ? (
         <div className="mt-2 space-y-3">
           <p className="font-bold">{t('planner.planLine', { days: plan.days.map(dayName).join(', '), minutes: plan.minutes_per_day })}</p>
+          {/* PLAN-005 (OD-09): opt-in, never punitive. */}
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4" checked={xpOn} disabled={xp.isPending}
+              onChange={event => {
+                const on = event.target.checked
+                setXpOn(on)
+                xp.mutate(on, { onError: error => { setXpOn(!on); onError(error) } })
+              }} />
+            <span><span className="block font-bold">{t('planner.xp', { xp: plan.xp_per_task })}</span>
+              <span className="block text-xs text-slate-600 dark:text-slate-400">{t('planner.xpHelp')}</span></span>
+          </label>
           {plan.paused_until && (
             <p role="status" className="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">{t('planner.pausedUntil', { date: formatDate(plan.paused_until, language) })}</p>
           )}
@@ -314,6 +328,7 @@ function WeekView({ view }: { view: PlannerView }) {
                         </span>
                       </span>
                       {task.state === 'done' && <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 dark:text-emerald-300"><Check className="h-4 w-4" />{t('planner.task.finished')}</span>}
+                      {task.xp > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">{t('planner.task.xp', { xp: task.xp })}</span>}
                       {task.state === 'skipped' && <span className="text-xs font-bold text-slate-500">{t('planner.task.skipped')}</span>}
                       {task.state === 'scheduled' && task.route && (
                         <Link to={task.route} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:ring-indigo-500/40">

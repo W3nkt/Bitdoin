@@ -1018,6 +1018,8 @@ export interface StudyTask {
   moved: boolean
   needs_decision: boolean
   done_by: 'student' | 'activity' | null
+  /** Academy XP this task earned (PLAN-005, migration 144). */
+  xp: number
 }
 
 export interface PlannerView {
@@ -1029,7 +1031,7 @@ export interface PlannerView {
   goals: LearningGoal[]
   subjects: { subject_enrolment_id: string; name_lo: string; name_en: string; baseline: number | null }[]
   periods: (PeriodRef & { months: number })[]
-  plan: { days: number[]; minutes_per_day: number; paused_until: string | null; starts_on: string } | null
+  plan: { days: number[]; minutes_per_day: number; paused_until: string | null; starts_on: string; xp_opt_in: boolean; xp_per_task: number } | null
   week: { week_start: string; tasks: StudyTask[]; decisions: StudyTask[] } | null
   review: { week_start: string; planned: number; done: number; minutes: number; topics: { lo: string | null; en: string | null }[] } | null
   suggestion: { subject_enrolment_id: string; name_lo: string; name_en: string; baseline: number; target: number } | null
@@ -1071,5 +1073,6 @@ export const useArchiveGoal = () => usePlannerMutation((goalId: string) => callA
 export const useSavePlan = () => usePlannerMutation((input: { days: number[]; minutes_per_day: number }) =>
   callAcademicRpc<PlannerView>('academic_save_plan', { p_input: input }))
 export const usePausePlan = () => usePlannerMutation((until: string | null) => callAcademicRpc<PlannerView>('academic_pause_plan', { p_until: until }))
+export const useSetPlannerXp = () => usePlannerMutation((on: boolean) => callAcademicRpc<PlannerView>('academic_set_planner_xp', { p_on: on }))
 export const useUpdateTask = () => usePlannerMutation(({ taskId, action }: { taskId: string; action: 'done' | 'undo' | 'skip' | 'keep' }) =>
   callAcademicRpc<StudyTask>('academic_update_task', { p_task_id: taskId, p_action: action }))

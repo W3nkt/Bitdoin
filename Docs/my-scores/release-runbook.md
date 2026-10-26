@@ -67,6 +67,8 @@ code, grant or revoke with a reason code; a confirmed transfer needs its referen
 Applied 2026-10-26 (#54): 143 (study planner: goals, plan, weekly tasks), then the Planner screen
 (`/academy/scores/planner`, linked from the dashboard). Lao strings in `plannerCopy.ts` need the
 owner's review. Free students can set one goal; weekly plans need Premium (locks are on).
+Planner Lao strings approved by the owner. Then 144 (OD-09: opt-in Academy XP for finished tasks, 10 XP
+once per task, never taken back).
 
 ### Switching premium locks on (P3-BIL #51)
 

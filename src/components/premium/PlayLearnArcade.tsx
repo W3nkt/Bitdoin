@@ -279,6 +279,8 @@ export function PlayLearnArcade({
         .from('premium_learning_activity_attempts')
         .select('activity_type,score,total,xp_earned,completed_at')
         .eq('user_id', profileId)
+        // Study-planner XP (activity 'study_task', migration 144) is not a Play & Learn game.
+        .in('activity_type', ['brain_sprint', 'word_match', 'ai_roleplay'])
         .order('completed_at', { ascending: false })
         .limit(100)
       if (attemptsError) throw attemptsError

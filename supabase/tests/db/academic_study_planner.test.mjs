@@ -103,6 +103,24 @@ eq('after the pause the week is planned again', (await planner()).week.tasks.fil
 view = await rpc(A, `public.academic_pause_plan(null)`)
 eq('resuming clears the pause', view.plan.paused_until, null)
 
+// ─── Academy XP, opt-in and non-punitive (PLAN-005, OD-09) ───────────────────
+
+const xpRows = async () => (await db.query(`select activity_type, xp_earned, metadata->>'task_id' as task from premium_learning_activity_attempts`)).rows
+const open = (await planner()).week.tasks.filter((t) => t.state === 'scheduled')
+eq('XP is off until the student turns it on; earlier done tasks gave none', [(await planner()).plan.xp_opt_in, (await xpRows()).length], [false, 0])
+eq('turning XP on needs a plan', (await errorOf(B, `public.academic_set_planner_xp(true)`))?.code, 'NOT_FOUND')
+eq('turned on', (await rpc(A, `public.academic_set_planner_xp(true)`)).plan.xp_opt_in, true)
+await rpc(A, `public.academic_update_task('${open[0].id}', 'done')`)
+eq('a done task gives 10 XP as an Academy learning activity', await xpRows(), [{ activity_type: 'study_task', xp_earned: 10, task: open[0].id }])
+await rpc(A, `public.academic_update_task('${open[0].id}', 'undo')`)
+await rpc(A, `public.academic_update_task('${open[0].id}', 'done')`)
+eq('undo and done again: still one award, and undo never takes XP back', (await xpRows()).length, 1)
+eq('the task shows the XP it earned', (await planner()).week.tasks.find((t) => t.id === open[0].id).xp, 10)
+await rpc(A, `public.academic_set_planner_xp(false)`)
+if (open[1]) await rpc(A, `public.academic_update_task('${open[1].id}', 'done')`)
+eq('switched off: no new XP, earned XP kept', (await xpRows()).map((r) => r.xp_earned), [10])
+eq('skipping a task never costs XP', await (async () => { if (open[2]) await rpc(A, `public.academic_update_task('${open[2].id}', 'skip')`); return (await xpRows()).length })(), 1)
+
 // ─── Archive, other students, privacy ────────────────────────────────────────
 
 eq('archive a goal', (await rpc(A, `public.academic_archive_goal('${phys.id}')`)).status, 'archived')

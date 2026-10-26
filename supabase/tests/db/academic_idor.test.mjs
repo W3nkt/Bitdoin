@@ -137,7 +137,7 @@ const OWN_WRITE = [
   // Feedback on a next action: accepts only keys from the caller's own impressions (migration 138).
   'academic_recommendation_feedback(text,text)',
   // The caller's own study plan; no IDs accepted (migration 143).
-  'academic_save_plan(jsonb)', 'academic_pause_plan(date)',
+  'academic_save_plan(jsonb)', 'academic_pause_plan(date)', 'academic_set_planner_xp(boolean)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',

@@ -22,7 +22,7 @@ draft recommendation as a proposal, not an approval.
 | REL-001a | Closed pilot access | The pilot uses invite codes: one cohort per school or community, managed in Admin → Schooling → Pilot. With the pilot gate on, new students need a code; students who already have a profile are unaffected. The gate starts off and is switched on with an audited reason once the cohorts exist. See `pilot-plan.md`. Go/no-go owner: Jongka Labs. | Owner | 2026-10-25 |
 | REL-001b | Pilot ratings | An optional in-app card asks once, after the second recorded month, how useful Schooling is and how easy entry is (1–5, no text). Answers are usage events (statistics switch applies) and feed the go/no-go panel (§36.4, §35.5). | Owner | 2026-10-25 |
 | OD-16 | Retention periods | Open; waits for counsel. | — | — |
-| OD-09 | Study tasks and Academy XP / streaks (PLAN-005, PRD §40.2) | Open, due before Phase 3. Options: yes, non-punitive / no. PRD recommendation: yes, opt-in, missed days never remove earned XP or break a streak. Until decided, planner tasks give no XP. | — | — |
+| OD-09 | Study tasks and Academy XP / streaks (PLAN-005, PRD §40.2) | Yes, without penalties. Opt-in on the planner ("Count finished tasks as Academy XP"); each task gives 10 XP once, the first time it is done (by the student or by finishing its activity), written as an Academy learning activity (`study_task`) so it counts in the Academy dashboard, leaderboard and weekly tracker. Undo, skipping, missed days or switching off never take XP away. Academy streaks are not touched. | Owner | 2026-10-26 |
 | OD-03, 05, 06, 08, 10–12, 14, 15, 17–20 | Later-phase decisions | Open; each is due at the phase the PRD states. | — | — |
 
 ## Implementation notes (not owner decisions)

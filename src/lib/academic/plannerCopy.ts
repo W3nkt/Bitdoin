@@ -75,5 +75,8 @@ export const plannerCopy = {
   'planner.review': { en: 'Last week', lo: 'ອາທິດແລ້ວ' },
   'planner.reviewLine': { en: '{done} of {planned} tasks done · {minutes} min', lo: 'ເຮັດແລ້ວ {done} ຈາກ {planned} ວຽກ · {minutes} ນາທີ' },
   'planner.reviewTopics': { en: 'You worked on: {topics}', lo: 'ເຈົ້າໄດ້ຮຽນ: {topics}' },
+  'planner.xp': { en: 'Count finished tasks as Academy XP (+{xp} each)', lo: 'ນັບວຽກທີ່ເຮັດແລ້ວເປັນ XP ຂອງ Academy (+{xp} ຕໍ່ວຽກ)' },
+  'planner.xpHelp': { en: 'Missing a day never takes XP away. Turn it off any time.', lo: 'ການຂາດມື້ໃດໜຶ່ງ ບໍ່ເຮັດໃຫ້ XP ຫາຍ. ປິດໄດ້ທຸກເວລາ.' },
+  'planner.task.xp': { en: '+{xp} XP', lo: '+{xp} XP' },
   'premium.planner': { en: 'Weekly study plans and more goals come with Academy Premium.', lo: 'ແຜນການຮຽນລາຍອາທິດ ແລະ ເປົ້າໝາຍເພີ່ມເຕີມ ມີໃນ Academy Premium.' },
 } as const
