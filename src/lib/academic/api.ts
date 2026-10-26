@@ -518,7 +518,7 @@ export function useGrantUsageStatistics() {
 }
 
 export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
-  const [data, quizzes, reports, recommendations, guidance] = await Promise.all([
+  const [data, quizzes, reports, recommendations, guidance, scholarships] = await Promise.all([
     callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
     // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
     callAcademicRpc<{ attempts?: Record<string, unknown>[]; practice?: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
@@ -527,10 +527,12 @@ export const exportMyData = async (): Promise<import('./exportZip').ExportData> 
     callAcademicRpc<Record<string, unknown> | null>('academic_export_my_recommendations'),
     // Study planner, Coach "My scores" chats and career guidance (migration 150).
     callAcademicRpc<{ planner?: Record<string, unknown>; coach?: Record<string, unknown>; careers?: Record<string, unknown> } | null>('academic_export_my_guidance'),
+    // Saved scholarships (migration 155) go with careers.
+    callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_scholarships'),
   ])
   return {
     ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] },
-    planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: guidance?.careers ?? {},
+    planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: { ...(guidance?.careers ?? {}), scholarships: scholarships ?? [] },
   }
 }
 
@@ -569,10 +571,10 @@ export function useCancelDeletion() {
 
 export interface AcademicNotification {
   id: string
-  category: 'score_reminder' | 'guardian_link'
+  category: 'score_reminder' | 'guardian_link' | 'guardian_report' | 'scholarship_deadline'
   code: 'score_reminder.first' | 'score_reminder.second' | string
   /** Reminders carry the period; guardian notices (migration 152) the other person's name. */
-  payload: { enrolment_id?: string; period_id?: string; period_key?: string; period_label_lo?: string; period_label_en?: string; guardian?: string; student?: string; relationship?: string }
+  payload: { enrolment_id?: string; period_id?: string; period_key?: string; period_label_lo?: string; period_label_en?: string; guardian?: string; student?: string; relationship?: string; name_en?: string; name_lo?: string; deadline?: string; days?: number }
   channel: 'in_app' | 'push'
   state: 'sent' | 'read'
   created_at: string
@@ -1174,14 +1176,35 @@ export function useCareerGuidance() {
   return useQuery({ queryKey: careerKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<CareerGuidanceView>('academic_get_career_guidance') })
 }
 
-/** Every published career, for browsing regardless of scores (CAREER-003). */
+/** A sourced fact with its academic year (UNI-004); out_of_date past its review-by date. */
+export interface ProgrammeRequirement { kind: 'requirement' | 'cutoff'; text_en: string; text_lo: string; academic_year: string; source_name: string; source_url: string; verified_on: string; out_of_date: boolean }
+
+export interface CatalogueInstitution { slug: string; name_en: string; name_lo: string; short_name?: string; province_code: string; website_url: string }
+export interface CatalogueProgramme {
+  slug: string; institution: string; faculty?: string; name_en: string; name_lo: string; degree_level: string; duration_years: string
+  entrance_group?: string; field?: string; careers?: string[]; source_name: string; source_url: string; verified_on: string; out_of_date: boolean
+  requirements?: ProgrammeRequirement[]
+}
+export interface CatalogueScholarship {
+  slug: string; name_en: string; name_lo: string; provider: string; institution?: string; deadline: string; academic_year: string
+  eligibility_en: string; eligibility_lo: string; amount_en?: string; amount_lo?: string; source_name: string; source_url: string; verified_on: string; out_of_date: boolean
+}
+export interface CareerCatalogue { careers: GuidanceCareer[]; institutions: CatalogueInstitution[]; programmes: CatalogueProgramme[]; scholarships: CatalogueScholarship[] }
+
+/** Every published career, institution, programme and open scholarship (CAREER-003, UNI-003, UNI-005). */
 export function useCareerCatalogue() {
   return useQuery({
     queryKey: [...careerKey, 'catalogue'],
     retry: shouldRetryAcademic,
-    queryFn: () => callAcademicRpc<{ careers: GuidanceCareer[] }>('academic_career_catalogue'),
+    queryFn: () => callAcademicRpc<CareerCatalogue>('academic_career_catalogue'),
   })
 }
+
+export function useMyScholarships() {
+  return useQuery({ queryKey: [...careerKey, 'scholarships'], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<{ slug: string; remind: boolean }[]>('academic_my_scholarships') })
+}
+export const useSetScholarshipSaved = () => useCareerMutation(({ slug, saved, remind }: { slug: string; saved: boolean; remind?: boolean }) =>
+  callAcademicRpc<{ slug: string; remind: boolean }[]>('academic_set_scholarship_saved', { p_slug: slug, p_saved: saved, p_remind: remind ?? false }))
 
 function useCareerMutation<A, R>(fn: (args: A) => Promise<R>) {
   const queryClient = useQueryClient()

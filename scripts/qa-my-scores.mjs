@@ -243,7 +243,22 @@ function backend(initial) {
     } },
     // Career guidance (migration 150): a small stateful stand-in.
     academic_get_career_guidance: () => careerView(state),
-    academic_career_catalogue: () => ({ careers: CAREERS }),
+    academic_career_catalogue: () => ({
+      careers: CAREERS,
+      institutions: [{ slug: 'uhs', name_en: 'University of Health Sciences', name_lo: 'ມະຫາວິທະຍາໄລ ວິທະຍາສາດສຸຂະພາບ', province_code: 'vientiane-prefecture', website_url: 'https://uhs.edu.la/' },
+        { slug: 'cu', name_en: 'Champasack University', name_lo: 'ມະຫາວິທະຍາໄລ ຈຳປາສັກ', province_code: 'champasak', website_url: 'https://www.cu.edu.la/' }],
+      programmes: [
+        { slug: 'p-nurse', institution: 'uhs', name_en: 'Bachelor of Nursing Science', name_lo: 'ປະລິນຍາຕີ ພະຍາບານສາດ', degree_level: 'bachelor', duration_years: '4', entrance_group: 'B', field: 'health', careers: ['registered-nurse'],
+          source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26', out_of_date: false,
+          requirements: [{ kind: 'cutoff', text_en: 'Cut-off 70', text_lo: 'ຄະແນນຂັ້ນຕ່ຳ 70', academic_year: '2026-2027', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26', out_of_date: false }] },
+        { slug: 'p-edu', institution: 'cu', name_en: 'Bachelor of Education', name_lo: 'ປະລິນຍາຕີ ສຶກສາສາດ', degree_level: 'bachelor', duration_years: '4', field: 'education', careers: ['secondary-teacher'],
+          source_name: 'CU', source_url: 'https://www.cu.edu.la/', verified_on: '2026-10-26', out_of_date: false },
+      ],
+      scholarships: [{ slug: 's-uhs', name_en: 'Health Sciences Scholarship', name_lo: 'ທຶນການສຶກສາ ວິທະຍາສາດສຸຂະພາບ', provider: 'University of Health Sciences', deadline: '2026-12-04', academic_year: '2026-2027',
+        eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', out_of_date: false }],
+    }),
+    academic_my_scholarships: () => state.scholarships ?? [],
+    academic_set_scholarship_saved: (args) => { state.scholarships = args.p_saved ? [{ slug: args.p_slug, remind: args.p_remind }] : []; return state.scholarships },
     academic_start_career_questionnaire: (args) => { state.career = { ...(state.career ?? {}), in_progress: { answers: {}, preferences: {}, reason: args.p_reason } }; return careerView(state) },
     academic_save_career_answers: (args) => { (state.careerSaves ??= []).push(args); Object.assign(state.career.in_progress.answers, args.p_answers); if (args.p_preferences) state.career.in_progress.preferences = args.p_preferences; return { saved: true } },
     academic_finish_career_questionnaire: () => { state.career = { completed: true }; return careerView(state) },
@@ -1630,6 +1645,8 @@ try {
     await nurse.getByText('Biology: among your stronger subjects.').waitFor()
     await nurse.getByText('What preparation would help').waitFor()
     assert.equal(await nurse.getByRole('link', { name: 'Open in Career Explorer' }).getAttribute('href'), '/academy/careers?career=registered-nurse')
+    await nurse.getByText('Where to study in Laos').waitFor()
+    await nurse.getByText('Bachelor of Nursing Science').waitFor()
     assert.equal(await page.getByText(/\d+ ?%/).count(), 0, 'no percentages')
     await nurse.getByRole('button', { name: 'Save Registered Nurse' }).click()
     await nurse.getByRole('button', { name: 'Remove Registered Nurse from my shortlist' }).waitFor()
@@ -1638,6 +1655,21 @@ try {
     await page.getByText('Who do we know who does this work?').waitFor()
     await page.getByRole('heading', { name: 'All careers' }).waitFor()
     await page.getByText('Every career is open to you, whatever your scores.').waitFor()
+    // UNI-003: searching by entrance group lists unconfirmed groups separately; UNI-004: cut-offs with their year.
+    const programmes = page.locator('section', { has: page.getByRole('heading', { name: 'Programmes in Laos' }) })
+    await programmes.getByLabel('Entrance exam group').selectOption('B')
+    await programmes.getByText('Bachelor of Nursing Science').waitFor()
+    await programmes.getByRole('heading', { name: 'Group not confirmed' }).waitFor()
+    await programmes.getByText('Bachelor of Education').waitFor()
+    await programmes.getByText('(for 2026-2027 – may change)').waitFor()
+    await programmes.getByLabel('Field').selectOption('education')
+    assert.equal(await programmes.getByText('Bachelor of Nursing Science').count(), 0)
+    // UNI-005: save a scholarship and turn on reminders.
+    const scholarships = page.locator('section', { has: page.getByRole('heading', { name: 'Scholarships and deadlines' }) })
+    await scholarships.getByText('Who can apply: Grade 12 students').waitFor()
+    await scholarships.getByRole('button', { name: 'Save Health Sciences Scholarship' }).click()
+    await scholarships.getByLabel('Remind me 14 and 3 days before').check()
+    assert.deepEqual(lastCall(mock, 'academic_set_scholarship_saved').args, { p_slug: 's-uhs', p_saved: true, p_remind: true })
     await shot(page, 'my-scores-careers-1-results-en-mobile')
     await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
@@ -1659,7 +1691,7 @@ try {
     assert.deepEqual(await lo.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(lo.errors, [])
     await lo.context.close()
-    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; Lao results; Free sees interests and every career but options need Premium; axe clean')
+    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; programmes by field and entrance group with unconfirmed groups apart and cut-offs with their year, a scholarship saved with reminders; Lao results; Free sees interests and every career but options need Premium; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

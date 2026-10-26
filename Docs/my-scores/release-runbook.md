@@ -114,6 +114,10 @@ only what the child shares, with supportive suggestions; every view audit-logged
 Applied 2026-10-27 (#52, piece 3a): 154 (3-day correction window for guardians, limits of 4 guardians
 and 6 children, monthly guardian reports written daily at 06:10 Vientiane time for Premium accounts).
 
+Applied 2026-10-27 (#55, piece 3): 155 (programme field and search, scholarships with verified deadlines,
+saved scholarships and reminders daily at 08:20 Vientiane time; fix: missing dates are refused by the
+catalogue's checks). Admins add programmes and scholarships on the Careers tab.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

@@ -28,6 +28,7 @@ const KINDS: { id: CareerKind; label: string }[] = [
   { id: 'career', label: 'Careers' },
   { id: 'institution', label: 'Institutions' },
   { id: 'programme', label: 'Programmes' },
+  { id: 'scholarship', label: 'Scholarships' },
 ]
 const AREAS: Record<string, string> = { R: 'Building & fixing', I: 'Investigating & science', A: 'Creating & designing', S: 'Helping & teaching', E: 'Leading & business', C: 'Organising & data' }
 const STUDY: Record<string, string> = { le3: 'Up to 3 years', '4to5': '4–5 years', '6plus': '6 years or more' }
@@ -79,7 +80,7 @@ export function CareersAdmin() {
       <Panel title="Career catalogue"
         description="One catalogue with the Academy Career Explorer. Students only see published copies; a different admin approves every change."
         actions={<Button size="sm" icon={<Plus className="h-4 w-4" />} disabled={!view}
-          onClick={() => setEditing({ data: kind === 'programme' ? { institution: view?.institutions[0]?.slug ?? '', requirements: [], careers: [] } : kind === 'career' ? { facts: [], related_subjects: [], work_settings: [] } : { type: 'university', province_code: 'vientiane-prefecture', faculties: [] } })}>
+          onClick={() => setEditing({ data: kind === 'programme' ? { institution: view?.institutions[0]?.slug ?? '', requirements: [], careers: [] } : kind === 'career' ? { facts: [], related_subjects: [], work_settings: [] } : kind === 'scholarship' ? { institution: '' } : { type: 'university', province_code: 'vientiane-prefecture', faculties: [] } })}>
           New {kind}</Button>}>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Content" className="flex gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800">
@@ -187,10 +188,19 @@ function Summary({ record, view }: { record: CareerRecord; view: CareerContentVi
       </div>
     )
   }
+  if (record.kind === 'scholarship') {
+    return (
+      <div className="mt-2 grid gap-1 text-sm">
+        <p>{str(d.provider)} · deadline {str(d.deadline) || '—'} · {str(d.academic_year) || '—'}</p>
+        <p className="text-slate-600 dark:text-slate-400">{str(d.eligibility_en)}</p>
+        <SourceLink name={str(d.source_name)} url={str(d.source_url)} verified={str(d.verified_on)} reviewBy={str(d.review_by)} />
+      </div>
+    )
+  }
   const requirements = (d.requirements as CareerFact[] | undefined) ?? []
   return (
     <div className="mt-2 grid gap-1 text-sm">
-      <p>{view.institutions.find(i => i.slug === d.institution)?.name_en ?? str(d.institution)} · {DEGREES[str(d.degree_level)] ?? '—'} · {str(d.duration_years)} years · entrance group {str(d.entrance_group) || 'not confirmed'}</p>
+      <p>{view.institutions.find(i => i.slug === d.institution)?.name_en ?? str(d.institution)} · {DEGREES[str(d.degree_level)] ?? '—'} · {str(d.duration_years)} years · entrance group {str(d.entrance_group) || 'not confirmed'}{d.field ? ` · ${str(d.field).replace('_', ' ')}` : ''}</p>
       <p className="text-slate-600 dark:text-slate-400">Careers: {list(d.careers).join(', ') || '—'} · {requirements.length} requirement(s) or cut-off(s)</p>
       <SourceLink name={str(d.source_name)} url={str(d.source_url)} verified={str(d.verified_on)} reviewBy={str(d.review_by)} />
     </div>
@@ -252,7 +262,7 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
         save.mutate({ id: value.record?.id, kind, slug: value.record ? undefined : slug.trim() || undefined, data },
           { onSuccess: () => { toast.success('Saved. Send it for review when it is ready.'); onClose() }, onError: error => toast.error(adminErrorText(error)) })
       }}>
-        {!value.record && kind !== 'programme' && (
+        {!value.record && kind !== 'programme' && kind !== 'scholarship' && (
           <Field label="Slug" hint={kind === 'career' ? 'Use the Career Explorer id for an existing career, e.g. software-engineer.' : 'Short id, e.g. nuol.'}>
             <input value={slug} required pattern="[a-z0-9][a-z0-9\-]{1,63}" onChange={event => setSlug(event.target.value)} />
           </Field>
@@ -310,6 +320,7 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
             {text('duration_years', 'Duration (years)', { type: 'number' })}
             {text('entrance_group', 'Entrance exam group', { hint: 'One letter, only when the official source says so. Leave empty if not confirmed.' })}
             {text('applicable_year', 'Academic year (optional)')}
+            <Field label="Field (for search)"><select value={str(data.field)} onChange={event => set({ field: event.target.value })}><option value="">None</option>{view.clusters.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}</select></Field>
             {source}
           </div>
           <fieldset><legend className="mb-1 text-xs font-black text-slate-600 dark:text-slate-300">Careers this programme leads to</legend>
@@ -319,6 +330,22 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
             <FactRows facts={(data.requirements as CareerFact[]) ?? []} kinds={REQUIREMENT_KINDS} needYear onChange={requirements => set({ requirements })} />
           </fieldset>
         </>}
+
+        {kind === 'scholarship' && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {text('name_en', 'Name (English)')}
+            {text('name_lo', 'Name (Lao)')}
+            {text('provider', 'Offered by')}
+            <Field label="Institution (optional)"><select value={str(data.institution)} onChange={event => set({ institution: event.target.value })}><option value="">None</option>{view.institutions.map(i => <option key={i.slug} value={i.slug}>{i.name_en}</option>)}</select></Field>
+            {text('deadline', 'Application deadline (verified)', { type: 'date' })}
+            {text('academic_year', 'Academic year')}
+            {text('eligibility_en', 'Who can apply (English)', { textarea: true })}
+            {text('eligibility_lo', 'Who can apply (Lao)', { textarea: true })}
+            {text('amount_en', 'What it covers (English, optional)')}
+            {text('amount_lo', 'What it covers (Lao, optional)')}
+            {source}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>

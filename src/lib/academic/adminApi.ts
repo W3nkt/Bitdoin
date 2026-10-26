@@ -923,7 +923,7 @@ export function useRateAi() {
 
 // ─── Career catalogue (ADMIN-010, UNI-001/002/004; migration 148) ────────────
 
-export type CareerKind = 'career' | 'institution' | 'programme'
+export type CareerKind = 'career' | 'institution' | 'programme' | 'scholarship'
 export type CareerStatus = 'draft' | 'in_review' | 'published' | 'archived'
 
 /** A sourced, dated fact (UNI-002). Requirements and cut-offs also need academic_year (UNI-004). */

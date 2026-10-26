@@ -22,6 +22,16 @@ import { academicErrorText } from './errorText'
 function useReminderText() {
   const { t, lo } = useAcademicCopy()
   return (note: AcademicNotification) => {
+    // Scholarship deadlines (migration 155): 14 and 3 days before.
+    if (note.category === 'scholarship_deadline') {
+      const name = String((lo ? note.payload.name_lo : note.payload.name_en) ?? '')
+      return {
+        title: t('careers.note.deadline.title', { name, days: Number(note.payload.days ?? 0) }),
+        body: t('careers.note.deadline.body', { date: note.payload.deadline ? formatDate(note.payload.deadline, lo ? 'lo' : 'en') : '' }),
+        href: '/academy/scores/careers',
+        cta: t('guardians.open'),
+      }
+    }
     // Guardian links (migration 152): a request to confirm, or a link that ended.
     if (note.category === 'guardian_link') {
       const removed = note.code === 'guardian.removed'

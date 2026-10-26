@@ -798,6 +798,8 @@ try {
     const uhs = page.locator('li', { hasText: 'University of Health Sciences' })
     await uhs.getByText('6 faculties', { exact: false }).waitFor()
     assert.equal(await uhs.getByRole('link', { name: 'University of Health Sciences official website' }).getAttribute('href'), 'https://uhs.edu.la/')
+    await page.getByRole('tab', { name: 'Scholarships' }).click()
+    await page.getByRole('button', { name: 'New scholarship' }).waitFor()
     await page.getByRole('tab', { name: 'Programmes' }).click()
     await page.getByRole('button', { name: 'New programme' }).click()
     const dialog = page.getByRole('dialog')

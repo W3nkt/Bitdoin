@@ -137,6 +137,8 @@ const OWN_READ = [
   'academic_get_career_guidance()', 'academic_export_my_guidance()',
   // The caller's own guardian links, as student or as guardian (migration 152).
   'academic_list_guardian_links()', 'academic_get_family()',
+  // The caller's own saved scholarships (migration 155).
+  'academic_my_scholarships()', 'academic_export_my_scholarships()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -164,6 +166,8 @@ const OWN_WRITE = [
   'academic_start_career_questionnaire(text)', 'academic_save_career_answers(jsonb,jsonb)', 'academic_finish_career_questionnaire()', 'academic_set_career_saved(text,boolean)',
   // A new invite for the caller's own profile; preview and accept take a one-time code held by the invited guardian (migration 152).
   'academic_create_guardian_invite(jsonb,text)', 'academic_preview_guardian_invite(text)', 'academic_accept_guardian_invite(text,text,boolean)',
+  // Saves to the caller's own list; scholarship slugs are shared content (migration 155).
+  'academic_set_scholarship_saved(text,boolean,boolean)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -304,6 +308,8 @@ const ownReads = {
   'academic_export_my_guidance()': 'public.academic_export_my_guidance()',
   'academic_list_guardian_links()': 'public.academic_list_guardian_links()',
   'academic_get_family()': 'public.academic_get_family()',
+  'academic_my_scholarships()': 'public.academic_my_scholarships()',
+  'academic_export_my_scholarships()': 'public.academic_export_my_scholarships()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

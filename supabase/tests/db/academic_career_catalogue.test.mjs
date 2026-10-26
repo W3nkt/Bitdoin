@@ -2,7 +2,7 @@
 // slugs (CAREER-008), sourced and dated facts (UNI-002/004, CAREER-005),
 // four-eyes publication (UNI-001, ADMIN-010), review-by alerts, the seed.
 import { createDb, ok, eq, done, ACADEMIC_MIGRATIONS } from './harness.mjs'
-import { CONFIG_SQL, apiFor, json } from './fixtures.mjs'
+import { CONFIG_SQL, ID, apiFor, json } from './fixtures.mjs'
 
 const db = await createDb(ACADEMIC_MIGRATIONS)
 const { rpc, rpcError, one } = apiFor(db)
@@ -86,5 +86,30 @@ await review(A1, uhs.id, 'archive', 'Closed for checking')
 eq("archiving an institution hides it and its programmes", [(await catalogue()).institutions.length, (await catalogue()).programmes.length], [0, 0])
 eq('students cannot use the admin tools', (await rpcError(S, `public.academic_admin_career_content('career')`))?.code, 'FORBIDDEN_ROLE')
 eq('signed-out visitors cannot read the catalogue', (await rpcError(null, `public.academic_career_catalogue()`))?.code, 'UNAUTHENTICATED')
+
+// ─── Programme fields and scholarships (UNI-003, UNI-005, migration 155) ─────
+
+await review(A1, uhs.id, 'restore')
+eq('a programme field must be one of the clusters', (await save(A1, { kind: 'programme', data: { ...programme.data, field: 'astrology' } })).problems.field, 'Choose a field from the list')
+const scholarship = { kind: 'scholarship', data: { name_en: 'Health Sciences Scholarship', name_lo: 'ທຶນການສຶກສາ ວິທະຍາສາດສຸຂະພາບ', provider: 'University of Health Sciences', institution: 'uhs' } }
+eq('a scholarship needs its deadline, year, who can apply and its source', Object.keys((await save(A1, scholarship)).problems).sort(), ['academic_year', 'deadline', 'eligibility', 'source'])
+const fullScholarship = { ...scholarship, data: { ...scholarship.data, deadline: '2026-12-04', academic_year: '2026-2027', eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7',
+  source_name: 'UHS website', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', review_by: '2027-01-01' } }
+const sch = await save(A1, fullScholarship)
+eq('complete: an automatic slug, ready for review', [sch.slug.startsWith('s-'), sch.problems], [true, {}])
+await review(A1, sch.id, 'submit')
+await review(A2, sch.id, 'approve')
+eq('published scholarships with a future deadline are listed for students', (await catalogue()).scholarships.map((x) => x.name_en), ['Health Sciences Scholarship'])
+
+const kid = await rpc(S, `public.academic_create_profile(${json({ display_name: 'Noy', age_band: '16_17', province_code: 'vientiane-prefecture', grade_id: ID.g11, school_id: ID.school, notice_version: '2026-10-25', subjects: [{ subject_id: ID.math }] })})`)
+void kid
+eq('a student saves it with reminders on', await rpc(S, `public.academic_set_scholarship_saved('${sch.slug}', true, true)`), [{ slug: sch.slug, remind: true }])
+eq('14 days before the deadline: a reminder', (await one(`select public.academic_scholarship_reminders() as v`)).v, 1)
+eq('only once', (await one(`select public.academic_scholarship_reminders() as v`)).v, 0)
+await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-12-01' $$`)
+eq('3 days before: another reminder', [(await one(`select public.academic_scholarship_reminders() as v`)).v, (await one(`select string_agg(code, ',' order by code) as v from academic_notifications where category = 'scholarship_deadline'`)).v], [1, 'scholarship.14,scholarship.3'])
+await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-12-05' $$`)
+eq('after the deadline it is hidden and cannot be saved', [(await catalogue()).scholarships.length, (await rpcError(S, `public.academic_set_scholarship_saved('${sch.slug}', true)`))?.details?.field], [0, 'slug'])
+eq('the saved scholarship is in "Download my data"', (await rpc(S, `public.academic_export_my_scholarships()`)).map((x) => x.scholarship), [sch.slug])
 
 done()

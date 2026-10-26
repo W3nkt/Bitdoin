@@ -12,6 +12,7 @@ import {
 import { formatDate } from '@/lib/academic/format'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
+import { CareerProgrammes, ProgrammeSearch, Scholarships } from './Programmes'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
 
@@ -54,6 +55,8 @@ function Intro({ view }: { view: CareerGuidanceView }) {
         <Button className="mt-4" loading={start.isPending} onClick={() => start.mutate('first', { onError: error => toast.error(academicErrorText(t, error)) })}>{t('careers.start')}</Button>
       </section>
       <AllCareers shortlist={view.shortlist} />
+      <ProgrammeSearch />
+      <Scholarships />
     </div>
   )
 }
@@ -198,6 +201,7 @@ function CareerBody({ career, t }: { career: GuidanceCareer; t: T }) {
           </span>
         </p>
       ))}
+      <CareerProgrammes slug={career.slug} />
       {EXPLORER_IDS.has(career.slug) && (
         <Link to={`/academy/careers?career=${encodeURIComponent(career.slug)}`} className="mt-3 inline-flex items-center gap-1 text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
           {t('careers.openExplorer')}<ExternalLink aria-hidden className="h-3.5 w-3.5" />
@@ -288,6 +292,8 @@ function Results({ view }: { view: CareerGuidanceView }) {
       </section>
 
       <AllCareers shortlist={view.shortlist} />
+      <ProgrammeSearch />
+      <Scholarships />
     </div>
   )
 }
