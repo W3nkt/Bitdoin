@@ -88,7 +88,7 @@ Not helpful buttons; Lao strings approved by the owner.
 
 In this order; until then `ocr_enabled` stays `false`:
 1. Vendor assessment for DashScope (no training on inputs, retention, Singapore region) recorded in the processing register (PRIV-006).
-2. QG-3 passed on the #9 hold-out set with `scripts/ocr-eval.mjs`: numeric accuracy >= 90% on clear photos, silent errors <= 2%, flag recall >= 98%.
+2. QG-3 passed on the #9 hold-out set with `npm run eval:ocr -- <dir>` (scripts/ocr-eval.mjs; label format in its header): numeric accuracy >= 90% on clear photos, silent errors <= 2%, flag recall >= 98%.
 3. A privacy-notice version naming the provider and region (counsel), published as `consent_notice_version`.
 4. Owner review of the Lao scan strings (`src/lib/academic/ocrCopy.ts`), including the consent text.
 5. Add `ocr_processing` to `consent_purposes_enabled`, then set `ocr_enabled` to `true`.

@@ -12,6 +12,7 @@
     "test:db": "node supabase/tests/db/run.mjs",
     "test:insights": "node scripts/test-insights.mjs",
     "test:ocr": "node scripts/test-ocr-extract.mjs",
+    "eval:ocr": "node scripts/ocr-eval.mjs",
     "test:e2e": "node scripts/qa-run.mjs"
   },
   "dependencies": {

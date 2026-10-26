@@ -168,4 +168,44 @@ check('a different page is not a duplicate', () => {
   assert.ok(hammingDistance(hash, perceptualHash(page({ spacing: 40, width: 480, height: 360, angle: 25 }))) > 6)
 })
 
+// The QG-3 scoring used by scripts/ocr-eval.mjs.
+const { scoreImage, summarise, bboxUnits, jpegSize } = await import(new URL('./ocr-eval-score.mjs', import.meta.url).href)
+
+console.log('evaluation scoring')
+
+const label = { file: 'p1.jpg', clear: true, month: 3, truth: { 'ຄະນິດສາດ': 7.5, 'ຟີຊິກສາດ': 6, 'ເຄມີສາດ': 8, 'ອັງກິດ': null, 'ລາວ': 9 } }
+const evalRow = (subject_raw, score_value, score_confidence) => ({ subject_raw, score_value, score_confidence })
+const extractionOf = (rows, month = 3) => ({ periods: [{ period_guess: { month: 2 }, rows: [evalRow('ຄະນິດສາດ', 1, 0.99)] }, { period_guess: { month }, rows }] })
+
+check('fields are matched by subject name in the labelled month and classified', () => {
+  const fields = scoreImage(extractionOf([
+    evalRow('ຄະນິດສາດ', 7.5, 0.95), // right, clear
+    evalRow('ຟີຊິກສາ', 6.5, 0.9), // wrong and looks clear: silent (name read slightly off still matches)
+    evalRow('ເຄມີສາດ', 3, 0.5), // wrong but flagged
+    evalRow('ອັງກິດ', null, 0), // blank, read as blank
+  ]), label)
+  assert.deepEqual(fields.map((f) => [f.subject, f.correct, f.flagged, f.silent]), [
+    ['ຄະນິດສາດ', true, false, false], ['ຟີຊິກສາດ', false, false, true], ['ເຄມີສາດ', false, true, false], ['ອັງກິດ', true, true, false],
+    ['ລາວ', false, true, false], // missing row: flagged (the student must type it)
+  ])
+})
+
+check('QG-3 summary: accuracy on clear photos, silent rate over all fields, flag recall over wrong fields', () => {
+  const s = summarise(scoreImage(extractionOf([evalRow('ຄະນິດສາດ', 7.5, 0.95), evalRow('ຟີຊິກສາດ', 6.5, 0.9), evalRow('ເຄມີສາດ', 3, 0.5), evalRow('ອັງກິດ', null, 0)]), label))
+  assert.deepEqual([s.fields, s.clear_numeric_fields, s.accuracy, s.silent_rate, s.flag_recall], [5, 4, 0.25, 0.2, 2 / 3])
+  assert.deepEqual(s.gates, { accuracy: false, silent: false, recall: false })
+  assert.deepEqual(s.silent_examples, [{ file: 'p1.jpg', subject: 'ຟີຊິກສາດ', expected: 6, value: 6.5, confidence: 0.9 }])
+  const perfect = summarise(scoreImage(extractionOf(Object.entries(label.truth).map(([s, v]) => evalRow(s, v, v === null ? 0 : 0.97))), label))
+  assert.deepEqual([perfect.accuracy, perfect.silent_rate, perfect.flag_recall, Object.values(perfect.gates)], [1, 0, 1, [true, true, true]])
+})
+
+check('box units: pixel boxes reach past 1000 on large photos; grid boxes never do', () => {
+  const big = { width: 1500, height: 2000 }
+  assert.equal(bboxUnits([{ bbox: [100, 1200, 300, 1250], ...big }, { bbox: [100, 200, 300, 250], ...big }]).verdict, 'pixels')
+  assert.equal(bboxUnits(Array.from({ length: 10 }, (_, i) => ({ bbox: [100, i * 90, 300, i * 90 + 40], ...big }))).verdict, 'grid_1000')
+  assert.equal(bboxUnits([]).verdict, 'none')
+  const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0, 0, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x07, 0xd0, 0x05, 0xdc, 0x03])
+  assert.deepEqual(jpegSize(jpeg), { height: 2000, width: 1500 })
+})
+
 console.log(`\n${passed} passed`)
