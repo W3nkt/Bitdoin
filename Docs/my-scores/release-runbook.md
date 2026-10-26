@@ -56,6 +56,10 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 
 - Nothing pending.
 
+Applied 2026-10-26 (#51, locks **off**): 141 (entitlement service, monthly quotas, manual grants
+with reason codes; scans now take from the `ocr_upload` quota and get it back on failure). Nothing
+changes for students: `entitlements_enforced` is false, and the free scan allowance stays 10.
+
 Applied 2026-10-26 (#48, scanning **off**): 139 and the `academic-ocr` Edge Function
 (`verify_jwt = false`; it checks the student session itself), commit f1c15a3; the scan screens
 (a2e363c); then 140 (photo list, photos deleted when photo-processing consent is withdrawn, the

@@ -38,7 +38,7 @@ eq("another student's school year -> 404", await rpc(B, `public.academic_start_o
 
 let job = (await rpc(A, `public.academic_start_ocr_job('${a.enrolment_id}', '${HASH}')`)).job
 eq('job waits for the photo', [job.status, job.thresholds, job.timeout_seconds], ['awaiting_upload', { clear: 0.85, review: 0.5 }, 60])
-eq('an awaiting job does not count', (await rpc(A, `public.academic_ocr_status()`)).allowance.used, 0)
+eq('a started scan holds one from the quota (BILLING-003)', (await rpc(A, `public.academic_ocr_status()`)).allowance.used, 1)
 const begin = async (jobId, user) => (await one(`select public.academic_ocr_begin('${jobId}', '${user}', '${user}/${jobId}.jpg', 412000) as v`)).v
 eq('the function cannot claim another user\'s job', await begin(job.job_id, B), null)
 const claimed = await begin(job.job_id, A)
@@ -77,16 +77,23 @@ eq('"Scan again" despite a match is allowed', forced.status, 'awaiting_upload')
 
 await begin(forced.job_id, A)
 await ok(db, 'model failed', `select public.academic_ocr_fail('${forced.job_id}', 'schema_invalid', 'qwen-vl-max', 61000)`)
-eq('failed jobs do not count (OCR-012)', [(await rpc(A, `public.academic_get_ocr_job('${forced.job_id}')`)).status, (await rpc(A, `public.academic_ocr_status()`)).allowance.used], ['failed', 1])
+// Counted: the first scan and the waiting FAR scan; the failed one gave its scan back.
+eq('failed jobs give their scan back (OCR-012)', [(await rpc(A, `public.academic_get_ocr_job('${forced.job_id}')`)).status, (await rpc(A, `public.academic_ocr_status()`)).allowance.used], ['failed', 2])
+await ok(db, 'fail again', `select public.academic_ocr_fail('${forced.job_id}', 'provider_error')`)
+eq('given back only once', (await rpc(A, `public.academic_ocr_status()`)).allowance.used, 2)
 const slow = (await rpc(A, `public.academic_start_ocr_job('${a.enrolment_id}', 'aaaaaaaaaaaaaaaa')`)).job
 await begin(slow.job_id, A)
 await ok(db, 'two minutes ago', `update academic_ocr_jobs set started_at = now() - interval '2 minutes' where id = '${slow.job_id}'`)
 eq('past 60 s a processing job fails as timeout (OCR-009)', [(await rpc(A, `public.academic_get_ocr_job('${slow.job_id}')`)).status, (await rpc(A, `public.academic_get_ocr_job('${slow.job_id}')`)).error_code], ['failed', 'timeout'])
-await ok(db, 'allowance of 2', `update academic_settings set value = value || '{"monthly_allowance": 2}' where key = 'ocr_rules'`)
+eq('a timed-out scan gives its scan back too', (await rpc(A, `public.academic_ocr_status()`)).allowance.used, 2)
+await ok(db, 'free allowance of 3', `update academic_settings set value = jsonb_set(value, '{ocr_upload,monthly,free}', '3') where key = 'entitlement_features'`)
 const second = (await rpc(A, `public.academic_start_ocr_job('${a.enrolment_id}', 'bbbbbbbbbbbbbbbb')`)).job
 await begin(second.job_id, A)
 eq('the allowance stops new scans, never typing', (await errorOf(A, `public.academic_start_ocr_job('${a.enrolment_id}', 'cccccccccccccccc')`))?.code, 'OCR_ALLOWANCE_USED')
-await ok(db, 'allowance back to 10', `update academic_settings set value = value || '{"monthly_allowance": 10}' where key = 'ocr_rules'`)
+await ok(db, 'free allowance back to 10', `update academic_settings set value = jsonb_set(value, '{ocr_upload,monthly,free}', '10') where key = 'entitlement_features'`)
+const far = (await one(`select id from academic_ocr_jobs where phash = '${FAR}' and status = 'awaiting_upload'`)).id
+await ok(db, 'the FAR photo never arrived', `update academic_ocr_jobs set created_at = now() - interval '11 minutes' where id = '${far}'`)
+eq('a scan whose photo never arrived is abandoned after 10 minutes and gives its scan back', [(await rpc(A, `public.academic_ocr_status()`)).allowance.used, (await rpc(A, `public.academic_get_ocr_job('${far}')`)).error_code], [2, 'abandoned'])
 
 // ─── Confirmation (OCR-006, OCR-010) ─────────────────────────────────────────
 

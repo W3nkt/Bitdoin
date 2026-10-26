@@ -84,11 +84,21 @@ language sql stable as $$ select 'MORNING' $$;
 
 -- Academy learning hub (migration 054), only the columns the recommendations
 -- adapter reads (P2-REC #50, migrations 135+).
+create table public.premium_plans (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  price_lak integer not null default 0
+);
+insert into public.premium_plans (slug, name, price_lak) values ('free', 'Free', 0), ('premium-monthly', 'Premium Monthly', 39000);
 create table public.premium_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
+  plan_id uuid references public.premium_plans(id),
   status text not null default 'ACTIVE',
-  ends_at timestamptz
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_at timestamptz not null default now()
 );
 create function public.has_active_premium_subscription(p_user_id uuid default auth.uid()) returns boolean
 language sql stable security definer set search_path = '' as $$
