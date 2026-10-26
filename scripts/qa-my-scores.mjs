@@ -224,13 +224,23 @@ function backend(initial) {
     academic_get_family: () => ({ links: state.family ?? [], notices: [] }),
     academic_guardian_child: (args) => args.p_link_id !== 'gl7' ? pgError(404, 'NOT_FOUND') : {
       link_id: 'gl7', name: 'Noy', relationship: 'mother', scopes: { scores: true, plan: true, careers: false, goals_text: false }, grade_en: 'Grade 11', grade_lo: 'ມ.6', school_year: '2026-2027',
-      scores: { scale: { min: 0, max: 10 }, months: [{ label_en: 'September', label_lo: 'ກັນຍາ', average: 6.75, change: null }, { label_en: 'October', label_lo: 'ຕຸລາ', average: 6.5, change: -0.25 }],
+      scores: { scale: { min: 0, max: 10 }, hidden_recent: true, months: [{ label_en: 'September', label_lo: 'ກັນຍາ', average: 6.75, change: null }, { label_en: 'October', label_lo: 'ຕຸລາ', average: 6.5, change: -0.25 }],
         subjects: [{ name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ', latest: 6, average: 6.5, change: -1, label: 'relatively_lower', trend: 'declining', number_of_scores: 3 },
           { name_en: 'Physics', name_lo: 'ຟີຊິກສາດ', latest: 7, average: 6.75, change: 0.5, label: 'neutral', trend: 'insufficient_evidence', number_of_scores: 2 }] },
       suggestions: [{ kind: 'ask_hardest', subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ' }, { kind: 'check_in' }, { kind: 'ask_support' }],
       plan: { goals: [{ subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ', target: 8, target_period: { label_en: 'March', label_lo: 'ມີນາ' } }], week: { done: 2, total: 4 }, has_plan: true },
       careers: null, goals_text: null,
+      reports_entitled: true, reports: [{ id: 'rep1', label_en: 'October', label_lo: 'ຕຸລາ', generated_at: '2026-11-04T23:10:00Z', read: false }],
     },
+    academic_guardian_report: (args) => args.p_report_id !== 'rep1' ? pgError(404, 'NOT_FOUND') : { id: 'rep1', link_id: 'gl7', generated_at: '2026-11-04T23:10:00Z', content: {
+      student_name: 'Noy', period: { label_en: 'October', label_lo: 'ຕຸລາ', school_year: '2026-2027', generated_at: '2026-11-04T23:10:00Z', data_as_of: '2026-11-01T08:00:00Z' },
+      recorded: { recorded: 4, active: 5, missing: [{ name_en: 'Chemistry', name_lo: 'ເຄມີສາດ' }] },
+      changes: { mean_change: -0.25, subjects: [{ name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ', latest: 6, previous: 7, direction: 'down' }, { name_en: 'Lao language', name_lo: 'ພາສາລາວ', latest: 8.5, previous: 8.5, direction: 'same' }] },
+      stronger: [{ name_en: 'Lao language', name_lo: 'ພາສາລາວ', reason: { n: 3, above: 3, below: 0, confidence: 'medium' } }],
+      needs_attention: [{ name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ', reason: { n: 3, above: 0, below: 2, confidence: 'low' } }],
+      activities: { quizzes: 1, practice: 2, plan_tasks: 5 },
+      next_steps: [{ kind: 'ask_hardest', subject_en: 'Mathematics', subject_lo: 'ຄະນິດສາດ' }, { kind: 'ask_support' }],
+    } },
     // Career guidance (migration 150): a small stateful stand-in.
     academic_get_career_guidance: () => careerView(state),
     academic_career_catalogue: () => ({ careers: CAREERS }),
@@ -1572,12 +1582,28 @@ try {
     await parent.page.getByText('This week: 2 of 4 tasks done').waitFor()
     assert.equal(await parent.page.getByText('Noy has not shared this.').count(), 2, 'careers and goals not shared')
     assert.equal(await parent.page.getByText(/rank|class average|other students/i).count(), 0, 'no comparisons')
+    await parent.page.getByText('Scores entered in the last 3 days appear here after Noy has had time to correct them.').waitFor()
     await shot(parent.page, 'my-scores-guardians-4-child-en-mobile')
+    // PARENT-006: the monthly report, seven sections, frozen when made.
+    await parent.page.getByRole('link', { name: 'October' }).click()
+    await parent.page.getByRole('heading', { name: 'Noy: October report' }).waitFor()
+    await parent.page.getByText('4 of 5 subjects').waitFor()
+    await parent.page.getByText('Not recorded this month: Chemistry').waitFor()
+    await parent.page.getByText('about the same').waitFor()
+    await parent.page.getByText('Above their own average in 3 of the last 3 months.', { exact: false }).waitFor()
+    await parent.page.getByRole('heading', { name: 'Needs attention' }).waitFor()
+    await parent.page.getByText('Early sign only.', { exact: false }).waitFor()
+    await parent.page.getByText('1 quizzes · 2 practice sets').waitFor()
+    await parent.page.getByText('One month’s change is not a trend.', { exact: false }).waitFor()
+    assert.equal(await parent.page.getByText(/weak|lazy|fail/i).count(), 0, 'supportive wording only')
+    await shot(parent.page, 'my-scores-guardians-5-report-en-mobile')
+    await parent.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await parent.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     await parent.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await parent.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
-    pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; the child page shows only what is shared with supportive suggestions and no comparisons; axe clean')
+    pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; the child page shows only what is shared with supportive suggestions and no comparisons, recent months held back for corrections; the monthly report has its seven sections in supportive words; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons

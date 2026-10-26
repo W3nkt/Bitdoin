@@ -1284,6 +1284,8 @@ export interface GuardianChildView {
   school_year: string | null
   scores: {
     scale: { min?: number; max?: number } | null
+    /** Months entered in the last 3 days are held back for corrections (PRD §14.9.4). */
+    hidden_recent: boolean
     months: { label_en: string; label_lo: string; average: number | null; change: number | null }[]
     subjects: { name_en: string; name_lo: string; latest: number | string | null; average: number | null; change: number | null; label: string | null; trend: string | null; number_of_scores: number }[]
   } | null
@@ -1291,6 +1293,29 @@ export interface GuardianChildView {
   plan: { goals: { subject_en: string; subject_lo: string; target: number; target_period: { label_en: string; label_lo: string } }[]; week: { done: number; total: number }; has_plan: boolean } | null
   careers: { interests: Record<string, { level: string }> | null; saved: { title_en: string; title_lo: string }[] } | null
   goals_text: { chips?: string[]; text?: string } | null
+  reports_entitled: boolean
+  reports: { id: string; label_en: string; label_lo: string; generated_at: string; read: boolean }[]
+}
+
+/** A monthly report, frozen when it was made (PARENT-006, PRD §14.9.3). */
+export interface GuardianReport {
+  id: string
+  link_id: string
+  generated_at: string
+  content: {
+    student_name: string
+    period: { label_en: string; label_lo: string; school_year: string; generated_at: string; data_as_of: string | null }
+    recorded: { recorded: number | null; active: number | null; missing: { name_en: string; name_lo: string }[] }
+    changes: { mean_change: number | null; subjects: { name_en: string; name_lo: string; latest: number | string; previous: number | string | null; direction: 'up' | 'down' | 'same' | null }[] }
+    stronger: { name_en: string; name_lo: string; reason: { n: number; above: number; below: number; confidence: string | null } | null }[]
+    needs_attention: { name_en: string; name_lo: string; reason: { n: number; above: number; below: number; confidence: string | null } | null }[]
+    activities: { quizzes: number; practice: number; plan_tasks: number | null }
+    next_steps: GuardianChildView['suggestions']
+  }
+}
+
+export function useGuardianReport(reportId: string) {
+  return useQuery({ queryKey: ['family', 'report', reportId], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<GuardianReport>('academic_guardian_report', { p_report_id: reportId }) })
 }
 
 export function useGuardianChild(linkId: string) {

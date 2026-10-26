@@ -111,6 +111,9 @@ No 13–15 profiles existed when it was applied.
 Applied 2026-10-27 (#52, piece 2): 153 (the guardian's view of each child at /academy/family/<link>,
 only what the child shares, with supportive suggestions; every view audit-logged).
 
+Applied 2026-10-27 (#52, piece 3a): 154 (3-day correction window for guardians, limits of 4 guardians
+and 6 children, monthly guardian reports written daily at 06:10 Vientiane time for Premium accounts).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

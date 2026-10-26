@@ -106,15 +106,49 @@ eq('the guardian still sees nothing until the student confirms them', await canR
 // ─── The guardian's view of a child (PARENT-005, migration 153) ──────────────
 
 let child = await rpc(G, `public.academic_guardian_child('${again.id}')`)
+eq('within the 3-day correction window nothing of the month shows', [child.scores.months.length, child.scores.hidden_recent], [0, true])
+await ok(db, 'four days later', `update academic_score_entries set submitted_at = now() - interval '4 days'`)
+child = await rpc(G, `public.academic_guardian_child('${again.id}')`)
 eq('the guardian sees the shared scores: months and subjects', [child.name, child.scores.months.length, child.scores.subjects.map((x) => [x.name_en, Number(x.latest)])], ['Noy', 1, [['Mathematics', 8], ['Physics', 7]]])
 eq('sections the student did not share are left out', [child.plan !== null, child.careers, child.goals_text], [true, null, null])
 eq('suggestions are ways to support, at most three', [child.suggestions.length <= 3, child.suggestions.some((x) => x.kind === 'ask_support')], [true, true])
 await rpc(S, `public.academic_set_guardian_scopes('${again.id}', ${json({ scores: false, plan: false })})`)
 child = await rpc(G, `public.academic_guardian_child('${again.id}')`)
 eq('turning scores and plan off removes them at once', [child.scores, child.plan, child.suggestions], [null, null, []])
-eq('every view is audit-logged', (await one(`select count(*)::int as n from academic_audit_events where action = 'guardian.view'`)).n, 2)
+eq('every view is audit-logged', (await one(`select count(*)::int as n from academic_audit_events where action = 'guardian.view'`)).n, 3)
 eq('another guardian cannot open this child', await rpc(G2, `public.academic_guardian_child('${again.id}')`), { error: { code: 'NOT_FOUND', status: 404 } })
 eq('the student cannot open it as a guardian', await rpc(S, `public.academic_guardian_child('${again.id}')`), { error: { code: 'NOT_FOUND', status: 404 } })
+
+// ─── Monthly reports (PARENT-006, migration 154) ─────────────────────────────
+
+await rpc(S, `public.academic_set_guardian_scopes('${again.id}', ${json({ scores: true, plan: true })})`)
+await ok(db, 'enforce', `update academic_settings set value = 'true' where key = 'entitlements_enforced'`)
+eq('without Academy Premium on either account, no report is written', (await one(`select public.academic_guardian_generate_reports() as v`)).v, 0)
+await ok(db, 'guardian premium', `insert into premium_subscriptions (user_id, plan_id, status) select '${G}', id, 'ACTIVE' from premium_plans where price_lak > 0 limit 1`)
+eq('with Premium, a report for the month past its correction window', (await one(`select public.academic_guardian_generate_reports() as v`)).v, 1)
+eq('one report per month', (await one(`select public.academic_guardian_generate_reports() as v`)).v, 0)
+const reportId = (await rpc(G, `public.academic_guardian_child('${again.id}')`)).reports[0].id
+const report = await rpc(G, `public.academic_guardian_report('${reportId}')`)
+eq('seven sections: period, recorded, changes, stronger, needs attention, activities, next steps',
+  ['period', 'recorded', 'changes', 'stronger', 'needs_attention', 'activities', 'next_steps'].every((k) => k in report.content), true)
+eq('subjects recorded and their scores, with the generation date', [report.content.recorded.recorded, report.content.changes.subjects.map((x) => [x.name_en, Number(x.latest)]), !!report.content.period.generated_at],
+  [2, [['Mathematics', 8], ['Physics', 7]], true])
+eq('the guardian is told in the app', (await one(`select category, code from academic_notifications where user_id = '${G}' and code = 'guardian.report'`)), { category: 'guardian_report', code: 'guardian.report' })
+eq('opening it marks it read', (await rpc(G, `public.academic_guardian_child('${again.id}')`)).reports[0].read, true)
+eq('nobody else can open it', await rpc(G2, `public.academic_guardian_report('${reportId}')`), { error: { code: 'NOT_FOUND', status: 404 } })
+await ok(db, 'not enforced', `update academic_settings set value = 'false' where key = 'entitlements_enforced'`)
+
+// ─── Limits (§14.9.4) ────────────────────────────────────────────────────────
+
+const extras = ['f2', 'f3', 'f4', 'f5'].map((x) => `00000000-0000-0000-0000-0000000000${x}`)
+await ok(db, 'more guardians', `insert into public.users (id, name, role) values ${extras.map((id, i) => `('${id}', 'Guardian ${i}', 'CUSTOMER')`).join(', ')}`)
+for (const id of extras.slice(0, 3)) await rpc(id, `public.academic_accept_guardian_invite('${(await rpc(S, `public.academic_create_guardian_invite()`)).code}', 'other', true)`)
+eq('a student has at most 4 guardians', (await rpcError(extras[3], `public.academic_accept_guardian_invite('${(await rpc(S, `public.academic_create_guardian_invite()`)).code}', 'other', true)`))?.code, 'GUARDIAN_LIMIT_STUDENT')
+
+// ─── A removed link ends access to its reports ───────────────────────────────
+
+await rpc(G, `public.academic_guardian_remove_link('${again.id}')`)
+eq('after the link ends, reports are no longer available', await rpc(G, `public.academic_guardian_report('${reportId}')`), { error: { code: 'NOT_FOUND', status: 404 } })
 
 // ─── Schedule ────────────────────────────────────────────────────────────────
 
