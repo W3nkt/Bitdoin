@@ -93,6 +93,9 @@ careers, 5 institutions). The admin page has a **Careers** tab (Admin only). Not
 students until it is approved, and the approver must be a different admin from whoever wrote or last
 edited it. The seed was prepared by Claude, so one admin can check and approve each seeded record.
 
+Switched on 2026-10-26 at the owner's request: chat prompt **1.1.0** is active (1.0.0 kept for rollback),
+and `scripts/coach-eval/baseline.json` holds the 1.1.0 run.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
