@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, ScanLine, BadgeCheck, Bot, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
+import { Activity, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Flag, ExternalLink, LifeBuoy, ListChecks, MessageSquareWarning, Moon, Ruler, ScanLine, BadgeCheck, Bot, Briefcase, School, ScrollText, Sun, Tags, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/lib/theme'
 import { MfaGate } from '@/components/academic/admin/MfaGate'
@@ -19,10 +19,11 @@ import { ContentAdmin } from '@/components/academic/admin/ContentAdmin'
 import { OcrQualityAdmin } from '@/components/academic/admin/OcrQualityAdmin'
 import { EntitlementsAdmin } from '@/components/academic/admin/EntitlementsAdmin'
 import { AiReviewAdmin } from '@/components/academic/admin/AiReviewAdmin'
+import { CareersAdmin } from '@/components/academic/admin/CareersAdmin'
 import { ResponsiveAcademyMenu } from '@/components/academy/AcademyMenu'
 import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
 
-type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'scans' | 'plans' | 'ai' | 'pilot'
+type TabId = 'subjects' | 'scales' | 'schools' | 'calendars' | 'quiz' | 'content' | 'roles' | 'support' | 'reports' | 'audit' | 'health' | 'metrics' | 'scans' | 'plans' | 'ai' | 'careers' | 'pilot'
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[] }> = [
   { id: 'subjects', label: 'Subjects', icon: BookOpenCheck, roles: ['ADMIN'] },
@@ -40,6 +41,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Users; roles: string[
   { id: 'scans', label: 'Scan quality', icon: ScanLine, roles: ['ADMIN'] },
   { id: 'plans', label: 'Entitlements', icon: BadgeCheck, roles: ['ADMIN', 'FINANCE'] },
   { id: 'ai', label: 'AI review', icon: Bot, roles: ['ADMIN'] },
+  { id: 'careers', label: 'Careers', icon: Briefcase, roles: ['ADMIN'] },
   { id: 'pilot', label: 'Pilot', icon: Flag, roles: ['ADMIN'] },
 ]
 
@@ -115,6 +117,7 @@ export function MyScoresAdmin() {
               {active.id === 'scans' && <OcrQualityAdmin />}
               {active.id === 'plans' && <EntitlementsAdmin />}
               {active.id === 'ai' && <AiReviewAdmin />}
+              {active.id === 'careers' && <CareersAdmin />}
               {active.id === 'pilot' && <PilotAdmin />}
             </MfaGate>
           </>

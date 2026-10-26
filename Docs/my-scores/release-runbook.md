@@ -87,6 +87,12 @@ owner: either the native raters' sheet, or the owner's go-ahead. To switch it on
 `update academic_prompt_templates set active = false where prompt_id = 'academic_chat';`
 `update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '1.1.0';`
 
+Applied 2026-10-26 (#55, piece 1): 148 (career catalogue: working and published copies, four-eyes
+publication, sourced and dated facts, weekly review-by alert) and 149 (seed waiting for review: 19
+careers, 5 institutions). The admin page has a **Careers** tab (Admin only). Nothing reaches
+students until it is approved, and the approver must be a different admin from whoever wrote or last
+edited it. The seed was prepared by Claude, so one admin can check and approve each seeded record.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

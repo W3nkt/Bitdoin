@@ -121,6 +121,8 @@ const OWN_READ = [
   'academic_get_planner()',
   // Coach availability, the caller's quota and the help numbers (migration 145).
   'academic_coach_status()',
+  // Published career content, shared by all students; no student data (migration 148).
+  'academic_career_catalogue()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -160,6 +162,7 @@ const STAFF_ONLY = [
   'academic_admin_content_gaps()', 'academic_admin_ocr_quality(integer)',
   'academic_admin_member_entitlements(text)', 'academic_admin_grant_entitlement(uuid,jsonb)', 'academic_admin_revoke_entitlement(uuid,text)',
   'academic_admin_ai_review(text)', 'academic_admin_rate_ai(uuid,jsonb)',
+  'academic_admin_career_content(text,text)', 'academic_admin_save_career_content(jsonb)', 'academic_admin_review_career_content(uuid,text,text)', 'academic_admin_career_due()',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -269,6 +272,7 @@ const ownReads = {
   'academic_my_entitlements()': 'public.academic_my_entitlements()',
   'academic_get_planner()': 'public.academic_get_planner()',
   'academic_coach_status()': 'public.academic_coach_status()',
+  'academic_career_catalogue()': 'public.academic_career_catalogue()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -334,6 +338,10 @@ const staffCalls = {
   'academic_admin_grant_entitlement(uuid,jsonb)': `public.academic_admin_grant_entitlement('${B}', '{"feature_code": "premium"}')`,
   'academic_admin_revoke_entitlement(uuid,text)': `public.academic_admin_revoke_entitlement('${RANDOM}', 'testing revoke')`,
   'academic_admin_ai_review(text)': `public.academic_admin_ai_review('open')`,
+  'academic_admin_career_content(text,text)': `public.academic_admin_career_content('career')`,
+  'academic_admin_save_career_content(jsonb)': `public.academic_admin_save_career_content('{}')`,
+  'academic_admin_review_career_content(uuid,text,text)': `public.academic_admin_review_career_content('${RANDOM}', 'approve')`,
+  'academic_admin_career_due()': 'public.academic_admin_career_due()',
   'academic_admin_rate_ai(uuid,jsonb)': `public.academic_admin_rate_ai('${RANDOM}', '{}')`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())

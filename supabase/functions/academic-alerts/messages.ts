@@ -79,6 +79,17 @@ export function describeAlert(alert: AlertLike): { subject: string; lines: strin
         lines: [`A user reported a ${category} (PRIV-008). First response is due by ${when(d.first_response_due)}. Open it on the Reports tab.`],
       }
     }
+    case 'career_review_due': {
+      const first = Array.isArray(d.first) ? (d.first as unknown[]).map(String).join(', ') : ''
+      return {
+        subject: `Career content to review: ${num(d.due)}`,
+        lines: [
+          `${num(d.due)} published career, institution or programme record(s) reach their review-by date within 30 days; ${num(d.overdue)} are already past it and show "May be out of date" to students (UNI-002).`,
+          ...(first ? [`First: ${first}.`] : []),
+          'Check the sources and update the dates on the Careers tab.',
+        ],
+      }
+    }
     case 'test':
       return { subject: 'Test alert', lines: ['This is a test from the My Scores admin. Alerts reach this address.'] }
     default:

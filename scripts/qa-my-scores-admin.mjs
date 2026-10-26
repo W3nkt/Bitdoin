@@ -16,6 +16,24 @@ const SUPABASE = 'https://example.supabase.co'
 const USER_ID = '00000000-0000-4000-8000-0000000000a1'
 await mkdir(output, { recursive: true })
 
+
+function careerFixtures() {
+  const base = { published: null, changed: true, problems: {}, review_by: null, published_review_by: null, reviewed_by: null, review_note: null, submitted_at: '2026-10-26T04:00:00Z', published_at: null, updated_at: '2026-10-26T04:00:00Z' }
+  return [
+    { ...base, id: 'k1', kind: 'career', slug: 'registered-nurse', status: 'in_review', author: null, last_edited_by: null, can_approve: true,
+      draft: { title_en: 'Registered Nurse', title_lo: 'ພະຍາບານ', cluster: 'health', primary_area: 'S', secondary_area: 'I', related_subjects: ['BIO', 'CHEM'], study_years: '4to5', work_settings: ['with_people'], facts: [] } },
+    { ...base, id: 'k2', kind: 'career', slug: 'pharmacist', status: 'in_review', author: 'You', last_edited_by: 'You', can_approve: false,
+      draft: { title_en: 'Pharmacist', title_lo: 'ເພສັດຊະກອນ', cluster: 'health', primary_area: 'I', secondary_area: 'S', related_subjects: ['CHEM', 'BIO', 'MATH'], study_years: '4to5', work_settings: ['workshop_lab'], facts: [] } },
+    { ...base, id: 'k3', kind: 'institution', slug: 'uhs', status: 'in_review', author: null, last_edited_by: null, can_approve: true,
+      draft: { name_en: 'University of Health Sciences', name_lo: 'ມະຫາວິທະຍາໄລ ວິທະຍາສາດສຸຂະພາບ', type: 'university', province_code: 'vientiane-prefecture', website_url: 'https://uhs.edu.la/',
+        source_name: 'University of Health Sciences official website', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26', review_by: '2027-04-26',
+        faculties: ['ຄະນະແພດສາດ', 'ຄະນະເພສັຊສາດ', 'ຄະນະທັນຕະແພດສາດ', 'ຄະນະພະຍາບານສາດ', 'ຄະນະເຕັກນິກການແພດ', 'ຄະນະສາທາລະນະສຸກສາດ'].map((name_lo) => ({ name_lo, name_en: '' })) } },
+    { ...base, id: 'k9', kind: 'programme', slug: 'p-nursing', status: 'published', changed: false, author: 'Admin One', last_edited_by: 'Admin One', can_approve: false,
+      draft: { institution: 'uhs', name_en: 'Bachelor of Nursing Science', name_lo: 'ປະລິນຍາຕີ ພະຍາບານສາດ', degree_level: 'bachelor', duration_years: '4', careers: ['registered-nurse'], requirements: [],
+        source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26', review_by: '2026-11-15' } },
+  ].map((c) => ({ ...c, published: c.status === 'published' ? c.draft : null }))
+}
+
 function jwt(aal) {
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const exp = Math.floor(Date.now() / 1000) + 3600
@@ -182,6 +200,28 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
     academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    // Career catalogue (ADMIN-010, UNI-001/004, migration 148): a small stateful stand-in.
+    academic_admin_career_content: (args) => {
+      const items = (state.careers ??= careerFixtures()).filter((c) => c.kind === args.p_kind)
+      return {
+        items, clusters: ['technology', 'health', 'education'], subjects: [{ code: 'BIO', name_en: 'Biology' }, { code: 'CHEM', name_en: 'Chemistry' }, { code: 'MATH', name_en: 'Mathematics' }],
+        institutions: [{ slug: 'uhs', name_en: 'University of Health Sciences' }], careers: [{ slug: 'registered-nurse', title_en: 'Registered Nurse' }, { slug: 'pharmacist', title_en: 'Pharmacist' }],
+      }
+    },
+    academic_admin_career_due: () => [{ id: 'k9', kind: 'programme', slug: 'p-nursing', name: 'Bachelor of Nursing Science', review_by: '2026-11-15', overdue: false }],
+    academic_admin_save_career_content: (args) => {
+      const input = args.p_input
+      const problems = input.kind === 'programme' && (input.data.requirements ?? []).some((r) => !r.academic_year) ? { 'requirements.1': 'Add the academic year it applies to' } : {}
+      const record = { id: 'k-new', kind: input.kind, slug: 'p-new', status: 'draft', draft: input.data, published: null, changed: true, problems, review_by: null, published_review_by: null,
+        author: 'Admin', last_edited_by: 'Admin', reviewed_by: null, review_note: null, submitted_at: null, published_at: null, updated_at: '2026-10-26T05:00:00Z', can_approve: false }
+      state.careers = [...(state.careers ??= careerFixtures()), record]
+      return record
+    },
+    academic_admin_review_career_content: (args) => {
+      const record = state.careers.find((c) => c.id === args.p_id)
+      if (args.p_action === 'approve') Object.assign(record, { status: 'published', published: record.draft, changed: false })
+      return record
+    },
     // AI Coach review (ADMIN-009, migration 145).
     academic_admin_ai_review: (args) => ({
       items: (state.aiReviewed ? [] : [
@@ -723,6 +763,51 @@ try {
     assert.equal(await ops.page.getByRole('button', { name: 'Metrics' }).count(), 0)
     await ops.context.close()
     pass('Metrics: headline tiles, pilot go/no-go readings, monthly chart with table view, groups under 20 hidden, pending rates marked, per-cohort view; Operations has no Metrics tab')
+  }
+
+  // Careers (ADMIN-010, UNI-001/002/004): seeded records approved by another admin, own edits need a second admin,
+  // a cut-off needs its academic year, institutions show their official source, review-by dates listed.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=careers`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'Career catalogue' }).waitFor()
+    await page.getByText('Bachelor of Nursing Science').first().waitFor()
+    const nurse = page.locator('li', { hasText: 'registered-nurse' })
+    await nurse.getByText('No sourced facts: salary and demand stay hidden in personalised views (OD-10).').waitFor()
+    await nurse.getByRole('button', { name: 'Approve' }).click()
+    await page.getByText('Approved. Students now see this version.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_review_career_content').args, { p_id: 'k1', p_action: 'approve', p_note: null })
+    const own = page.locator('li', { hasText: 'pharmacist' })
+    assert.equal(await own.getByRole('button', { name: 'Approve' }).isDisabled(), true)
+    await own.getByText('You wrote or edited this version, so another admin must approve it.').waitFor()
+    await page.getByRole('tab', { name: 'Institutions' }).click()
+    const uhs = page.locator('li', { hasText: 'University of Health Sciences' })
+    await uhs.getByText('6 faculties', { exact: false }).waitFor()
+    assert.equal(await uhs.getByRole('link', { name: 'University of Health Sciences official website' }).getAttribute('href'), 'https://uhs.edu.la/')
+    await page.getByRole('tab', { name: 'Programmes' }).click()
+    await page.getByRole('button', { name: 'New programme' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByLabel('Programme name (English)').fill('Bachelor of Pharmacy')
+    await dialog.getByLabel('Programme name (Lao)').fill('ປະລິນຍາຕີ ເພສັດສາດ')
+    await dialog.getByLabel('Pharmacist').check()
+    await dialog.getByRole('button', { name: 'Add' }).click()
+    await dialog.getByLabel('Kind').selectOption('cutoff')
+    await dialog.getByRole('button', { name: 'Save working copy' }).click()
+    await page.getByText('requirements.1:', { exact: false }).waitFor()
+    await page.getByText('Add the academic year it applies to').waitFor()
+    const saved = lastCall(mock, 'academic_admin_save_career_content').args.p_input
+    assert.deepEqual([saved.kind, saved.data.institution, saved.data.careers, saved.data.requirements[0].kind], ['programme', 'uhs', ['pharmacist'], 'cutoff'])
+    await page.getByText('programme · review by 2026-11-15').waitFor()
+    await shot(page, 'admin-14-careers')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await ops.page.goto(`${base}/academy-admin/scores?tab=careers`, { waitUntil: 'domcontentloaded' })
+    await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
+    assert.equal(await ops.page.getByRole('button', { name: 'Careers' }).count(), 0)
+    await ops.context.close()
+    pass('Careers: seeded record approved by another admin, own edit needs a second admin, institution shows its official source and faculties, a cut-off without its year is refused with the reason, review-by dates listed, axe clean; Operations has no tab')
   }
 
   // AI review (ADMIN-009): reported answers, unsafe first; text only when shared; rubric saved.

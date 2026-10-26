@@ -920,3 +920,74 @@ export function useRateAi() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...adminKey, 'ai-review'] }),
   })
 }
+
+// ─── Career catalogue (ADMIN-010, UNI-001/002/004; migration 148) ────────────
+
+export type CareerKind = 'career' | 'institution' | 'programme'
+export type CareerStatus = 'draft' | 'in_review' | 'published' | 'archived'
+
+/** A sourced, dated fact (UNI-002). Requirements and cut-offs also need academic_year (UNI-004). */
+export interface CareerFact {
+  kind: string
+  text_en: string
+  text_lo: string
+  source_name: string
+  source_url: string
+  verified_on: string
+  review_by: string
+  academic_year?: string
+}
+
+export interface CareerRecord {
+  id: string
+  kind: CareerKind
+  slug: string
+  status: CareerStatus
+  draft: Record<string, unknown>
+  published: Record<string, unknown> | null
+  /** The working copy differs from what students see. */
+  changed: boolean
+  problems: Record<string, string>
+  review_by: string | null
+  published_review_by: string | null
+  author: string | null
+  last_edited_by: string | null
+  reviewed_by: string | null
+  review_note: string | null
+  submitted_at: string | null
+  published_at: string | null
+  updated_at: string
+  can_approve: boolean
+}
+
+export interface CareerContentView {
+  items: CareerRecord[]
+  clusters: string[]
+  subjects: { code: string; name_en: string }[]
+  institutions: { slug: string; name_en: string }[]
+  careers: { slug: string; title_en: string }[]
+}
+
+export function useCareerContent(kind: CareerKind) {
+  return useQuery({
+    queryKey: [...adminKey, 'career-content', kind],
+    queryFn: () => callAcademicRpc<CareerContentView>('academic_admin_career_content', { p_kind: kind }),
+  })
+}
+
+export function useCareerDue() {
+  return useQuery({
+    queryKey: [...adminKey, 'career-due'],
+    queryFn: () => callAcademicRpc<{ id: string; kind: CareerKind; slug: string; name: string; review_by: string; overdue: boolean }[]>('academic_admin_career_due'),
+  })
+}
+
+export function useSaveCareerContent() {
+  return useAdminMutation((input: { id?: string; kind: CareerKind; slug?: string; data: Record<string, unknown> }) =>
+    callAcademicRpc<CareerRecord>('academic_admin_save_career_content', { p_input: input }))
+}
+
+export function useReviewCareerContent() {
+  return useAdminMutation(({ id, action, note }: { id: string; action: 'submit' | 'approve' | 'return' | 'archive' | 'restore'; note?: string }) =>
+    callAcademicRpc<CareerRecord>('academic_admin_review_career_content', { p_id: id, p_action: action, p_note: note ?? null }))
+}
