@@ -456,6 +456,8 @@ export interface DashboardView {
   summary: { latest_period_id: string; mean: number | null; coverage: { recorded: number; active: number }; missing: number; change: Change | null; rolling_mean: number | null } | null
   /** Set when shown from this device's cache because the network failed. */
   stale_since?: number
+  /** P3-BIL: labels and trends carry their verdict only, without evidence or confidence (migration 142). */
+  detail_locked?: boolean
 }
 
 /**
@@ -653,6 +655,8 @@ export interface QuizOffer {
   start_id: string | null
   /** QUIZ-004: when the next attempt opens. */
   retake_from: string | null
+  /** P3-BIL: set when the check for this term is used and re-tests need Premium (migration 142). */
+  locked?: 'diagnostic_unlimited' | null
   attempt: { id: string; answered: number; total: number; expires_at: string } | null
   /** strong: >= 80% in every tested topic (ANALYSIS-007). */
   last_result: { id: string; completed_at: string; strong: boolean } | null
@@ -777,7 +781,11 @@ export function useRecommendations(enabled = true) {
     queryKey: [...academicKeys.all, 'recommendations'],
     enabled,
     retry: shouldRetryAcademic,
-    queryFn: async () => (await callAcademicRpc<{ items: Recommendation[] }>('academic_get_recommendations')).items,
+    // more_locked: actions held back for Premium (migration 142).
+    queryFn: async () => {
+      const result = await callAcademicRpc<{ items: Recommendation[]; more_locked?: number }>('academic_get_recommendations')
+      return { items: result.items, moreLocked: result.more_locked ?? 0 }
+    },
   })
 }
 
@@ -941,5 +949,34 @@ export function useDeleteOcrPhoto() {
   return useMutation({
     mutationFn: (jobId: string) => deleteOcrImage(jobId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'ocr-photos'] }),
+  })
+}
+
+// ─── Entitlements (P3-BIL #51, migration 141) ────────────────────────────────
+
+export type FeatureCode = 'advanced_analysis' | 'diagnostic_unlimited' | 'ocr_upload' | 'coach_academic' | 'ai_monthly_summary'
+  | 'planner_full' | 'parent_reports' | 'career_report' | 'mock_exams'
+
+export interface Entitlements {
+  enforced: boolean
+  tier: 'free' | 'premium'
+  premium: { active: boolean; source: 'academy_premium' | 'manual_grant' | null; until: string | null }
+  period_key: string
+  resets_at: string
+  features: Partial<Record<FeatureCode, {
+    enabled: boolean
+    source: 'academy_premium' | 'manual_grant' | 'free' | 'open' | null
+    until: string | null
+    quota: { limit: number; used: number; remaining: number } | null
+  }>>
+}
+
+/** GET /me/entitlements: tier, premium end and this month's quotas. */
+export function useEntitlements(enabled = true) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'entitlements'],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<Entitlements>('academic_my_entitlements'),
   })
 }

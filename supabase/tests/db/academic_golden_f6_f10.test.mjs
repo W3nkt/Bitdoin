@@ -103,6 +103,17 @@ eq('no comparison with other students (ANALYSIS-008)', JSON.stringify(snapshot.o
 // ─── insights_enabled switch (migration 130) ─────────────────────────────────
 
 const ownEnrolment = (await one(`select e.id from academic_enrolments e join academic_student_profiles p on p.id = e.student_profile_id where p.user_id = '${owner}'`)).id
+// Premium gate (P3-BIL, migration 142): without advanced_analysis, the verdict only.
+eq('not enforced: full detail', (await rpc(owner, `public.academic_get_dashboard('${ownEnrolment}')`)).detail_locked, false)
+await ok(db, 'enforce', `update academic_settings set value = 'true' where key = 'entitlements_enforced'`)
+const summary = await rpc(owner, `public.academic_get_dashboard('${ownEnrolment}')`)
+eq('enforced, no Premium: labels and trends keep verdict and rule only', [summary.detail_locked, Object.keys(summary.subjects[0].label).sort(), Object.keys(summary.subjects[0].trend).sort()],
+  [true, ['rule', 'value'], ['direction', 'rule', 'value']])
+eq('scores, means and charts stay complete (BILLING-006)', summary.subjects.every((s) => s.series.length > 0 && 'mean' in s), true)
+await ok(db, 'subscribed', `insert into premium_subscriptions (user_id, plan_id, status, ends_at) values ('${owner}', (select id from premium_plans where slug = 'premium-monthly'), 'ACTIVE', now() + interval '30 days')`)
+const full = await rpc(owner, `public.academic_get_dashboard('${ownEnrolment}')`)
+eq('with Premium: full evidence and confidence', [full.detail_locked, 'confidence' in full.subjects[0].label, 'slope' in full.subjects[0].trend], [false, true, true])
+await ok(db, 'not enforced', `update academic_settings set value = 'false' where key = 'entitlements_enforced'`)
 await ok(db, 'switch off', `update academic_settings set value = 'false' where key = 'insights_enabled'`)
 let off = await rpc(owner, `public.academic_get_dashboard('${ownEnrolment}')`)
 eq('switched off: students get no labels or trends', off.subjects.some((s) => 'label' in s || 'trend' in s), false)

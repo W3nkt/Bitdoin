@@ -59,6 +59,16 @@ lists every local migration up to `119`, so `supabase db push` would apply only 
 Applied 2026-10-26 (#51, locks **off**): 141 (entitlement service, monthly quotas, manual grants
 with reason codes; scans now take from the `ocr_upload` quota and get it back on failure). Nothing
 changes for students: `entitlements_enforced` is false, and the free scan allowance stays 10.
+Then 142 (premium gates: dashboard detail, This week top 1, one diagnostic per subject each term) and
+the screens that explain a lock, the "Your plan" card and the Premium-ending notice. Still no change
+while locks are off.
+
+### Switching premium locks on (P3-BIL #51)
+
+1. Owner decides prices and what Free includes (OD-11); edit `entitlement_features` (configuration only).
+2. Owner review of the Lao strings in `src/lib/academic/entitlementCopy.ts`.
+3. Update the Academy subscription page so it lists what Premium adds in Schooling (PRD §30.2).
+4. Set `entitlements_enforced` to `true`; tell pilot students first in the weekly report.
 
 Applied 2026-10-26 (#48, scanning **off**): 139 and the `academic-ocr` Edge Function
 (`verify_jwt = false`; it checks the student session itself), commit f1c15a3; the scan screens

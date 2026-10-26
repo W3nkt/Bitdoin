@@ -18,6 +18,8 @@ import { ReminderBanner } from './Inbox'
 import { FeedbackCard } from './FeedbackCard'
 import { QuizOffer } from './Quiz'
 import { WeekCard } from './WeekCard'
+import { PremiumNote } from './PremiumNote'
+import { PremiumEndingNotice } from './PlanCard'
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -95,6 +97,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   return (
     <div className="space-y-6">
       {!subject && <ReminderBanner />}
+      {!subject && !view.stale_since && <PremiumEndingNotice />}
       {view.stale_since && (
         <p role="status" className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
           <CloudOff className="h-4 w-4 shrink-0" />{t('dash.stale', { date: formatDate(new Date(view.stale_since), language) })}
@@ -220,6 +223,7 @@ function InsightsCard({ view, onOpen }: { view: DashboardView; onOpen: (id: stri
           {t(state === 'insufficient' ? 'insights.insufficient' : 'insights.none')}
         </p>
       )}
+      {view.detail_locked && state === 'ready' && <PremiumNote body="premium.insights" />}
     </section>
   )
 }
@@ -228,6 +232,14 @@ function InsightsCard({ view, onOpen }: { view: DashboardView; onOpen: (id: stri
 function ExplanationCard({ view, subject, name }: { view: DashboardView; subject: DashboardSubject; name: string }) {
   const { t } = useAcademicCopy()
   if (!subject.label && !subject.trend) return null
+  if (view.detail_locked) {
+    return (
+      <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
+        <h2 className="text-lg font-black">{t('explain.title')}</h2>
+        <PremiumNote body="premium.explain" />
+      </section>
+    )
+  }
   const { facts, suggestions } = explainSubject(subject, view.scale, name, t)
   if (facts.length === 0) return null
   return (

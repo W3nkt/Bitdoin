@@ -4,6 +4,7 @@ import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useRecommendationFeedback, useRecommendations, type Recommendation } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 import { useToast } from '@/components/ui/Toast'
+import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
 
 const ICONS: Record<Recommendation['kind'], typeof PenLine> = {
@@ -20,7 +21,8 @@ export function WeekCard() {
   const recommendations = useRecommendations()
   const feedback = useRecommendationFeedback()
   const toast = useToast()
-  const items = recommendations.data ?? []
+  const items = recommendations.data?.items ?? []
+  const moreLocked = recommendations.data?.moreLocked ?? 0
   if (items.length === 0) return null
 
   const text = (en?: string, lao?: string) => (lo ? lao ?? en : en ?? lao) ?? ''
@@ -77,6 +79,7 @@ export function WeekCard() {
           )
         })}
       </ol>
+      {moreLocked > 0 && <PremiumNote body="premium.week" vars={{ count: moreLocked }} />}
     </section>
   )
 }

@@ -6,7 +6,8 @@ import type { Confidence, DashboardSubject, DashboardView } from './api'
 import { formatMean } from './format'
 import type { insightsCopy } from './insightsCopy'
 
-export type InsightKey = keyof typeof insightsCopy
+// The two summary reasons shown without Premium live in entitlementCopy.ts.
+export type InsightKey = keyof typeof insightsCopy | 'insights.reason.aboveSummary' | 'insights.reason.belowSummary'
 export type InsightT = (key: InsightKey, vars?: Record<string, string | number>) => string
 type Scale = DashboardView['scale']
 
@@ -53,6 +54,8 @@ export function labelReason(subject: DashboardSubject, scale: Scale, t: InsightT
   const label = subject.label
   if (!label || (label.value !== 'relatively_stronger' && label.value !== 'relatively_lower')) return null
   const above = label.value === 'relatively_stronger'
+  // Without Premium the snapshot carries the verdict only (P3-BIL, migration 142).
+  if (label.n === undefined) return t(above ? 'insights.reason.aboveSummary' : 'insights.reason.belowSummary')
   return t(above ? 'insights.reason.above' : 'insights.reason.below', {
     count: above ? label.periods_above : label.periods_below,
     total: label.n,

@@ -177,10 +177,29 @@ eq('a retired diagnostic cannot be started', (await errorOf(A, `public.academic_
 eq('retiring needs a note', (await errorOf(ADM, `public.academic_admin_set_diagnostic_status('${v2.id}', 'retire', 'no')`, STAFF))?.details?.field, 'note')
 eq('admin list counts attempts', [list.diagnostics.find((d) => d.id === diag.id).attempts, list.diagnostics.find((d) => d.id === diag.id).completed], [3, 2])
 
+// ─── Premium gate (P3-BIL, migration 142) ────────────────────────────────────
+
+eq('not enforced: no lock', (await rpc(A, `public.academic_get_quiz_offer('${aMath}')`)).locked, null)
+await ok(db, 'enforce', `update academic_settings set value = 'true' where key = 'entitlements_enforced'`)
+const firstOffer = await rpc(A, `public.academic_get_quiz_offer('${aMath}')`)
+eq('enforced, no Premium: the first check of a subject this term is free', [firstOffer.locked, firstOffer.start_id], [null, v2.id])
+const freeCheck = await rpc(A, `public.academic_start_quiz('${v2.id}')`)
+for (const i of freeCheck.items) await answer(A, freeCheck.attempt_id, i.id, 'B')
+await rpc(A, `public.academic_finish_quiz('${freeCheck.attempt_id}')`)
+await ok(db, 'a week later', `update academic_quiz_attempts set completed_at = completed_at - interval '8 days' where id = '${freeCheck.attempt_id}'`)
+const lockedOffer = await rpc(A, `public.academic_get_quiz_offer('${aMath}')`)
+eq('then one check per subject each term', [lockedOffer.locked, lockedOffer.start_id, lockedOffer.retake_from, lockedOffer.last_result?.id], ['diagnostic_unlimited', null, null, freeCheck.attempt_id])
+eq('starting anyway answers ENTITLEMENT_REQUIRED', (await errorOf(A, `public.academic_start_quiz('${v2.id}')`))?.code, 'ENTITLEMENT_REQUIRED')
+eq('earlier results stay readable (BILLING-006)', (await rpc(A, `public.academic_get_quiz_result('${freeCheck.attempt_id}')`)).topics.length > 0, true)
+await ok(db, 'A subscribes', `insert into premium_subscriptions (user_id, plan_id, status, ends_at) values ('${A}', (select id from premium_plans where slug = 'premium-monthly'), 'ACTIVE', now() + interval '30 days')`)
+const openOffer = await rpc(A, `public.academic_get_quiz_offer('${aMath}')`)
+eq('with Premium: re-tests open again', [openOffer.locked, openOffer.start_id], [null, v2.id])
+await ok(db, 'not enforced', `update academic_settings set value = 'false' where key = 'entitlements_enforced'`)
+
 // ─── Export and deletion ─────────────────────────────────────────────────────
 
 const exported = await rpc(A, `public.academic_export_my_quizzes()`)
-eq('export lists every attempt with topics and answers', [exported.attempts.length, exported.attempts[0].topics.length, exported.attempts[0].answers.length, exported.attempts[0].answers[0]], [3, 2, 10, { position: 1, question: 'Q1', chosen: 'B', correct: 'B' }])
+eq('export lists every attempt with topics and answers', [exported.attempts.length, exported.attempts[0].topics.length, exported.attempts[0].answers.length, exported.attempts[0].answers[0]], [4, 2, 10, { position: 1, question: 'Q1', chosen: 'B', correct: 'B' }])
 eq('quiz tables are hidden from users', (await errorOf(A, `(select count(*) from academic_quiz_attempts)`))?.status, '42501')
 await rpc(A, `public.academic_request_deletion('scores')`)
 await ok(db, 'age request', `update academic_student_profiles set deletion_requested_at = now() - interval '15 days' where user_id = '${A}'`)

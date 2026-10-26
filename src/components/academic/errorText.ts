@@ -18,6 +18,7 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   OCR_ALLOWANCE_USED: 'scan.error.allowance',
   OCR_NOT_READY: 'scan.failed.body',
   OCR_FAILED: 'scan.failed.body',
+  ENTITLEMENT_REQUIRED: 'premium.required',
 }
 
 /** A student-facing message for any My Scores error. */

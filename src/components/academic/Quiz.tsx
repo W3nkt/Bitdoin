@@ -8,6 +8,7 @@ import { AcademicError } from '@/lib/academic/errors'
 import { useAnswerQuizItem, useFinishQuiz, useQuizAttempt, useQuizOffer, useQuizResult, type MasteryBand, type QuizOptionView } from '@/lib/academic/api'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
+import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
@@ -27,7 +28,7 @@ export function QuizOffer({ subjectEnrolmentId, needsAttention }: { subjectEnrol
   const offer = useQuizOffer(subjectEnrolmentId, needsAttention)
   const diagnostic = offer.data?.diagnostic
   if (!needsAttention || !diagnostic) return null
-  const { attempt, last_result: last, start_id: startId, retake_from: retakeFrom } = offer.data!
+  const { attempt, last_result: last, start_id: startId, retake_from: retakeFrom, locked } = offer.data!
   const label = attempt ? t('quiz.offer.resume', { answered: attempt.answered, total: attempt.total }) : last ? t('quiz.offer.retake') : t('quiz.offer.cta')
   return (
     <section className={card}>
@@ -40,6 +41,7 @@ export function QuizOffer({ subjectEnrolmentId, needsAttention }: { subjectEnrol
       <h2 className="flex items-center gap-2 text-lg font-black"><ListChecks aria-hidden className="h-5 w-5 shrink-0" />{t('quiz.offer.cta')}</h2>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('quiz.offer.body', { count: diagnostic.items })}</p>
       {!startId && retakeFrom && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('quiz.offer.retakeFrom', { date: formatDate(retakeFrom, language) })}</p>}
+      {locked && <PremiumNote body="premium.diagnostic" />}
       <div className="mt-4 flex flex-wrap gap-2">
         {startId && (
           <Link to={`/academy/scores/quiz/${startId}`} className={primary}>{label}<ArrowRight aria-hidden className="h-4 w-4" /></Link>

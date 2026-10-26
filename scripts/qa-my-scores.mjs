@@ -143,7 +143,8 @@ function backend(initial) {
     academic_get_quiz_offer: (args) => (args.p_subject_enrolment_id === 'se-math'
       ? {
           diagnostic: { id: 'dg1', title_lo: 'ກວດຄະນິດສາດ ມ.6', title_en: 'Grade 11 Mathematics check', items: QUIZ_ITEMS.length },
-          start_id: state.quizDone ? null : 'dg1', retake_from: state.quizDone ? '2026-11-01T08:00:00Z' : null,
+          start_id: state.quizDone || state.quizLocked ? null : 'dg1', retake_from: state.quizDone && !state.quizLocked ? '2026-11-01T08:00:00Z' : null,
+          locked: state.quizLocked ? 'diagnostic_unlimited' : null,
           attempt: state.quizAnswers && !state.quizDone && Object.keys(state.quizAnswers).length < QUIZ_ITEMS.length ? { id: 'at1', answered: Object.keys(state.quizAnswers).length, total: QUIZ_ITEMS.length, expires_at: '2026-11-01T00:00:00Z' } : null,
           last_result: state.quizDone ? { id: 'at1', completed_at: '2026-10-25T08:00:00Z', strong: quizResult(state.quizAnswers).topics.every(t => t.correct * 10 >= t.total * 8) } : null,
         }
@@ -178,7 +179,12 @@ function backend(initial) {
       return { ...entryView(args.p_period_id), ocr_job_id: args.p_job_id }
     },
     // Next actions (migration 136) and practice sets (137).
-    academic_get_recommendations: () => ({ items: state.recommendations ?? [] }),
+    academic_get_recommendations: () => ({ items: state.recommendations ?? [], more_locked: state.recsLocked ?? 0 }),
+    // Entitlements (migration 141): Free and not enforced unless a scenario says otherwise.
+    academic_my_entitlements: () => state.entitlements ?? {
+      enforced: false, tier: 'free', premium: { active: false, source: null, until: null }, period_key: '2026-10', resets_at: '2026-10-31T17:00:00Z',
+      features: { ocr_upload: { enabled: true, source: 'free', until: null, quota: { limit: 10, used: 3, remaining: 7 } }, advanced_analysis: { enabled: true, source: 'open', until: null, quota: null } },
+    },
     academic_recommendation_feedback: (args) => {
       state.feedback = [...(state.feedback ?? []), args]
       state.recommendations = (state.recommendations ?? []).filter(item => item.key !== args.p_item_key)
@@ -1326,6 +1332,48 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('This week: up to three actions with reasons, times and actions, gap card, axe clean; practice set answered with instant feedback, final answers, AI label, summary')
+  }
+
+  // Premium gates (P3-BIL #51, migration 142): summary insights, top action only, re-test locked; nothing recorded is hidden.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    const full = insightsDashboard()
+    mock.state.dashboard = { ...full, detail_locked: true, subjects: full.subjects.map(s => ({ ...s, label: { value: s.label.value, rule: s.label.rule }, trend: { value: s.trend.value, rule: s.trend.rule, direction: s.trend.direction } })) }
+    mock.state.recommendations = WEEK.slice(0, 1)
+    mock.state.recsLocked = 2
+    Object.assign(mock.state, { quizAnswers: Object.fromEntries(QUIZ_ITEMS.map(i => [i.id, i.correct_key])), quizDone: true, quizLocked: true })
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    const insights = page.locator('section', { has: page.getByRole('heading', { name: 'Compared with your own average' }) })
+    await insights.getByText('Below your average lately').first().waitFor()
+    await insights.getByText('The full evidence and how sure each result is come with Academy Premium.').waitFor()
+    assert.equal(await insights.getByText(/High confidence|Medium confidence/).count(), 0, 'no confidence chips without Premium')
+    await page.getByText('2 more suggestions this week with Academy Premium.').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Ask a parent' }).count() >= 2, true, 'students under 18 are sent to a parent, not to a purchase')
+    await shot(page, 'my-scores-premium-1-dashboard-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    const violations = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.map(v => v.id))
+    assert.deepEqual(violations, [])
+    await page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('You have used this term’s check for this subject. Re-tests come with Academy Premium.').waitFor()
+    await page.getByText('Explanations of what your scores show, month by month, come with Academy Premium.').waitFor()
+    await page.getByRole('link', { name: 'See your last quiz results' }).waitFor()
+    assert.equal(await page.locator('.recharts-line-curve').count() > 0, true, 'the subject chart stays')
+    await shot(page, 'my-scores-premium-2-subject-en-mobile')
+
+    // Premium ending in 3 days (NOTIF-005) and the plan in My data.
+    mock.state.entitlements = { enforced: true, tier: 'premium', premium: { active: true, source: 'academy_premium', until: new Date(Date.now() + 2.5 * 86400_000).toISOString() }, period_key: '2026-10', resets_at: '2026-10-31T17:00:00Z',
+      features: { ocr_upload: { enabled: true, source: 'academy_premium', until: null, quota: { limit: 20, used: 4, remaining: 16 } } } }
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByText(/^Academy Premium ends in 3 days, on /).waitFor()
+    await page.getByRole('link', { name: 'Renew' }).waitFor()
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const plan = page.locator('section', { has: page.getByRole('heading', { name: 'Your plan' }) })
+    await plan.getByText(/^Academy Premium until /).waitFor()
+    await plan.getByText('If Premium ends, everything you recorded stays.').first().waitFor()
+    await shot(page, 'my-scores-premium-3-plan-en-mobile')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Premium gates: summary reasons without confidence, Premium note with "Ask a parent" for under-18s, 2 more suggestions held back, re-test locked with the last result still open, chart kept, axe clean; ending-soon notice with Renew; plan card in My data')
   }
 
   // LEARN-007: a recommended Academy lesson opens in the Academy, even before daily

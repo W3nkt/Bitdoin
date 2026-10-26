@@ -129,6 +129,18 @@ items = await recs(B)
 eq('no quiz taken: diagnose the subject needing attention (R2), after the missing month', view(items), [['R1', 'enter_scores', 'Month 7', 100], ['R2', 'diagnostic', 'Mathematics check', 90]])
 eq('R2 says why', [items[1].reason.subject_en, items[1].reason.label, items[1].route], ['Mathematics', 'relatively_lower', '/academy/scores/quiz/40000000-0000-0000-0000-000000000001'])
 
+// ─── Premium gate (P3-BIL, migration 142) ────────────────────────────────────
+
+eq('not enforced: nothing locked', (await rpc(B, `public.academic_get_recommendations()`)).more_locked, 0)
+await ok(db, 'enforce', `update academic_settings set value = 'true' where key = 'entitlements_enforced'`)
+const gated = await rpc(B, `public.academic_get_recommendations()`)
+eq('enforced, no Premium: the top action only, the others counted', [gated.items.map((i) => i.rule_id), gated.more_locked], [['R1'], 1])
+await ok(db, 'B subscribes', `insert into premium_subscriptions (user_id, plan_id, status, ends_at) values ('${B}', (select id from premium_plans where slug = 'premium-monthly'), 'ACTIVE', now() + interval '30 days')`)
+const unlocked = await rpc(B, `public.academic_get_recommendations()`)
+eq('with Premium: up to three, none locked', [unlocked.items.length >= 2, unlocked.more_locked], [true, 0])
+await ok(db, 'not enforced', `update academic_settings set value = 'false' where key = 'entitlements_enforced'`)
+await ok(db, 'B lapses', `delete from premium_subscriptions where user_id = '${B}'`)
+
 // ─── Switch, admin, access ───────────────────────────────────────────────────
 
 const gaps = await rpc(ADM, `public.academic_admin_content_gaps()`, STAFF)
