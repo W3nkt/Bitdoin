@@ -104,6 +104,16 @@ for (let run = 0; run < RUNS; run++) {
 }
 eq(`${RUNS} random answer sets: identical options for profiles that differ only in name, province and age band`, identical, RUNS)
 
+// ─── Academy Premium (owner decision, migration 151) ─────────────────────────
+
+await ok(db, 'enforce', `update academic_settings set value = 'true' where key = 'entitlements_enforced'`)
+g = await guidance(A)
+eq('on Free the options are locked; interests stay', [g.options_locked, g.result, g.area_scores !== null], [true, null, true])
+await ok(db, 'premium', `insert into premium_subscriptions (user_id, plan_id, status) select '${A}', id, 'ACTIVE' from premium_plans where price_lak > 0 limit 1`)
+g = await guidance(A)
+eq('with Premium the options come from the questionnaire already answered', [g.options_locked, g.result.options.length >= 3], [false, true])
+await ok(db, 'not enforced', `update academic_settings set value = 'false' where key = 'entitlements_enforced'`)
+
 // ─── Export (PRIV-004) and access ────────────────────────────────────────────
 
 const exported = await rpc(A, `public.academic_export_my_guidance()`)

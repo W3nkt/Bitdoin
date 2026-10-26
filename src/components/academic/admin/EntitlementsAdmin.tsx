@@ -20,6 +20,7 @@ const FEATURES: Array<[string, string]> = [
   ['ai_monthly_summary', 'AI monthly summary'],
   ['planner_full', 'Full study planner'],
   ['parent_reports', 'Monthly parent reports'],
+  ['career_options', 'Career options with reasons'],
   ['career_report', 'Detailed career report'],
   ['mock_exams', 'Mock exams'],
 ]

@@ -100,6 +100,9 @@ Applied 2026-10-26 (#55, piece 2): 150 (career questionnaire, options with reaso
 changed; "Download my data" gains planner.json, coach.json and careers.json). Students reach it from
 the dashboard ("Career guidance"). Options appear once career records are approved on the Careers tab.
 
+Applied 2026-10-26: 151 (career options need Academy Premium, feature `career_options`), then the
+19 careers and 5 institutions published at the owner's request (CAREER-PUBLISH).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

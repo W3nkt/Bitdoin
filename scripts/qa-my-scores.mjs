@@ -51,7 +51,7 @@ function careerView(state) {
     in_progress: c.in_progress ?? null,
     completed_at: c.completed ? '2026-10-26T05:00:00Z' : null,
     area_scores: c.completed ? { areas: Object.fromEntries(['R', 'I', 'A', 'S', 'E', 'C'].map((a) => [a, { score: 1, answered: 4, level: a === 'S' ? 'high' : a === 'I' ? 'medium' : 'low' }])), top2: ['S'], top3: ['S', 'I'] } : null,
-    preferences: {}, retake_after: '2027-01-24', catalogue_size: CAREERS.length,
+    preferences: {}, retake_after: '2027-01-24', catalogue_size: CAREERS.length, options_locked: !!state.careerLocked,
     result: c.completed ? {
       created_at: '2026-10-26T05:00:00Z', reason: shortlist.length ? 'shortlist' : 'first', has_scores: true,
       options: CAREERS.map((career) => ({ slug: career.slug, cluster: career.cluster, factors: { ...factors[career.slug], ...(shortlist.includes(career.slug) ? { saved: true } : {}) }, career })),
@@ -1530,11 +1530,17 @@ try {
     await lo.page.getByRole('heading', { name: 'ອາຊີບທີ່ຄວນສຳຫຼວດ' }).waitFor()
     await lo.page.getByRole('heading', { name: 'ພະຍາບານ' }).waitFor()
     await shot(lo.page, 'my-scores-careers-2-results-lo-mobile')
+    // Free: interests and every career stay, options need Academy Premium (owner decision).
+    lo.mock.state.careerLocked = true
+    await lo.page.reload({ waitUntil: 'domcontentloaded' })
+    await lo.page.getByText('ທາງເລືອກອາຊີບຂອງເຈົ້າ ພ້ອມເຫດຜົນຂອງແຕ່ລະອັນ ມີໃນ Academy Premium.', { exact: false }).waitFor()
+    await lo.page.getByRole('heading', { name: 'ຄວາມສົນໃຈທີ່ເຈົ້າບອກພວກເຮົາ' }).waitFor()
+    assert.equal(await lo.page.getByRole('heading', { name: 'ພະຍາບານ', level: 3 }).count(), 0, 'no options on Free')
     await lo.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await lo.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(lo.errors, [])
     await lo.context.close()
-    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; Lao results; axe clean')
+    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; Lao results; Free sees interests and every career but options need Premium; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

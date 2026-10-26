@@ -1153,6 +1153,8 @@ export interface CareerGuidanceView {
   area_scores: { areas: Record<InterestArea, { score: number | null; answered: number; level: 'high' | 'medium' | 'low' | 'not_enough' }>; top2: InterestArea[]; top3: InterestArea[] } | null
   preferences: Record<string, string> | null
   retake_after: string | null
+  /** Options need Academy Premium (feature career_options); interests and every career stay free. */
+  options_locked: boolean
   catalogue_size: number
   result: {
     created_at: string

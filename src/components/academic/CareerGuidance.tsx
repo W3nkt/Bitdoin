@@ -12,6 +12,7 @@ import {
 import { formatDate } from '@/lib/academic/format'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
+import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
@@ -232,6 +233,7 @@ function Results({ view }: { view: CareerGuidanceView }) {
       <section className={card}>
         <h2 className="text-lg font-black">{t('careers.options')}</h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.optionsNote')}</p>
+        {view.options_locked ? <div className="mt-4"><PremiumNote body="premium.careers" /></div> : <>
         {result && !result.has_scores && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('careers.noScores')}</p>}
         {!result || result.options.length === 0 ? <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">{t('careers.empty')}</p> : (
           <ul className="mt-4 grid gap-4">
@@ -251,6 +253,7 @@ function Results({ view }: { view: CareerGuidanceView }) {
             ))}
           </ul>
         )}
+        </>}
       </section>
 
       {view.area_scores && (

@@ -24,6 +24,10 @@ export const entitlementCopy = {
     en: '{count} more suggestions this week with Academy Premium.',
     lo: 'ມີຄຳແນະນຳອີກ {count} ຢ່າງໃນອາທິດນີ້ ກັບ Academy Premium.',
   },
+  'premium.careers': {
+    en: 'Your career options, with the reasons behind each, come with Academy Premium. Your interests and every career below stay free.',
+    lo: 'ທາງເລືອກອາຊີບຂອງເຈົ້າ ພ້ອມເຫດຜົນຂອງແຕ່ລະອັນ ມີໃນ Academy Premium. ຄວາມສົນໃຈຂອງເຈົ້າ ແລະ ທຸກອາຊີບຂ້າງລຸ່ມ ຍັງຟຣີ.',
+  },
   'premium.diagnostic': {
     en: 'You have used this term’s check for this subject. Re-tests come with Academy Premium.',
     lo: 'ເຈົ້າໃຊ້ການກວດຂອງວິຊານີ້ໃນພາກຮຽນນີ້ແລ້ວ. ການກວດຄືນມີໃນ Academy Premium.',
