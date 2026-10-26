@@ -518,15 +518,20 @@ export function useGrantUsageStatistics() {
 }
 
 export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
-  const [data, quizzes, reports, recommendations] = await Promise.all([
+  const [data, quizzes, reports, recommendations, guidance] = await Promise.all([
     callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
     // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
     callAcademicRpc<{ attempts?: Record<string, unknown>[]; practice?: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
     callAcademicRpc<{ reports: Record<string, unknown>[] } | null>('academic_export_my_reports'),
     // Next actions shown and feedback on them (migration 138).
     callAcademicRpc<Record<string, unknown> | null>('academic_export_my_recommendations'),
+    // Study planner, Coach "My scores" chats and career guidance (migration 150).
+    callAcademicRpc<{ planner?: Record<string, unknown>; coach?: Record<string, unknown>; careers?: Record<string, unknown> } | null>('academic_export_my_guidance'),
   ])
-  return { ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] } }
+  return {
+    ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] },
+    planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: guidance?.careers ?? {},
+  }
 }
 
 export interface DeletionStatus {
@@ -1110,3 +1115,81 @@ export async function fetchMonthlySummary(language: 'lo' | 'en') {
   if (error || data?.error) throw new AcademicError(data?.code ?? 'UNKNOWN', 503, data?.error)
   return data as { summary: string; source: 'ai' | 'template'; cached?: boolean }
 }
+
+// ─── Career guidance (P4-CAR #55: CAREER-001..010; migrations 148, 150) ──────
+
+export type InterestArea = 'R' | 'I' | 'A' | 'S' | 'E' | 'C'
+
+/** A published career as students see it (migration 148); facts past their review-by date are marked. */
+export interface GuidanceCareer {
+  slug: string
+  title_en: string
+  title_lo: string
+  summary_en: string
+  summary_lo: string
+  cluster: string
+  primary_area: InterestArea
+  secondary_area?: InterestArea | ''
+  related_subjects: string[]
+  study_years: 'le3' | '4to5' | '6plus'
+  work_settings: string[]
+  preparation_en?: string[]
+  preparation_lo?: string[]
+  facts?: { kind: string; text_en: string; text_lo: string; source_name: string; source_url: string; verified_on: string; review_by: string; out_of_date: boolean }[]
+}
+
+/** The factors behind an option (CAREER-002). There is never a score. */
+export interface CareerFactors {
+  saved?: boolean
+  interest?: InterestArea[]
+  subjects?: string[]
+  preferences?: ('work_setting' | 'study_length')[]
+}
+
+export interface CareerGuidanceView {
+  questionnaire: { version: string; items: { n: number; areas: InterestArea[]; en: string; lo: string }[]; items_per_screen: number; min_answered: number }
+  in_progress: { answers: Record<string, number | null>; preferences: Record<string, string>; reason: string } | null
+  completed_at: string | null
+  area_scores: { areas: Record<InterestArea, { score: number | null; answered: number; level: 'high' | 'medium' | 'low' | 'not_enough' }>; top2: InterestArea[]; top3: InterestArea[] } | null
+  preferences: Record<string, string> | null
+  retake_after: string | null
+  catalogue_size: number
+  result: {
+    created_at: string
+    reason: 'first' | 'retake' | 'interests_changed' | 'new_scores' | 'catalogue' | 'shortlist'
+    has_scores: boolean
+    options: { slug: string; cluster: string; factors: CareerFactors; career: GuidanceCareer }[]
+    changes: { since: string; reason: string; added: string[]; removed: string[] } | null
+  } | null
+  shortlist: string[]
+  subject_names: Record<string, { en: string; lo: string }>
+}
+
+const careerKey = [...academicKeys.all, 'career-guidance'] as const
+
+export function useCareerGuidance() {
+  return useQuery({ queryKey: careerKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<CareerGuidanceView>('academic_get_career_guidance') })
+}
+
+/** Every published career, for browsing regardless of scores (CAREER-003). */
+export function useCareerCatalogue() {
+  return useQuery({
+    queryKey: [...careerKey, 'catalogue'],
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ careers: GuidanceCareer[] }>('academic_career_catalogue'),
+  })
+}
+
+function useCareerMutation<A, R>(fn: (args: A) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => queryClient.invalidateQueries({ queryKey: careerKey }) })
+}
+
+export const useStartCareerQuestionnaire = () => useCareerMutation((reason: 'first' | 'retake' | 'interests_changed') =>
+  callAcademicRpc<CareerGuidanceView>('academic_start_career_questionnaire', { p_reason: reason }))
+/** Saved after each screen, without refetching (CAREER-001). */
+export const saveCareerAnswers = (answers: Record<string, number | null>, preferences?: Record<string, string>) =>
+  callAcademicRpc<{ saved: boolean }>('academic_save_career_answers', { p_answers: answers, p_preferences: preferences ?? null })
+export const useFinishCareerQuestionnaire = () => useCareerMutation(() => callAcademicRpc<CareerGuidanceView>('academic_finish_career_questionnaire'))
+export const useSetCareerSaved = () => useCareerMutation(({ slug, saved }: { slug: string; saved: boolean }) =>
+  callAcademicRpc<{ shortlist: string[] }>('academic_set_career_saved', { p_slug: slug, p_saved: saved }))

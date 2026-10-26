@@ -19,6 +19,9 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   OCR_NOT_READY: 'scan.failed.body',
   OCR_FAILED: 'scan.failed.body',
   ENTITLEMENT_REQUIRED: 'premium.required',
+  CAREER_TOO_FEW_ANSWERS: 'careers.error.tooFew',
+  CAREER_RETAKE_TOO_SOON: 'careers.error.tooSoon',
+  CAREER_SHORTLIST_FULL: 'careers.error.full',
 }
 
 /** A student-facing message for any My Scores error. */

@@ -12,6 +12,9 @@ module stores about the signed-in student. The privacy screen (FE-006) turns it 
 | `consents.json` | `consents` | Every consent record: purpose, notice version, method, granted and withdrawn times. |
 | `reports.json` | `academic_export_my_reports().reports` | Every "Report a problem" report the user sent (migration 133): category, screen, description, status, sent and resolved times. Reports are support records: deleting the Schooling profile unlinks them but keeps them with the Bitdoin account. |
 | `recommendations.json` | `academic_export_my_recommendations()` | Next actions shown to the student (action, rule, kind, day) and every response to them (done, not now, not helpful) with its time (migrations 136, 138). |
+| `planner.json` | `academic_export_my_guidance()` | Study goals, the study plan and weekly tasks (migration 143). |
+| `coach.json` | `academic_export_my_guidance()` | Coach "My scores" conversations with every question and answer (prompt version and model per answer), and the student's own ratings and reports (migration 145). |
+| `careers.json` | `academic_export_my_guidance()` | Career questionnaires (answers, preferences, interest levels), every set of career options with its reasons, and the shortlist (migration 150). |
 | `quizzes.json` | `academic_export_my_quizzes()` | `attempts`: one object per diagnostic quiz attempt (migration 132): quiz title, status, start and finish times, topic results (correct, total, band) and every answer (question, chosen option, and the correct option once finished). `practice`: one object per practice set (migration 137): topic, status, times, correct count and every answer with the correct option. |
 
 Every export writes a `privacy.export` audit event. Export works while the module is switched off.

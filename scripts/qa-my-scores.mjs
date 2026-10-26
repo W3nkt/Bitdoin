@@ -32,6 +32,36 @@ const SCHOOLS = [
   { id: 'school-3', name_lo: 'ໂຮງຮຽນ ຜົ້ງສາລີ', name_en: 'Phongsaly Secondary School', romanised_name: null, province_code: 'phongsaly', district_code: '2-01' },
 ]
 
+
+const CAREERS = [
+  { slug: 'registered-nurse', title_en: 'Registered Nurse', title_lo: 'ພະຍາບານ', summary_en: 'Care for patients.', summary_lo: 'ດູແລຄົນເຈັບ.', cluster: 'health', primary_area: 'S', secondary_area: 'I',
+    related_subjects: ['BIO', 'CHEM'], study_years: '4to5', work_settings: ['with_people'], preparation_en: ['Focus on biology and chemistry'], preparation_lo: ['ເນັ້ນຊີວະສາດ ແລະ ເຄມີສາດ'], facts: [] },
+  { slug: 'secondary-teacher', title_en: 'Secondary School Teacher', title_lo: 'ຄູສອນມັດທະຍົມ', summary_en: 'Teach secondary students.', summary_lo: 'ສອນນັກຮຽນມັດທະຍົມ.', cluster: 'education', primary_area: 'S', secondary_area: 'I',
+    related_subjects: ['LAO', 'MATH'], study_years: '4to5', work_settings: ['with_people'], preparation_en: ['Explain lessons to classmates'], preparation_lo: ['ຝຶກອະທິບາຍບົດຮຽນໃຫ້ໝູ່'], facts: [] },
+  { slug: 'lawyer', title_en: 'Lawyer', title_lo: 'ທະນາຍຄວາມ', summary_en: 'Advise people about the law.', summary_lo: 'ໃຫ້ຄຳປຶກສາກ່ຽວກັບກົດໝາຍ.', cluster: 'law_public', primary_area: 'E', secondary_area: 'S',
+    related_subjects: ['CIV'], study_years: '4to5', work_settings: ['office'], preparation_en: ['Read widely'], preparation_lo: ['ອ່ານຫຼາຍ'], facts: [] },
+]
+function careerView(state) {
+  const items = Array.from({ length: 24 }, (_, i) => ({ n: i + 1, areas: ['S'], en: ['Help people understand laws or rules fairly', 'Work in a hospital or health centre', 'Teach children or young people', 'Analyse information to make a decision'][i - 20] ?? `Item ${i + 1}`, lo: `ຂໍ້ ${i + 1}` }))
+  const c = state.career ?? {}
+  const shortlist = state.shortlist ?? []
+  const factors = { 'registered-nurse': { interest: ['S'], subjects: ['BIO'] }, 'secondary-teacher': { interest: ['S'], preferences: ['work_setting'] }, lawyer: { interest: ['S'] } }
+  return {
+    questionnaire: { version: '1.0.0', items, items_per_screen: 4, min_answered: 12 },
+    in_progress: c.in_progress ?? null,
+    completed_at: c.completed ? '2026-10-26T05:00:00Z' : null,
+    area_scores: c.completed ? { areas: Object.fromEntries(['R', 'I', 'A', 'S', 'E', 'C'].map((a) => [a, { score: 1, answered: 4, level: a === 'S' ? 'high' : a === 'I' ? 'medium' : 'low' }])), top2: ['S'], top3: ['S', 'I'] } : null,
+    preferences: {}, retake_after: '2027-01-24', catalogue_size: CAREERS.length,
+    result: c.completed ? {
+      created_at: '2026-10-26T05:00:00Z', reason: shortlist.length ? 'shortlist' : 'first', has_scores: true,
+      options: CAREERS.map((career) => ({ slug: career.slug, cluster: career.cluster, factors: { ...factors[career.slug], ...(shortlist.includes(career.slug) ? { saved: true } : {}) }, career })),
+      changes: shortlist.length ? { since: '2026-10-26T05:00:00Z', reason: 'shortlist', added: [], removed: ['ux-designer'] } : null,
+    } : null,
+    shortlist,
+    subject_names: { BIO: { en: 'Biology', lo: 'ຊີວະສາດ' }, CHEM: { en: 'Chemistry', lo: 'ເຄມີສາດ' }, MATH: { en: 'Mathematics', lo: 'ຄະນິດສາດ' }, LAO: { en: 'Lao', lo: 'ພາສາລາວ' }, CIV: { en: 'Civics', lo: 'ສຶກສາພົນລະເມືອງ' } },
+  }
+}
+
 function fakeJwt(sub = USER_ID) {
   const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const exp = Math.floor(Date.now() / 1000) + 3600
@@ -183,6 +213,13 @@ function backend(initial) {
     // Coach academic mode (migration 145).
     academic_coach_status: () => state.coach ?? { available: false, busy: false, quota: null, resources: [] },
     academic_coach_feedback: (args) => { (state.coachFeedback ??= []).push(args); return { id: 'f1', rating: args.p_input.rating ?? null, report_category: args.p_input.report_category ?? null, share_text: !!args.p_input.share_text } },
+    // Career guidance (migration 150): a small stateful stand-in.
+    academic_get_career_guidance: () => careerView(state),
+    academic_career_catalogue: () => ({ careers: CAREERS }),
+    academic_start_career_questionnaire: (args) => { state.career = { ...(state.career ?? {}), in_progress: { answers: {}, preferences: {}, reason: args.p_reason } }; return careerView(state) },
+    academic_save_career_answers: (args) => { (state.careerSaves ??= []).push(args); Object.assign(state.career.in_progress.answers, args.p_answers); if (args.p_preferences) state.career.in_progress.preferences = args.p_preferences; return { saved: true } },
+    academic_finish_career_questionnaire: () => { state.career = { completed: true }; return careerView(state) },
+    academic_set_career_saved: (args) => { state.shortlist = args.p_saved ? [...(state.shortlist ?? []), args.p_slug] : (state.shortlist ?? []).filter((x) => x !== args.p_slug); return { shortlist: state.shortlist } },
     // Study planner (migration 143): a small stateful stand-in.
     academic_get_planner: () => plannerView(),
     academic_preview_goal: (args) => goalPreview(args.p_subject_enrolment_id, Number(args.p_target), args.p_target_period_id),
@@ -1450,6 +1487,56 @@ try {
     pass('Coach (academic mode): Coach card with quota, monthly summary marked as checked AI text, Ask about a subject pre-fills the question, My scores mode sends mode academic, report with consent to share, busy message keeps Schooling one tap away')
   }
 
+  // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons
+  // and no score, preparation, Explorer link, shortlist, talk-it-over questions, every career open.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.career = { in_progress: { answers: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [String(i + 1), i % 4])), preferences: {}, reason: 'first' } }
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'Career guidance' }).click()
+    await page.getByText('Questions 21–24 of 24').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Next' }).isDisabled(), true, 'every question on the screen needs an answer (Not sure is fine)')
+    for (const [item, choice] of [['Help people understand laws or rules fairly', 'Like'], ['Work in a hospital or health centre', 'Not sure'], ['Teach children or young people', 'Really like'], ['Analyse information to make a decision', 'Really dislike']]) {
+      await page.getByRole('group', { name: item }).getByText(choice, { exact: true }).click()
+    }
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('heading', { name: 'A few optional questions' }).waitFor()
+    assert.deepEqual(mock.state.careerSaves.at(-1), { p_answers: { 21: 2, 22: null, 23: 3, 24: 0 }, p_preferences: null })
+    await page.getByLabel('Where would you like to work?').selectOption('office')
+    await page.getByRole('button', { name: 'See my options' }).click()
+    await page.getByRole('heading', { name: 'Careers to explore' }).waitFor()
+    assert.deepEqual(mock.state.careerSaves.at(-1), { p_answers: {}, p_preferences: { work_setting: 'office' } })
+    const nurse = page.locator('li', { has: page.getByRole('heading', { name: 'Registered Nurse' }) })
+    await nurse.getByText('It matches your interest in Helping & teaching.').waitFor()
+    await nurse.getByText('Biology: among your stronger subjects.').waitFor()
+    await nurse.getByText('What preparation would help').waitFor()
+    assert.equal(await nurse.getByRole('link', { name: 'Open in Career Explorer' }).getAttribute('href'), '/academy/careers?career=registered-nurse')
+    assert.equal(await page.getByText(/\d+ ?%/).count(), 0, 'no percentages')
+    await nurse.getByRole('button', { name: 'Save Registered Nurse' }).click()
+    await nurse.getByRole('button', { name: 'Remove Registered Nurse from my shortlist' }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_set_career_saved').args, { p_slug: 'registered-nurse', p_saved: true })
+    await page.getByText('What changed since', { exact: false }).waitFor()
+    await page.getByText('Who do we know who does this work?').waitFor()
+    await page.getByRole('heading', { name: 'All careers' }).waitFor()
+    await page.getByText('Every career is open to you, whatever your scores.').waitFor()
+    await shot(page, 'my-scores-careers-1-results-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(errors, [])
+    await context.close()
+    const lo = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    lo.mock.state.career = { completed: true }
+    await lo.page.goto(`${base}/academy/scores/careers`, { waitUntil: 'domcontentloaded' })
+    await lo.page.getByRole('heading', { name: 'ອາຊີບທີ່ຄວນສຳຫຼວດ' }).waitFor()
+    await lo.page.getByRole('heading', { name: 'ພະຍາບານ' }).waitFor()
+    await shot(lo.page, 'my-scores-careers-2-results-lo-mobile')
+    await lo.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await lo.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(lo.errors, [])
+    await lo.context.close()
+    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; Lao results; axe clean')
+  }
+
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.
   {
     const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
@@ -1711,14 +1798,14 @@ try {
     assert.equal(bytes.readUInt32LE(0), 0x04034b50, 'starts with a ZIP local header')
     const eocd = bytes.length - 22
     assert.equal(bytes.readUInt32LE(eocd), 0x06054b50, 'ends with a ZIP directory record')
-    assert.equal(bytes.readUInt16LE(eocd + 10), 8, 'eight files')
-    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json', 'quizzes.json', 'reports.json', 'recommendations.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
+    assert.equal(bytes.readUInt16LE(eocd + 10), 11, 'eleven files')
+    for (const name of ['profile.json', 'enrolments.json', 'scores.csv', 'revisions.csv', 'consents.json', 'quizzes.json', 'reports.json', 'recommendations.json', 'planner.json', 'coach.json', 'careers.json']) assert.ok(bytes.includes(Buffer.from(name)), name)
     assert.ok(bytes.includes(Buffer.from('ຄະນິດສາດ')), 'Lao text kept as UTF-8')
     assert.ok(bytes.includes(Buffer.from('"practice"')), 'quizzes.json carries practice sets')
     await page.getByText('Your data was downloaded.').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json, quizzes.json, reports.json, recommendations.json')
+    pass('Export: ZIP downloaded with profile.json, enrolments.json, scores.csv, revisions.csv, consents.json, quizzes.json, reports.json, recommendations.json, planner.json, coach.json, careers.json')
   }
 
   // Export on an old session asks for a fresh sign-in first (PRD §29.6 T3, S-02).

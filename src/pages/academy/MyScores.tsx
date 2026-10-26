@@ -9,6 +9,7 @@ import { NewSchoolYear } from '@/components/academic/NewSchoolYear'
 import { MyData } from '@/components/academic/MyData'
 import { ScoreEntry } from '@/components/academic/ScoreEntry'
 import { Planner } from '@/components/academic/Planner'
+import { CareerGuidance } from '@/components/academic/CareerGuidance'
 import { History } from '@/components/academic/History'
 import { Inbox } from '@/components/academic/Inbox'
 import { QuizResult, QuizRunner } from '@/components/academic/Quiz'
@@ -123,6 +124,12 @@ export function MyScores() {
         path="planner"
         element={data.next_step === 'ready' && data.active_enrolment_id
           ? <MyScoresShell subtitle={t('planner.title')} backTo="/academy/scores" inbox><Planner /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="careers"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('careers.title')} backTo="/academy/scores" inbox><CareerGuidance /></MyScoresShell>
           : <Navigate to="/academy/scores" replace />}
       />
       <Route

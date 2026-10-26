@@ -17,6 +17,10 @@ export interface ExportData {
   reports?: Record<string, unknown>[]
   /** Next actions shown and feedback on them (migration 138). */
   recommendations?: Record<string, unknown>
+  /** Study planner (143), Coach "My scores" chats (145) and career guidance (150). */
+  planner?: Record<string, unknown>
+  coach?: Record<string, unknown>
+  careers?: Record<string, unknown>
 }
 
 const SCORE_COLUMNS = [
@@ -49,6 +53,9 @@ export function exportFiles(data: ExportData) {
     { name: 'quizzes.json', content: json(data.quizzes ?? { attempts: [], practice: [] }) },
     { name: 'reports.json', content: json(data.reports ?? []) },
     { name: 'recommendations.json', content: json(data.recommendations ?? { shown: [], feedback: [] }) },
+    { name: 'planner.json', content: json(data.planner ?? {}) },
+    { name: 'coach.json', content: json(data.coach ?? {}) },
+    { name: 'careers.json', content: json(data.careers ?? {}) },
   ]
 }
 

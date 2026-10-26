@@ -6,6 +6,7 @@ import { recommendationCopy } from './recommendationCopy'
 import { ocrCopy } from './ocrCopy'
 import { entitlementCopy } from './entitlementCopy'
 import { plannerCopy } from './plannerCopy'
+import { careerCopy } from './careerCopy'
 import { coachCopy } from './coachCopy'
 
 // Every Schooling interface string, in one place.
@@ -413,6 +414,7 @@ const copy = {
   ...entitlementCopy,
   // Study planner (P3-PLAN)
   ...plannerCopy,
+  ...careerCopy,
   // AI Coach in Schooling (P3-AI)
   ...coachCopy,
 } as const satisfies Record<string, { en: string; lo: string }>

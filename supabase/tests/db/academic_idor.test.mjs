@@ -123,6 +123,8 @@ const OWN_READ = [
   'academic_coach_status()',
   // Published career content, shared by all students; no student data (migration 148).
   'academic_career_catalogue()',
+  // The caller's own questionnaire, options, shortlist and export (migration 150).
+  'academic_get_career_guidance()', 'academic_export_my_guidance()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -146,6 +148,8 @@ const OWN_WRITE = [
   'academic_recommendation_feedback(text,text)',
   // The caller's own study plan; no IDs accepted (migration 143).
   'academic_save_plan(jsonb)', 'academic_pause_plan(date)', 'academic_set_planner_xp(boolean)',
+  // The caller's own career questionnaire and shortlist; career slugs are shared content (migration 150).
+  'academic_start_career_questionnaire(text)', 'academic_save_career_answers(jsonb,jsonb)', 'academic_finish_career_questionnaire()', 'academic_set_career_saved(text,boolean)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -273,6 +277,8 @@ const ownReads = {
   'academic_get_planner()': 'public.academic_get_planner()',
   'academic_coach_status()': 'public.academic_coach_status()',
   'academic_career_catalogue()': 'public.academic_career_catalogue()',
+  'academic_get_career_guidance()': 'public.academic_get_career_guidance()',
+  'academic_export_my_guidance()': 'public.academic_export_my_guidance()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

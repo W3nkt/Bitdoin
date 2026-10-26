@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, ChevronRight,
@@ -80,8 +80,11 @@ export function CareerExplorer() {
   const [query, setQuery] = useState('')
   const [region, setRegion] = useState<(typeof regions)[number]>('All')
   const [field, setField] = useState('All')
-  const [selectedId, setSelectedId] = useState(careerPaths[0].id)
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  // ?career=<id> opens that career, e.g. from Career guidance in Schooling (CAREER-008).
+  const [searchParams] = useSearchParams()
+  const linked = careerPaths.find(career => career.id === searchParams.get('career'))
+  const [selectedId, setSelectedId] = useState(linked?.id ?? careerPaths[0].id)
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(Boolean(linked))
   const lo = language === 'lo'
   const text = copy[language]
 

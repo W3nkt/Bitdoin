@@ -96,6 +96,10 @@ edited it. The seed was prepared by Claude, so one admin can check and approve e
 Switched on 2026-10-26 at the owner's request: chat prompt **1.1.0** is active (1.0.0 kept for rollback),
 and `scripts/coach-eval/baseline.json` holds the 1.1.0 run.
 
+Applied 2026-10-26 (#55, piece 2): 150 (career questionnaire, options with reasons, shortlist, what
+changed; "Download my data" gains planner.json, coach.json and careers.json). Students reach it from
+the dashboard ("Career guidance"). Options appear once career records are approved on the Careers tab.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
