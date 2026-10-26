@@ -47,6 +47,8 @@ jobs:
         run: npm run test:insights
       - name: Score-book extraction core
         run: npm run test:ocr
+      - name: Coach safety layer and number checks
+        run: npm run test:coach
 
   e2e:
     name: My Scores browser checks

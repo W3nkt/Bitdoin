@@ -182,6 +182,17 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
     academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    // AI Coach review (ADMIN-009, migration 145).
+    academic_admin_ai_review: (args) => ({
+      items: (state.aiReviewed ? [] : [
+        { id: 'fb1', conversation_id: '7d0c4a1e-1111-4222-8333-444455556666', rating: -1, report_category: 'unsafe', priority: true, share_text: true, comment: 'Felt wrong',
+          status: 'open', created_at: '2026-10-26T03:00:00Z', question: 'Why did my maths fall?', answer: 'Mathematics went from 7 to 6.', prompt_version: '1.0.0', model_id: 'qwen-plus', numbers_checked: true, safety_category: null, review: null },
+        { id: 'fb2', conversation_id: '8e1d5b2f-1111-4222-8333-444455556666', rating: -1, report_category: null, priority: false, share_text: false, comment: null,
+          status: 'open', created_at: '2026-10-26T04:00:00Z', question: null, answer: null, prompt_version: '1.0.0', model_id: 'qwen-plus', numbers_checked: false, safety_category: null, review: null },
+      ]).filter(() => (args.p_status ?? 'open') === 'open'),
+      last_7_days: { answers: 42, safety_redirects: 2, numbers_fallbacks: 1, thumbs_up: 9, thumbs_down: 2, provider_failures: 0 },
+    }),
+    academic_admin_rate_ai: (args) => { state.aiRated = args; return { id: args.p_feedback_id, status: 'reviewed' } },
     // Entitlements (BILLING-007, migration 141).
     academic_admin_member_entitlements: (args) => String(args.p_member_code).toUpperCase() !== 'DAN9XY' ? { error: { code: 'NOT_FOUND', status: 404 } } : {
       user: { id: 'u-noy', name: 'Noy Student', member_code: 'DAN9XY' },
@@ -708,6 +719,34 @@ try {
     assert.equal(await ops.page.getByRole('button', { name: 'Metrics' }).count(), 0)
     await ops.context.close()
     pass('Metrics: headline tiles, pilot go/no-go readings, monthly chart with table view, groups under 20 hidden, pending rates marked, per-cohort view; Operations has no Metrics tab')
+  }
+
+  // AI review (ADMIN-009): reported answers, unsafe first; text only when shared; rubric saved.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=ai`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'Coach answers to review' }).waitFor()
+    await page.getByText('Question: Why did my maths fall?', { exact: false }).waitFor()
+    await page.getByText('The student did not share the text.', { exact: false }).waitFor()
+    const first = page.locator('li', { hasText: 'Why did my maths fall?' })
+    await first.getByText('Priority').waitFor()
+    await first.getByLabel('Accuracy').selectOption('5')
+    await first.getByLabel('Lao quality').selectOption('4')
+    await first.getByLabel('Safety').selectOption('5')
+    await first.getByLabel('Note').fill('Numbers right; tone fine')
+    await first.getByRole('button', { name: 'Save review' }).click()
+    await page.getByText('Review saved.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_rate_ai').args, { p_feedback_id: 'fb1', p_input: { accuracy: 5, lao: 4, safety: 5, note: 'Numbers right; tone fine' } })
+    await shot(page, 'admin-13-ai-review')
+    await axe(page)
+    assert.deepEqual(errors, [])
+    await context.close()
+    const ops = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
+    await ops.page.goto(`${base}/academy-admin/scores?tab=ai`, { waitUntil: 'domcontentloaded' })
+    await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
+    assert.equal(await ops.page.getByRole('button', { name: 'AI review' }).count(), 0)
+    await ops.context.close()
+    pass('AI review: reported answers with unsafe first, text only when shared, prompt version and model shown, rubric (accuracy, Lao, safety) saved, axe clean; Operations has no tab')
   }
 
   // Scan quality (ADMIN-008): 7-day rates with alerts, daily rows by model, corrections by subject, admin only.

@@ -20,6 +20,7 @@ import { QuizOffer } from './Quiz'
 import { WeekCard } from './WeekCard'
 import { PremiumNote } from './PremiumNote'
 import { PremiumEndingNotice } from './PlanCard'
+import { AskCoachLink, CoachCard } from './CoachCard'
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -115,6 +116,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
         <>
           <SummaryCard view={view} periodLabel={id => { const p = periodById.get(id); return p ? label(p) : '' }} actions={actions} />
           {!view.stale_since && <WeekCard />}
+          {!view.stale_since && <CoachCard />}
           <InsightsCard view={view} onOpen={openSubject} />
           {!view.stale_since && <FeedbackCard userId={userId} recordedMonths={view.periods.length} />}
           <TrendCard view={view} monthLabels={new Map((periods.data?.periods ?? []).filter(p => p.period_type === 'monthly').map(p => [p.sequence, label(p)]))} />
@@ -549,6 +551,7 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
       </ChartCard>
       <ExplanationCard view={view} subject={subject} name={name} />
       <QuizOffer subjectEnrolmentId={subject.subject_enrolment_id} needsAttention={subject.label?.value === 'relatively_lower'} />
+      <AskCoachLink subject={name} />
     </div>
   )
 }

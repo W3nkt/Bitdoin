@@ -872,3 +872,45 @@ export const grantEntitlement = (userId: string, input: GrantInput) =>
 
 export const revokeEntitlement = (grantId: string, reason: string) =>
   callAcademicRpc<EntitlementGrant>('academic_admin_revoke_entitlement', { p_grant_id: grantId, p_reason: reason })
+
+// ─── AI Coach review (ADMIN-009, migration 145) ──────────────────────────────
+
+export interface AiReviewItem {
+  id: string
+  conversation_id: string
+  rating: -1 | 1 | null
+  report_category: 'wrong_numbers' | 'unsafe' | 'not_lao' | 'other' | null
+  priority: boolean
+  share_text: boolean
+  comment: string | null
+  status: 'open' | 'reviewed'
+  created_at: string
+  question: string | null
+  answer: string | null
+  prompt_version: string | null
+  model_id: string | null
+  numbers_checked: boolean | null
+  safety_category: string | null
+  review: { accuracy: number; lao: number; safety: number; note: string | null; at: string; by: string | null } | null
+}
+
+export interface AiReview {
+  items: AiReviewItem[]
+  last_7_days: { answers: number; safety_redirects: number; numbers_fallbacks: number; thumbs_up: number; thumbs_down: number; provider_failures: number }
+}
+
+export function useAiReview(status: 'open' | 'reviewed') {
+  return useQuery({
+    queryKey: [...adminKey, 'ai-review', status],
+    queryFn: () => callAcademicRpc<AiReview>('academic_admin_ai_review', { p_status: status }),
+  })
+}
+
+export function useRateAi() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, accuracy, lao, safety, note }: { id: string; accuracy: number; lao: number; safety: number; note?: string }) =>
+      callAcademicRpc<{ id: string; status: string }>('academic_admin_rate_ai', { p_feedback_id: id, p_input: { accuracy, lao, safety, note } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [...adminKey, 'ai-review'] }),
+  })
+}

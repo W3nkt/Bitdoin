@@ -13,6 +13,7 @@
     "test:insights": "node scripts/test-insights.mjs",
     "test:ocr": "node scripts/test-ocr-extract.mjs",
     "eval:ocr": "node scripts/ocr-eval.mjs",
+    "test:coach": "node scripts/test-coach.mjs",
     "test:e2e": "node scripts/qa-run.mjs"
   },
   "dependencies": {

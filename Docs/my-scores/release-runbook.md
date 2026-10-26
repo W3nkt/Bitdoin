@@ -70,6 +70,13 @@ owner's review. Free students can set one goal; weekly plans need Premium (locks
 Planner Lao strings approved by the owner. Then 144 (OD-09: opt-in Academy XP for finished tasks, 10 XP
 once per task, never taken back).
 
+Applied 2026-10-26 (#53): 145 (Coach academic mode: data, prompts, quota, breaker, cache, feedback,
+review), `premium-coach` redeployed with `academic-mode.ts`, then `coach_academic_enabled` set to
+`true` at the owner's request. Help numbers confirmed by the owner (OD-15). To switch the mode off:
+`update academic_settings set value = 'false' where key = 'coach_academic_enabled';`
+To roll a prompt back: `update academic_prompt_templates set active = false where prompt_id = 'academic_chat';`
+then `update academic_prompt_templates set active = true where prompt_id = 'academic_chat' and version = '<previous>';`
+
 ### Switching premium locks on (P3-BIL #51)
 
 **Done 2026-10-26:** prices and the Free tier approved by the owner as configured (scans 10 / 20,

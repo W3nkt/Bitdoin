@@ -104,6 +104,21 @@ create function public.has_active_premium_subscription(p_user_id uuid default au
 language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.premium_subscriptions s where s.user_id = p_user_id and s.status = 'ACTIVE' and (s.ends_at is null or s.ends_at > now()))
 $$;
+create table public.premium_coach_conversations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  title text not null default 'Mentor conversation',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create table public.premium_coach_messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.premium_coach_conversations(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  role text not null,
+  content text not null,
+  created_at timestamptz not null default now()
+);
 create table public.premium_learning_activity_attempts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,

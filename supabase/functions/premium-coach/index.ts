@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { retrieveLaoEducationContext } from './lao-education-sources.ts'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 import { fetchWithTimeout } from '../_shared/timed-fetch.ts'
+import { handleAcademic } from './academic-mode.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -187,6 +188,8 @@ serve(async req => {
     const isPremium = Boolean(subscription) && ((subscriptionPlan?.price_lak ?? 0) > 0)
 
     const body = await req.json()
+    // P3-AI #53: questions about the student's own scores (academic-mode.ts).
+    if (body.mode === 'academic') return await handleAcademic({ req, admin, userId: user.id, body, json })
     const message = typeof body.message === 'string' ? body.message.trim().slice(0, 4000) : ''
     const preferredLanguage = body.language === 'lo' ? 'lo' : 'en'
     if (!message) return json(req, { error: 'Write a message first.' }, 400)

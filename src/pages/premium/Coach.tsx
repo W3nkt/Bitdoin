@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Brain, Crown, History, MessageSquare, Plus, Send, Sparkles, X } from 'lucide-react'
+import { Brain, Crown, Flag, History, MessageSquare, Plus, Send, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
@@ -25,6 +25,71 @@ const STARTERS = [
   { en: 'I feel unmotivated today', lo: 'ມື້ນີ້ຂ້ອຍຮູ້ສຶກບໍ່ມີແຮງຈູງໃຈ' },
   { en: 'Practice English with me', lo: 'ຝຶກພາສາອັງກິດກັບຂ້ອຍ' },
 ]
+// "My scores" mode (P3-AI #53): questions about the student's own Schooling scores.
+const ACADEMIC_STARTERS = [
+  { en: 'Why did my average change last month?', lo: 'ເປັນຫຍັງຄ່າສະເລ່ຍຂອງຂ້ອຍປ່ຽນໃນເດືອນແລ້ວ?' },
+  { en: 'Which subject should I focus on?', lo: 'ຂ້ອຍຄວນເອົາໃຈໃສ່ວິຊາໃດ?' },
+  { en: 'Explain my scores in simple words', lo: 'ອະທິບາຍຄະແນນຂອງຂ້ອຍແບບງ່າຍໆ' },
+]
+const ACADEMIC_TEXT = {
+  mode: { en: 'My scores mode', lo: 'ໂໝດຄະແນນຂອງຂ້ອຍ' },
+  title: { en: 'Ask about your scores', lo: 'ຖາມກ່ຽວກັບຄະແນນຂອງເຈົ້າ' },
+  body: { en: 'I only see your own scores in Schooling, and I say so when there is not enough data yet.', lo: 'ຂ້ອຍເຫັນແຕ່ຄະແນນຂອງເຈົ້າເອງໃນ ໂຮງຮຽນ, ແລະ ຈະບອກເມື່ອຂໍ້ມູນຍັງບໍ່ພໍ.' },
+  disclaimer: { en: 'Answers use only the scores you entered. AI can make mistakes; check with your teacher for important decisions.', lo: 'ຄຳຕອບໃຊ້ແຕ່ຄະແນນທີ່ເຈົ້າປ້ອນ. AI ອາດຜິດພາດໄດ້; ກວດກັບຄູສຳລັບການຕັດສິນໃຈທີ່ສຳຄັນ.' },
+  back: { en: 'Back to Schooling', lo: 'ກັບໄປ ໂຮງຮຽນ' },
+  stillWorks: { en: 'Open my scores', lo: 'ເປີດຄະແນນຂອງຂ້ອຍ' },
+  helpful: { en: 'Helpful', lo: 'ເປັນປະໂຫຍດ' },
+  notHelpful: { en: 'Not helpful', lo: 'ບໍ່ເປັນປະໂຫຍດ' },
+  report: { en: 'Report', lo: 'ລາຍງານ' },
+  thanks: { en: 'Thanks for telling us.', lo: 'ຂອບໃຈທີ່ບອກພວກເຮົາ.' },
+  category: { en: 'What was wrong?', lo: 'ມີຫຍັງຜິດ?' },
+  wrong_numbers: { en: 'Wrong numbers', lo: 'ຕົວເລກຜິດ' },
+  unsafe: { en: 'Unsafe or upsetting', lo: 'ບໍ່ປອດໄພ ຫຼື ເຮັດໃຫ້ບໍ່ສະບາຍໃຈ' },
+  not_lao: { en: 'Lao is hard to understand', lo: 'ພາສາລາວເຂົ້າໃຈຍາກ' },
+  other: { en: 'Something else', lo: 'ອື່ນໆ' },
+  share: { en: 'Let a reviewer read this question and answer', lo: 'ໃຫ້ຜູ້ກວດອ່ານຄຳຖາມ ແລະ ຄຳຕອບນີ້ໄດ້' },
+  send: { en: 'Send report', lo: 'ສົ່ງລາຍງານ' },
+}
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+
+/** AI-007: rate or report an academic-mode answer; text is shared only if the student agrees. */
+function AcademicFeedback({ messageId, language }: { messageId: string; language: 'en' | 'lo' }) {
+  const [done, setDone] = useState<'up' | 'down' | 'reported' | null>(null)
+  const [reporting, setReporting] = useState(false)
+  const [category, setCategory] = useState<'wrong_numbers' | 'unsafe' | 'not_lao' | 'other'>('wrong_numbers')
+  const [share, setShare] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const text = (key: keyof typeof ACADEMIC_TEXT) => ACADEMIC_TEXT[key][language]
+  async function submit(input: Record<string, unknown>, result: 'up' | 'down' | 'reported') {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('academic_coach_feedback', { p_message_id: messageId, p_input: input })
+    setBusy(false)
+    if (!error && !data?.error) { setDone(result); setReporting(false) }
+  }
+  const icon = 'flex h-8 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold text-gray-500 transition hover:bg-gray-100 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-800'
+  if (done) return <p className="mt-1 px-2 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">{text('thanks')}</p>
+  return (
+    <div className="mt-1 px-1">
+      <div className="flex flex-wrap items-center gap-1">
+        <button type="button" disabled={busy} className={icon} aria-label={text('helpful')} onClick={() => void submit({ rating: 1 }, 'up')}><ThumbsUp className="h-3.5 w-3.5" /></button>
+        <button type="button" disabled={busy} className={icon} aria-label={text('notHelpful')} onClick={() => void submit({ rating: -1 }, 'down')}><ThumbsDown className="h-3.5 w-3.5" /></button>
+        <button type="button" disabled={busy} className={icon} aria-expanded={reporting} onClick={() => setReporting(value => !value)}><Flag className="h-3.5 w-3.5" />{text('report')}</button>
+      </div>
+      {reporting && (
+        <div className="mt-2 space-y-2 rounded-2xl bg-gray-50 p-3 text-xs dark:bg-gray-800/60">
+          <label className="grid gap-1 font-bold">{text('category')}
+            <select value={category} onChange={event => setCategory(event.target.value as typeof category)} className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 dark:border-gray-600 dark:bg-gray-900">
+              {(['wrong_numbers', 'unsafe', 'not_lao', 'other'] as const).map(value => <option key={value} value={value}>{text(value)}</option>)}
+            </select>
+          </label>
+          <label className="flex items-start gap-2"><input type="checkbox" checked={share} onChange={event => setShare(event.target.checked)} className="mt-0.5" />{text('share')}</label>
+          <button type="button" disabled={busy} onClick={() => void submit({ report_category: category, share_text: share }, 'reported')} className="rounded-full bg-primary-900 px-3 py-1.5 font-bold text-white disabled:opacity-50">{text('send')}</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ROLEPLAY_PROMPTS: Record<string, Record<'en' | 'lo', string>> = {
   'job-interview': {
     en: 'Start a realistic entry-level job interview role-play with me. Ask one question at a time, wait for my answer, and give brief supportive feedback before the next question.',
@@ -140,16 +205,16 @@ function MentorMarkdown({ children }: { children: string }) {
   )
 }
 
-async function getFunctionErrorMessage(error: unknown) {
+async function getFunctionError(error: unknown): Promise<{ message: string; code?: string }> {
   if (error instanceof FunctionsHttpError) {
     try {
-      const body = await error.context.json() as { error?: string; message?: string }
-      return body.error ?? body.message ?? error.message
+      const body = await error.context.json() as { error?: string; message?: string; code?: string }
+      return { message: body.error ?? body.message ?? error.message, code: body.code }
     } catch {
-      return error.message
+      return { message: error.message }
     }
   }
-  return error instanceof Error ? error.message : 'The mentor is unavailable. Please try again.'
+  return { message: error instanceof Error ? error.message : 'The mentor is unavailable. Please try again.' }
 }
 
 function formatTimestamp(value: string, language: 'lo' | 'en') {
@@ -166,6 +231,8 @@ export function PremiumCoach() {
   const { language } = useLanguage()
   const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
+  const academic = searchParams.get('mode') === 'academic'
+  const askPrefill = searchParams.get('ask')
   const roleplayMission = searchParams.get('mission')
   const careerId = searchParams.get('career')
   const careerAssessment = careerPaths.find(career => career.id === careerId)
@@ -174,6 +241,8 @@ export function PremiumCoach() {
   const [sending, setSending] = useState(false)
   const [localMessages, setLocalMessages] = useState<Message[]>([])
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState<string | undefined>()
+  const askInitialized = useRef(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const historyInitialized = useRef(false)
@@ -202,9 +271,10 @@ export function PremiumCoach() {
     refetchOnMount: 'always',
   })
   const conversations = useQuery({
-    queryKey: ['premium-coach-conversations', profile?.id], enabled: Boolean(profile?.id),
+    queryKey: ['premium-coach-conversations', profile?.id, academic], enabled: Boolean(profile?.id),
     queryFn: async () => {
-      const { data, error } = await supabase.from('premium_coach_conversations').select('id, title, created_at, updated_at').eq('user_id', profile!.id).order('updated_at', { ascending: false })
+      const { data, error } = await supabase.from('premium_coach_conversations').select('id, title, created_at, updated_at').eq('user_id', profile!.id)
+        .eq('mode', academic ? 'academic' : 'general').order('updated_at', { ascending: false })
       if (error) throw error
       return data as Conversation[]
     },
@@ -241,6 +311,12 @@ export function PremiumCoach() {
     }
   }, [conversations.data])
   useEffect(() => { if (messages.data) setLocalMessages(messages.data) }, [messages.data])
+  // "Ask Coach about this subject" from Schooling pre-fills the question.
+  useEffect(() => {
+    if (!academic || !askPrefill || askInitialized.current) return
+    askInitialized.current = true
+    setDraft(askPrefill)
+  }, [academic, askPrefill])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [localMessages, sending])
   useEffect(() => {
     if (!roleplayMission || !roleplayPrompt) return
@@ -283,18 +359,20 @@ export function PremiumCoach() {
     event?.preventDefault()
     const content = (starter ?? draft).trim()
     if (!content || sending) return
-    setDraft(''); setError(''); setSending(true)
+    setDraft(''); setError(''); setErrorCode(undefined); setSending(true)
     const optimistic: Message = { id: `local-${Date.now()}`, role: 'user', content, created_at: new Date().toISOString() }
     setLocalMessages(previous => [...previous, optimistic])
     const { data, error: invokeError } = await supabase.functions.invoke('premium-coach', {
-      body: { conversationId: forceNewConversation ? null : conversationId, message: content, language },
+      body: { conversationId: forceNewConversation ? null : conversationId, message: content, language, ...(academic ? { mode: 'academic' } : {}) },
     })
     if (invokeError || data?.error) {
       setLocalMessages(previous => previous.filter(item => item.id !== optimistic.id))
-      setError(data?.error ?? await getFunctionErrorMessage(invokeError))
+      const failure = data?.error ? { message: data.error as string, code: data.code as string | undefined } : await getFunctionError(invokeError)
+      setError(failure.message)
+      setErrorCode(failure.code)
     } else {
       setConversationId(data.conversationId)
-      setLocalMessages(previous => [...previous, { id: `reply-${Date.now()}`, role: 'assistant', content: data.answer, created_at: new Date().toISOString() }])
+      setLocalMessages(previous => [...previous, { id: data.messageId ?? `reply-${Date.now()}`, role: 'assistant', content: data.answer, created_at: new Date().toISOString() }])
       await queryClient.invalidateQueries({ queryKey: ['premium-coach-conversations', profile?.id] })
       if (roleplayMission && roleplayPrompt && !roleplayCompleted.current) {
         const { error: activityError } = await supabase.rpc('complete_premium_learning_activity', {
@@ -345,7 +423,7 @@ export function PremiumCoach() {
             <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-900 text-white sm:flex"><Brain className="h-5 w-5" /></span>
             <div className="min-w-0">
               <p className="truncate text-sm font-black">Bitdoin Mentor</p>
-              <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Ready to coach</p>
+              <p className="truncate text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{academic ? ACADEMIC_TEXT.mode[language] : 'Ready to coach'}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -404,6 +482,16 @@ export function PremiumCoach() {
           {localMessages.length === 0 && (
             <div className="animate-slide-up py-10 text-center md:py-20">
               <Sparkles className="mx-auto h-7 w-7 text-amber-500" />
+              {academic ? (
+                <>
+                  <h1 className="mt-5 text-3xl font-black tracking-tight">{ACADEMIC_TEXT.title[language]}</h1>
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{ACADEMIC_TEXT.body[language]}</p>
+                  <div className="mx-auto mt-8 grid max-w-lg gap-2 sm:grid-cols-3">{ACADEMIC_STARTERS.map(starter => (
+                    <button key={starter.en} onClick={() => void send(undefined, starter[language])} className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm">{starter[language]}</button>
+                  ))}</div>
+                  <Link to="/academy/scores" className="mt-6 inline-block text-sm font-bold text-primary-700 underline dark:text-primary-300">{ACADEMIC_TEXT.back[language]}</Link>
+                </>
+              ) : <>
               <h1 className="mt-5 text-3xl font-black tracking-tight">{roleplayMission ? 'Ready for your role-play mission?' : careerAssessment ? `Assessing ${careerAssessment.title}` : 'What should we work on today?'}</h1>
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">
                 {roleplayMission ? 'Send the prepared prompt below to begin. Complete your first exchange to earn 20 XP.' : 'I’ll use your goals and coaching preferences to give you practical, personal guidance.'}
@@ -412,19 +500,20 @@ export function PremiumCoach() {
                 const prompt = starter[language]
                 return <button key={starter.en} onClick={() => void send(undefined, prompt)} className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 px-4 py-3 text-left text-sm font-bold transition hover:-translate-y-0.5 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm">{prompt}</button>
               })}</div>
+              </>}
             </div>
           )}
-          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white dark:bg-primary-700' : 'rounded-bl-md bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none dark:ring-1 dark:ring-white/10'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div><time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at, language)}</time></div></div>)}
+          {localMessages.map(message => <div key={message.id} className={`flex animate-slide-up ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[88%] flex-col md:max-w-[75%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}><div className={`rounded-3xl px-5 py-3 text-sm ${message.role === 'user' ? 'whitespace-pre-wrap rounded-br-md bg-primary-900 leading-6 text-white dark:bg-primary-700' : 'rounded-bl-md bg-white text-gray-800 shadow-sm dark:bg-gray-900 dark:text-gray-100 dark:shadow-none dark:ring-1 dark:ring-white/10'}`}>{message.role === 'assistant' ? <MentorMarkdown>{message.content}</MentorMarkdown> : message.content}</div>{academic && message.role === 'assistant' && isUuid(message.id) && <AcademicFeedback messageId={message.id} language={language} />}<time dateTime={message.created_at} className="mt-1.5 px-2 text-[10px] font-medium text-gray-400">{formatTimestamp(message.created_at, language)}</time></div></div>)}
           {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white dark:bg-gray-900 px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
           <div ref={endRef} />
         </div>
         <div className="sticky bottom-0 bg-[#f5f6f1] dark:bg-gray-950 pb-4 pt-5">
-          {error && <p className="mb-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}
+          {error && <p role="alert" className="mb-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">{error}{academic && (errorCode === 'COACH_BUSY' || errorCode === 'COACH_QUOTA') && <> <Link to="/academy/scores" className="underline">{ACADEMIC_TEXT.stillWorks[language]}</Link></>}</p>}
           <form onSubmit={send} className="flex items-end gap-2 rounded-3xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 p-2 shadow-lg shadow-black/5">
             <textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() } }} rows={1} maxLength={4000} placeholder="Ask your mentor…" className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none" aria-label="Message your mentor" />
             <button type="submit" disabled={!draft.trim() || sending} className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary-900 text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Send message"><Send className="h-4 w-4" /></button>
           </form>
-          <p className="mt-2 text-center text-[10px] text-gray-400">AI can make mistakes. Use your judgment and ask a trusted adult for important decisions.</p>
+          <p className="mt-2 text-center text-[10px] text-gray-400">{academic ? ACADEMIC_TEXT.disclaimer[language] : 'AI can make mistakes. Use your judgment and ask a trusted adult for important decisions.'}</p>
         </div>
         </div>
       </section>

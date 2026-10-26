@@ -180,6 +180,9 @@ function backend(initial) {
     },
     // Next actions (migration 136) and practice sets (137).
     academic_get_recommendations: () => ({ items: state.recommendations ?? [], more_locked: state.recsLocked ?? 0 }),
+    // Coach academic mode (migration 145).
+    academic_coach_status: () => state.coach ?? { available: false, busy: false, quota: null, resources: [] },
+    academic_coach_feedback: (args) => { (state.coachFeedback ??= []).push(args); return { id: 'f1', rating: args.p_input.rating ?? null, report_category: args.p_input.report_category ?? null, share_text: !!args.p_input.share_text } },
     // Study planner (migration 143): a small stateful stand-in.
     academic_get_planner: () => plannerView(),
     academic_preview_goal: (args) => goalPreview(args.p_subject_enrolment_id, Number(args.p_target), args.p_target_period_id),
@@ -326,6 +329,13 @@ function backend(initial) {
     const url = new URL(request.url())
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
     if (url.pathname.startsWith('/auth/v1/')) return json({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'noy@example.com' })
+    if (url.pathname === '/functions/v1/premium-coach') {
+      const body = request.postDataJSON() ?? {}
+      state.coachCalls = [...(state.coachCalls ?? []), body]
+      if (body.action === 'summary') return json({ summary: 'In October, your average was 6.5 (down 0.25 from September). Next step: try the Mathematics quiz.', source: 'ai' })
+      if (state.coachBusy) return json({ error: 'Coach is busy – try later. Your scores, charts and suggestions still work.', code: 'COACH_BUSY' }, 503)
+      return json({ conversationId: '7d0c4a1e-1111-4222-8333-444455556666', messageId: '9a1b2c3d-1111-4222-8333-444455556666', answer: 'Mathematics went from **7** in September to **6** in October. Next step: try the short Mathematics quiz.' })
+    }
     if (url.pathname === '/functions/v1/academic-ocr') {
       const body = request.postDataJSON() ?? {}
       state.ocrUploads = [...(state.ocrUploads ?? []), { job_id: body.job_id, bytes: body.image_base64?.length ?? 0, image_quality: body.image_quality, jpeg: (body.image_base64 ?? '').startsWith('/9j/') }]
@@ -1391,6 +1401,50 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('This week: up to three actions with reasons, times and actions, gap card, axe clean; practice set answered with instant feedback, final answers, AI label, summary')
+  }
+
+  // AI Coach academic mode (P3-AI #53): Coach card and checked monthly summary; My scores mode with feedback and a busy state.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = insightsDashboard()
+    mock.state.coach = { available: true, busy: false, quota: { limit: 10, used: 2, remaining: 8 }, resources: [{ key: 'lwu', name_en: 'LWU', name_lo: 'LWU', phone: '1362' }] }
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    const coachCard = page.locator('section', { has: page.getByRole('heading', { name: 'Ask the Coach about your scores' }) })
+    await coachCard.getByText('8 of 10 Coach messages left this month').waitFor()
+    await coachCard.getByRole('button', { name: 'Show my monthly summary' }).click()
+    await coachCard.getByText('In October, your average was 6.5 (down 0.25 from September).', { exact: false }).waitFor()
+    await coachCard.getByText('Written by AI and checked against your scores.').waitFor()
+    assert.deepEqual(mock.state.coachCalls.at(-1), { mode: 'academic', action: 'summary', language: 'en' })
+    await shot(page, 'my-scores-coach-1-card-en-mobile')
+    await page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'Ask the Coach about Mathematics' }).click()
+    await page.waitForURL(/\/academy\/coach\?mode=academic/)
+    await page.getByText('My scores mode').waitFor()
+    assert.equal(await page.getByLabel('Message your mentor').inputValue(), 'Explain my Mathematics scores and what I should do next.')
+    // What the database holds after the answer is saved.
+    mock.state.tables = { ...(mock.state.tables ?? {}), premium_coach_messages: [
+      { id: '1b2c3d4e-1111-4222-8333-444455556666', role: 'user', content: 'Explain my Mathematics scores and what I should do next.', created_at: '2026-10-26T03:00:00Z' },
+      { id: '9a1b2c3d-1111-4222-8333-444455556666', role: 'assistant', content: 'Mathematics went from **7** in September to **6** in October. Next step: try the short Mathematics quiz.', created_at: '2026-10-26T03:00:05Z' },
+    ] }
+    await page.getByRole('button', { name: 'Send message' }).click()
+    await page.getByText('Next step: try the short Mathematics quiz.').waitFor()
+    assert.deepEqual(mock.state.coachCalls.at(-1), { conversationId: null, message: 'Explain my Mathematics scores and what I should do next.', language: 'en', mode: 'academic' })
+    await page.getByRole('button', { name: 'Report', exact: true }).click()
+    await page.getByLabel('What was wrong?').selectOption('wrong_numbers')
+    await page.getByLabel('Let a reviewer read this question and answer').check()
+    await page.getByRole('button', { name: 'Send report' }).click()
+    await page.getByText('Thanks for telling us.').waitFor()
+    assert.deepEqual(mock.state.coachFeedback.at(-1), { p_message_id: '9a1b2c3d-1111-4222-8333-444455556666', p_input: { report_category: 'wrong_numbers', share_text: true } })
+    await page.getByText('Answers use only the scores you entered.', { exact: false }).waitFor()
+    mock.state.coachBusy = true
+    await page.getByLabel('Message your mentor').fill('Which subject should I focus on?')
+    await page.getByRole('button', { name: 'Send message' }).click()
+    await page.getByRole('alert').getByText(/Coach is busy/).waitFor()
+    await page.getByRole('alert').getByRole('link', { name: 'Open my scores' }).waitFor()
+    await shot(page, 'my-scores-coach-2-chat-en-mobile')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Coach (academic mode): Coach card with quota, monthly summary marked as checked AI text, Ask about a subject pre-fills the question, My scores mode sends mode academic, report with consent to share, busy message keeps Schooling one tap away')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

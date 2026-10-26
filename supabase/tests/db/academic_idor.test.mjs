@@ -72,6 +72,9 @@ const aNote = RANDOM.replace('f0e1', 'aaaa')
 const aGoalSubject = (await one(`select subject_enrolment_id from academic_score_lines where id = '${aLine.id}'`)).subject_enrolment_id
 const aGoal = (await rpc(A, `public.academic_save_goal(${json({ subject_enrolment_id: aGoalSubject, target: 9, target_period_id: period(9) })})`)).id
 await rpc(A, `public.academic_save_plan(${json({ days: [1, 3, 6], minutes_per_day: 20 })})`)
+// A's academic Coach answer (migration 145).
+const aCoachConv = (await one(`insert into premium_coach_conversations (user_id, title, mode, student_profile_id) values ('${A}', 'Maths', 'academic', '${a.profile_id}') returning id`)).id
+const aCoachAnswer = (await one(`insert into premium_coach_messages (conversation_id, user_id, role, content) values ('${aCoachConv}', '${A}', 'assistant', 'answer') returning id`)).id
 const aTask = (await one(`insert into academic_study_tasks (student_profile_id, week_start, scheduled_date, first_date, kind, est_minutes)
   values ('${a.profile_id}', current_date, current_date, current_date, 'self_study', 20) returning id`)).id
 
@@ -104,6 +107,7 @@ const BY_ID = [
   'academic_save_goal(jsonb)',
   'academic_archive_goal(uuid)',
   'academic_update_task(uuid,text)',
+  'academic_coach_feedback(uuid,jsonb)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -115,6 +119,8 @@ const OWN_READ = [
   'academic_ocr_status()', 'academic_list_ocr_photos()', 'academic_my_entitlements()',
   // The caller's own goals, plan and tasks (migration 143).
   'academic_get_planner()',
+  // Coach availability, the caller's quota and the help numbers (migration 145).
+  'academic_coach_status()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -153,6 +159,7 @@ const STAFF_ONLY = [
   'academic_admin_list_content()', 'academic_admin_search_external_content(text,text)', 'academic_admin_save_content(jsonb)',
   'academic_admin_content_gaps()', 'academic_admin_ocr_quality(integer)',
   'academic_admin_member_entitlements(text)', 'academic_admin_grant_entitlement(uuid,jsonb)', 'academic_admin_revoke_entitlement(uuid,text)',
+  'academic_admin_ai_review(text)', 'academic_admin_rate_ai(uuid,jsonb)',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -211,6 +218,7 @@ const attacks = [
   ['academic_save_goal(jsonb)', aGoal, (id) => `public.academic_save_goal(${json({ id, target: 8, target_period_id: period(9) })})`],
   ['academic_archive_goal(uuid)', aGoal, (id) => `public.academic_archive_goal('${id}')`],
   ['academic_update_task(uuid,text)', aTask, (id) => `public.academic_update_task('${id}', 'done')`],
+  ['academic_coach_feedback(uuid,jsonb)', aCoachAnswer, (id) => `public.academic_coach_feedback('${id}', ${json({ rating: -1 })})`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -260,6 +268,7 @@ const ownReads = {
   'academic_list_ocr_photos()': 'public.academic_list_ocr_photos()',
   'academic_my_entitlements()': 'public.academic_my_entitlements()',
   'academic_get_planner()': 'public.academic_get_planner()',
+  'academic_coach_status()': 'public.academic_coach_status()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -324,6 +333,8 @@ const staffCalls = {
   'academic_admin_member_entitlements(text)': `public.academic_admin_member_entitlements('AAA111')`,
   'academic_admin_grant_entitlement(uuid,jsonb)': `public.academic_admin_grant_entitlement('${B}', '{"feature_code": "premium"}')`,
   'academic_admin_revoke_entitlement(uuid,text)': `public.academic_admin_revoke_entitlement('${RANDOM}', 'testing revoke')`,
+  'academic_admin_ai_review(text)': `public.academic_admin_ai_review('open')`,
+  'academic_admin_rate_ai(uuid,jsonb)': `public.academic_admin_rate_ai('${RANDOM}', '{}')`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())
 for (const [sig, call] of Object.entries(staffCalls)) {

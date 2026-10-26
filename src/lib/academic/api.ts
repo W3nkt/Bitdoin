@@ -1076,3 +1076,27 @@ export const usePausePlan = () => usePlannerMutation((until: string | null) => c
 export const useSetPlannerXp = () => usePlannerMutation((on: boolean) => callAcademicRpc<PlannerView>('academic_set_planner_xp', { p_on: on }))
 export const useUpdateTask = () => usePlannerMutation(({ taskId, action }: { taskId: string; action: 'done' | 'undo' | 'skip' | 'keep' }) =>
   callAcademicRpc<StudyTask>('academic_update_task', { p_task_id: taskId, p_action: action }))
+
+// ─── AI Coach academic mode (P3-AI #53, migration 145) ───────────────────────
+
+export interface CoachStatus {
+  available: boolean
+  busy: boolean
+  quota: { limit: number; used: number; remaining: number } | null
+  resources: { key: string; name_en: string; name_lo: string; phone: string }[]
+}
+
+export function useCoachStatus() {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'coach-status'],
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<CoachStatus>('academic_coach_status'),
+  })
+}
+
+/** AI-009: a ≤150-word summary of the latest month; 'template' when written from the snapshot without AI. */
+export async function fetchMonthlySummary(language: 'lo' | 'en') {
+  const { data, error } = await supabase.functions.invoke('premium-coach', { body: { mode: 'academic', action: 'summary', language } })
+  if (error || data?.error) throw new AcademicError(data?.code ?? 'UNKNOWN', 503, data?.error)
+  return data as { summary: string; source: 'ai' | 'template'; cached?: boolean }
+}
