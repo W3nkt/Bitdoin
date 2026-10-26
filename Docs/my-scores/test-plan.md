@@ -23,10 +23,12 @@ All automated suites run in CI on every push and gate the Pages deploy
 | Academy hand-off (LEARN-007) | A recommended lesson pacing still locks opens from This week; its back button returns to Schooling | `npm run test:e2e` → My Scores browser checks |
 | Score-book scanning (OCR-001..012) | Off switch and consent, allowance, duplicates, Edge Function claim/complete/fail, subject matching, timeout, confirmation as the only path to scores, discard, image deletion and retention, cleanup after profile deletion | `npm run test:db` → `academic_ocr_jobs`, `academic_idor` |
 | OCR extraction core (OCR-004) | Prompt, reply parsing, schema validation, scale checks, two-pass confidence, crossed-out values, warnings, ocr_extraction.v1 shape, text in the photo stays data | `npm run test:ocr` |
+| On-device photo checks (OCR-003, OCR-008) | Dark, blurry and tilted (> 15°) photos flagged, skew measured, perceptual hash stable across light and size, different pages not duplicates | `npm run test:ocr` |
+| Scan screens (OCR-001..012) | Scan offered only when switched on, typing stays default; separate consent naming the provider; dark-photo tip that does not block; rotate; JPEG and hash sent; uncertain and unread values must be touched, unknown rows chosen or skipped, other-student warning acknowledged; exact confirm audit; delete photo; duplicate reused without upload; Type instead carries only values ≥ 0.9; failure keeps no photo; used-up allowance | `npm run test:e2e` → My Scores browser checks |
 | Explanations (ANALYSIS-004) | Every template in Lao and English, every label × trend × confidence and every F6–F10 golden case through the cause filter; DASH-005 reasons | `npm run test:insights` |
 | API / contract | Every RPC: error contract, idempotency, rate limits, validation | `npm run test:db` (PGlite, all module migrations) |
 | Security (IDOR) | Registry of every callable RPC × other students' ids; RLS backstop | `academic_idor`, `academic_policies` |
-| End-to-end | 21 student and 12 admin journeys, Android 360 px and desktop, Lao and English, with axe checks | `npm run test:e2e` |
+| End-to-end | 23 student and 12 admin journeys, Android 360 px and desktop, Lao and English, with axe checks | `npm run test:e2e` |
 | Migration | Rollback rehearsal; production restore drill (weekly) | `academic_rollback`; workflow *Database backup* |
 | Localisation, accessibility | Checklist §35.3 | #39 |
 | UAT | Appendix E scripts with pilot users | #40 |

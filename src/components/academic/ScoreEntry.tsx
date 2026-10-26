@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, CloudOff, History, Loader2, Lock, Pencil } from 'lucide-react'
+import { CheckCircle2, CloudOff, History, Keyboard, Loader2, Lock, Pencil, ScanLine } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  saveServerDraft, submitScoreEntry, useCorrectLine, useLineRevisions, usePeriods, useScoreEntry,
-  type ScoreEntryView, type WireLine,
+  saveServerDraft, submitScoreEntry, useCorrectLine, useLineRevisions, useOcrStatus, usePeriods, useScoreEntry,
+  type OcrStatus, type ScoreEntryView, type WireLine,
 } from '@/lib/academic/api'
 import {
   deleteDraft, dequeueSubmit, draftKey, enqueueSubmit, loadDraft, purgeOtherAccounts, queuedSubmits, saveDraft,
@@ -20,6 +20,7 @@ import { checkScore, normaliseScoreText, plainNumber, type LineStatus, type Scal
 import { academicKeys } from '@/lib/academic/session'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
+import { ScanScores } from './ScanScores'
 import { academicErrorText } from './errorText'
 
 const STATUSES: LineStatus[] = ['scored', 'missing', 'not_applicable', 'exempt']
@@ -54,6 +55,14 @@ export function ScoreEntry({ userId, enrolmentId }: { userId: string; enrolmentI
   const firstOpen = choices.find(period => !period.disabled)?.id ?? null
   const periodId = params.get('period') ?? periods.data?.suggested_period_id ?? firstOpen
   const entry = useScoreEntry(enrolmentId, periodId)
+
+  // Score-book scanning (P2-OCR #48): offered next to typing when switched on.
+  const draftable = !!entry.data && entry.data.entry?.state !== 'submitted' && !entry.data.read_only
+  const ocr = useOcrStatus(draftable)
+  const [mode, setMode] = useState<'type' | 'scan'>('type')
+  const [prefill, setPrefill] = useState<{ periodId: string; lines: Record<string, DraftLine>; nonce: number } | null>(null)
+  const selectPeriod = (id: string) => setParams(current => { const next = new URLSearchParams(current); next.set('period', id); return next }, { replace: true })
+  const scanning = mode === 'scan' && !!ocr.data?.available && !!periodId
 
   // Shared phones: never show another account's local drafts; send any
   // submissions that were queued while offline.
@@ -98,7 +107,7 @@ export function ScoreEntry({ userId, enrolmentId }: { userId: string; enrolmentI
                 type="button"
                 disabled={period.disabled}
                 aria-current={selected ? 'true' : undefined}
-                onClick={() => setParams(current => { const next = new URLSearchParams(current); next.set('period', period.id); return next }, { replace: true })}
+                onClick={() => selectPeriod(period.id)}
                 className={cn(
                   'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-35',
                   selected ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white ring-slate-200 dark:bg-gray-900 dark:ring-slate-700',
@@ -116,18 +125,56 @@ export function ScoreEntry({ userId, enrolmentId }: { userId: string; enrolmentI
         </div>
       </nav>
 
-      {entry.isPending && <div className="h-72 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />}
-      {entry.isError && <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, entry.error)} />}
-      {entry.data && (entry.data.entry?.state === 'submitted' || entry.data.read_only
-        ? <SubmittedView key={entry.data.period.id} view={entry.data} />
-        : <DraftForm key={entry.data.period.id} userId={userId} view={entry.data} />)}
+      {ocr.data?.available && (draftable || scanning) && <EntryMethod mode={mode} status={ocr.data} onChange={setMode} />}
+      {scanning && periodId ? (
+        <ScanScores enrolmentId={enrolmentId} periodId={periodId} periods={choices} status={ocr.data!}
+          onTypeInstead={(target, lines) => {
+            selectPeriod(target)
+            if (lines) setPrefill({ periodId: target, lines, nonce: Date.now() })
+            setMode('type')
+          }}
+          onSaved={target => { selectPeriod(target); setMode('type') }} />
+      ) : (
+        <>
+          {entry.isPending && <div className="h-72 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />}
+          {entry.isError && <MyScoresNotice title={t('state.error.title')} body={academicErrorText(t, entry.error)} />}
+          {entry.data && (entry.data.entry?.state === 'submitted' || entry.data.read_only
+            ? <SubmittedView key={entry.data.period.id} view={entry.data} />
+            : <DraftForm key={`${entry.data.period.id}:${prefill?.periodId === entry.data.period.id ? prefill.nonce : 0}`} userId={userId} view={entry.data}
+                prefill={prefill?.periodId === entry.data.period.id ? prefill.lines : undefined} />)}
+        </>
+      )}
+    </div>
+  )
+}
+
+/** OCR-001/012: typing and scanning side by side; the scan button shows what is left this month. */
+function EntryMethod({ mode, status, onChange }: { mode: 'type' | 'scan'; status: OcrStatus; onChange: (mode: 'type' | 'scan') => void }) {
+  const { t } = useAcademicCopy()
+  const exhausted = status.allowance.remaining <= 0
+  const option = (value: 'type' | 'scan', icon: React.ReactNode, label: string, disabled = false) => (
+    <button type="button" aria-pressed={mode === value} disabled={disabled} onClick={() => onChange(value)}
+      className={cn('flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40',
+        mode === value ? 'bg-white text-indigo-700 shadow-sm dark:bg-gray-900 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-300')}>
+      {icon}{label}
+    </button>
+  )
+  return (
+    <div>
+      <div role="group" aria-label={t('scan.choose.label')} className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-gray-800">
+        {option('type', <Keyboard className="h-4 w-4" />, t('scan.choose.type'))}
+        {option('scan', <ScanLine className="h-4 w-4" />, t('scan.choose.scan'), exhausted && mode !== 'scan')}
+      </div>
+      <p className="mt-1.5 px-1 text-xs text-slate-500 dark:text-slate-400">
+        {exhausted ? t('scan.allowanceUsed', { limit: status.allowance.limit }) : t('scan.remaining', { remaining: status.allowance.remaining, limit: status.allowance.limit })}
+      </p>
     </div>
   )
 }
 
 // ─── Draft form ──────────────────────────────────────────────────────────────
 
-function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
+function DraftForm({ userId, view, prefill }: { userId: string; view: ScoreEntryView; prefill?: Record<string, DraftLine> }) {
   const { t, lo } = useAcademicCopy()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -140,11 +187,15 @@ function DraftForm({ userId, view }: { userId: string; view: ScoreEntryView }) {
     { status: subject.line?.status ?? null, text: subject.line?.status === 'scored' ? plainNumber(subject.line.value) : '' } as DraftLine,
   ])), [view])
 
-  const [lines, setLines] = useState<Record<string, DraftLine>>(fromServer)
+  // OCR-009: values a failed or abandoned scan read with confidence fill the gaps.
+  const [lines, setLines] = useState<Record<string, DraftLine>>(() => ({
+    ...fromServer,
+    ...Object.fromEntries(Object.entries(prefill ?? {}).filter(([id]) => id in fromServer && !fromServer[id].status)),
+  }))
   const [reviewing, setReviewing] = useState(false)
   const [sync, setSync] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle')
   const [submitting, setSubmitting] = useState(false)
-  const dirty = useRef(false)
+  const dirty = useRef(!!prefill)
   const serverHas = useRef(new Set(view.subjects.filter(s => s.line).map(s => s.subject_enrolment_id)))
   const inputs = useRef<(HTMLInputElement | null)[]>([])
   const [retryTick, setRetryTick] = useState(0)

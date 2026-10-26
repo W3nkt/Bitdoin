@@ -156,6 +156,26 @@ function backend(initial) {
     academic_answer_quiz_item: (args) => { state.quizAnswers[args.p_item_id] = args.p_key; return { answered: Object.keys(state.quizAnswers).length, total: QUIZ_ITEMS.length } },
     academic_finish_quiz: () => { state.quizDone = true; return quizResult(state.quizAnswers, state.quizPrevious) },
     academic_get_quiz_result: () => quizResult(state.quizAnswers ?? {}, state.quizPrevious),
+    // Score-book scanning (migration 139): off unless a scenario sets state.ocr.
+    academic_ocr_status: () => ({
+      available: !!state.ocr, consent: state.consents.some(c => c.purpose === 'ocr_processing' && !c.withdrawn_at),
+      allowance: { limit: 10, used: state.ocrUsed ?? 3, remaining: Math.max(0, 10 - (state.ocrUsed ?? 3)) },
+    }),
+    academic_start_ocr_job: (args) => {
+      if (state.ocrDuplicate && !args.p_ignore_duplicate) return { duplicate: { job_id: 'ocr-old', created_at: '2026-10-10T03:00:00Z' } }
+      return { job: ocrJob('ocr-1', 'awaiting_upload') }
+    },
+    academic_reuse_ocr_job: () => ({ job: ocrJob('ocr-2', 'succeeded', OCR_EXTRACTION, 'ocr-old') }),
+    academic_get_ocr_job: (args) => ocrJob(args.p_job_id, 'succeeded', OCR_EXTRACTION),
+    academic_discard_ocr_job: (args) => { (state.ocrDiscarded ??= []).push(args.p_job_id); return ocrJob(args.p_job_id, 'discarded') },
+    academic_delete_ocr_image: (args) => { (state.ocrDeleted ??= []).push(args.p_job_id); return { ...ocrJob(args.p_job_id, 'confirmed'), has_image: false } },
+    academic_confirm_ocr_job: (args) => {
+      const entry = state.entries[args.p_period_id] ??= { state: 'draft', version: 1, lines: {} }
+      if (entry.state === 'submitted') return pgError(409, 'SCORE_DUPLICATE', { score_entry_id: 'x' })
+      entry.lines = Object.fromEntries(args.p_lines.map(line => [line.subject_enrolment_id, { status: line.status, value: line.value ?? null, version: 1, edited: false }]))
+      Object.assign(entry, { state: 'submitted', key: `ocr:${args.p_job_id}`, submitted_at: '2026-10-20T03:00:00Z' })
+      return { ...entryView(args.p_period_id), ocr_job_id: args.p_job_id }
+    },
     // Next actions (migration 136) and practice sets (137).
     academic_get_recommendations: () => ({ items: state.recommendations ?? [] }),
     academic_recommendation_feedback: (args) => {
@@ -230,6 +250,10 @@ function backend(initial) {
     }
   }
   const pgError = (status, code, details) => ({ __error: { status, body: { code: `PT${status}`, message: code, details: code, hint: details ? JSON.stringify(details) : '' } } })
+  const ocrJob = (id, status, extraction = null, duplicateOf = null) => ({
+    job_id: id, status, enrolment_id: 'e1', created_at: '2026-10-20T03:00:00Z', duplicate_of: duplicateOf, extraction,
+    error_code: null, keep_photo: false, has_image: status !== 'awaiting_upload', thresholds: { clear: 0.85, review: 0.5 }, timeout_seconds: 60,
+  })
   const tables = {
     academic_grades: GRADES,
     academic_subjects: SUBJECTS,
@@ -243,6 +267,12 @@ function backend(initial) {
     const url = new URL(request.url())
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
     if (url.pathname.startsWith('/auth/v1/')) return json({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'noy@example.com' })
+    if (url.pathname === '/functions/v1/academic-ocr') {
+      const body = request.postDataJSON() ?? {}
+      state.ocrUploads = [...(state.ocrUploads ?? []), { job_id: body.job_id, bytes: body.image_base64?.length ?? 0, image_quality: body.image_quality, jpeg: (body.image_base64 ?? '').startsWith('/9j/') }]
+      if (state.ocrFail) return json({ error: { code: 'OCR_FAILED', status: 502, reason: 'provider_error' } }, 502)
+      return json(ocrJob(body.job_id, 'succeeded', OCR_EXTRACTION))
+    }
     const single = (request.headers().accept ?? '').includes('vnd.pgrst.object')
     const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/)
     if (rpcMatch) {
@@ -268,6 +298,23 @@ function backend(initial) {
     return json(single ? rows[0] ?? null : rows)
   }
   return { state, handle, rpc }
+}
+
+// A scan of September (migration 139 shape): Mathematics clear, Lao Language
+// uncertain, Physics unreadable (suggested match), one row with no subject.
+const ocrRow = (subject_raw, score_value, score_confidence, match, extra = {}) => ({
+  subject_raw, score_raw: score_value === null ? '?' : String(score_value), score_value, score_confidence, struck_through: false, replacement_value: null,
+  bbox: [40, 40 + score_confidence * 100, 200, 80 + score_confidence * 100], subject_match: match, ...extra,
+})
+const OCR_EXTRACTION = {
+  schema: 'ocr_extraction.v1', model: { id: 'qwen3-vl-plus', prompt_version: 'ocr_extract.v1.0' }, image_quality: null,
+  document: { detected_person_blocks: 2 }, warnings: ['multiple_person_blocks'], processing_ms: 9000,
+  periods: [{ period_label_raw: 'ເດືອນ 9', period_guess: { month: 9, confidence: 0.9 }, rows: [
+    ocrRow('ຄະນິດສາດ', 7.5, 0.95, { subject_enrolment_id: 'se-math', subject_code: 'MATH', method: 'alias_exact', confidence: 1 }),
+    ocrRow('ພາສາລາວ', 8, 0.6, { subject_enrolment_id: 'se-lao', subject_code: 'LAO', method: 'alias_exact', confidence: 1 }),
+    ocrRow('ຟີຊິກ', null, 0, { subject_enrolment_id: 'se-phys', subject_code: 'PHYS', method: 'alias_fuzzy', confidence: 0.88 }),
+    ocrRow('ສິລະປະ', 9, 0.9, { subject_enrolment_id: null, method: 'none', confidence: 0.4 }),
+  ] }],
 }
 
 const SCALE_10 = { id: 'v1', code: 'LA-0-10', version: 1, family: 'numeric_linear', min: 0, max: 10, step: 0.5, decimals: 1, pass_mark: 5, normalisable: true, levels: null }
@@ -414,6 +461,24 @@ async function shot(page, name) {
 }
 
 const lastCall = (mock, fn) => [...mock.state.calls].reverse().find(call => call.fn === fn)
+
+// A JPEG of a ruled score-book page drawn in the browser; dark gives the OCR-003 tip.
+async function scorePagePhoto(page, { dark = false } = {}) {
+  const base64 = await page.evaluate((dark) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1200
+    canvas.height = 900
+    const context = canvas.getContext('2d')
+    context.fillStyle = dark ? '#1e1e1e' : '#f4f1e8'
+    context.fillRect(0, 0, 1200, 900)
+    context.fillStyle = dark ? '#0a0a0a' : '#20304a'
+    for (let y = 60; y < 900; y += 48) context.fillRect(40, y, 1120, 3)
+    context.font = '28px sans-serif'
+    for (let y = 100; y < 900; y += 48) context.fillText('Subject   7.5   8   6', 60, y)
+    return canvas.toDataURL('image/jpeg', 0.9).split(',')[1]
+  }, dark)
+  return { name: dark ? 'dark.jpg' : 'page.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(base64, 'base64') }
+}
 const browser = await chromium.launch()
 const results = []
 const pass = (line) => { results.push(line); console.log(`ok  ${line}`) }
@@ -783,6 +848,115 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Duplicate period: 409 SCORE_DUPLICATE opens the saved scores instead of a second record')
+  }
+
+  // Score-book scanning (P2-OCR #48): separate consent, photo tips, review of uncertain values, confirm.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.ocr = true
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('7 of 10 scans left this month').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Type scores' }).getAttribute('aria-pressed'), 'true', 'typing stays the default')
+    await page.getByRole('button', { name: 'Scan score book' }).click()
+    await page.getByText(/Alibaba Cloud Qwen, Singapore/).waitFor()
+    await shot(page, 'my-scores-scan-1-consent-en-mobile')
+    await page.getByRole('button', { name: 'Agree and continue' }).click()
+    await page.getByText('Photograph your score book').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'ocr_processing', p_notice_version: '2026-10-draft' })
+
+    await page.getByTestId('scan-file').setInputFiles(await scorePagePhoto(page, { dark: true }))
+    await page.getByRole('button', { name: 'Use this photo' }).click()
+    await page.getByText('Too dark – move to a brighter place.').waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Use anyway' }).isVisible(), true, 'a tip, not a block')
+    await page.getByRole('button', { name: 'Retake' }).click()
+    await page.getByTestId('scan-file').setInputFiles(await scorePagePhoto(page))
+    await page.getByText('Crop to your scores').waitFor()
+    for (let turn = 0; turn < 2; turn++) await page.getByRole('button', { name: 'Rotate' }).click()
+    await page.getByRole('button', { name: 'Use this photo', exact: true }).click()
+
+    await page.getByText('Check your scores').waitFor()
+    const upload = mock.state.ocrUploads.at(-1)
+    assert.ok(upload.jpeg && upload.job_id === 'ocr-1', 'the photo is re-encoded as JPEG on the device')
+    assert.deepEqual(Object.keys(upload.image_quality).sort(), ['brightness', 'bytes', 'sharpness', 'skew_degrees'])
+    assert.match(lastCall(mock, 'academic_start_ocr_job').args.p_phash, /^[0-9a-f]{16}$/)
+    const confirm = page.getByRole('button', { name: 'Confirm and save' })
+    assert.equal(await confirm.isDisabled(), true)
+    assert.equal(await page.getByLabel('Mathematics', { exact: true }).inputValue(), '7.5')
+    const lao = page.getByTestId('review-se-lao')
+    await lao.getByText('Check', { exact: true }).waitFor()
+    await page.getByTestId('review-se-phys').getByText('Could not read').waitFor()
+    await page.getByText('2 left to check').waitFor()
+    await page.getByText('This photo seems to show more than one student').waitFor()
+    await shot(page, 'my-scores-scan-2-review-en-mobile')
+    await lao.getByRole('button', { name: 'Looks right' }).click()
+    await page.getByLabel('Physics', { exact: true }).fill('6')
+    await page.getByLabel('Choose subject: ສິລະປະ').selectOption('skip')
+    assert.equal(await confirm.isDisabled(), true, 'blocked until the other-student warning is acknowledged')
+    await page.getByLabel('These are my scores').check()
+    await confirm.click()
+    await page.getByRole('heading', { name: 'September saved' }).waitFor()
+    const confirmed = lastCall(mock, 'academic_confirm_ocr_job').args
+    assert.deepEqual([confirmed.p_job_id, confirmed.p_period_id, confirmed.p_keep_photo], ['ocr-1', 'm1', false])
+    assert.deepEqual(confirmed.p_lines, [
+      { subject_enrolment_id: 'se-math', status: 'scored', value: '7.5' },
+      { subject_enrolment_id: 'se-lao', status: 'scored', value: '8' },
+      { subject_enrolment_id: 'se-phys', status: 'scored', value: '6' },
+    ])
+    assert.deepEqual(confirmed.p_fields.map(f => [f.subject_enrolment_id, f.ocr_value, f.confirmed_value, f.edited]),
+      [['se-math', 7.5, 7.5, false], ['se-lao', 8, 8, false], ['se-phys', null, 6, true]])
+    await page.getByRole('button', { name: 'Delete photo now' }).click()
+    await page.getByText('Photo deleted.').waitFor()
+    assert.deepEqual(mock.state.ocrDeleted, ['ocr-1'])
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await page.getByText('Saved 20 Oct 2026').waitFor()
+    assert.equal(mock.state.ocrDiscarded, undefined, 'a confirmed scan is not discarded')
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Scan (Android/English): own consent naming the provider, dark-photo tip, rotate, EXIF-free JPEG and hash sent; uncertain and unread values must be touched, unknown row chosen, other-student warning acknowledged; confirm audit exact; photo deleted on request')
+  }
+
+  // Scanning: duplicate offer, reuse, fallback to typing with sure values, failure and allowance (OCR-008/009/012).
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    Object.assign(mock.state, { ocr: true, ocrDuplicate: true })
+    mock.state.consents.push({ id: 'c9', purpose: 'ocr_processing', notice_version: '2026-10-draft', granted_at: '2026-10-02T02:00:00Z', withdrawn_at: null })
+    await page.goto(`${base}/academy/scores/entry`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('button', { name: 'ສະແກນປຶ້ມຄະແນນ' }).click()
+    await page.getByText('ຖ່າຍຮູບປຶ້ມຄະແນນ').waitFor()
+    await page.getByTestId('scan-file').setInputFiles(await scorePagePhoto(page))
+    await page.getByRole('button', { name: 'ໃຊ້ຮູບນີ້', exact: true }).click()
+    await page.getByText('ເຄີຍສະແກນແລ້ວບໍ?').waitFor()
+    await shot(page, 'my-scores-scan-3-duplicate-lo-mobile')
+    await page.getByRole('button', { name: 'ໃຊ້ຜົນເທື່ອນັ້ນ' }).click()
+    await page.getByText('ກວດຄະແນນຂອງເຈົ້າ').waitFor()
+    assert.equal(mock.state.ocrUploads, undefined, 'a reused result is not sent to the provider again')
+    await page.getByRole('button', { name: 'ພິມຄະແນນແທນ' }).click()
+    await page.waitForFunction(() => document.querySelector('#score-se-math')?.value === '7.5')
+    assert.equal(await page.getByLabel('ພາສາລາວ', { exact: true }).inputValue(), '', 'an uncertain value is not carried over')
+    assert.deepEqual([mock.state.ocrDiscarded, mock.state.ocrDeleted], [['ocr-2'], ['ocr-2']])
+
+    mock.state.ocrFail = true
+    await page.getByRole('button', { name: 'ສະແກນປຶ້ມຄະແນນ' }).click()
+    await page.getByTestId('scan-file').setInputFiles(await scorePagePhoto(page))
+    await page.getByRole('button', { name: 'ໃຊ້ຮູບນີ້', exact: true }).click()
+    await page.getByRole('button', { name: 'ສະແກນໃໝ່' }).click()
+    await page.getByText('ອ່ານຮູບນີ້ບໍ່ໄດ້').waitFor()
+    assert.equal(lastCall(mock, 'academic_start_ocr_job').args.p_ignore_duplicate, true)
+    await shot(page, 'my-scores-scan-4-failed-lo-mobile')
+    await page.getByRole('button', { name: 'ລອງຮູບອື່ນ' }).click()
+    await page.getByText('ຖ່າຍຮູບປຶ້ມຄະແນນ').waitFor()
+    assert.ok(mock.state.ocrDiscarded.includes('ocr-1') && mock.state.ocrDeleted.includes('ocr-1'), 'a failed scan keeps no photo')
+
+    mock.state.ocrUsed = 10
+    await page.getByRole('button', { name: 'ພິມຄະແນນ', exact: true }).click()
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.getByText(/ເຈົ້າໃຊ້ການສະແກນຄົບ 10 ຄັ້ງ/).waitFor()
+    assert.equal(await page.getByRole('button', { name: 'ສະແກນປຶ້ມຄະແນນ' }).isDisabled(), true)
+    assert.equal(await page.getByLabel('ຄະນິດສາດ', { exact: true }).isEditable(), true, 'typing stays available')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Scan (Android/Lao): duplicate offered and reused without a new upload; Type instead carries only sure values; failure offers another photo and keeps no photo; used-up allowance explained while typing stays')
   }
 
   // Corrections keep history (SCORE-007).

@@ -3,6 +3,7 @@ import { insightsCopy } from './insightsCopy'
 import { quizCopy } from './quizCopy'
 import { reportCopy } from './reportCopy'
 import { recommendationCopy } from './recommendationCopy'
+import { ocrCopy } from './ocrCopy'
 
 // Every Schooling interface string, in one place.
 //
@@ -389,6 +390,8 @@ const copy = {
   ...reportCopy,
   // Weekly next actions and practice sets (P2-REC)
   ...recommendationCopy,
+  // Score-book scanning (P2-OCR)
+  ...ocrCopy,
 } as const satisfies Record<string, { en: string; lo: string }>
 
 export type AcademicCopyKey = keyof typeof copy

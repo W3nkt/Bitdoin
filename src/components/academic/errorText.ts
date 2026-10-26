@@ -14,6 +14,10 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   PRACTICE_UNAVAILABLE: 'practice.error.unavailable',
   QUIZ_CLOSED: 'quiz.error.closed',
   QUIZ_UNANSWERED: 'quiz.unanswered',
+  OCR_UNAVAILABLE: 'scan.error.unavailable',
+  OCR_ALLOWANCE_USED: 'scan.error.allowance',
+  OCR_NOT_READY: 'scan.failed.body',
+  OCR_FAILED: 'scan.failed.body',
 }
 
 /** A student-facing message for any My Scores error. */

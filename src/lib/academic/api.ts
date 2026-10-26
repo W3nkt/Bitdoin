@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { AcademicError } from './errors'
 import { callAcademicRpc, shouldRetryAcademic } from './rpc'
 import { academicKeys } from './session'
 import { resumeUsageEvents, useTrackUsage } from './usageEvents'
@@ -830,4 +831,95 @@ export function useRecommendationFeedback() {
       callAcademicRpc<{ item_key: string; response: string }>('academic_recommendation_feedback', { p_item_key: key, p_response: response }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [...academicKeys.all, 'recommendations'] }),
   })
+}
+
+// ─── Score-book scanning (P2-OCR #48, migration 139) ────────────────────────
+
+export interface OcrStatus {
+  available: boolean
+  consent: boolean
+  allowance: { limit: number; used: number; remaining: number }
+}
+
+export interface OcrRow {
+  subject_raw: string
+  score_raw: string | null
+  score_value: number | null
+  score_confidence: number
+  struck_through: boolean
+  replacement_value: number | null
+  bbox: [number, number, number, number] | null
+  subject_match: { subject_enrolment_id: string | null; subject_code?: string | null; method: 'alias_exact' | 'alias_fuzzy' | 'none'; confidence: number } | null
+}
+
+export interface OcrExtraction {
+  schema: 'ocr_extraction.v1'
+  periods: { period_label_raw: string | null; period_guess: { month: number | null; confidence: number }; rows: OcrRow[] }[]
+  warnings: ('multiple_person_blocks' | 'multiple_periods' | 'struck_through_value_detected')[]
+  document: { detected_person_blocks: number }
+}
+
+export interface OcrJob {
+  job_id: string
+  status: 'awaiting_upload' | 'processing' | 'succeeded' | 'failed' | 'confirmed' | 'discarded'
+  enrolment_id: string
+  created_at: string
+  duplicate_of: string | null
+  extraction: OcrExtraction | null
+  error_code: string | null
+  keep_photo: boolean
+  has_image: boolean
+  thresholds: { clear: number; review: number }
+  timeout_seconds: number
+}
+
+/** One reviewed subject (OCR-010: what was read against what was saved). */
+export interface OcrField {
+  subject_enrolment_id: string
+  subject_raw: string | null
+  match_method: string | null
+  ocr_value: number | null
+  ocr_confidence: number | null
+  confirmed_status: string | null
+  confirmed_value: number | null
+  edited: boolean
+}
+
+export function useOcrStatus(enabled = true) {
+  return useQuery({
+    queryKey: [...academicKeys.all, 'ocr-status'],
+    enabled,
+    retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<OcrStatus>('academic_ocr_status'),
+  })
+}
+
+export const startOcrJob = (enrolmentId: string, phash: string, ignoreDuplicate = false) =>
+  callAcademicRpc<{ job?: OcrJob; duplicate?: { job_id: string; created_at: string } }>('academic_start_ocr_job', {
+    p_enrolment_id: enrolmentId, p_phash: phash, p_ignore_duplicate: ignoreDuplicate,
+  })
+
+export const reuseOcrJob = (jobId: string) => callAcademicRpc<{ job: OcrJob }>('academic_reuse_ocr_job', { p_job_id: jobId })
+export const getOcrJob = (jobId: string) => callAcademicRpc<OcrJob>('academic_get_ocr_job', { p_job_id: jobId })
+export const discardOcrJob = (jobId: string) => callAcademicRpc<OcrJob>('academic_discard_ocr_job', { p_job_id: jobId })
+export const deleteOcrImage = (jobId: string) => callAcademicRpc<OcrJob>('academic_delete_ocr_image', { p_job_id: jobId })
+
+export const confirmOcrJob = (input: { jobId: string; periodId: string; lines: WireLine[]; fields: OcrField[]; timeToConfirmMs: number; keepPhoto: boolean }) =>
+  callAcademicRpc<ScoreEntryView & { ocr_job_id: string }>('academic_confirm_ocr_job', {
+    p_job_id: input.jobId, p_period_id: input.periodId, p_lines: input.lines, p_fields: input.fields,
+    p_time_to_confirm_ms: input.timeToConfirmMs, p_keep_photo: input.keepPhoto,
+  })
+
+/** Sends the compressed photo to the academic-ocr function; resolves with the finished job. */
+export async function processOcrJob(jobId: string, imageBase64: string, imageQuality: Record<string, number>): Promise<OcrJob> {
+  const { data, error } = await supabase.functions.invoke('academic-ocr', {
+    body: { action: 'process', job_id: jobId, image_base64: imageBase64, image_quality: imageQuality },
+  })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const body = context && typeof context.json === 'function' ? await context.json().catch(() => null) : null
+    const failure = body?.error as { code?: string; status?: number; reason?: string } | undefined
+    throw new AcademicError(failure?.code ?? 'OCR_FAILED', failure?.status ?? 502, failure?.reason, failure)
+  }
+  return data as OcrJob
 }

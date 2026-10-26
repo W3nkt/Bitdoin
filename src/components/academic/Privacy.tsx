@@ -68,6 +68,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   const module = active('module_processing')
   const push = active('push')
   const stats = active('usage_statistics')
+  const ocr = active('ocr_processing')
 
   const row = (purpose: string, current: NonNullable<typeof module>, action: React.ReactNode) => (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -90,6 +91,10 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
         {/* Device reminders are turned on from Reminder settings (#27). */}
         {push && row('push', push, (
           <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('push', { onError })}>{t('privacy.withdraw')}</Button>
+        ))}
+        {/* Score-book scanning (migration 139): given on the first scan, withdrawn here. */}
+        {ocr && row('ocr_processing', ocr, (
+          <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('ocr_processing', { onError })}>{t('privacy.withdraw')}</Button>
         ))}
         {/* Usage statistics (migration 124): on with the notice, off and on here at any time. */}
         {module && (
