@@ -569,9 +569,10 @@ export function useCancelDeletion() {
 
 export interface AcademicNotification {
   id: string
-  category: 'score_reminder'
+  category: 'score_reminder' | 'guardian_link'
   code: 'score_reminder.first' | 'score_reminder.second' | string
-  payload: { enrolment_id?: string; period_id?: string; period_key?: string; period_label_lo?: string; period_label_en?: string }
+  /** Reminders carry the period; guardian notices (migration 152) the other person's name. */
+  payload: { enrolment_id?: string; period_id?: string; period_key?: string; period_label_lo?: string; period_label_en?: string; guardian?: string; student?: string; relationship?: string }
   channel: 'in_app' | 'push'
   state: 'sent' | 'read'
   created_at: string
@@ -1195,3 +1196,79 @@ export const saveCareerAnswers = (answers: Record<string, number | null>, prefer
 export const useFinishCareerQuestionnaire = () => useCareerMutation(() => callAcademicRpc<CareerGuidanceView>('academic_finish_career_questionnaire'))
 export const useSetCareerSaved = () => useCareerMutation(({ slug, saved }: { slug: string; saved: boolean }) =>
   callAcademicRpc<{ shortlist: string[] }>('academic_set_career_saved', { p_slug: slug, p_saved: saved }))
+
+// ─── Guardian links (P3-PAR #52: PARENT-001..009; migration 152) ─────────────
+
+export type GuardianScope = 'scores' | 'plan' | 'careers' | 'goals_text'
+export type GuardianScopes = Record<GuardianScope, boolean>
+
+export interface GuardianLink {
+  id: string
+  status: 'pending_student' | 'active' | 'paused' | 'suspended' | 'removed'
+  purpose: 'link' | 'consent'
+  relationship: 'mother' | 'father' | 'guardian' | 'other'
+  scopes: GuardianScopes
+  guardian_name: string | null
+  student_name: string | null
+  declared_at: string
+  confirm_by: string
+  confirmed_at: string | null
+  reconfirm_by: string | null
+  removed_at: string | null
+  removed_by: 'student' | 'guardian' | 'system' | null
+  grade?: string | null
+}
+
+export interface GuardianLinksView {
+  consent_state: 'pending_guardian' | 'active' | 'withdrawn'
+  invites: { id: string; purpose: 'link' | 'consent'; scopes: GuardianScopes; expires_at: string; created_at: string }[]
+  links: GuardianLink[]
+  default_scopes: GuardianScopes
+}
+
+export interface NewGuardianInvite { id: string; code: string; purpose: 'link' | 'consent'; scopes: GuardianScopes; expires_at: string }
+
+const guardianKey = [...academicKeys.all, 'guardians'] as const
+
+export function useGuardianLinks() {
+  return useQuery({ queryKey: guardianKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<GuardianLinksView>('academic_list_guardian_links') })
+}
+
+function useGuardianMutation<A, R>(fn: (args: A) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: () => queryClient.invalidateQueries({ queryKey: guardianKey }) })
+}
+
+export const useCreateGuardianInvite = () => useGuardianMutation(({ scopes, purpose }: { scopes?: Partial<GuardianScopes>; purpose?: 'link' | 'consent' }) =>
+  callAcademicRpc<NewGuardianInvite>('academic_create_guardian_invite', { p_scopes: scopes ?? {}, p_purpose: purpose ?? 'link' }))
+export const useRevokeGuardianInvite = () => useGuardianMutation((id: string) => callAcademicRpc<GuardianLinksView>('academic_revoke_guardian_invite', { p_invite_id: id }))
+export const useConfirmGuardianLink = () => useGuardianMutation(({ id, confirm }: { id: string; confirm: boolean }) =>
+  callAcademicRpc<GuardianLinksView>('academic_confirm_guardian_link', { p_link_id: id, p_confirm: confirm }))
+export const useSetGuardianScopes = () => useGuardianMutation(({ id, scopes }: { id: string; scopes: Partial<GuardianScopes> }) =>
+  callAcademicRpc<GuardianLinksView>('academic_set_guardian_scopes', { p_link_id: id, p_scopes: scopes }))
+export const useRemoveGuardianLink = () => useGuardianMutation((id: string) => callAcademicRpc<GuardianLinksView>('academic_remove_guardian_link', { p_link_id: id }))
+export const useKeepGuardianLink = () => useGuardianMutation((id: string) => callAcademicRpc<GuardianLinksView>('academic_keep_guardian_link', { p_link_id: id }))
+
+// The guardian's side (any signed-in Bitdoin user).
+export interface FamilyView { links: GuardianLink[]; notices: { code: string; payload: Record<string, string>; created_at: string }[] }
+const familyKey = ['family'] as const
+export function useFamily() {
+  return useQuery({ queryKey: familyKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<FamilyView>('academic_get_family') })
+}
+export const previewGuardianInvite = (code: string) =>
+  callAcademicRpc<{ student_name: string; purpose: 'link' | 'consent'; scopes: GuardianScopes; expires_at: string }>('academic_preview_guardian_invite', { p_code: code })
+export function useAcceptGuardianInvite() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ code, relationship }: { code: string; relationship: GuardianLink['relationship'] }) =>
+      callAcademicRpc<GuardianLink>('academic_accept_guardian_invite', { p_code: code, p_relationship: relationship, p_declaration: true }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyKey }),
+  })
+}
+export function useGuardianRemoveLink() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => callAcademicRpc<FamilyView>('academic_guardian_remove_link', { p_link_id: id }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: familyKey }),
+  })
+}

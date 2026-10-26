@@ -213,6 +213,15 @@ function backend(initial) {
     // Coach academic mode (migration 145).
     academic_coach_status: () => state.coach ?? { available: false, busy: false, quota: null, resources: [] },
     academic_coach_feedback: (args) => { (state.coachFeedback ??= []).push(args); return { id: 'f1', rating: args.p_input.rating ?? null, report_category: args.p_input.report_category ?? null, share_text: !!args.p_input.share_text } },
+    // Guardian links (migration 152): a small stateful stand-in.
+    academic_list_guardian_links: () => ({ consent_state: state.consentState ?? 'active', invites: state.guardianInvites ?? [], links: state.guardianLinks ?? [], default_scopes: { scores: true, plan: true, careers: false, goals_text: false } }),
+    academic_create_guardian_invite: (args) => { const invite = { id: 'inv1', code: 'K7MQ2XPA', purpose: args.p_purpose, scopes: { scores: true, plan: true, careers: false, goals_text: false, ...args.p_scopes }, expires_at: '2026-10-29T05:00:00Z' }; (state.guardianInvites ??= []).push(invite); return invite },
+    academic_confirm_guardian_link: (args) => { const l = state.guardianLinks.find((x) => x.id === args.p_link_id); l.status = args.p_confirm ? 'active' : 'removed'; state.guardianLinks = state.guardianLinks.filter((x) => x.status !== 'removed'); return {} },
+    academic_set_guardian_scopes: (args) => { const l = state.guardianLinks.find((x) => x.id === args.p_link_id); Object.assign(l.scopes, args.p_scopes); return {} },
+    academic_remove_guardian_link: (args) => { state.guardianLinks = state.guardianLinks.filter((x) => x.id !== args.p_link_id); return {} },
+    academic_preview_guardian_invite: (args) => args.p_code === 'K7MQ2XPA' ? { student_name: 'Noy', purpose: state.invitePurpose ?? 'link', scopes: { scores: true, plan: true, careers: true, goals_text: false }, expires_at: '2026-10-29T05:00:00Z' } : pgError(404, 'GUARDIAN_CODE_INVALID'),
+    academic_accept_guardian_invite: (args) => { (state.family ??= []).push({ id: 'gl9', status: 'pending_student', purpose: 'link', relationship: args.p_relationship, scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', declared_at: '2026-10-26T05:00:00Z', confirm_by: '2026-11-02T05:00:00Z', confirmed_at: null, reconfirm_by: null, removed_at: null, removed_by: null }); return state.family.at(-1) },
+    academic_get_family: () => ({ links: state.family ?? [], notices: [] }),
     // Career guidance (migration 150): a small stateful stand-in.
     academic_get_career_guidance: () => careerView(state),
     academic_career_catalogue: () => ({ careers: CAREERS }),
@@ -1485,6 +1494,67 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Coach (academic mode): Coach card with quota, monthly summary marked as checked AI text, Ask about a subject pre-fills the question, My scores mode sends mode academic, report with consent to share, busy message keeps Schooling one tap away')
+  }
+
+  // Guardians (P3-PAR #52): the student invites with chosen scopes, confirms a guardian's name, changes what they see,
+  // removes the link; a 13–15 student is asked for a guardian's consent first; the guardian links with the code.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.guardianLinks = [{ id: 'gl1', status: 'pending_student', purpose: 'link', relationship: 'mother', scopes: { scores: true, plan: true, careers: false, goals_text: false }, guardian_name: 'Mrs Phonsavan',
+      student_name: 'Noy', declared_at: '2026-10-26T05:00:00Z', confirm_by: '2026-11-02T05:00:00Z', confirmed_at: null, reconfirm_by: null, removed_at: null, removed_by: null }]
+    await page.goto(`${base}/academy/scores/data`, { waitUntil: 'domcontentloaded' })
+    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Parents and guardians' }) })
+    await card.getByText('Mrs Phonsavan wants to link as your mother').waitFor()
+    await card.getByRole('button', { name: 'Yes, confirm' }).click()
+    await card.getByText('Mrs Phonsavan, your mother').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_confirm_guardian_link').args, { p_link_id: 'gl1', p_confirm: true })
+    await card.getByText('Coach chats and photos are never shared.').first().waitFor()
+    await card.getByLabel('Career questionnaire answers').check()
+    assert.deepEqual(lastCall(mock, 'academic_set_guardian_scopes').args, { p_link_id: 'gl1', p_scopes: { careers: true } })
+    await card.getByRole('button', { name: 'Invite a parent or guardian' }).click()
+    await card.getByRole('button', { name: 'Create a code' }).click()
+    await card.getByText('K7MQ2XPA', { exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_create_guardian_invite').args, { p_scopes: { scores: true, plan: true, careers: false, goals_text: false }, p_purpose: 'link' })
+    await card.getByRole('button', { name: 'Remove link' }).first().click()
+    await card.getByRole('alertdialog').getByRole('button', { name: 'Remove link' }).click()
+    await card.getByText('No one is linked.').waitFor()
+    await shot(page, 'my-scores-guardians-1-student-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(errors, [])
+    await context.close()
+
+    // Ages 13–15 (PARENT-003): a consent code before anything is stored.
+    const young = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'guardian_consent', enrolment: 'e1' })
+    young.mock.state.consentState = 'pending_guardian'
+    await young.page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await young.page.getByRole('heading', { name: 'ຂໍໃຫ້ພໍ່ແມ່ ຫຼື ຜູ້ປົກຄອງເຫັນດີ' }).waitFor()
+    await young.page.getByRole('button', { name: 'ສ້າງລະຫັດ' }).click()
+    await young.page.getByText('K7MQ2XPA', { exact: true }).waitFor()
+    assert.equal(lastCall(young.mock, 'academic_create_guardian_invite').args.p_purpose, 'consent')
+    await shot(young.page, 'my-scores-guardians-2-consent-lo-mobile')
+    assert.deepEqual(young.errors, [])
+    await young.context.close()
+
+    // The guardian (PARENT-002): code from the link, relationship and declaration, then the student confirms.
+    const parent = await openAs(browser, { device: MOBILE, lang: 'en', step: 'onboarding' })
+    await parent.page.goto(`${base}/academy/family?code=K7MQ2XPA`, { waitUntil: 'domcontentloaded' })
+    await parent.page.getByRole('heading', { name: 'Family', level: 1 }).waitFor()
+    await parent.page.getByRole('button', { name: 'Check code' }).click()
+    await parent.page.getByText('Noy invites you to follow their progress.').waitFor()
+    await parent.page.getByText('Career questionnaire answers').waitFor()
+    assert.equal(await parent.page.getByRole('button', { name: 'Link', exact: true }).isDisabled(), true, 'relationship and declaration first')
+    await parent.page.getByLabel('You are their…').selectOption('mother')
+    await parent.page.getByLabel('I confirm I am this student’s parent or legal guardian.').check()
+    await parent.page.getByRole('button', { name: 'Link', exact: true }).click()
+    await parent.page.getByText('Waiting for Noy to confirm', { exact: false }).waitFor()
+    assert.deepEqual(lastCall(parent.mock, 'academic_accept_guardian_invite').args, { p_code: 'K7MQ2XPA', p_relationship: 'mother', p_declaration: true })
+    await shot(parent.page, 'my-scores-guardians-3-family-en-mobile')
+    await parent.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await parent.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(parent.errors, [])
+    await parent.context.close()
+    pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons

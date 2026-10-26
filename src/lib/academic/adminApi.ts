@@ -991,3 +991,24 @@ export function useReviewCareerContent() {
   return useAdminMutation(({ id, action, note }: { id: string; action: 'submit' | 'approve' | 'return' | 'archive' | 'restore'; note?: string }) =>
     callAcademicRpc<CareerRecord>('academic_admin_review_career_content', { p_id: id, p_action: action, p_note: note ?? null }))
 }
+
+// ─── Guardian links (PARENT-008, migration 152) ──────────────────────────────
+
+export interface SupportGuardianLink {
+  id: string
+  status: 'pending_student' | 'active' | 'paused' | 'suspended' | 'removed'
+  purpose: 'link' | 'consent'
+  relationship: string
+  scopes: Record<string, boolean>
+  guardian_name: string | null
+  declared_at: string
+  confirmed_at: string | null
+  removed_at: string | null
+  removed_by: string | null
+  cases: { action: 'suspend' | 'reinstate'; reason: string; note: string; at: string; by: string | null }[]
+}
+
+export const supportGuardianLinks = (profileId: string) => callAcademicRpc<SupportGuardianLink[]>('academic_support_guardian_links', { p_profile_id: profileId })
+export const suspendGuardianLink = (linkId: string, reason: string, note: string) =>
+  callAcademicRpc('academic_support_suspend_guardian_link', { p_link_id: linkId, p_reason: reason, p_note: note })
+export const reinstateGuardianLink = (linkId: string, note: string) => callAcademicRpc('academic_admin_reinstate_guardian_link', { p_link_id: linkId, p_note: note })

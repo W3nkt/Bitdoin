@@ -10,6 +10,7 @@ import { MyData } from '@/components/academic/MyData'
 import { ScoreEntry } from '@/components/academic/ScoreEntry'
 import { Planner } from '@/components/academic/Planner'
 import { CareerGuidance } from '@/components/academic/CareerGuidance'
+import { GuardianConsentStep } from '@/components/academic/Guardians'
 import { History } from '@/components/academic/History'
 import { Inbox } from '@/components/academic/Inbox'
 import { QuizResult, QuizRunner } from '@/components/academic/Quiz'
@@ -164,6 +165,8 @@ function StepScreen({ session, userId }: { session: AcademicSession; userId: str
       return <Onboarding noticeVersion={session.notice_version ?? ''} />
     case 'consent':
       return <ConsentReview session={session} />
+    case 'guardian_consent':
+      return <GuardianConsentStep />
     case 'new_school_year':
       return <NewSchoolYear hasEnrolment={!!session.active_enrolment_id} />
     default:

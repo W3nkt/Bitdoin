@@ -11,6 +11,7 @@ import {
 } from '@/lib/academic/api'
 import { MyScoresNotice } from './MyScoresShell'
 import { ConsentChoices, DeleteCard, DeletionPending, ExportCard, OcrPhotos } from './Privacy'
+import { GuardiansCard } from './Guardians'
 import { PlanCard } from './PlanCard'
 import { SchoolPicker, type SchoolChoice } from './SchoolPicker'
 import { academicErrorText } from './errorText'
@@ -61,6 +62,7 @@ export function MyData({ activeEnrolmentId }: { activeEnrolmentId: string | null
       <PlanCard />
       <h2 className="px-1 pt-2 text-xl font-black">{t('privacy.title')}</h2>
       <ConsentChoices consents={consents} />
+      <GuardiansCard />
       <OcrPhotos />
       <ExportCard />
       {profile.status !== 'deletion_pending' && <DeleteCard />}

@@ -4,7 +4,7 @@ import type { Language, UserRole } from '@/types'
 import { callAcademicRpc, shouldRetryAcademic } from './rpc'
 
 /** Which My Scores screen comes next (academic_get_session, migration 111). */
-export type AcademicNextStep = 'unavailable' | 'onboarding' | 'consent' | 'new_school_year' | 'ready'
+export type AcademicNextStep = 'unavailable' | 'onboarding' | 'consent' | 'guardian_consent' | 'new_school_year' | 'ready'
 
 export interface AcademicSession {
   user: { id: string; role: UserRole; language: Language }

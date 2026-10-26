@@ -3,7 +3,9 @@ import { Search, ShieldAlert, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import type { HistoryEnrolment } from '@/lib/academic/api'
-import { startBreakGlass, supportLookup, viewStudentScores, type SupportLookup } from '@/lib/academic/adminApi'
+import {
+  reinstateGuardianLink, startBreakGlass, supportGuardianLinks, supportLookup, suspendGuardianLink, viewStudentScores, type SupportGuardianLink, type SupportLookup,
+} from '@/lib/academic/adminApi'
 import { AcademicError } from '@/lib/academic/errors'
 import { plainNumber } from '@/lib/academic/scoreInput'
 import { Empty, Field, Panel, Pill, ReasonDialog, adminErrorText, formatDateTime } from './AdminKit'
@@ -12,7 +14,7 @@ import { Empty, Field, Panel, Pill, ReasonDialog, adminErrorText, formatDateTime
  * Support lookup without scores; scores only through a 30-minute,
  * reason-logged emergency window (ADMIN-005).
  */
-export function SupportAdmin() {
+export function SupportAdmin({ isAdmin = false }: { isAdmin?: boolean }) {
   const toast = useToast()
   const [ref, setRef] = useState('')
   const [busy, setBusy] = useState(false)
@@ -113,6 +115,8 @@ export function SupportAdmin() {
         </Panel>
       )}
 
+      {result && <GuardianLinksPanel key={result.profile.id} profileId={result.profile.id} isAdmin={isAdmin} />}
+
       {scores && (
         <Panel
           title="Scores (emergency access)"
@@ -177,4 +181,68 @@ function useNow(intervalMs: number | null) {
 function countdown(expiresAt: string, now: number) {
   const seconds = Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000))
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+const LINK_REASONS: Record<string, string> = { not_guardian: 'Not the parent or guardian', safety: 'Safety concern', student_request: 'The student asked', other: 'Something else' }
+
+/** PARENT-008: support suspends a disputed link at once; only an admin reinstates it after review. */
+function GuardianLinksPanel({ profileId, isAdmin }: { profileId: string; isAdmin: boolean }) {
+  const toast = useToast()
+  const [links, setLinks] = useState<SupportGuardianLink[] | null>(null)
+  const [acting, setActing] = useState<{ link: SupportGuardianLink; action: 'suspend' | 'reinstate' } | null>(null)
+  const [reason, setReason] = useState('not_guardian')
+  const [busy, setBusy] = useState(false)
+  const load = () => supportGuardianLinks(profileId).then(result => setLinks(result ?? []), error => toast.error(adminErrorText(error)))
+  useEffect(() => { void load() }, [profileId])
+
+  async function act(note: string) {
+    if (!acting) return
+    setBusy(true)
+    try {
+      if (acting.action === 'suspend') await suspendGuardianLink(acting.link.id, reason, note)
+      else await reinstateGuardianLink(acting.link.id, note)
+      toast.success(acting.action === 'suspend' ? 'Link suspended. The guardian has lost access.' : 'Link reinstated.')
+      setActing(null)
+      await load()
+    } catch (error) {
+      toast.error(adminErrorText(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Panel title="Guardian links" description="Suspending stops the guardian's access at once. Only an admin can reinstate a link, after review. Every action is audit-logged.">
+      {links === null ? <Empty>Loading…</Empty> : links.length === 0 ? <Empty>No guardian links.</Empty> : (
+        <ul className="grid gap-3">
+          {links.map(link => (
+            <li key={link.id} className="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold">{link.guardian_name ?? 'Unknown'}</span>
+                <span className="text-slate-600 dark:text-slate-400">{link.relationship}{link.purpose === 'consent' ? ' · gave consent' : ''}</span>
+                <Pill tone={link.status === 'active' ? 'green' : link.status === 'suspended' ? 'red' : 'gray'}>{link.status.replace('_', ' ')}</Pill>
+              </div>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">Linked {formatDateTime(link.declared_at)}{link.confirmed_at ? ` · confirmed ${formatDateTime(link.confirmed_at)}` : ''}{link.removed_at ? ` · removed by ${link.removed_by} ${formatDateTime(link.removed_at)}` : ''}</p>
+              {link.cases.map((c, index) => <p key={index} className="mt-1 text-xs">{c.action === 'suspend' ? 'Suspended' : 'Reinstated'} · {LINK_REASONS[c.reason] ?? c.reason} · {c.note} · {c.by ?? '—'}, {formatDateTime(c.at)}</p>)}
+              <div className="mt-2 flex gap-2">
+                {['pending_student', 'active', 'paused'].includes(link.status) && <Button size="sm" variant="danger" onClick={() => setActing({ link, action: 'suspend' })}>Suspend</Button>}
+                {link.status === 'suspended' && isAdmin && <Button size="sm" variant="outline" onClick={() => setActing({ link, action: 'reinstate' })}>Reinstate</Button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ReasonDialog open={acting !== null} busy={busy} danger={acting?.action === 'suspend'}
+        title={acting?.action === 'suspend' ? 'Suspend this guardian link?' : 'Reinstate this link?'}
+        body={acting?.action === 'suspend' ? (
+          <Field label="Reason">
+            <select value={reason} onChange={event => setReason(event.target.value)}>
+              {Object.entries(LINK_REASONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </Field>
+        ) : <p>Only reinstate after reviewing the case with the student.</p>}
+        confirmLabel={acting?.action === 'suspend' ? 'Suspend' : 'Reinstate'}
+        onCancel={() => setActing(null)} onConfirm={note => void act(note)} />
+    </Panel>
+  )
 }

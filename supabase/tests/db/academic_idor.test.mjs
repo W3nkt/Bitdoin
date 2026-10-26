@@ -25,7 +25,8 @@ const STAFF = { aal: 'aal2' }
 
 await ok(db, 'users', `insert into public.users (id, name, member_code, role) values
   ('${A}', 'Student A', 'AAA111', 'CUSTOMER'), ('${B}', 'Student B', 'BBB222', 'CUSTOMER'),
-  ('${OPS}', 'Ops', 'OPS001', 'OPERATIONS'), ('${OPS2}', 'Ops 2', 'OPS002', 'OPERATIONS'), ('${ADM}', 'Admin', 'ADM001', 'ADMIN')`)
+  ('${OPS}', 'Ops', 'OPS001', 'OPERATIONS'), ('${OPS2}', 'Ops 2', 'OPS002', 'OPERATIONS'), ('${ADM}', 'Admin', 'ADM001', 'ADMIN'),
+  ('00000000-0000-0000-0000-0000000000c9', 'Guardian of A', 'GRD001', 'CUSTOMER')`)
 // Many attack calls in a few seconds would trip the per-user rate limits (tested in academic_rate_limits).
 await ok(db, 'config', CONFIG_SQL + `update academic_settings set value = '{"read": {"limit": 1000, "seconds": 60}, "write": {"limit": 1000, "seconds": 60}}' where key = 'rate_limits';`)
 await ok(db, 'today', `create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select date '2026-11-15' $$`)
@@ -72,6 +73,10 @@ const aNote = RANDOM.replace('f0e1', 'aaaa')
 const aGoalSubject = (await one(`select subject_enrolment_id from academic_score_lines where id = '${aLine.id}'`)).subject_enrolment_id
 const aGoal = (await rpc(A, `public.academic_save_goal(${json({ subject_enrolment_id: aGoalSubject, target: 9, target_period_id: period(9) })})`)).id
 await rpc(A, `public.academic_save_plan(${json({ days: [1, 3, 6], minutes_per_day: 20 })})`)
+// A's guardian link and an open invite (migration 152).
+const aGuardian = '00000000-0000-0000-0000-0000000000c9'
+const aLink = (await rpc(aGuardian, `public.academic_accept_guardian_invite('${(await rpc(A, `public.academic_create_guardian_invite()`)).code}', 'mother', true)`)).id
+const aInvite = (await rpc(A, `public.academic_create_guardian_invite()`)).id
 // A's academic Coach answer (migration 145).
 const aCoachConv = (await one(`insert into premium_coach_conversations (user_id, title, mode, student_profile_id) values ('${A}', 'Maths', 'academic', '${a.profile_id}') returning id`)).id
 const aCoachAnswer = (await one(`insert into premium_coach_messages (conversation_id, user_id, role, content) values ('${aCoachConv}', '${A}', 'assistant', 'answer') returning id`)).id
@@ -108,6 +113,9 @@ const BY_ID = [
   'academic_archive_goal(uuid)',
   'academic_update_task(uuid,text)',
   'academic_coach_feedback(uuid,jsonb)',
+  // Guardian links and invites (migration 152): the student's own, or the guardian's own for guardian_remove_link.
+  'academic_confirm_guardian_link(uuid,boolean)', 'academic_set_guardian_scopes(uuid,jsonb)', 'academic_keep_guardian_link(uuid)',
+  'academic_remove_guardian_link(uuid)', 'academic_guardian_remove_link(uuid)', 'academic_revoke_guardian_invite(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -125,6 +133,8 @@ const OWN_READ = [
   'academic_career_catalogue()',
   // The caller's own questionnaire, options, shortlist and export (migration 150).
   'academic_get_career_guidance()', 'academic_export_my_guidance()',
+  // The caller's own guardian links, as student or as guardian (migration 152).
+  'academic_list_guardian_links()', 'academic_get_family()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -150,6 +160,8 @@ const OWN_WRITE = [
   'academic_save_plan(jsonb)', 'academic_pause_plan(date)', 'academic_set_planner_xp(boolean)',
   // The caller's own career questionnaire and shortlist; career slugs are shared content (migration 150).
   'academic_start_career_questionnaire(text)', 'academic_save_career_answers(jsonb,jsonb)', 'academic_finish_career_questionnaire()', 'academic_set_career_saved(text,boolean)',
+  // A new invite for the caller's own profile; preview and accept take a one-time code held by the invited guardian (migration 152).
+  'academic_create_guardian_invite(jsonb,text)', 'academic_preview_guardian_invite(text)', 'academic_accept_guardian_invite(text,text,boolean)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -167,6 +179,7 @@ const STAFF_ONLY = [
   'academic_admin_member_entitlements(text)', 'academic_admin_grant_entitlement(uuid,jsonb)', 'academic_admin_revoke_entitlement(uuid,text)',
   'academic_admin_ai_review(text)', 'academic_admin_rate_ai(uuid,jsonb)',
   'academic_admin_career_content(text,text)', 'academic_admin_save_career_content(jsonb)', 'academic_admin_review_career_content(uuid,text,text)', 'academic_admin_career_due()',
+  'academic_support_guardian_links(uuid)', 'academic_support_suspend_guardian_link(uuid,text,text)', 'academic_admin_reinstate_guardian_link(uuid,text)',
 ]
 // Used by RLS policies or the client; return only booleans or the caller's own values.
 const HELPERS = [
@@ -226,6 +239,12 @@ const attacks = [
   ['academic_archive_goal(uuid)', aGoal, (id) => `public.academic_archive_goal('${id}')`],
   ['academic_update_task(uuid,text)', aTask, (id) => `public.academic_update_task('${id}', 'done')`],
   ['academic_coach_feedback(uuid,jsonb)', aCoachAnswer, (id) => `public.academic_coach_feedback('${id}', ${json({ rating: -1 })})`],
+  ['academic_confirm_guardian_link(uuid,boolean)', aLink, (id) => `public.academic_confirm_guardian_link('${id}', true)`],
+  ['academic_set_guardian_scopes(uuid,jsonb)', aLink, (id) => `public.academic_set_guardian_scopes('${id}', ${json({ careers: true })})`],
+  ['academic_keep_guardian_link(uuid)', aLink, (id) => `public.academic_keep_guardian_link('${id}')`],
+  ['academic_remove_guardian_link(uuid)', aLink, (id) => `public.academic_remove_guardian_link('${id}')`],
+  ['academic_guardian_remove_link(uuid)', aLink, (id) => `public.academic_guardian_remove_link('${id}')`],
+  ['academic_revoke_guardian_invite(uuid)', aInvite, (id) => `public.academic_revoke_guardian_invite('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -279,6 +298,8 @@ const ownReads = {
   'academic_career_catalogue()': 'public.academic_career_catalogue()',
   'academic_get_career_guidance()': 'public.academic_get_career_guidance()',
   'academic_export_my_guidance()': 'public.academic_export_my_guidance()',
+  'academic_list_guardian_links()': 'public.academic_list_guardian_links()',
+  'academic_get_family()': 'public.academic_get_family()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -348,6 +369,9 @@ const staffCalls = {
   'academic_admin_save_career_content(jsonb)': `public.academic_admin_save_career_content('{}')`,
   'academic_admin_review_career_content(uuid,text,text)': `public.academic_admin_review_career_content('${RANDOM}', 'approve')`,
   'academic_admin_career_due()': 'public.academic_admin_career_due()',
+  'academic_support_guardian_links(uuid)': `public.academic_support_guardian_links('${RANDOM}')`,
+  'academic_support_suspend_guardian_link(uuid,text,text)': `public.academic_support_suspend_guardian_link('${RANDOM}', 'other', 'checking')`,
+  'academic_admin_reinstate_guardian_link(uuid,text)': `public.academic_admin_reinstate_guardian_link('${RANDOM}', 'checking')`,
   'academic_admin_rate_ai(uuid,jsonb)': `public.academic_admin_rate_ai('${RANDOM}', '{}')`,
 }
 eq('every staff RPC is exercised', Object.keys(staffCalls).sort(), [...STAFF_ONLY].sort())

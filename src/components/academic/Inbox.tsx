@@ -22,12 +22,23 @@ import { academicErrorText } from './errorText'
 function useReminderText() {
   const { t, lo } = useAcademicCopy()
   return (note: AcademicNotification) => {
+    // Guardian links (migration 152): a request to confirm, or a link that ended.
+    if (note.category === 'guardian_link') {
+      const removed = note.code === 'guardian.removed'
+      return {
+        title: removed ? t('guardians.note.removed.title') : t('guardians.note.request.title', { name: String(note.payload.guardian ?? '') }),
+        body: removed ? t('guardians.note.removed.body', { name: String(note.payload.guardian ?? '') }) : t('guardians.note.request.body'),
+        href: '/academy/scores/data',
+        cta: t('guardians.open'),
+      }
+    }
     const raw = (lo ? note.payload.period_label_lo : note.payload.period_label_en)?.trim()
     const month = lo ? raw?.replace(/^ເດືອນ\s*/, '') : raw
     return {
       title: month ? t('inbox.reminder.title', { month }) : t('inbox.reminder.titleAny'),
       body: t(note.code === 'score_reminder.second' ? 'inbox.reminder.second' : 'inbox.reminder.first'),
       href: note.payload.period_id ? `/academy/scores/entry?period=${note.payload.period_id}` : '/academy/scores/entry',
+      cta: t('entry.cta'),
     }
   }
 }
@@ -83,7 +94,7 @@ export function ReminderBanner() {
   const note = useNotifications().data?.pages[0]?.items.find(item => item.state === 'sent')
   const clicked = useReminderEvents(note ? [note] : [])
   if (!note) return null
-  const { title, body, href } = text(note)
+  const { title, body, href, cta } = text(note)
   const done = () => markRead.mutate([note.id])
   return (
     <section aria-labelledby="reminder-banner" className="flex flex-wrap items-start gap-4 rounded-3xl bg-indigo-50 p-5 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:ring-indigo-500/30">
@@ -94,7 +105,7 @@ export function ReminderBanner() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Link to={href} onClick={() => { clicked(note); done() }}
             className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
-            <PenLine className="h-4 w-4" />{t('entry.cta')}
+            <PenLine className="h-4 w-4" />{cta}
           </Link>
           <Button size="sm" variant="ghost" onClick={done}>{t('inbox.later')}</Button>
         </div>
@@ -148,7 +159,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {items.map(note => {
-              const { title, body, href } = text(note)
+              const { title, body, href, cta } = text(note)
               return (
                 <li key={note.id} className="flex items-start gap-3 py-4">
                   <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"><BellRing className="h-4 w-4" /></span>
@@ -160,7 +171,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{body}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
                       <span>{formatDate(note.created_at, language)}</span>
-                      <Link to={href} onClick={() => clicked(note)} className="font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('entry.cta')}</Link>
+                      <Link to={href} onClick={() => clicked(note)} className="font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{cta}</Link>
                     </p>
                   </div>
                   <button type="button" aria-label={t('inbox.dismiss')} disabled={dismiss.isPending}

@@ -109,7 +109,7 @@ export function MyScoresAdmin() {
               {active.id === 'quiz' && <QuizBankAdmin />}
               {active.id === 'content' && <ContentAdmin />}
               {active.id === 'roles' && <RolesAdmin />}
-              {active.id === 'support' && <SupportAdmin />}
+              {active.id === 'support' && <SupportAdmin isAdmin={role === 'ADMIN'} />}
               {active.id === 'reports' && <ReportsAdmin />}
               {active.id === 'audit' && <AuditAdmin isAdmin={role === 'ADMIN'} />}
               {active.id === 'health' && <HealthAdmin />}

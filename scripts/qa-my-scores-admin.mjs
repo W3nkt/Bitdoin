@@ -200,6 +200,10 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
     } : { error: { code: 'NOT_FOUND', status: 404 } },
     academic_admin_health: () => healthFixture(),
     academic_admin_usage_metrics: (args) => ({ ...metricsFixture(), cohort_id: args.p_cohort ?? null }),
+    // Guardian links (PARENT-008, migration 152).
+    academic_support_guardian_links: () => [{ id: 'gl1', status: state.linkSuspended ? 'suspended' : 'active', purpose: 'link', relationship: 'mother', scopes: { scores: true }, guardian_name: 'Mrs Phonsavan',
+      declared_at: '2026-10-20T05:00:00Z', confirmed_at: '2026-10-21T05:00:00Z', removed_at: null, removed_by: null, cases: [] }],
+    academic_support_suspend_guardian_link: (args) => { state.linkSuspended = true; return { id: args.p_link_id, status: 'suspended' } },
     // Career catalogue (ADMIN-010, UNI-001/004, migration 148): a small stateful stand-in.
     academic_admin_career_content: (args) => {
       const items = (state.careers ??= careerFixtures()).filter((c) => c.kind === args.p_kind)
@@ -637,6 +641,16 @@ try {
     await page.getByRole('button', { name: 'Look up' }).click()
     await page.getByRole('heading', { name: 'Member DAN9XY' }).waitFor()
     assert.equal(await page.getByText('7.5').count(), 0)
+    // PARENT-008: support suspends a disputed guardian link; only an admin can reinstate it.
+    const guardians = page.locator('section', { has: page.getByRole('heading', { name: 'Guardian links' }) })
+    await guardians.getByText('Mrs Phonsavan').waitFor()
+    await guardians.getByRole('button', { name: 'Suspend' }).click()
+    await page.getByRole('dialog').getByRole('combobox').selectOption('not_guardian')
+    await page.getByRole('dialog').getByLabel('Reason (saved in the audit log)').fill('Student says this is not her mother')
+    await page.getByRole('dialog').getByRole('button', { name: 'Suspend' }).click()
+    await page.getByText('Link suspended. The guardian has lost access.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_support_suspend_guardian_link').args, { p_link_id: 'gl1', p_reason: 'not_guardian', p_note: 'Student says this is not her mother' })
+    assert.equal(await guardians.getByRole('button', { name: 'Reinstate' }).count(), 0, 'support cannot reinstate')
     await page.getByRole('button', { name: 'Emergency access to scores' }).click()
     await page.getByLabel('Reason (saved in the audit log)').fill('short')
     assert.equal(await page.getByRole('button', { name: 'Open for 30 minutes' }).isDisabled(), true)

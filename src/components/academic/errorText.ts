@@ -22,6 +22,11 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   CAREER_TOO_FEW_ANSWERS: 'careers.error.tooFew',
   CAREER_RETAKE_TOO_SOON: 'careers.error.tooSoon',
   CAREER_SHORTLIST_FULL: 'careers.error.full',
+  GUARDIAN_INVITE_LIMIT: 'guardians.error.limit',
+  GUARDIAN_CONSENT_REQUIRED: 'guardians.error.consent',
+  GUARDIAN_CODE_INVALID: 'family.error.code',
+  GUARDIAN_SELF: 'family.error.self',
+  GUARDIAN_ALREADY_LINKED: 'family.error.already',
 }
 
 /** A student-facing message for any My Scores error. */
