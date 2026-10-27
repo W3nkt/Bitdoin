@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { describeAlert } from './messages.ts'
+import { renderGuardianEmail, unsubscribePageUrl, type GuardianEmail } from './guardian-email.ts'
 
 // My Scores alert e-mails (OPS-002, #42; migration 122).
 //
@@ -12,6 +13,15 @@ import { describeAlert } from './messages.ts'
 //
 // E-mails contain counts, job names and targets only: never student names,
 // IDs, scores or free text (NFR-017).
+//
+// Guardian e-mails (NOTIF-002, migration 161) go out in the same run: the
+// double opt-in confirmation and monthly reports, to guardians who confirmed.
+//   email_confirm      { token }  confirms an opt-in (from the app page)
+//   email_unsubscribe  { token }  unsubscribes (from the app page)
+//   POST ?unsubscribe=<token>     one-click unsubscribe from mail apps (RFC 8058);
+//   GET  ?unsubscribe=<token>     redirects to the app page, which asks the same
+// Tokens are the only credential; the database functions behind them are
+// callable by the service role only.
 //
 // Secrets: RESEND_API_KEY, FROM_EMAIL (optional), ADMIN_APP_URL (optional),
 //          ALLOWED_ORIGINS (optional, comma separated)
@@ -79,8 +89,56 @@ async function sendEmail(alert: ClaimedAlert) {
   if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`)
 }
 
+const serviceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
+
+async function sendGuardianEmail(mail: GuardianEmail) {
+  const { subject, html } = renderGuardianEmail(mail)
+  const headers: Record<string, string> = {}
+  if (mail.kind === 'guardian_report') {
+    headers['List-Unsubscribe'] = `<${SUPABASE_URL}/functions/v1/academic-alerts?unsubscribe=${encodeURIComponent(mail.unsubscribe_token)}>`
+    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
+  }
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: FROM_EMAIL, to: mail.recipient, subject: subject.slice(0, 200), html, headers }),
+  })
+  if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`)
+}
+
+async function deliverGuardian(admin: ReturnType<typeof serviceClient>) {
+  const { data, error } = await admin.rpc('academic_claim_guardian_emails', { p_limit: 20 })
+  if (error) throw error
+  const mails = (data ?? []) as GuardianEmail[]
+  const sent: string[] = []
+  const failed: string[] = []
+  let lastError: string | null = null
+  for (const mail of mails) {
+    try {
+      await sendGuardianEmail(mail)
+      sent.push(mail.id)
+    } catch (err) {
+      failed.push(mail.id)
+      lastError = err instanceof Error ? err.message : String(err)
+      console.error('[academic-alerts] guardian e-mail failed', mail.kind, lastError)
+    }
+  }
+  if (mails.length) {
+    const { error: completeError } = await admin.rpc('academic_complete_guardian_emails', { p_sent: sent, p_failed: failed, p_error: lastError })
+    if (completeError) throw completeError
+  }
+  return { claimed: mails.length, sent: sent.length, failed: failed.length }
+}
+
+async function tokenAction(fn: 'academic_guardian_email_confirm' | 'academic_guardian_email_unsubscribe', token: unknown) {
+  if (typeof token !== 'string' || token.length < 1 || token.length > 128) return { status: 'invalid' }
+  const { data, error } = await serviceClient().rpc(fn, { p_token: token })
+  if (error) throw error
+  return data as { status: string }
+}
+
 async function deliver() {
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
+  const admin = serviceClient()
   const { data, error } = await admin.rpc('academic_claim_alert_emails', { p_limit: 20 })
   if (error) throw error
   const alerts = (data ?? []) as ClaimedAlert[]
@@ -101,15 +159,32 @@ async function deliver() {
     const { error: completeError } = await admin.rpc('academic_complete_alert_emails', { p_sent: sent, p_failed: failed, p_error: lastError })
     if (completeError) throw completeError
   }
-  return { claimed: alerts.length, sent: sent.length, failed: failed.length }
+  return { claimed: alerts.length, sent: sent.length, failed: failed.length, guardian: await deliverGuardian(admin) }
 }
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
+  const oneClick = new URL(req.url).searchParams.get('unsubscribe')
+  if (oneClick !== null) {
+    // Mail apps POST here (RFC 8058); a browser opening the link gets the app page.
+    if (req.method === 'GET') {
+      const site = String((await serviceClient().from('academic_settings').select('value').eq('key', 'site_url').maybeSingle()).data?.value ?? 'https://bitdoin.store')
+      return Response.redirect(unsubscribePageUrl(site.replace(/\/+$/, ''), oneClick), 303)
+    }
+    try {
+      await tokenAction('academic_guardian_email_unsubscribe', oneClick)
+      return new Response('Unsubscribed', { status: 200 })
+    } catch (error) {
+      console.error('[academic-alerts] unsubscribe', error)
+      return new Response('Try again later', { status: 500 })
+    }
+  }
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405)
-  if (!RESEND_API_KEY) return json(req, { skipped: 'RESEND_API_KEY not set' })
-  const body = await req.json().catch(() => ({})) as { action?: string }
+  const body = await req.json().catch(() => ({})) as { action?: string; token?: unknown }
   try {
+    if (body.action === 'email_confirm') return json(req, await tokenAction('academic_guardian_email_confirm', body.token))
+    if (body.action === 'email_unsubscribe') return json(req, await tokenAction('academic_guardian_email_unsubscribe', body.token))
+    if (!RESEND_API_KEY) return json(req, { skipped: 'RESEND_API_KEY not set' })
     if (body.action !== 'deliver') return json(req, { error: 'Unknown action' }, 400)
     return json(req, await deliver())
   } catch (error) {

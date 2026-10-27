@@ -132,6 +132,16 @@ CAREER-REPORT approved by the owner).
 Applied 2026-10-27: 159 (draft programme lengths: 4 years, 5 for architecture, marked not confirmed; a draft
 cannot be sent for review until an admin ticks "Length confirmed with the faculty").
 
+Applied 2026-10-27: 160 (fix: `academic_get_session`, `academic_career_catalogue` and
+`academic_guardian_career_reports` volatile again; STABLE functions run read-only in PostgREST and the rate limit
+writes, so the Schooling page failed for signed-in users from 152 until 160).
+
+Applied 2026-10-27 (#52, piece 3b): 161 (monthly guardian reports by e-mail, double opt-in, one-click
+unsubscribe), then `academic-alerts` redeployed (it now also sends guardian e-mails). Guardian e-mails reach
+guardians only if the FROM_EMAIL domain is verified in Resend; failures show as `guardian_email_failed` alerts.
+To stop all guardian e-mails at once: `update academic_email_outbox set cancelled_at = now() where sent_at is null and cancelled_at is null;`
+and `update academic_guardian_email_prefs set status = 'unsubscribed' where status <> 'unsubscribed';`
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Users } from 'lucide-react'
+import { ArrowLeft, Mail, Users } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { academicErrorText } from '@/components/academic/errorText'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianCareerReports, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
+  guardianEmailLink, previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianCareerReports, useGuardianEmail, useGuardianEmailStop, useGuardianEmailSubscribe, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
   type GuardianChildView, type GuardianLink, type GuardianScope, type GuardianScopes,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -151,6 +151,77 @@ export function Family() {
               })}
             </ul>
           )}
+        </section>
+        {links.length > 0 && <EmailReports />}
+      </div>
+    </div>
+  )
+}
+
+/** NOTIF-002: monthly reports by e-mail, double opt-in, no scores unless chosen. */
+function EmailReports() {
+  const { t } = useAcademicCopy()
+  const toast = useToast()
+  const settings = useGuardianEmail()
+  const subscribe = useGuardianEmailSubscribe()
+  const stop = useGuardianEmailStop()
+  const [scores, setScores] = useState<boolean | null>(null)
+  if (!settings.data) return null
+  const view = settings.data
+  const includeScores = scores ?? view.include_scores
+  const onError = (error: unknown) => toast.error(academicErrorText(t, error))
+  const scoresBox = (onChange: (value: boolean) => void) => (
+    <label className="mt-3 flex items-start gap-2 text-sm">
+      <input type="checkbox" className="mt-1" checked={includeScores} onChange={event => onChange(event.target.checked)} />
+      <span>{t('family.email.scores')}<span className="block text-xs text-slate-600 dark:text-slate-400">{t('family.email.scoresHint')}</span></span>
+    </label>
+  )
+  return (
+    <section className={card}>
+      <h2 className="flex items-center gap-2 text-lg font-black"><Mail aria-hidden className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />{t('family.email.title')}</h2>
+      <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('family.email.body')}</p>
+      {!view.account_email ? <p className="mt-3 text-sm">{t('family.email.noEmail')} <Link to="/academy/profile" className="font-black text-indigo-700 hover:underline dark:text-indigo-300">{t('family.email.profile')}</Link></p>
+        : view.status === 'confirmed' ? <>
+          <p role="status" className="mt-3 text-sm font-bold">{t('family.email.on', { email: view.email ?? '' })}</p>
+          {scoresBox(value => { setScores(value); subscribe.mutate(value, { onSuccess: () => toast.success(t('family.email.saved')), onError: error => { setScores(null); onError(error) } }) })}
+          <Button className="mt-3" size="sm" variant="ghost" loading={stop.isPending} onClick={() => stop.mutate(undefined, { onSuccess: () => toast.success(t('family.email.stopped')), onError })}>{t('family.email.stop')}</Button>
+        </> : <>
+          {view.status === 'pending' && <p role="status" className="mt-3 rounded-2xl bg-indigo-50 p-3 text-sm dark:bg-indigo-500/10">{t('family.email.pending', { email: view.email ?? '' })}</p>}
+          {scoresBox(setScores)}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" loading={subscribe.isPending} onClick={() => subscribe.mutate(includeScores, { onError })}>
+              {view.status === 'pending' ? t('family.email.resend') : t('family.email.start', { email: view.account_email })}
+            </Button>
+            {view.status === 'pending' && <Button size="sm" variant="ghost" loading={stop.isPending} onClick={() => stop.mutate(undefined, { onError })}>{t('family.email.cancel')}</Button>}
+          </div>
+        </>}
+    </section>
+  )
+}
+
+/** /academy/family/email?confirm=… or ?unsubscribe=… — the links in guardian e-mails; no sign-in needed. */
+export function FamilyEmail() {
+  const { t } = useAcademicCopy()
+  const [params] = useSearchParams()
+  const confirmToken = params.get('confirm')
+  const unsubscribeToken = params.get('unsubscribe')
+  const [status, setStatus] = useState<'working' | 'confirmed' | 'expired' | 'invalid' | 'unsubscribed' | 'error'>('working')
+  const ran = useRef(false)
+  useEffect(() => {
+    if (ran.current) return
+    ran.current = true
+    const token = confirmToken ?? unsubscribeToken
+    if (!token) { setStatus('invalid'); return }
+    guardianEmailLink(confirmToken ? 'email_confirm' : 'email_unsubscribe', token).then(setStatus, () => setStatus('error'))
+  }, [confirmToken, unsubscribeToken])
+  const message = status === 'working' ? t('family.email.working') : t(`family.email.result.${status}` as AcademicCopyKey)
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+      <div className="mx-auto max-w-md px-4 py-10">
+        <section className={card}>
+          <h1 className="flex items-center gap-2 text-xl font-black"><Mail aria-hidden className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />{t('family.email.title')}</h1>
+          <p role="status" className="mt-3 text-sm">{message}</p>
+          {status !== 'working' && <Link to="/academy/family" className="mt-4 inline-block text-sm font-black text-indigo-700 hover:underline dark:text-indigo-300">{t('family.email.toFamily')}</Link>}
         </section>
       </div>
     </div>

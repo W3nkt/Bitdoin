@@ -28,6 +28,8 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   GUARDIAN_SELF: 'family.error.self',
   GUARDIAN_ALREADY_LINKED: 'family.error.already',
   CAREER_NOT_STARTED: 'careers.report.needQuestions',
+  EMAIL_MISSING: 'family.email.noEmail',
+  EMAIL_CONFIRM_LIMIT: 'family.email.limit',
 }
 
 /** A student-facing message for any My Scores error. */

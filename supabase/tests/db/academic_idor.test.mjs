@@ -148,6 +148,8 @@ const OWN_READ = [
   'academic_my_scholarships()', 'academic_export_my_scholarships()',
   // The caller's own career reports and report purchase (migration 157).
   'academic_career_reports()', 'academic_export_my_career_reports()', 'academic_my_report_purchase()',
+  // The caller's own guardian e-mail settings (migration 161).
+  'academic_guardian_email_settings()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -179,6 +181,8 @@ const OWN_WRITE = [
   'academic_set_scholarship_saved(text,boolean,boolean)',
   // A report or purchase for the caller only; no IDs accepted (migration 157).
   'academic_start_report_purchase()', 'academic_generate_career_report()',
+  // The caller's own guardian e-mail opt-in; no IDs accepted (migration 161).
+  'academic_guardian_email_subscribe(boolean)', 'academic_guardian_email_stop()',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -330,6 +334,7 @@ const ownReads = {
   'academic_career_reports()': 'public.academic_career_reports()',
   'academic_export_my_career_reports()': 'public.academic_export_my_career_reports()',
   'academic_my_report_purchase()': 'public.academic_my_report_purchase()',
+  'academic_guardian_email_settings()': 'public.academic_guardian_email_settings()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

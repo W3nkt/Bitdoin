@@ -1437,3 +1437,37 @@ export function useGuardianCareerReport(id: string) {
     queryFn: () => callAcademicRpc<{ id: string; link_id: string; generated_at: string; content: CareerReportContent }>('academic_guardian_career_report', { p_report_id: id }) })
 }
 export const useGenerateCareerReport = () => useCareerMutation(() => callAcademicRpc<{ id: string; generated_at: string; content: CareerReportContent }>('academic_generate_career_report'))
+
+// ─── Monthly guardian reports by e-mail (NOTIF-002, migration 161) ───────────
+
+export interface GuardianEmailSettings {
+  account_email: string | null
+  is_guardian: boolean
+  status: 'off' | 'pending' | 'confirmed' | 'unsubscribed'
+  email: string | null
+  include_scores: boolean
+  confirmed_at: string | null
+}
+
+const guardianEmailKey = ['family', 'email'] as const
+
+export function useGuardianEmail() {
+  return useQuery({ queryKey: guardianEmailKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<GuardianEmailSettings>('academic_guardian_email_settings') })
+}
+
+function useGuardianEmailMutation<A>(fn: (args: A) => Promise<GuardianEmailSettings>) {
+  const queryClient = useQueryClient()
+  return useMutation({ mutationFn: fn, onSuccess: data => queryClient.setQueryData(guardianEmailKey, data) })
+}
+
+/** Turns e-mails on (sends the confirmation) or changes "include scores" once confirmed. */
+export const useGuardianEmailSubscribe = () => useGuardianEmailMutation((includeScores: boolean) =>
+  callAcademicRpc<GuardianEmailSettings>('academic_guardian_email_subscribe', { p_include_scores: includeScores }))
+export const useGuardianEmailStop = () => useGuardianEmailMutation(() => callAcademicRpc<GuardianEmailSettings>('academic_guardian_email_stop'))
+
+/** The links in guardian e-mails: confirm the opt-in or unsubscribe, by token, without signing in. */
+export async function guardianEmailLink(action: 'email_confirm' | 'email_unsubscribe', token: string) {
+  const { data, error } = await supabase.functions.invoke('academic-alerts', { body: { action, token } })
+  if (error) throw error
+  return (data as { status: 'confirmed' | 'expired' | 'invalid' | 'unsubscribed' }).status
+}

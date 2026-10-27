@@ -276,6 +276,12 @@ function backend(initial) {
         eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', out_of_date: false }],
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Guardian report e-mails (migration 161).
+    academic_guardian_email_settings: () => (state.guardianEmail ??= { account_email: 'mother@example.com', is_guardian: true, status: 'off', email: null, include_scores: false, confirmed_at: null }),
+    academic_guardian_email_subscribe: (args) => (state.guardianEmail = state.guardianEmail.status === 'confirmed'
+      ? { ...state.guardianEmail, include_scores: args.p_include_scores }
+      : { ...state.guardianEmail, status: 'pending', email: state.guardianEmail.account_email, include_scores: args.p_include_scores }),
+    academic_guardian_email_stop: () => (state.guardianEmail = { ...state.guardianEmail, status: 'unsubscribed' }),
     // Career report and its one-time purchase (migration 157).
     academic_career_reports: () => ({ entitled: !!state.reportEntitled, reports: state.careerReports ?? [] }),
     academic_my_report_purchase: () => ({ price: { price_lak: 49000, months: 12 }, entitled: !!state.reportEntitled, purchase: state.reportPurchase ?? null }),
@@ -444,6 +450,17 @@ function backend(initial) {
       if (body.action === 'summary') return json({ summary: 'In October, your average was 6.5 (down 0.25 from September). Next step: try the Mathematics quiz.', source: 'ai' })
       if (state.coachBusy) return json({ error: 'Coach is busy – try later. Your scores, charts and suggestions still work.', code: 'COACH_BUSY' }, 503)
       return json({ conversationId: '7d0c4a1e-1111-4222-8333-444455556666', messageId: '9a1b2c3d-1111-4222-8333-444455556666', answer: 'Mathematics went from **7** in September to **6** in October. Next step: try the short Mathematics quiz.' })
+    }
+    if (url.pathname === '/functions/v1/academic-alerts') {
+      const body = request.postDataJSON() ?? {}
+      state.emailLinks = [...(state.emailLinks ?? []), body]
+      if (body.action === 'email_confirm') {
+        if (body.token !== 'good-token') return json({ status: 'invalid' })
+        state.guardianEmail = { ...state.guardianEmail, status: 'confirmed', confirmed_at: '2026-10-27T05:00:00Z' }
+        return json({ status: 'confirmed' })
+      }
+      if (body.action === 'email_unsubscribe') return json({ status: 'unsubscribed' })
+      return json({ error: 'Unknown action' }, 400)
     }
     if (url.pathname === '/functions/v1/academic-ocr') {
       const body = request.postDataJSON() ?? {}
@@ -1652,6 +1669,50 @@ try {
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
     pass('Guardians: confirm a guardian\'s name, change what they see, invite with a code, remove the link; ages 13–15 get a consent code first (Lao); the guardian links with the code, relationship and declaration and waits for the student; the child page shows only what is shared with supportive suggestions and no comparisons, recent months held back for corrections; the monthly report has its seven sections in supportive words; axe clean')
+  }
+
+  // Guardian report e-mails (NOTIF-002 #52): double opt-in from the Family page, the confirm and unsubscribe links,
+  // scores only when the guardian chooses.
+  {
+    const parent = await openAs(browser, { device: MOBILE, lang: 'en', step: 'onboarding' })
+    parent.mock.state.family = [{ id: 'gl7', status: 'active', purpose: 'link', relationship: 'mother', scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', grade: 'Grade 11',
+      declared_at: '2026-10-20T05:00:00Z', confirm_by: '2026-10-27T05:00:00Z', confirmed_at: '2026-10-21T05:00:00Z', reconfirm_by: null, removed_at: null, removed_by: null }]
+    const { page, mock } = parent
+    await page.goto(`${base}/academy/family`, { waitUntil: 'domcontentloaded' })
+    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Monthly reports by e-mail' }) })
+    assert.equal(await card.getByLabel('Include scores in the e-mail', { exact: false }).isChecked(), false, 'scores are off unless chosen')
+    await card.getByRole('button', { name: 'E-mail them to mother@example.com' }).click()
+    await card.getByText('We sent a confirmation link to mother@example.com. Open it within 48 hours to start.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_guardian_email_subscribe').args, { p_include_scores: false })
+    await shot(page, 'my-scores-guardians-6-email-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    // The link in the confirmation e-mail.
+    await page.goto(`${base}/academy/family/email?confirm=bad-token`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('This link does not work any more.', { exact: false }).waitFor()
+    await page.goto(`${base}/academy/family/email?confirm=good-token`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Confirmed. Monthly reports will come by e-mail.').waitFor()
+    assert.deepEqual(mock.state.emailLinks.at(-1), { action: 'email_confirm', token: 'good-token' })
+    await page.getByRole('link', { name: 'Go to the Family page' }).click()
+    await card.getByText('Monthly reports go to mother@example.com.').waitFor()
+    await card.getByLabel('Include scores in the e-mail', { exact: false }).check()
+    await page.getByText('Saved.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_guardian_email_subscribe').args, { p_include_scores: true })
+    // One-click unsubscribe from the e-mail.
+    await page.goto(`${base}/academy/family/email?unsubscribe=u-token`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('You will not get these e-mails any more. The reports stay in the app.').waitFor()
+    assert.deepEqual(mock.state.emailLinks.at(-1), { action: 'email_unsubscribe', token: 'u-token' })
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(parent.errors, [])
+    await parent.context.close()
+    const lo = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'onboarding' })
+    lo.mock.state.family = parent.mock.state.family
+    await lo.page.goto(`${base}/academy/family`, { waitUntil: 'domcontentloaded' })
+    await lo.page.getByRole('heading', { name: 'ລາຍງານປະຈຳເດືອນທາງອີເມວ' }).waitFor()
+    await shot(lo.page, 'my-scores-guardians-7-email-lo-mobile')
+    await lo.context.close()
+    pass('Guardian e-mails: opt in from the Family page with scores off by default, confirmation link sent and waiting; a bad link is refused, the right link confirms; include scores saved; one-click unsubscribe from the e-mail; Lao card; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons

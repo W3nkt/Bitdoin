@@ -95,6 +95,15 @@ export function describeAlert(alert: AlertLike): { subject: string; lines: strin
         subject: 'Career report payment to check',
         lines: ['A student or parent sent a receipt for the one-time career report (BILLING-004). Check it and verify or reject it on the Entitlements tab. Further receipts today do not send another e-mail.'],
       }
+    case 'guardian_email_failed':
+      return {
+        subject: 'Guardian e-mails are failing',
+        lines: [
+          `${Number(d.count ?? 0)} guardian e-mail(s) failed 5 times and will not be retried (NOTIF-002).`,
+          `Last error: ${String(d.error ?? 'unknown').slice(0, 200)}`,
+          'Check the Resend API key and that the FROM_EMAIL domain is verified in Resend.',
+        ],
+      }
     case 'test':
       return { subject: 'Test alert', lines: ['This is a test from the My Scores admin. Alerts reach this address.'] }
     default:
