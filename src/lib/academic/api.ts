@@ -1561,3 +1561,12 @@ export function useAnswerMockItem() {
   return useMutation({ mutationFn: ({ attemptId, itemId, key }: { attemptId: string; itemId: string; key: string }) =>
     callAcademicRpc<{ answered: number; total: number }>('academic_answer_mock_item', { p_attempt_id: attemptId, p_item_id: itemId, p_key: key }) })
 }
+
+// ─── Books that may help (LEARN-006, migration 168) ──────────────────────────
+
+export interface SubjectBook { book_id: string; title: string; author: string | null; language: string | null; cover_image_url: string | null; price_min: number | null; price_max: number | null; route: string }
+
+export function useSubjectBooks(subjectEnrolmentId: string) {
+  return useQuery({ queryKey: [...academicKeys.all, 'subject-books', subjectEnrolmentId], retry: shouldRetryAcademic, staleTime: 1000 * 60 * 10,
+    queryFn: () => callAcademicRpc<SubjectBook[]>('academic_subject_books', { p_subject_enrolment_id: subjectEnrolmentId }) })
+}

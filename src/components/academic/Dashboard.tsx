@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck, Target, Compass, Timer } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
-import { useCompareYears, useDashboard, usePeriods, type Change, type CompareYear, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
+import { useCompareYears, useDashboard, usePeriods, useSubjectBooks, type Change, type CompareYear, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
 import { explainSubject, labelReason, selectInsights } from '@/lib/academic/insights'
 import { plainNumber } from '@/lib/academic/scoreInput'
@@ -559,7 +559,38 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
       <ExplanationCard view={view} subject={subject} name={name} />
       <QuizOffer subjectEnrolmentId={subject.subject_enrolment_id} needsAttention={subject.label?.value === 'relatively_lower'} />
       <AskCoachLink subject={name} />
+      <SubjectBooks subjectEnrolmentId={subject.subject_enrolment_id} />
     </div>
+  )
+}
+
+/** LEARN-006: up to 2 in-stock Bookstore titles tagged for the subject; optional, never a next action. */
+function SubjectBooks({ subjectEnrolmentId }: { subjectEnrolmentId: string }) {
+  const { t } = useAcademicCopy()
+  const books = useSubjectBooks(subjectEnrolmentId)
+  if (!books.data?.length) return null
+  const kip = (value: number) => Number(value).toLocaleString('en')
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
+      <h2 className="text-lg font-black">{t('books.title')}</h2>
+      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('books.optional')}</p>
+      <ul className="mt-3 grid gap-3">
+        {books.data.map(book => (
+          <li key={book.book_id} className="flex gap-3 rounded-2xl border border-slate-200 p-3 text-sm dark:border-slate-700">
+            {book.cover_image_url && <img src={book.cover_image_url} alt="" className="h-20 w-14 shrink-0 rounded-lg object-cover" />}
+            <div className="min-w-0">
+              <p className="font-bold">{book.title}</p>
+              <p className="text-slate-600 dark:text-slate-400">
+                {[book.author, book.language && ['Lao', 'English', 'Thai'].includes(book.language) ? t(`books.lang.${book.language}` as AcademicCopyKey) : book.language,
+                  book.price_min !== null ? (book.price_max !== null && book.price_max !== book.price_min ? t('books.price', { min: kip(book.price_min), max: kip(book.price_max) }) : t('books.priceOne', { price: kip(book.price_min) })) : null,
+                ].filter(Boolean).join(' · ')}
+              </p>
+              <Link to={book.route} className="mt-1 inline-block font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('books.open')}</Link>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

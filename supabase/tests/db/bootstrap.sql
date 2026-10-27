@@ -84,6 +84,25 @@ language sql stable as $$ select 'MORNING' $$;
 
 -- Academy learning hub (migration 054), only the columns the recommendations
 -- adapter reads (P2-REC #50, migrations 135+).
+-- Bookstore tables the LEARN-006 adapter reads (migration 168).
+create type availability_status as enum ('AVAILABLE', 'OUT_OF_STOCK', 'PREORDER');
+create table public.books (
+  id uuid primary key default gen_random_uuid(),
+  isbn text,
+  title text not null,
+  author text,
+  language text,
+  cover_image_url text,
+  is_active boolean not null default true
+);
+create table public.book_prices (
+  id uuid primary key default gen_random_uuid(),
+  book_id uuid not null references public.books(id) on delete cascade,
+  bookstore_id uuid,
+  final_price numeric,
+  availability availability_status not null default 'AVAILABLE'
+);
+
 create table public.premium_plans (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,

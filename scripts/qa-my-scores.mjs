@@ -308,6 +308,8 @@ function backend(initial) {
       exam_intake_year: '2027-2028',
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Books that may help (migration 168): none unless a scenario adds them.
+    academic_subject_books: () => state.subjectBooks ?? [],
     // Mock exams (migration 165): a small stateful stand-in.
     academic_mock_exams: () => ({
       entitled: false, free_left: 3, intake_year: '2027-2028', rules: { items_per_subject: 10, min_items_per_subject: 5 },
@@ -1957,7 +1959,17 @@ try {
       year({ series: [month(9, 'September', 6, 0.6), month(10, 'October', 7, 0.7)] }),
       year({ ...lastYear, scale: { family: 'numeric_linear', min: 0, max: 50, normalisable: true }, series: [month(9, 'September', 40, 0.8), month(10, 'October', 35, 0.7), month(11, 'November', 30, 0.6)] }),
     ] }
+    // LEARN-006: up to 2 in-stock Bookstore titles, labelled optional.
+    mock.state.subjectBooks = [
+      { book_id: 'bk1', title: 'Algebra for Grade 11', author: 'A. Author', language: 'Lao', cover_image_url: null, price_min: 45000, price_max: 60000, route: '/bookstore/books/bk1' },
+      { book_id: 'bk2', title: 'Maths workbook', author: null, language: 'Thai', cover_image_url: null, price_min: 70000, price_max: 70000, route: '/bookstore/books/bk2' },
+    ]
     await page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    const books = page.locator('section', { has: page.getByRole('heading', { name: 'Books that may help' }) })
+    await books.getByText('Optional. You never need to buy anything to use Schooling.').waitFor()
+    await books.getByText('A. Author · In Lao · 45,000–60,000 kip').waitFor()
+    await books.getByText('In Thai · 70,000 kip').waitFor()
+    assert.equal(await books.getByRole('link', { name: 'See in the Bookstore' }).first().getAttribute('href'), '/bookstore/books/bk1')
     const section = page.locator('section', { has: page.getByRole('heading', { name: 'Compare school years' }) })
     await section.getByRole('button', { name: 'Compare years' }).click()
     assert.deepEqual(lastCall(mock, 'academic_compare_years').args, { p_subject_enrolment_id: 'se-math' })
@@ -1978,7 +1990,7 @@ try {
     await section.getByText('2026-2027 (Grade 11) used a different kind of scale, so the years cannot be compared.').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Compare years: the same subject last year aligned by month (September first), shown as a share of each scale when ranges differ, with a table; another kind of scale disables the option with the reason; axe clean')
+    pass('Compare years: the same subject last year aligned by month (September first), shown as a share of each scale when ranges differ, with a table; another kind of scale disables the option with the reason; books that may help (optional, price range, Bookstore link); axe clean')
   }
 
   // Mock exams (EXAM-001/002 #56): practice set from the latest structure, a part waits for Start, timer, answers,

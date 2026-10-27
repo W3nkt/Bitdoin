@@ -751,7 +751,7 @@ export function useUpdateProblemReport() {
 
 // ─── Content catalogue (LEARN-004, migration 135) ────────────────────────────
 
-export type ContentKind = 'academy_lesson' | 'academy_challenge' | 'practice_set'
+export type ContentKind = 'academy_lesson' | 'academy_challenge' | 'practice_set' | 'book'
 
 export interface ExternalContent { title_lo: string; title_en: string; available: boolean; route: string; membership: boolean }
 
@@ -764,7 +764,7 @@ export interface ContentItem {
   grade_max: number
   topic_ids: string[]
   difficulty: 1 | 2 | 3
-  language: 'lo' | 'en'
+  language: 'lo' | 'en' | 'th'
   est_minutes: number
   objectives_lo: string[]
   objectives_en: string[]

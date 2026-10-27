@@ -156,6 +156,9 @@ and the minimum in `mock_rules`). Nothing can start until the quiz bank has appr
 Applied 2026-10-27 (#56): 166 (48 draft questions in 16 topics for review in the Quiz items tab) and 167 (mock and
 practice results feed the next actions, EXAM-003).
 
+Applied 2026-10-27 (#56, piece 4): 168 (Books that may help: admins tag Bookstore titles in the Content tab as
+"Bookstore book"; at most 2 in-stock titles per subject page).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

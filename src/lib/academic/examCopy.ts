@@ -55,6 +55,15 @@ export const examCopy = {
   'exams.result.yours': { en: 'Your answer: {key}', lo: 'ຄຳຕອບຂອງເຈົ້າ: {key}' },
   'exams.result.none': { en: 'Not answered', lo: 'ບໍ່ໄດ້ຕອບ' },
   'exams.result.correct': { en: 'Correct answer: {key}', lo: 'ຄຳຕອບທີ່ຖືກ: {key}' },
+  // Books that may help (LEARN-006)
+  'books.title': { en: 'Books that may help', lo: 'ປຶ້ມທີ່ອາດຊ່ວຍໄດ້' },
+  'books.optional': { en: 'Optional. You never need to buy anything to use Schooling.', lo: 'ບໍ່ບັງຄັບ. ເຈົ້າບໍ່ຈຳເປັນຕ້ອງຊື້ຫຍັງ ເພື່ອໃຊ້ ໂຮງຮຽນ.' },
+  'books.price': { en: '{min}–{max} kip', lo: '{min}–{max} ກີບ' },
+  'books.priceOne': { en: '{price} kip', lo: '{price} ກີບ' },
+  'books.lang.Lao': { en: 'In Lao', lo: 'ພາສາລາວ' },
+  'books.lang.English': { en: 'In English', lo: 'ພາສາອັງກິດ' },
+  'books.lang.Thai': { en: 'In Thai', lo: 'ພາສາໄທ' },
+  'books.open': { en: 'See in the Bookstore', lo: 'ເບິ່ງໃນຮ້ານປຶ້ມ' },
   // Errors
   'exams.error.notReady': { en: 'There are not enough questions for this exam yet.', lo: 'ຍັງມີຄຳຖາມບໍ່ພຽງພໍສຳລັບການສອບເສັງນີ້.' },
   'exams.error.inProgress': { en: 'Finish the exam you started first.', lo: 'ເຮັດການສອບເສັງທີ່ເລີ່ມແລ້ວໃຫ້ແລ້ວກ່ອນ.' },

@@ -132,6 +132,8 @@ const BY_ID = [
   'academic_compare_years(uuid)',
   // The caller's own mock exam attempt (migration 165).
   'academic_get_mock(uuid)', 'academic_start_mock_session(uuid)', 'academic_answer_mock_item(uuid,uuid,text)', 'academic_finish_mock_session(uuid)',
+  // Books for the caller's own subject (migration 168).
+  'academic_subject_books(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -286,6 +288,7 @@ const attacks = [
   ['academic_guardian_career_reports(uuid)', aLink, (id) => `public.academic_guardian_career_reports('${id}')`],
   ['academic_guardian_career_report(uuid)', aReport, (id) => `public.academic_guardian_career_report('${id}')`],
   ['academic_compare_years(uuid)', aMath, (id) => `public.academic_compare_years('${id}')`],
+  ['academic_subject_books(uuid)', aMath, (id) => `public.academic_subject_books('${id}')`],
   ['academic_get_mock(uuid)', aMock, (id) => `public.academic_get_mock('${id}')`],
   ['academic_start_mock_session(uuid)', aMock, (id) => `public.academic_start_mock_session('${id}')`],
   ['academic_answer_mock_item(uuid,uuid,text)', aMock, (id) => `public.academic_answer_mock_item('${id}', '${quizItem}', 'B')`],

@@ -14,6 +14,7 @@ const KINDS: Array<{ value: ContentKind; label: string; hint: string }> = [
   { value: 'practice_set', label: 'Practice set', hint: 'Free: 5 approved items of a quiz topic, with answers and explanations.' },
   { value: 'academy_lesson', label: 'Academy lesson', hint: 'Recommended only to students with an Academy subscription (REC-ACCESS).' },
   { value: 'academy_challenge', label: 'Weekly challenge', hint: 'Recommended only in its week, to students with an Academy subscription.' },
+  { value: 'book', label: 'Bookstore book', hint: 'LEARN-006: shown as "Books that may help" on its subjects (at most 2, in stock only); never a next action or in guardian reports.' },
 ]
 const STATUS = { draft: { label: 'Draft', tone: 'gray' }, published: { label: 'Published', tone: 'green' }, retired: { label: 'Retired', tone: 'gray' } } as const
 const DIFFICULTY = { 1: 'Foundation', 2: 'Core', 3: 'Stretch' } as const
@@ -193,8 +194,8 @@ function ContentCatalogue() {
             </select>
           </Field>
           <Field label="Language">
-            <select value={form.language} onChange={event => setForm({ ...form, language: event.target.value as 'lo' | 'en' })}>
-              <option value="lo">Lao</option><option value="en">English</option>
+            <select value={form.language} onChange={event => setForm({ ...form, language: event.target.value as 'lo' | 'en' | 'th' })}>
+              <option value="lo">Lao</option><option value="en">English</option><option value="th">Thai</option>
             </select>
           </Field>
           <Field label="Minutes"><input type="number" min={1} max={240} value={form.est_minutes} onChange={event => setForm({ ...form, est_minutes: Number(event.target.value) })} /></Field>
