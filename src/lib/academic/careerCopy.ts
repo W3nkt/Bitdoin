@@ -166,6 +166,9 @@ export const careerCopy = {
   'careers.report.validUntil': { en: 'You have the report until {date}.', lo: 'ເຈົ້າມີລາຍງານຮອດວັນທີ {date}.' },
   'careers.report.guardianNote': { en: 'It covers every child linked to you.', lo: 'ໃຊ້ໄດ້ກັບລູກທຸກຄົນທີ່ເຊື່ອມຕໍ່ກັບທ່ານ.' },
   'careers.report.account': { en: '{bank} · {name} · {number}', lo: '{bank} · {name} · {number}' },
+  'careers.report.childList': { en: 'Reports {name} made', lo: 'ລາຍງານທີ່ {name} ສ້າງ' },
+  'careers.report.childNone': { en: '{name} has not made a report yet.', lo: '{name} ຍັງບໍ່ໄດ້ສ້າງລາຍງານ.' },
+  'careers.report.childNotShared': { en: 'You see the reports {name} makes when {name} shares career answers with you.', lo: 'ທ່ານຈະເຫັນລາຍງານທີ່ {name} ສ້າງ ເມື່ອ {name} ແບ່ງປັນຄຳຕອບອາຊີບກັບທ່ານ.' },
   'careers.report.badFile': { en: 'Upload a JPG, PNG or WebP photo up to 10 MB.', lo: 'ອັບໂຫລດຮູບ JPG, PNG ຫຼື WebP ບໍ່ເກີນ 10 MB.' },
 
   'careers.doc.for': { en: 'Career report for {name}', lo: 'ລາຍງານອາຊີບ ສຳລັບ {name}' },

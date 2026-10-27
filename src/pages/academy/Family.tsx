@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast'
 import { academicErrorText } from '@/components/academic/errorText'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
+  previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianCareerReports, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
   type GuardianChildView, type GuardianLink, type GuardianScope, type GuardianScopes,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -283,6 +283,7 @@ export function FamilyChild() {
           <section className={card}>
             <h2 className="text-lg font-black">{t('careers.report.title')}</h2>
             <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.report.body')}</p>
+            <ChildCareerReports linkId={view.link_id} name={view.name} shared={!!view.scopes.careers} />
             <ReportPurchase forGuardian />
           </section>
 
@@ -293,6 +294,29 @@ export function FamilyChild() {
         </>}
       </div>
     </div>
+  )
+}
+
+/** The child's career reports (migration 158), only while they share career answers. */
+function ChildCareerReports({ linkId, name, shared }: { linkId: string; name: string; shared: boolean }) {
+  const { t, language } = useAcademicCopy()
+  const reports = useGuardianCareerReports(linkId, shared)
+  if (!shared) return <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('careers.report.childNotShared', { name })}</p>
+  if (!reports.data) return null
+  if (reports.data.reports.length === 0) return <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('careers.report.childNone', { name })}</p>
+  return (
+    <>
+      <h3 className="mt-3 text-sm font-black">{t('careers.report.childList', { name })}</h3>
+      <ul className="mt-1 grid gap-1 text-sm">
+        {reports.data.reports.map(report => (
+          <li key={report.id}>
+            <Link to={`/academy/family/${linkId}/career-reports/${report.id}`} className="font-bold text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+              {t('careers.report.made_on', { date: formatDate(report.generated_at, language) })}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 

@@ -1,12 +1,13 @@
 import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import type { UseQueryResult } from '@tanstack/react-query'
 import { ArrowLeft, FileText, Printer, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  useCancelReportPurchase, useCareerReport, useCareerReports, useGenerateCareerReport, usePaymentAccounts, useReportPurchase, useStartReportPurchase, useSubmitReportReceipt,
+  useCancelReportPurchase, useCareerReport, useCareerReports, useGuardianCareerReport, useGenerateCareerReport, usePaymentAccounts, useReportPurchase, useStartReportPurchase, useSubmitReportReceipt,
   type CareerReportContent,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -147,9 +148,27 @@ function Sources({ content }: { content: CareerReportContent }) {
 
 /** /academy/scores/careers/report/:reportId — the frozen, printable report. */
 export function CareerReportPage() {
-  const { t, language } = useAcademicCopy()
+  const { t } = useAcademicCopy()
   const { reportId = '' } = useParams()
-  const report = useCareerReport(reportId)
+  return <CareerReportDocument report={useCareerReport(reportId)} backTo="/academy/scores/careers" backLabel={t('careers.doc.back')} />
+}
+
+/** /academy/family/:linkId/career-reports/:reportId — the child's report, while career answers are shared. */
+export function GuardianCareerReportPage() {
+  const { t } = useAcademicCopy()
+  const { linkId = '', reportId = '' } = useParams()
+  const report = useGuardianCareerReport(reportId)
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        <CareerReportDocument report={report} backTo={`/academy/family/${linkId}`} backLabel={t('family.report.back', { name: report.data?.content.student_name ?? '' })} />
+      </div>
+    </div>
+  )
+}
+
+function CareerReportDocument({ report, backTo, backLabel }: { report: UseQueryResult<{ content: CareerReportContent }, unknown>; backTo: string; backLabel: string }) {
+  const { t, language } = useAcademicCopy()
   const lo = language === 'lo'
   const c = report.data?.content
   if (report.isPending) return <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
@@ -158,8 +177,8 @@ export function CareerReportPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 print:hidden">
-        <Link to="/academy/scores/careers" className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">
-          <ArrowLeft aria-hidden className="h-4 w-4" />{t('careers.doc.back')}
+        <Link to={backTo} className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">
+          <ArrowLeft aria-hidden className="h-4 w-4" />{backLabel}
         </Link>
         <Button size="sm" variant="ghost" icon={<Printer className="h-4 w-4" />} onClick={() => window.print()}>{t('family.report.print')}</Button>
       </div>

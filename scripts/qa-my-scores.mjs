@@ -241,7 +241,7 @@ function backend(initial) {
     academic_accept_guardian_invite: (args) => { (state.family ??= []).push({ id: 'gl9', status: 'pending_student', purpose: 'link', relationship: args.p_relationship, scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', declared_at: '2026-10-26T05:00:00Z', confirm_by: '2026-11-02T05:00:00Z', confirmed_at: null, reconfirm_by: null, removed_at: null, removed_by: null }); return state.family.at(-1) },
     academic_get_family: () => ({ links: state.family ?? [], notices: [] }),
     academic_guardian_child: (args) => args.p_link_id !== 'gl7' ? pgError(404, 'NOT_FOUND') : {
-      link_id: 'gl7', name: 'Noy', relationship: 'mother', scopes: { scores: true, plan: true, careers: false, goals_text: false }, grade_en: 'Grade 11', grade_lo: 'ມ.6', school_year: '2026-2027',
+      link_id: 'gl7', name: 'Noy', relationship: 'mother', scopes: { scores: true, plan: true, careers: !!state.childSharesCareers, goals_text: false }, grade_en: 'Grade 11', grade_lo: 'ມ.6', school_year: '2026-2027',
       scores: { scale: { min: 0, max: 10 }, hidden_recent: true, months: [{ label_en: 'September', label_lo: 'ກັນຍາ', average: 6.75, change: null }, { label_en: 'October', label_lo: 'ຕຸລາ', average: 6.5, change: -0.25 }],
         subjects: [{ name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ', latest: 6, average: 6.5, change: -1, label: 'relatively_lower', trend: 'declining', number_of_scores: 3 },
           { name_en: 'Physics', name_lo: 'ຟີຊິກສາດ', latest: 7, average: 6.75, change: 0.5, label: 'neutral', trend: 'insufficient_evidence', number_of_scores: 2 }] },
@@ -283,6 +283,8 @@ function backend(initial) {
     academic_submit_report_receipt: () => { Object.assign(state.reportPurchase, { status: 'review', has_receipt: true }); return rpc.academic_my_report_purchase() },
     academic_cancel_report_purchase: () => { state.reportPurchase = null; return rpc.academic_my_report_purchase() },
     academic_generate_career_report: () => { (state.careerReports ??= []).unshift({ id: 'cr1', generated_at: CAREER_REPORT.generated_at }); return { id: 'cr1', generated_at: CAREER_REPORT.generated_at, content: CAREER_REPORT } },
+    academic_guardian_career_reports: () => state.childSharesCareers ? { shared: true, reports: [{ id: 'cr1', generated_at: CAREER_REPORT.generated_at }] } : { shared: false, reports: [] },
+    academic_guardian_career_report: (args) => state.childSharesCareers && args.p_report_id === 'cr1' ? { id: 'cr1', link_id: 'gl7', generated_at: CAREER_REPORT.generated_at, content: CAREER_REPORT } : pgError(404, 'NOT_FOUND'),
     academic_get_career_report: (args) => args.p_report_id === 'cr1' ? { id: 'cr1', generated_at: CAREER_REPORT.generated_at, content: CAREER_REPORT } : pgError(404, 'NOT_FOUND'),
     academic_set_scholarship_saved: (args) => { state.scholarships = args.p_saved ? [{ slug: args.p_slug, remind: args.p_remind }] : []; return state.scholarships },
     academic_start_career_questionnaire: (args) => { state.career = { ...(state.career ?? {}), in_progress: { answers: {}, preferences: {}, reason: args.p_reason } }; return careerView(state) },
@@ -1794,9 +1796,24 @@ try {
     await guardianReport.getByRole('button', { name: 'Cancel purchase' }).click()
     await guardianReport.getByRole('button', { name: 'Buy once for 49,000 kip' }).waitFor()
     assert.deepEqual(lastCall(parent.mock, 'academic_cancel_report_purchase').args, { p_purchase_id: 'rp1' })
+    // The guardian sees the child's reports only while career answers are shared (migration 158).
+    await guardianReport.getByText('You see the reports Noy makes when Noy shares career answers with you.').waitFor()
+    assert.equal(parent.mock.state.calls.some(call => call.fn === 'academic_guardian_career_reports'), false, 'not asked for while not shared')
+    parent.mock.state.childSharesCareers = true
+    await parent.page.reload({ waitUntil: 'domcontentloaded' })
+    await guardianReport.getByRole('heading', { name: 'Reports Noy made' }).waitFor()
+    await guardianReport.getByRole('link', { name: /^Made / }).click()
+    await parent.page.getByRole('heading', { name: 'Career report for Noy', level: 1 }).waitFor()
+    await parent.page.getByText('Biology: latest score 8').waitFor()
+    assert.deepEqual(lastCall(parent.mock, 'academic_guardian_career_report').args, { p_report_id: 'cr1' })
+    await parent.page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await parent.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    await shot(parent.page, 'my-scores-career-report-4-guardian-en-mobile')
+    await parent.page.getByRole('link', { name: 'Back to Noy' }).click()
+    await parent.page.getByRole('heading', { name: 'Noy', level: 1 }).waitFor()
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
-    pass('Career report: price and Premium inclusion shown, bought once by transfer with the accounts listed, a GIF refused before upload, receipt uploaded to the buyer\'s own folder and sent for review; once verified, the frozen report has options with reasons, latest scores, pathways with cut-off years, history, family guide, sources and disclaimer, no percentages; Lao report; a guardian buys or cancels from the child page; axe clean')
+    pass('Career report: price and Premium inclusion shown, bought once by transfer with the accounts listed, a GIF refused before upload, receipt uploaded to the buyer\'s own folder and sent for review; once verified, the frozen report has options with reasons, latest scores, pathways with cut-off years, history, family guide, sources and disclaimer, no percentages; Lao report; a guardian buys or cancels from the child page and sees the child\'s reports only while career answers are shared; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

@@ -126,6 +126,9 @@ then `academic-alerts` redeployed for the new alert text. To change the price:
 `update academic_settings set value = jsonb_set(value, '{price_lak}', '59000') where key = 'career_report_price';`
 (open purchases keep the amount they started with).
 
+Applied 2026-10-27: 158 (guardians see the child's career reports while career answers are shared;
+CAREER-REPORT approved by the owner).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

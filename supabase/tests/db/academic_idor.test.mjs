@@ -123,6 +123,8 @@ const BY_ID = [
   'academic_guardian_child(uuid)', 'academic_guardian_report(uuid)',
   // The caller's own career report and report purchase (migration 157).
   'academic_get_career_report(uuid)', 'academic_cancel_report_purchase(uuid)', 'academic_submit_report_receipt(uuid,text)',
+  // A child's career reports, by the guardian's own active link (migration 158).
+  'academic_guardian_career_reports(uuid)', 'academic_guardian_career_report(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -266,6 +268,8 @@ const attacks = [
   ['academic_get_career_report(uuid)', aReport, (id) => `public.academic_get_career_report('${id}')`],
   ['academic_cancel_report_purchase(uuid)', aPurchase, (id) => `public.academic_cancel_report_purchase('${id}')`],
   ['academic_submit_report_receipt(uuid,text)', aPurchase, (id) => `public.academic_submit_report_receipt('${id}', '${B}/r.jpg')`],
+  ['academic_guardian_career_reports(uuid)', aLink, (id) => `public.academic_guardian_career_reports('${id}')`],
+  ['academic_guardian_career_report(uuid)', aReport, (id) => `public.academic_guardian_career_report('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 

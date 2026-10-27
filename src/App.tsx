@@ -56,6 +56,7 @@ const CareerExplorer = lazy(() => import('@/pages/academy/CareerExplorer').then(
 const Family = lazy(() => import('@/pages/academy/Family').then(m => ({ default: m.Family })))
 const FamilyChild = lazy(() => import('@/pages/academy/Family').then(m => ({ default: m.FamilyChild })))
 const FamilyReport = lazy(() => import('@/pages/academy/Family').then(m => ({ default: m.FamilyReport })))
+const GuardianCareerReportPage = lazy(() => import('@/components/academic/CareerReport').then(m => ({ default: m.GuardianCareerReportPage })))
 const MyScores = lazy(() => import('@/pages/academy/MyScores').then(m => ({ default: m.MyScores })))
 const TopCornerLab = lazy(() => import('@/pages/academy/TopCornerLab').then(m => ({ default: m.TopCornerLab })))
 
@@ -215,6 +216,7 @@ export function App() {
                     <Route path="/academy/family" element={<Family />} />
                     <Route path="/academy/family/:linkId" element={<FamilyChild />} />
                     <Route path="/academy/family/:linkId/reports/:reportId" element={<FamilyReport />} />
+                    <Route path="/academy/family/:linkId/career-reports/:reportId" element={<GuardianCareerReportPage />} />
                     <Route path="/academy/scores/*" element={<MyScores />} />
                     <Route path="/academy/top-corner-lab" element={<TopCornerLab />} />
 

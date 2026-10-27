@@ -1427,4 +1427,13 @@ export function useCareerReport(id: string) {
   return useQuery({ queryKey: [...careerKey, 'report', id], retry: shouldRetryAcademic,
     queryFn: () => callAcademicRpc<{ id: string; generated_at: string; content: CareerReportContent }>('academic_get_career_report', { p_report_id: id }) })
 }
+/** A child's career reports for their guardian, while career answers are shared (migration 158). */
+export function useGuardianCareerReports(linkId: string, enabled: boolean) {
+  return useQuery({ queryKey: ['family', 'career-reports', linkId], enabled, retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ shared: boolean; reports: { id: string; generated_at: string }[] }>('academic_guardian_career_reports', { p_link_id: linkId }) })
+}
+export function useGuardianCareerReport(id: string) {
+  return useQuery({ queryKey: ['family', 'career-report', id], retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ id: string; link_id: string; generated_at: string; content: CareerReportContent }>('academic_guardian_career_report', { p_report_id: id }) })
+}
 export const useGenerateCareerReport = () => useCareerMutation(() => callAcademicRpc<{ id: string; generated_at: string; content: CareerReportContent }>('academic_generate_career_report'))

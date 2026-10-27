@@ -90,7 +90,22 @@ gp = (await rpc(G, `public.academic_my_report_purchase()`)).purchase.id
 await rpc(G, `public.academic_submit_report_receipt('${gp}', '${G}/r2.png')`)
 await rpc(FIN, `public.academic_admin_review_report_purchase('${gp}', 'verify', 'BCEL-900001')`, STAFF)
 eq("a guardian's purchase gives their linked child the report", (await rpc(B, `public.academic_career_reports()`)).entitled, true)
+// Guardians see the child's reports while career answers are shared (migration 158).
+const childReport = await rpc(B, `public.academic_generate_career_report()`)
+eq('not shared: the guardian sees no reports', await rpc(G, `public.academic_guardian_career_reports('${link.id}')`), { shared: false, reports: [] })
+eq('not shared: the report cannot be opened', (await rpc(G, `public.academic_guardian_career_report('${childReport.id}')`)).error?.code, 'NOT_FOUND')
+await rpc(B, `public.academic_set_guardian_scopes('${link.id}', ${json({ careers: true })})`)
+eq('shared: listed for the guardian', (await rpc(G, `public.academic_guardian_career_reports('${link.id}')`)).reports.map((r) => r.id), [childReport.id])
+const seen = await rpc(G, `public.academic_guardian_career_report('${childReport.id}')`)
+eq('shared: the guardian opens it as made, and the view is logged', [seen.link_id, seen.content.generated_at,
+  (await one(`select count(*)::int as n from academic_audit_events where action = 'guardian.career_report_view' and outcome = 'success'`)).n], [link.id, childReport.content.generated_at, 1])
+eq("another child's report stays closed", (await rpc(G, `public.academic_guardian_career_report('${report.id}')`)).error?.code, 'NOT_FOUND')
+eq('the student cannot use the guardian view', (await rpc(S, `public.academic_guardian_career_reports('${link.id}')`)).error?.code, 'NOT_FOUND')
+await rpc(B, `public.academic_set_guardian_scopes('${link.id}', ${json({ careers: false })})`)
+eq('sharing off hides it at once', (await rpc(G, `public.academic_guardian_career_report('${childReport.id}')`)).error?.code, 'NOT_FOUND')
+await rpc(B, `public.academic_set_guardian_scopes('${link.id}', ${json({ careers: true })})`)
 await rpc(G, `public.academic_guardian_remove_link('${link.id}')`)
+eq('a removed link sees nothing', (await rpc(G, `public.academic_guardian_career_report('${childReport.id}')`)).error?.code, 'NOT_FOUND')
 eq('when the link ends, so does the cover', (await rpc(B, `public.academic_career_reports()`)).entitled, false)
 
 done()
