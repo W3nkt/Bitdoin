@@ -10,6 +10,7 @@ import { MyData } from '@/components/academic/MyData'
 import { ScoreEntry } from '@/components/academic/ScoreEntry'
 import { Planner } from '@/components/academic/Planner'
 import { CareerGuidance } from '@/components/academic/CareerGuidance'
+import { CareerReportPage } from '@/components/academic/CareerReport'
 import { GuardianConsentStep } from '@/components/academic/Guardians'
 import { History } from '@/components/academic/History'
 import { Inbox } from '@/components/academic/Inbox'
@@ -125,6 +126,12 @@ export function MyScores() {
         path="planner"
         element={data.next_step === 'ready' && data.active_enrolment_id
           ? <MyScoresShell subtitle={t('planner.title')} backTo="/academy/scores" inbox><Planner /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="careers/report/:reportId"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('careers.report.title')} backTo="/academy/scores/careers" inbox><CareerReportPage /></MyScoresShell>
           : <Navigate to="/academy/scores" replace />}
       />
       <Route

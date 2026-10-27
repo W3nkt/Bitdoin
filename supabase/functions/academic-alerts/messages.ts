@@ -90,6 +90,11 @@ export function describeAlert(alert: AlertLike): { subject: string; lines: strin
         ],
       }
     }
+    case 'report_purchase':
+      return {
+        subject: 'Career report payment to check',
+        lines: ['A student or parent sent a receipt for the one-time career report (BILLING-004). Check it and verify or reject it on the Entitlements tab. Further receipts today do not send another e-mail.'],
+      }
     case 'test':
       return { subject: 'Test alert', lines: ['This is a test from the My Scores admin. Alerts reach this address.'] }
     default:

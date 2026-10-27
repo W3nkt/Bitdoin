@@ -1012,3 +1012,35 @@ export const supportGuardianLinks = (profileId: string) => callAcademicRpc<Suppo
 export const suspendGuardianLink = (linkId: string, reason: string, note: string) =>
   callAcademicRpc('academic_support_suspend_guardian_link', { p_link_id: linkId, p_reason: reason, p_note: note })
 export const reinstateGuardianLink = (linkId: string, note: string) => callAcademicRpc('academic_admin_reinstate_guardian_link', { p_link_id: linkId, p_note: note })
+
+// ─── Career report purchases (BILLING-004, migration 157) ────────────────────
+
+export interface ReportPurchaseRow {
+  id: string
+  amount_lak: number
+  status: 'pending' | 'review' | 'verified' | 'rejected' | 'cancelled'
+  receipt_path: string | null
+  reference: string | null
+  rejection_reason: string | null
+  created_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+  valid_until: string | null
+  buyer: { name: string | null; member_code: string | null } | null
+}
+
+export function useReportPurchases(status: 'review' | 'verified' | 'rejected') {
+  return useQuery({ queryKey: [...adminKey, 'report-purchases', status], queryFn: () => callAcademicRpc<ReportPurchaseRow[]>('academic_admin_report_purchases', { p_status: status }) })
+}
+
+export function useReviewReportPurchase() {
+  return useAdminMutation(({ id, action, reference, reason }: { id: string; action: 'verify' | 'reject'; reference?: string; reason?: string }) =>
+    callAcademicRpc<ReportPurchaseRow>('academic_admin_review_report_purchase', { p_purchase_id: id, p_action: action, p_reference: reference ?? null, p_reason: reason ?? null }))
+}
+
+/** A 5-minute link to a receipt (staff may read the bucket). */
+export async function receiptUrl(path: string) {
+  const { data, error } = await supabase.storage.from('premium-payment-proofs').createSignedUrl(path, 300)
+  if (error) throw error
+  return data.signedUrl
+}

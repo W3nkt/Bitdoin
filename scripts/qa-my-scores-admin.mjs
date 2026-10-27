@@ -183,6 +183,10 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
         first_response_due: '2026-10-28T03:00:00Z', responded_at: '2026-10-24T05:00:00Z', overdue: false, reporter_member_code: 'KQ7ZPA', handled_by_name: 'Ops Agent', resolution_note: null, resolved_at: null, created_at: '2026-10-23T05:00:00Z' },
     ],
   }
+  state.reportPurchases = [
+    { id: 'rp1', amount_lak: 49000, status: 'review', receipt_path: 'u-noy/report-rp1-1761534000000.png', reference: null, rejection_reason: null, created_at: '2026-10-27T03:00:00Z', reviewed_at: null, reviewed_by: null, valid_until: null, buyer: { name: 'Noy Student', member_code: 'DAN9XY' } },
+    { id: 'rp2', amount_lak: 49000, status: 'review', receipt_path: 'u-kham/report-rp2-1761534000000.jpg', reference: null, rejection_reason: null, created_at: '2026-10-27T04:00:00Z', reviewed_at: null, reviewed_by: null, valid_until: null, buyer: { name: 'Kham Parent', member_code: 'KQ7ZPA' } },
+  ]
   const user = () => ({ id: USER_ID, aud: 'authenticated', role: 'authenticated', email: 'admin@example.com', app_metadata: {}, user_metadata: {}, factors: state.factors })
 
   const rpc = {
@@ -259,6 +263,15 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
         starts_at: '2026-10-26T05:00:00Z', created_at: '2026-10-26T05:00:00Z', granted_by: 'Finance Keo', revoked_at: null, revoked_by: null, revoke_reason: null, active: true }
       ;(state.grants ??= []).push(grant)
       return grant
+    },
+    // Career report payments (BILLING-004, migration 157).
+    academic_admin_report_purchases: (args) => state.reportPurchases.filter(p => p.status === args.p_status),
+    academic_admin_review_report_purchase: (args) => {
+      const row = state.reportPurchases.find(p => p.id === args.p_purchase_id)
+      Object.assign(row, args.p_action === 'verify'
+        ? { status: 'verified', reference: args.p_reference, reviewed_at: '2026-10-27T05:00:00Z', reviewed_by: 'Finance Keo', valid_until: '2027-10-27T05:00:00Z' }
+        : { status: 'rejected', rejection_reason: args.p_reason, reviewed_at: '2026-10-27T05:00:00Z', reviewed_by: 'Finance Keo' })
+      return row
     },
     academic_admin_revoke_entitlement: (args) => {
       const grant = state.grants.find(g => g.id === args.p_grant_id)
@@ -383,6 +396,13 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       return json(user())
     }
 
+    if (url.pathname.startsWith('/storage/v1/object/sign/')) {
+      if (method === 'POST') {
+        state.signed = [...(state.signed ?? []), url.pathname]
+        return json({ signedURL: `${url.pathname.replace('/storage/v1', '')}?token=t` })
+      }
+      return route.fulfill({ status: 200, contentType: 'image/png', body: '' })
+    }
     const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/)
     if (rpcMatch) {
       const args = request.postDataJSON() ?? {}
@@ -1075,6 +1095,30 @@ try {
     await page.getByText('Grant revoked.').waitFor()
     assert.deepEqual(lastCall(mock, 'academic_admin_revoke_entitlement').args, { p_grant_id: 'g1', p_reason: 'Payment reversed by the bank' })
     await page.getByText('Finance Keo: Payment reversed by the bank').waitFor()
+    // BILLING-004: career report payments, receipt opened by a short signed link, verified with the bank reference or rejected with a reason.
+    const payments = page.locator('section', { has: page.getByRole('heading', { name: 'Career report payments' }) })
+    const noy = payments.locator('li', { hasText: 'Noy Student' })
+    await noy.getByText('49,000 kip').waitFor()
+    await noy.getByRole('button', { name: 'Open receipt' }).click()
+    await page.waitForTimeout(300)
+    assert.ok(mock.state.signed?.some(path => path.endsWith('/premium-payment-proofs/u-noy/report-rp1-1761534000000.png')), 'signed link asked for the receipt')
+    await noy.getByRole('button', { name: 'Verify' }).click()
+    const verify = page.getByRole('dialog', { name: 'Verify this payment?' })
+    await verify.getByLabel('Reason (saved in the audit log)').fill('BCEL-990011')
+    await verify.getByRole('button', { name: 'Verify' }).click()
+    await page.getByText('Verified. The report is available for 12 months.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_review_report_purchase').args, { p_purchase_id: 'rp1', p_action: 'verify', p_reference: 'BCEL-990011', p_reason: null })
+    await payments.locator('li', { hasText: 'Kham Parent' }).getByRole('button', { name: 'Reject' }).click()
+    const reject = page.getByRole('dialog', { name: 'Reject this payment?' })
+    await reject.getByLabel('Reason (saved in the audit log)').fill('The amount on the receipt is 4,900 kip')
+    await reject.getByRole('button', { name: 'Reject' }).click()
+    await page.getByText('Rejected.', { exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_review_report_purchase').args, { p_purchase_id: 'rp2', p_action: 'reject', p_reference: null, p_reason: 'The amount on the receipt is 4,900 kip' })
+    await payments.getByText('Nothing here.').waitFor()
+    await payments.getByLabel('Show').selectOption('verified')
+    await payments.getByText('Reference BCEL-990011', { exact: false }).waitFor()
+    await shot(page, 'admin-12b-report-payments')
+    await axe(page)
     assert.deepEqual(errors, [])
     await context.close()
     const phone = await openAs(browser, { aal: 'aal2', factors: VERIFIED }, devices['Pixel 7'])
@@ -1084,7 +1128,7 @@ try {
     await shot(phone.page, 'admin-8-schools-phone')
     assert.deepEqual(phone.errors, [])
     await phone.context.close()
-    pass('Finance: Entitlements tab only; unknown code explained; member plan and quotas shown; Premium granted from a confirmed transfer with reference and amount, ends end of day Vientiane; revoked with a reason; axe clean; phone width: no horizontal scroll')
+    pass('Finance: Entitlements tab only; unknown code explained; member plan and quotas shown; Premium granted from a confirmed transfer with reference and amount, ends end of day Vientiane; revoked with a reason; career report payments: receipt by signed link, verified with the bank reference, rejected with a reason; axe clean; phone width: no horizontal scroll')
   }
 
   console.log(`\n${results.length} scenarios passed`)

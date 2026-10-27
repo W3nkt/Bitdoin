@@ -10,6 +10,7 @@ import {
   type GuardianChildView, type GuardianLink, type GuardianScope, type GuardianScopes,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
+import { ReportPurchase } from '@/components/academic/CareerReport'
 
 // Family (P3-PAR #52: PARENT-002/003/007): a parent or guardian links to a
 // child with the code the child gave them, says how they are related and
@@ -277,6 +278,12 @@ export function FamilyChild() {
               )}
               {view.careers.saved.length > 0 && <p className="mt-2 text-sm">{t('family.saved', { list: view.careers.saved.map(c => lo ? c.title_lo : c.title_en).join(', ') })}</p>}
             </>}
+          </section>
+
+          <section className={card}>
+            <h2 className="text-lg font-black">{t('careers.report.title')}</h2>
+            <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.report.body')}</p>
+            <ReportPurchase forGuardian />
           </section>
 
           <section className={card}>

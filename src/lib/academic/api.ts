@@ -518,7 +518,7 @@ export function useGrantUsageStatistics() {
 }
 
 export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
-  const [data, quizzes, reports, recommendations, guidance, scholarships] = await Promise.all([
+  const [data, quizzes, reports, recommendations, guidance, scholarships, careerReports] = await Promise.all([
     callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
     // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
     callAcademicRpc<{ attempts?: Record<string, unknown>[]; practice?: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
@@ -529,10 +529,12 @@ export const exportMyData = async (): Promise<import('./exportZip').ExportData> 
     callAcademicRpc<{ planner?: Record<string, unknown>; coach?: Record<string, unknown>; careers?: Record<string, unknown> } | null>('academic_export_my_guidance'),
     // Saved scholarships (migration 155) go with careers.
     callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_scholarships'),
+    // Career reports (migration 157) too.
+    callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_career_reports'),
   ])
   return {
     ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] },
-    planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: { ...(guidance?.careers ?? {}), scholarships: scholarships ?? [] },
+    planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: { ...(guidance?.careers ?? {}), scholarships: scholarships ?? [], reports: careerReports ?? [] },
   }
 }
 
@@ -1344,3 +1346,85 @@ export function useGuardianReport(reportId: string) {
 export function useGuardianChild(linkId: string) {
   return useQuery({ queryKey: ['family', 'child', linkId], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<GuardianChildView>('academic_guardian_child', { p_link_id: linkId }) })
 }
+
+// ─── Career report and its one-time purchase (CAREER-006, BILLING-004; migration 157) ─
+
+export interface ReportPurchaseView {
+  price: { price_lak: number; months: number }
+  entitled: boolean
+  purchase: { id: string; amount_lak: number; status: 'pending' | 'review' | 'verified' | 'rejected' | 'cancelled'; has_receipt: boolean; rejection_reason: string | null; created_at: string; reviewed_at: string | null; valid_until: string | null } | null
+}
+
+const purchaseKey = ['career-report-purchase'] as const
+
+export function useReportPurchase() {
+  return useQuery({ queryKey: purchaseKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<ReportPurchaseView>('academic_my_report_purchase') })
+}
+
+function usePurchaseMutation<A, R>(fn: (args: A) => Promise<R>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => Promise.all([queryClient.invalidateQueries({ queryKey: purchaseKey }), queryClient.invalidateQueries({ queryKey: careerKey })]),
+  })
+}
+
+export const useStartReportPurchase = () => usePurchaseMutation(() => callAcademicRpc<ReportPurchaseView>('academic_start_report_purchase'))
+export const useCancelReportPurchase = () => usePurchaseMutation((id: string) => callAcademicRpc<ReportPurchaseView>('academic_cancel_report_purchase', { p_purchase_id: id }))
+/** Uploads the receipt to the buyer's own folder (the same bucket as Premium payments), then sends it for review. */
+export const useSubmitReportReceipt = () => usePurchaseMutation(async ({ purchaseId, userId, file }: { purchaseId: string; userId: string; file: File }) => {
+  const extension = (file.name.split('.').pop() ?? 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+  const path = `${userId}/report-${purchaseId}-${Date.now()}.${extension}`
+  const { error } = await supabase.storage.from('premium-payment-proofs').upload(path, file, { cacheControl: '3600', upsert: false })
+  if (error) throw error
+  return callAcademicRpc<ReportPurchaseView>('academic_submit_report_receipt', { p_purchase_id: purchaseId, p_path: path })
+})
+
+export interface PaymentAccountOption { id: string; method: string; label: string; bank_name: string | null; account_name: string | null; account_number: string | null; qr_image_url: string | null; instructions: string | null }
+
+/** The Bitdoin payment accounts shown on the plans page (QR or bank transfer). */
+export function usePaymentAccounts() {
+  return useQuery({
+    queryKey: ['premium', 'payment-accounts'],
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('payment_accounts')
+        .select('id,method,label,bank_name,account_name,account_number,qr_image_url,instructions')
+        .eq('is_active', true).order('sort_order')
+      if (error) throw error
+      return (data ?? []) as PaymentAccountOption[]
+    },
+  })
+}
+
+export interface CareerReportContent {
+  student_name: string
+  generated_at: string
+  school_year: string | null
+  grade_en: string | null
+  grade_lo: string | null
+  scores_as_of: string | null
+  interests: Record<InterestArea, { level: string }>
+  questionnaire_on: string
+  options: {
+    slug: string; cluster: string; factors: CareerFactors; title_en: string; title_lo: string; summary_en: string; summary_lo: string; study_years: string
+    preparation_en: string[]; preparation_lo: string[]
+    subjects: { code: string; name_en: string; name_lo: string; latest: number | string | null; label: string | null }[]
+    facts: { kind: string; text_en: string; text_lo: string; source_name: string; source_url: string; verified_on: string }[]
+    programmes: { name_en: string; name_lo: string; faculty?: string; institution_en: string; institution_lo: string; degree_level: string; duration_years: string; entrance_group: string | null
+      requirements: { kind: string; text_en: string; text_lo: string; academic_year: string; source_name: string; source_url: string; verified_on: string }[]
+      source_name: string; source_url: string; verified_on: string }[]
+  }[]
+  scholarships: { name_en: string; name_lo: string; provider: string; deadline: string; eligibility_en: string; eligibility_lo: string; source_name: string; source_url: string; verified_on: string }[]
+  history: { created_at: string; reason: string; options: string[] }[]
+}
+
+export function useCareerReports() {
+  return useQuery({ queryKey: [...careerKey, 'reports'], retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ entitled: boolean; reports: { id: string; generated_at: string }[] }>('academic_career_reports') })
+}
+export function useCareerReport(id: string) {
+  return useQuery({ queryKey: [...careerKey, 'report', id], retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ id: string; generated_at: string; content: CareerReportContent }>('academic_get_career_report', { p_report_id: id }) })
+}
+export const useGenerateCareerReport = () => useCareerMutation(() => callAcademicRpc<{ id: string; generated_at: string; content: CareerReportContent }>('academic_generate_career_report'))

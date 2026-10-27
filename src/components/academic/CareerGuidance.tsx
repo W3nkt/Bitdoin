@@ -13,6 +13,7 @@ import { formatDate } from '@/lib/academic/format'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { CareerProgrammes, ProgrammeSearch, Scholarships } from './Programmes'
+import { ReportCard } from './CareerReport'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
 
@@ -259,6 +260,8 @@ function Results({ view }: { view: CareerGuidanceView }) {
         )}
         </>}
       </section>
+
+      <ReportCard hasAnswers />
 
       {view.area_scores && (
         <section className={card}>

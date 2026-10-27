@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
-import { grantEntitlement, lookupMemberEntitlements, revokeEntitlement, type EntitlementGrant, type GrantInput, type MemberEntitlements } from '@/lib/academic/adminApi'
+import {
+  grantEntitlement, lookupMemberEntitlements, receiptUrl, revokeEntitlement, useReportPurchases, useReviewReportPurchase,
+  type EntitlementGrant, type GrantInput, type MemberEntitlements, type ReportPurchaseRow,
+} from '@/lib/academic/adminApi'
 import { AcademicError, toAcademicError } from '@/lib/academic/errors'
 import { Empty, Field, Panel, Pill, ReasonDialog, adminErrorText, formatDateTime } from './AdminKit'
 
@@ -65,7 +68,64 @@ export function EntitlementsAdmin() {
         {notFound && <p role="alert" className="mt-3 text-sm font-bold text-red-700 dark:text-red-300">No member with that code.</p>}
       </Panel>
       {member && <MemberView member={member} onChanged={() => void lookup(member.user.member_code ?? code)} />}
+      <ReportPurchases />
     </div>
+  )
+}
+
+/** BILLING-004: one-time career report payments to check (receipt, bank reference). */
+function ReportPurchases() {
+  const toast = useToast()
+  const [status, setStatus] = useState<'review' | 'verified' | 'rejected'>('review')
+  const purchases = useReportPurchases(status)
+  const review = useReviewReportPurchase()
+  const [acting, setActing] = useState<{ row: ReportPurchaseRow; action: 'verify' | 'reject' } | null>(null)
+  const open = async (path: string) => {
+    try { window.open(await receiptUrl(path), '_blank', 'noopener') } catch (error) { toast.error(adminErrorText(error)) }
+  }
+  return (
+    <Panel title="Career report payments" description="One-time career reports paid by QR or bank transfer. Check the receipt against the bank, then verify with the bank reference (gives the report for 12 months) or reject with a reason."
+      actions={(
+        <label className="flex items-center gap-2 text-sm font-bold">Show
+          <select value={status} onChange={event => setStatus(event.target.value as typeof status)} className="rounded-xl border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-600 dark:bg-gray-950">
+            <option value="review">To check</option><option value="verified">Verified</option><option value="rejected">Rejected</option>
+          </select>
+        </label>
+      )}>
+      {purchases.isPending ? <Empty>Loading…</Empty> : (purchases.data ?? []).length === 0 ? <Empty>Nothing here.</Empty> : (
+        <ul className="grid gap-3">
+          {purchases.data!.map(row => (
+            <li key={row.id} className="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold">{row.buyer?.name ?? '—'}</span>
+                <code>{row.buyer?.member_code ?? '—'}</code>
+                <span className="tabular-nums">{row.amount_lak.toLocaleString('en')} kip</span>
+                <Pill tone={row.status === 'verified' ? 'green' : row.status === 'rejected' ? 'red' : 'amber'}>{row.status}</Pill>
+                <span className="text-xs text-slate-500 dark:text-slate-400">{formatDateTime(row.created_at)}</span>
+              </div>
+              {row.reference && <p className="mt-1">Reference {row.reference}{row.valid_until ? ` · until ${formatDateTime(row.valid_until)}` : ''}{row.reviewed_by ? ` · ${row.reviewed_by}` : ''}</p>}
+              {row.rejection_reason && <p className="mt-1">Rejected: {row.rejection_reason}</p>}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {row.receipt_path && <Button size="sm" variant="outline" onClick={() => void open(row.receipt_path!)}>Open receipt</Button>}
+                {row.status === 'review' && <>
+                  <Button size="sm" onClick={() => setActing({ row, action: 'verify' })}>Verify</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setActing({ row, action: 'reject' })}>Reject</Button>
+                </>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <ReasonDialog open={acting !== null} busy={review.isPending} minLength={acting?.action === 'verify' ? 3 : 5} danger={acting?.action === 'reject'}
+        title={acting?.action === 'verify' ? 'Verify this payment?' : 'Reject this payment?'}
+        body={acting?.action === 'verify' ? <p>Type the bank's payment reference in the box. The buyer gets the career report for 12 months.</p> : <p>The buyer sees your reason and can try again.</p>}
+        confirmLabel={acting?.action === 'verify' ? 'Verify' : 'Reject'}
+        onCancel={() => setActing(null)}
+        onConfirm={text => acting && review.mutate(acting.action === 'verify' ? { id: acting.row.id, action: 'verify', reference: text } : { id: acting.row.id, action: 'reject', reason: text }, {
+          onSuccess: () => { setActing(null); toast.success(acting.action === 'verify' ? 'Verified. The report is available for 12 months.' : 'Rejected.') },
+          onError: error => toast.error(adminErrorText(error)),
+        })} />
+    </Panel>
   )
 }
 

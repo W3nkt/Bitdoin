@@ -41,6 +41,24 @@ const CAREERS = [
   { slug: 'lawyer', title_en: 'Lawyer', title_lo: 'ທະນາຍຄວາມ', summary_en: 'Advise people about the law.', summary_lo: 'ໃຫ້ຄຳປຶກສາກ່ຽວກັບກົດໝາຍ.', cluster: 'law_public', primary_area: 'E', secondary_area: 'S',
     related_subjects: ['CIV'], study_years: '4to5', work_settings: ['office'], preparation_en: ['Read widely'], preparation_lo: ['ອ່ານຫຼາຍ'], facts: [] },
 ]
+// A frozen career report (migration 157 shape).
+const CAREER_REPORT = {
+  student_name: 'Noy', generated_at: '2026-10-27T03:00:00Z', school_year: '2026-2027', grade_en: 'Grade 11', grade_lo: 'ມ.6', scores_as_of: '2026-10-20T03:00:00Z', questionnaire_on: '2026-10-24T03:00:00Z',
+  interests: { R: { level: 'low' }, I: { level: 'medium' }, A: { level: 'low' }, S: { level: 'high' }, E: { level: 'medium' }, C: { level: 'not_enough' } },
+  options: [{
+    slug: 'registered-nurse', cluster: 'health', factors: { interest: ['S'], subjects: ['BIO'], preferences: [] }, title_en: 'Registered Nurse', title_lo: 'ພະຍາບານ',
+    summary_en: 'Cares for patients in hospitals and health centres.', summary_lo: 'ດູແລຄົນເຈັບໃນໂຮງໝໍ ແລະ ສຸກສາລາ.', study_years: '4to5',
+    preparation_en: ['Practise Biology and Chemistry each week.'], preparation_lo: ['ຝຶກຊີວະວິທະຍາ ແລະ ເຄມີສາດ ທຸກອາທິດ.'],
+    subjects: [{ code: 'BIO', name_en: 'Biology', name_lo: 'ຊີວະວິທະຍາ', latest: 8, label: 'stronger' }, { code: 'CHEM', name_en: 'Chemistry', name_lo: 'ເຄມີສາດ', latest: null, label: null }],
+    facts: [{ kind: 'work', text_en: 'Nurses work in shifts, including nights.', text_lo: 'ພະຍາບານເຮັດວຽກເປັນກະ, ລວມທັງກາງຄືນ.', source_name: 'Ministry of Health', source_url: 'https://moh.gov.la/', verified_on: '2026-10-01' }],
+    programmes: [{ name_en: 'Bachelor of Nursing Science', name_lo: 'ປະລິນຍາຕີ ພະຍາບານສາດ', institution_en: 'University of Health Sciences', institution_lo: 'ມະຫາວິທະຍາໄລ ວິທະຍາສາດສຸຂະພາບ', degree_level: 'bachelor', duration_years: '4', entrance_group: 'B',
+      requirements: [{ kind: 'cutoff', text_en: 'Cut-off 70', text_lo: 'ຄະແນນຂັ້ນຕ່ຳ 70', academic_year: '2026-2027', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26' }],
+      source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26' }],
+  }],
+  scholarships: [{ name_en: 'Health Sciences Scholarship', name_lo: 'ທຶນການສຶກສາ ວິທະຍາສາດສຸຂະພາບ', provider: 'University of Health Sciences', deadline: '2026-12-04', eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01' }],
+  history: [{ created_at: '2026-10-24T03:00:00Z', reason: 'first', options: ['registered-nurse'] }, { created_at: '2026-10-26T03:00:00Z', reason: 'new_scores', options: ['registered-nurse'] }],
+}
+
 function careerView(state) {
   const items = Array.from({ length: 24 }, (_, i) => ({ n: i + 1, areas: ['S'], en: ['Help people understand laws or rules fairly', 'Work in a hospital or health centre', 'Teach children or young people', 'Analyse information to make a decision'][i - 20] ?? `Item ${i + 1}`, lo: `ຂໍ້ ${i + 1}` }))
   const c = state.career ?? {}
@@ -258,6 +276,14 @@ function backend(initial) {
         eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', out_of_date: false }],
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Career report and its one-time purchase (migration 157).
+    academic_career_reports: () => ({ entitled: !!state.reportEntitled, reports: state.careerReports ?? [] }),
+    academic_my_report_purchase: () => ({ price: { price_lak: 49000, months: 12 }, entitled: !!state.reportEntitled, purchase: state.reportPurchase ?? null }),
+    academic_start_report_purchase: () => { state.reportPurchase = { id: 'rp1', amount_lak: 49000, status: 'pending', has_receipt: false, rejection_reason: null, created_at: '2026-10-27T03:00:00Z', reviewed_at: null, valid_until: null }; return rpc.academic_my_report_purchase() },
+    academic_submit_report_receipt: () => { Object.assign(state.reportPurchase, { status: 'review', has_receipt: true }); return rpc.academic_my_report_purchase() },
+    academic_cancel_report_purchase: () => { state.reportPurchase = null; return rpc.academic_my_report_purchase() },
+    academic_generate_career_report: () => { (state.careerReports ??= []).unshift({ id: 'cr1', generated_at: CAREER_REPORT.generated_at }); return { id: 'cr1', generated_at: CAREER_REPORT.generated_at, content: CAREER_REPORT } },
+    academic_get_career_report: (args) => args.p_report_id === 'cr1' ? { id: 'cr1', generated_at: CAREER_REPORT.generated_at, content: CAREER_REPORT } : pgError(404, 'NOT_FOUND'),
     academic_set_scholarship_saved: (args) => { state.scholarships = args.p_saved ? [{ slug: args.p_slug, remind: args.p_remind }] : []; return state.scholarships },
     academic_start_career_questionnaire: (args) => { state.career = { ...(state.career ?? {}), in_progress: { answers: {}, preferences: {}, reason: args.p_reason } }; return careerView(state) },
     academic_save_career_answers: (args) => { (state.careerSaves ??= []).push(args); Object.assign(state.career.in_progress.answers, args.p_answers); if (args.p_preferences) state.career.in_progress.preferences = args.p_preferences; return { saved: true } },
@@ -400,6 +426,7 @@ function backend(initial) {
     academic_grades: GRADES,
     academic_subjects: SUBJECTS,
     academic_years: [{ id: 'y1', code: '2026-2027', start_date: '2026-09-01', end_date: '2027-05-31' }],
+    payment_accounts: [{ id: 'pa1', method: 'bank_transfer', label: 'BCEL One', bank_name: 'BCEL', account_name: 'Bitdoin Co', account_number: '0101 0000 1234 5678', qr_image_url: null, instructions: null }],
     users: [{ id: USER_ID, name: 'Noy Student', phone: null, email: 'noy@example.com', avatar_url: null, cover_image_url: null, member_code: 'DAN9XY', role: 'CUSTOMER', language: state.lang, currency: 'LAK', created_at: '2026-10-01', updated_at: '2026-10-01' }],
   }
   const settings = { allowed_grade_levels: ['upper_secondary'], max_subjects_per_enrolment: 25 }
@@ -421,6 +448,10 @@ function backend(initial) {
       state.ocrUploads = [...(state.ocrUploads ?? []), { job_id: body.job_id, bytes: body.image_base64?.length ?? 0, image_quality: body.image_quality, jpeg: (body.image_base64 ?? '').startsWith('/9j/') }]
       if (state.ocrFail) return json({ error: { code: 'OCR_FAILED', status: 502, reason: 'provider_error' } }, 502)
       return json(ocrJob(body.job_id, 'succeeded', OCR_EXTRACTION))
+    }
+    if (url.pathname.startsWith('/storage/v1/object/')) {
+      state.uploads = [...(state.uploads ?? []), url.pathname]
+      return json({ Key: url.pathname.replace('/storage/v1/object/', ''), Id: 'obj1' })
     }
     const single = (request.headers().accept ?? '').includes('vnd.pgrst.object')
     const rpcMatch = url.pathname.match(/^\/rest\/v1\/rpc\/(\w+)$/)
@@ -1692,6 +1723,80 @@ try {
     assert.deepEqual(lo.errors, [])
     await lo.context.close()
     pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; programmes by field and entrance group with unconfirmed groups apart and cut-offs with their year, a scholarship saved with reminders; Lao results; Free sees interests and every career but options need Premium; axe clean')
+  }
+
+  // Career report (CAREER-006, BILLING-004 #55): buy once by transfer, upload the receipt, wait for review; once
+  // entitled, make the frozen printable report. A guardian can buy it from the child page.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.career = { completed: true }
+    mock.state.careerLocked = true
+    await page.goto(`${base}/academy/scores/careers`, { waitUntil: 'domcontentloaded' })
+    const report = page.locator('section', { has: page.getByRole('heading', { name: 'Career report' }) })
+    await report.getByText('Included in Academy Premium, or buy it once for 49,000 kip (lasts 12 months).').waitFor()
+    await report.getByRole('button', { name: 'Buy once for 49,000 kip' }).click()
+    await report.getByText('Pay 49,000 kip to one of these accounts, then upload a photo of the receipt.').waitFor()
+    await report.getByText('BCEL · Bitdoin Co · 0101 0000 1234 5678').waitFor()
+    await report.getByLabel('Upload receipt').setInputFiles({ name: 'receipt.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') })
+    await page.getByText('Upload a JPG, PNG or WebP photo up to 10 MB.').waitFor()
+    assert.equal(mock.state.uploads, undefined, 'a GIF is not uploaded')
+    await report.getByLabel('Upload receipt').setInputFiles({ name: 'receipt.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') })
+    await report.getByRole('status').getByText('Receipt sent. We check it within one working day.').waitFor()
+    assert.match(mock.state.uploads.at(-1), new RegExp(`^/storage/v1/object/premium-payment-proofs/${USER_ID}/report-rp1-\\d+\\.png$`))
+    const submitted = lastCall(mock, 'academic_submit_report_receipt').args
+    assert.equal(submitted.p_purchase_id, 'rp1')
+    assert.equal(`/storage/v1/object/premium-payment-proofs/${submitted.p_path}`, mock.state.uploads.at(-1))
+    await shot(page, 'my-scores-career-report-1-purchase-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    // Finance verifies it: the report is unlocked for 12 months.
+    Object.assign(mock.state, { reportEntitled: true, careerLocked: false })
+    Object.assign(mock.state.reportPurchase, { status: 'verified', reviewed_at: '2026-10-27T05:00:00Z', valid_until: '2027-10-27T05:00:00Z' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await report.getByText('You have the report until', { exact: false }).waitFor()
+    await report.getByRole('button', { name: 'Make my report' }).click()
+    await page.getByText('Report ready.').waitFor()
+    await report.getByRole('link', { name: /^Made / }).click()
+    await page.getByRole('heading', { name: 'Career report for Noy', level: 1 }).waitFor()
+    await page.getByText('Grade 11 · school year 2026-2027 · made', { exact: false }).waitFor()
+    await page.getByRole('heading', { name: 'Registered Nurse' }).waitFor()
+    await page.getByText('Biology: latest score 8').waitFor()
+    await page.getByText('Chemistry: no score yet').waitFor()
+    await page.getByText('Bachelor of Nursing Science').waitFor()
+    await page.getByRole('heading', { name: 'How the options changed' }).waitFor()
+    await page.getByRole('heading', { name: 'Discussion guide for the family' }).waitFor()
+    await page.getByRole('heading', { name: 'Sources' }).waitFor()
+    await page.getByText('This report is an exploration tool, not a validated test', { exact: false }).waitFor()
+    assert.equal(await page.getByText(/\d+ ?%/).count(), 0, 'no percentages')
+    await shot(page, 'my-scores-career-report-2-report-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    assert.deepEqual(errors, [])
+    await context.close()
+    const lo = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'ready', enrolment: 'e1' })
+    lo.mock.state.reportEntitled = true
+    await lo.page.goto(`${base}/academy/scores/careers/report/cr1`, { waitUntil: 'domcontentloaded' })
+    await lo.page.getByRole('heading', { name: 'ລາຍງານອາຊີບ ສຳລັບ Noy', level: 1 }).waitFor()
+    await lo.page.getByText('ຊີວະວິທະຍາ: ຄະແນນຫຼ້າສຸດ 8').waitFor()
+    await shot(lo.page, 'my-scores-career-report-3-report-lo-mobile')
+    assert.deepEqual(lo.errors, [])
+    await lo.context.close()
+    // The guardian buys it on the child page; it covers every linked child.
+    const parent = await openAs(browser, { device: MOBILE, lang: 'en', step: 'onboarding' })
+    parent.mock.state.family = [{ id: 'gl7', status: 'active', purpose: 'link', relationship: 'mother', scopes: {}, guardian_name: 'Mrs Phonsavan', student_name: 'Noy', grade: 'Grade 11',
+      declared_at: '2026-10-20T05:00:00Z', confirm_by: '2026-10-27T05:00:00Z', confirmed_at: '2026-10-21T05:00:00Z', reconfirm_by: null, removed_at: null, removed_by: null }]
+    await parent.page.goto(`${base}/academy/family`, { waitUntil: 'domcontentloaded' })
+    await parent.page.getByRole('link', { name: 'See progress' }).click()
+    const guardianReport = parent.page.locator('section', { has: parent.page.getByRole('heading', { name: 'Career report' }) }).last()
+    await guardianReport.getByText('It covers every child linked to you.').waitFor()
+    await guardianReport.getByRole('button', { name: 'Buy once for 49,000 kip' }).click()
+    await guardianReport.getByText('Pay 49,000 kip to one of these accounts', { exact: false }).waitFor()
+    await guardianReport.getByRole('button', { name: 'Cancel purchase' }).click()
+    await guardianReport.getByRole('button', { name: 'Buy once for 49,000 kip' }).waitFor()
+    assert.deepEqual(lastCall(parent.mock, 'academic_cancel_report_purchase').args, { p_purchase_id: 'rp1' })
+    assert.deepEqual(parent.errors, [])
+    await parent.context.close()
+    pass('Career report: price and Premium inclusion shown, bought once by transfer with the accounts listed, a GIF refused before upload, receipt uploaded to the buyer\'s own folder and sent for review; once verified, the frozen report has options with reasons, latest scores, pathways with cut-off years, history, family guide, sources and disclaimer, no percentages; Lao report; a guardian buys or cancels from the child page; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

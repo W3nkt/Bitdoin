@@ -120,6 +120,12 @@ catalogue's checks). Admins add programmes and scholarships on the Careers tab.
 
 Applied 2026-10-27: 156 (106 draft programmes from official sources; each needs its length added on the Careers tab before review).
 
+Applied 2026-10-27 (#55, piece 4): 157 (career report: 49,000 kip once for 12 months or included in Premium;
+receipts reviewed in Entitlements → Career report payments by Finance or an Admin; `report_purchase` alert),
+then `academic-alerts` redeployed for the new alert text. To change the price:
+`update academic_settings set value = jsonb_set(value, '{price_lak}', '59000') where key = 'career_report_price';`
+(open purchases keep the amount they started with).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
