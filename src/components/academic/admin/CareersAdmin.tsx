@@ -200,7 +200,7 @@ function Summary({ record, view }: { record: CareerRecord; view: CareerContentVi
   const requirements = (d.requirements as CareerFact[] | undefined) ?? []
   return (
     <div className="mt-2 grid gap-1 text-sm">
-      <p>{view.institutions.find(i => i.slug === d.institution)?.name_en ?? str(d.institution)} · {DEGREES[str(d.degree_level)] ?? '—'} · {str(d.duration_years)} years · entrance group {str(d.entrance_group) || 'not confirmed'}{d.field ? ` · ${str(d.field).replace('_', ' ')}` : ''}</p>
+      <p>{view.institutions.find(i => i.slug === d.institution)?.name_en ?? str(d.institution)} · {DEGREES[str(d.degree_level)] ?? '—'} · {str(d.duration_years)} years{d.duration_unconfirmed === true ? ' (not confirmed)' : ''} · entrance group {str(d.entrance_group) || 'not confirmed'}{d.field ? ` · ${str(d.field).replace('_', ' ')}` : ''}</p>
       <p className="text-slate-600 dark:text-slate-400">Careers: {list(d.careers).join(', ') || '—'} · {requirements.length} requirement(s) or cut-off(s)</p>
       <SourceLink name={str(d.source_name)} url={str(d.source_url)} verified={str(d.verified_on)} reviewBy={str(d.review_by)} />
     </div>
@@ -317,7 +317,15 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
             {text('name_en', 'Programme name (English)')}
             {text('name_lo', 'Programme name (Lao)')}
             <Field label="Degree level"><select value={str(data.degree_level)} onChange={event => set({ degree_level: event.target.value })}><option value="">Choose</option>{Object.entries(DEGREES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
-            {text('duration_years', 'Duration (years)', { type: 'number' })}
+            <div className="grid gap-1.5">
+              {text('duration_years', 'Duration (years)', { type: 'number' })}
+              {data.duration_unconfirmed !== undefined && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={data.duration_unconfirmed !== true} onChange={event => set({ duration_unconfirmed: !event.target.checked })} />
+                  Length confirmed with the faculty (the pre-filled length is not from an official source)
+                </label>
+              )}
+            </div>
             {text('entrance_group', 'Entrance exam group', { hint: 'One letter, only when the official source says so. Leave empty if not confirmed.' })}
             {text('applicable_year', 'Academic year (optional)')}
             <Field label="Field (for search)"><select value={str(data.field)} onChange={event => set({ field: event.target.value })}><option value="">None</option>{view.clusters.map(c => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}</select></Field>

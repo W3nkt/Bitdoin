@@ -30,9 +30,13 @@ eq('every seeded record is complete', [...careers, ...institutions].filter((c) =
 eq('unsourced Explorer salary and demand figures are not entered (OD-10)', careers.every((c) => c.draft.facts.length === 0), true)
 eq('students see nothing until it is approved', (await catalogue()).careers.length, 0)
 const drafts = await list('programme')
-eq('106 programme drafts from official sources; each only needs its length before review (migration 156)',
-  [drafts.length, drafts.every((p) => p.status === 'draft' && JSON.stringify(p.problems) === JSON.stringify({ duration_years: 'Duration in years (0.5 to 8)' })), drafts.filter((p) => p.draft.entrance_group).length],
-  [106, true, 29])
+eq('106 programme drafts from official sources (migration 156) with 4 years, 5 for architecture, marked unconfirmed (migration 159)',
+  [drafts.length, drafts.filter((p) => p.draft.entrance_group).length, drafts.filter((p) => p.draft.duration_years === '5').length, drafts.filter((p) => p.draft.duration_years === '4').length,
+   drafts.every((p) => p.status === 'draft' && p.draft.duration_unconfirmed === true)],
+  [106, 29, 8, 98, true])
+eq('an unconfirmed length cannot be sent for review', [drafts[0].problems, (await rpcError(A1, `public.academic_admin_review_career_content('${drafts[0].id}', 'submit')`, STAFF))?.code],
+  [{ duration_years: 'Confirm the length with the faculty, then tick Length confirmed' }, 'CAREER_INCOMPLETE'])
+eq('once an admin confirms it, the draft is complete', (await save(A1, { id: drafts[0].id, kind: 'programme', data: { ...drafts[0].draft, duration_unconfirmed: false } })).problems, {})
 
 // ─── Four-eyes publication (UNI-001) ─────────────────────────────────────────
 

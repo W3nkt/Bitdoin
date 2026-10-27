@@ -31,6 +31,10 @@ function careerFixtures() {
     { ...base, id: 'k9', kind: 'programme', slug: 'p-nursing', status: 'published', changed: false, author: 'Admin One', last_edited_by: 'Admin One', can_approve: false,
       draft: { institution: 'uhs', name_en: 'Bachelor of Nursing Science', name_lo: 'ປະລິນຍາຕີ ພະຍາບານສາດ', degree_level: 'bachelor', duration_years: '4', careers: ['registered-nurse'], requirements: [],
         source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-10-26', review_by: '2026-11-15' } },
+    { ...base, id: 'k10', kind: 'programme', slug: 'p-nuol-02', status: 'draft', author: null, last_edited_by: null, can_approve: false,
+      problems: { duration_years: 'Confirm the length with the faculty, then tick Length confirmed' },
+      draft: { institution: 'uhs', faculty: 'ຄະນະວິທະຍາສາດທຳມະຊາດ', name_en: 'Computer Science', name_lo: 'ວິທະຍາສາດຄອມພິວເຕີ', degree_level: 'bachelor', duration_years: '4', duration_unconfirmed: true,
+        entrance_group: '', careers: [], requirements: [], source_name: 'National University of Laos: bachelor programmes', source_url: 'https://nuol.edu.la/', verified_on: '2026-10-27', review_by: '2027-04-27' } },
   ].map((c) => ({ ...c, published: c.status === 'published' ? c.draft : null }))
 }
 
@@ -821,6 +825,15 @@ try {
     await page.getByRole('tab', { name: 'Scholarships' }).click()
     await page.getByRole('button', { name: 'New scholarship' }).waitFor()
     await page.getByRole('tab', { name: 'Programmes' }).click()
+    // Migration 159: a pre-filled length is marked not confirmed until an admin ticks it.
+    const computing = page.locator('li', { hasText: 'Computer Science' })
+    await computing.getByText('4 years (not confirmed)', { exact: false }).waitFor()
+    await computing.getByRole('button', { name: 'Edit' }).click()
+    const lengthDialog = page.getByRole('dialog')
+    await lengthDialog.getByLabel('Length confirmed with the faculty', { exact: false }).check()
+    await lengthDialog.getByRole('button', { name: 'Save working copy' }).click()
+    await lengthDialog.waitFor({ state: 'hidden' })
+    assert.equal(lastCall(mock, 'academic_admin_save_career_content').args.p_input.data.duration_unconfirmed, false)
     await page.getByRole('button', { name: 'New programme' }).click()
     const dialog = page.getByRole('dialog')
     await dialog.getByLabel('Programme name (English)').fill('Bachelor of Pharmacy')
@@ -843,7 +856,7 @@ try {
     await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     assert.equal(await ops.page.getByRole('button', { name: 'Careers' }).count(), 0)
     await ops.context.close()
-    pass('Careers: seeded record approved by another admin, own edit needs a second admin, institution shows its official source and faculties, a cut-off without its year is refused with the reason, review-by dates listed, axe clean; Operations has no tab')
+    pass('Careers: seeded record approved by another admin, own edit needs a second admin, institution shows its official source and faculties, a cut-off without its year is refused with the reason, a pre-filled length confirmed by ticking, review-by dates listed, axe clean; Operations has no tab')
   }
 
   // AI review (ADMIN-009): reported answers, unsafe first; text only when shared; rubric saved.

@@ -129,6 +129,9 @@ then `academic-alerts` redeployed for the new alert text. To change the price:
 Applied 2026-10-27: 158 (guardians see the child's career reports while career answers are shared;
 CAREER-REPORT approved by the owner).
 
+Applied 2026-10-27: 159 (draft programme lengths: 4 years, 5 for architecture, marked not confirmed; a draft
+cannot be sent for review until an admin ticks "Length confirmed with the faculty").
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
