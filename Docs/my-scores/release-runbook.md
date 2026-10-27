@@ -144,6 +144,9 @@ and `update academic_guardian_email_prefs set status = 'unsubscribed' where stat
 
 Applied 2026-10-27 (#52, DASH-007): 162 (compare a subject across school years).
 
+Applied 2026-10-27 (#51, NOTIF-005): 163 (e-mail 7 days and 1 day before Academy Premium ends, for students
+who turned on account e-mails; daily at 09:00 Vientiane), then `academic-alerts` redeployed.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

@@ -71,6 +71,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   const stats = active('usage_statistics')
   const ocr = active('ocr_processing')
   const coachReview = active('coach_review')
+  const email = active('email')
 
   const row = (purpose: string, current: NonNullable<typeof module>, action: React.ReactNode) => (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -129,6 +130,23 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
               : <Button size="sm" variant="outline" loading={grantOptional.isPending} disabled={!noticeVersion}
                   aria-label={`${t('consent.usageStats.turnOn')}: ${t('consent.purpose.coach_review')}`}
                   onClick={() => noticeVersion && grantOptional.mutate({ purpose: 'coach_review', noticeVersion }, { onError })}>{t('consent.usageStats.turnOn')}</Button>}
+          </li>
+        )}
+        {/* E-mails about the account, e.g. Premium ending (NOTIF-005, migration 163): off until turned on. */}
+        {module && (
+          <li className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block font-bold">{t('consent.purpose.email')}</span>
+              <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.email.body')}</span>
+              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                {email ? t('data.consentActive', { date: formatDate(email.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
+            </span>
+            {email
+              ? <Button size="sm" variant="ghost" loading={withdraw.isPending} onClick={() => withdraw.mutate('email', { onError })}>{t('consent.usageStats.turnOff')}</Button>
+              : <Button size="sm" variant="outline" loading={grantOptional.isPending} disabled={!noticeVersion}
+                  aria-label={`${t('consent.usageStats.turnOn')}: ${t('consent.purpose.email')}`}
+                  onClick={() => noticeVersion && grantOptional.mutate({ purpose: 'email', noticeVersion }, { onError })}>{t('consent.usageStats.turnOn')}</Button>}
           </li>
         )}
       </ul>

@@ -85,9 +85,9 @@ eq('after 5 failed tries it stops and the admins are alerted', [(await claim()).
 
 const unsubToken = (await one(`select unsubscribe_token from academic_guardian_email_prefs where user_id = '${G}'`)).unsubscribe_token
 await report()
-eq('one-click unsubscribe works without signing in', await unsubscribe(unsubToken), { status: 'unsubscribed' })
+eq('one-click unsubscribe works without signing in', await unsubscribe(unsubToken), { status: 'unsubscribed', scope: 'guardian' })
 eq('queued e-mails are dropped and nothing new is queued', [(await claim()).length, (await report(), (await claim()).length)], [0, 0])
-eq('a second click is harmless', await unsubscribe(unsubToken), { status: 'unsubscribed' })
+eq('a second click is harmless', await unsubscribe(unsubToken), { status: 'unsubscribed', scope: 'guardian' })
 eq('a wrong token does nothing', await unsubscribe('x'), { status: 'invalid' })
 eq('logged', (await one(`select count(*)::int as n from academic_audit_events where action = 'guardian.email_unsubscribe' and actor_user_id = '${G}'`)).n, 1)
 

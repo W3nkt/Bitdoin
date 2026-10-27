@@ -1,12 +1,13 @@
 // Guardian e-mails (NOTIF-002, migration 161): the double opt-in confirmation
-// and the monthly report. Report wording is the owner-approved text of the
+// and the monthly report. Also the student's e-mail before Academy Premium ends
+// (NOTIF-005, migration 163), with the in-app notice's approved wording. Report wording is the owner-approved text of the
 // report page (src/lib/academic/guardianCopy.ts). Without "include scores" the
 // e-mail has no score values: subject names, counts of subjects recorded and
 // the family's next steps only.
 
 export interface GuardianEmail {
   id: string
-  kind: 'guardian_confirm' | 'guardian_report'
+  kind: 'guardian_confirm' | 'guardian_report' | 'premium_ending'
   recipient: string
   language: string
   payload: Record<string, unknown>
@@ -39,6 +40,11 @@ const TEXT = {
   },
   why: { en: 'You get this e-mail because you turned on monthly reports by e-mail.', lo: 'ທ່ານໄດ້ຮັບອີເມວນີ້ ເພາະທ່ານເປີດຮັບລາຍງານປະຈຳເດືອນທາງອີເມວ.' },
   unsubscribe: { en: 'Unsubscribe', lo: 'ຍົກເລີກການຮັບ' },
+  endsSoon: { en: 'Academy Premium ends in {count} days, on {date}.', lo: 'Academy Premium ຈະໝົດໃນ {count} ມື້, ວັນທີ {date}.' },
+  endsTomorrow: { en: 'Academy Premium ends tomorrow, {date}.', lo: 'Academy Premium ຈະໝົດມື້ອື່ນ, ວັນທີ {date}.' },
+  keepData: { en: 'If Premium ends, everything you recorded stays.', lo: 'ຖ້າ Premium ໝົດ, ທຸກຢ່າງທີ່ເຈົ້າບັນທຶກໄວ້ຍັງຢູ່.' },
+  renew: { en: 'Renew', lo: 'ຕໍ່ອາຍຸ' },
+  accountWhy: { en: 'You get this e-mail because you turned on e-mails about your account in My data.', lo: 'ເຈົ້າໄດ້ຮັບອີເມວນີ້ ເພາະເຈົ້າເປີດຮັບອີເມວກ່ຽວກັບບັນຊີ ໃນໜ້າຂໍ້ມູນຂອງຂ້ອຍ.' },
   suggest: {
     ask_hardest: { en: 'Ask what felt hardest in {subject} this month, and listen first.', lo: 'ຖາມວ່າເດືອນນີ້ ວິຊາ{subject} ມີຫຍັງທີ່ຍາກທີ່ສຸດ, ແລະ ຟັງກ່ອນ.' },
     notice_progress: { en: 'Notice the effort behind the progress in {subject}.', lo: 'ສັງເກດຄວາມພະຍາຍາມທີ່ເຮັດໃຫ້ວິຊາ{subject} ດີຂຶ້ນ.' },
@@ -53,6 +59,16 @@ const esc = (value: unknown) => String(value ?? '')
 
 function fill(template: string, values: Record<string, unknown> = {}) {
   return template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ''))
+}
+
+// As formatDate in src/lib/academic/format.ts (Vientiane, Lao month names; Deno has no Lao locale data).
+const MONTHS = {
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  lo: ['ມັງກອນ', 'ກຸມພາ', 'ມີນາ', 'ເມສາ', 'ພຶດສະພາ', 'ມິຖຸນາ', 'ກໍລະກົດ', 'ສິງຫາ', 'ກັນຍາ', 'ຕຸລາ', 'ພະຈິກ', 'ທັນວາ'],
+}
+function vientianeDate(value: string, lang: Lang) {
+  const local = new Date(new Date(value).getTime() + 7 * 60 * 60 * 1000)
+  return `${local.getUTCDate()} ${MONTHS[lang][local.getUTCMonth()]} ${local.getUTCFullYear()}`
 }
 
 const num = (value: unknown) => (typeof value === 'number' ? String(Math.round(value * 100) / 100) : '—')
@@ -78,6 +94,17 @@ export function renderGuardianEmail(mail: GuardianEmail): { subject: string; htm
   const p = mail.payload
   const site = String(p.site_url ?? 'https://bitdoin.store').replace(/\/+$/, '')
   const unsubscribe = unsubscribePageUrl(site, mail.unsubscribe_token)
+
+  if (mail.kind === 'premium_ending') {
+    const date = vientianeDate(String(p.until), lang)
+    const line = Number(p.days) === 1 ? t(TEXT.endsTomorrow, { date }) : t(TEXT.endsSoon, { count: p.days, date })
+    const body = `<p style="margin:0 0 12px">${esc(t(TEXT.hello, { name: p.name }))}</p>
+<p style="margin:0 0 12px;font-weight:700">${esc(line)}</p>
+<p style="margin:0">${esc(t(TEXT.keepData))}</p>
+${button(`${site}/academy/subscription`, t(TEXT.renew))}`
+    const footer = `<p style="margin:0">${esc(t(TEXT.accountWhy))} <a href="${esc(unsubscribe)}" style="color:#475569">${esc(t(TEXT.unsubscribe))}</a></p>`
+    return { subject: line, html: page(lang, body, footer) }
+  }
 
   if (mail.kind === 'guardian_confirm') {
     const body = `<p style="margin:0 0 12px">${esc(t(TEXT.hello, { name: p.name }))}</p>

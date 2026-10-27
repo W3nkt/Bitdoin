@@ -206,22 +206,27 @@ export function FamilyEmail() {
   const confirmToken = params.get('confirm')
   const unsubscribeToken = params.get('unsubscribe')
   const [status, setStatus] = useState<'working' | 'confirmed' | 'expired' | 'invalid' | 'unsubscribed' | 'error'>('working')
+  // Account e-mails (Premium ending, NOTIF-005) use the same unsubscribe link.
+  const [account, setAccount] = useState(false)
   const ran = useRef(false)
   useEffect(() => {
     if (ran.current) return
     ran.current = true
     const token = confirmToken ?? unsubscribeToken
     if (!token) { setStatus('invalid'); return }
-    guardianEmailLink(confirmToken ? 'email_confirm' : 'email_unsubscribe', token).then(setStatus, () => setStatus('error'))
+    guardianEmailLink(confirmToken ? 'email_confirm' : 'email_unsubscribe', token)
+      .then(result => { setAccount(result.scope === 'account'); setStatus(result.status) }, () => setStatus('error'))
   }, [confirmToken, unsubscribeToken])
-  const message = status === 'working' ? t('family.email.working') : t(`family.email.result.${status}` as AcademicCopyKey)
+  const message = status === 'working' ? t('family.email.working')
+    : account && status === 'unsubscribed' ? t('family.email.result.unsubscribedAccount')
+    : t(`family.email.result.${status}` as AcademicCopyKey)
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <div className="mx-auto max-w-md px-4 py-10">
         <section className={card}>
-          <h1 className="flex items-center gap-2 text-xl font-black"><Mail aria-hidden className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />{t('family.email.title')}</h1>
+          <h1 className="flex items-center gap-2 text-xl font-black"><Mail aria-hidden className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />{account ? t('family.email.accountTitle') : t('family.email.title')}</h1>
           <p role="status" className="mt-3 text-sm">{message}</p>
-          {status !== 'working' && <Link to="/academy/family" className="mt-4 inline-block text-sm font-black text-indigo-700 hover:underline dark:text-indigo-300">{t('family.email.toFamily')}</Link>}
+          {status !== 'working' && <Link to={account ? '/academy/scores/data' : '/academy/family'} className="mt-4 inline-block text-sm font-black text-indigo-700 hover:underline dark:text-indigo-300">{account ? t('family.email.toMyData') : t('family.email.toFamily')}</Link>}
         </section>
       </div>
     </div>

@@ -94,7 +94,7 @@ const serviceClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { a
 async function sendGuardianEmail(mail: GuardianEmail) {
   const { subject, html } = renderGuardianEmail(mail)
   const headers: Record<string, string> = {}
-  if (mail.kind === 'guardian_report') {
+  if (mail.kind !== 'guardian_confirm') {
     headers['List-Unsubscribe'] = `<${SUPABASE_URL}/functions/v1/academic-alerts?unsubscribe=${encodeURIComponent(mail.unsubscribe_token)}>`
     headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click'
   }

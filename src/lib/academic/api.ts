@@ -1469,7 +1469,7 @@ export const useGuardianEmailStop = () => useGuardianEmailMutation(() => callAca
 export async function guardianEmailLink(action: 'email_confirm' | 'email_unsubscribe', token: string) {
   const { data, error } = await supabase.functions.invoke('academic-alerts', { body: { action, token } })
   if (error) throw error
-  return (data as { status: 'confirmed' | 'expired' | 'invalid' | 'unsubscribed' }).status
+  return data as { status: 'confirmed' | 'expired' | 'invalid' | 'unsubscribed'; scope?: 'guardian' | 'account' }
 }
 
 // ─── Compare a subject across school years (DASH-007, migration 162) ─────────

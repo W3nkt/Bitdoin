@@ -187,6 +187,9 @@ export const guardianCopy = {
   'family.email.result.unsubscribed': { en: 'You will not get these e-mails any more. The reports stay in the app.', lo: 'ທ່ານຈະບໍ່ໄດ້ຮັບອີເມວເຫຼົ່ານີ້ອີກ. ລາຍງານຍັງຢູ່ໃນແອັບ.' },
   'family.email.result.error': { en: 'Something went wrong. Try the link again later.', lo: 'ມີບາງຢ່າງຜິດພາດ. ລອງລິ້ງອີກຄັ້ງພາຍຫຼັງ.' },
   'family.email.limit': { en: 'At most 3 confirmation e-mails a day. Try again tomorrow.', lo: 'ສົ່ງອີເມວຢືນຢັນໄດ້ບໍ່ເກີນ 3 ຄັ້ງຕໍ່ມື້. ລອງໃໝ່ມື້ອື່ນ.' },
+  'family.email.accountTitle': { en: 'E-mails from Bitdoin', lo: 'ອີເມວຈາກ Bitdoin' },
+  'family.email.result.unsubscribedAccount': { en: 'You will not get e-mails about your account any more. You can turn them on again in My data.', lo: 'ເຈົ້າຈະບໍ່ໄດ້ຮັບອີເມວກ່ຽວກັບບັນຊີອີກ. ເປີດຄືນໄດ້ໃນໜ້າຂໍ້ມູນຂອງຂ້ອຍ.' },
+  'family.email.toMyData': { en: 'Go to My data', lo: 'ໄປໜ້າຂໍ້ມູນຂອງຂ້ອຍ' },
   'family.email.toFamily': { en: 'Go to the Family page', lo: 'ໄປໜ້າຄອບຄົວ' },
   'family.report.back': { en: 'Back to {name}', lo: 'ກັບໄປ {name}' },
 } as const

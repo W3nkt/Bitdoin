@@ -462,7 +462,7 @@ function backend(initial) {
         state.guardianEmail = { ...state.guardianEmail, status: 'confirmed', confirmed_at: '2026-10-27T05:00:00Z' }
         return json({ status: 'confirmed' })
       }
-      if (body.action === 'email_unsubscribe') return json({ status: 'unsubscribed' })
+      if (body.action === 'email_unsubscribe') return json({ status: 'unsubscribed', scope: body.token === 'acct-token' ? 'account' : 'guardian' })
       return json({ error: 'Unknown action' }, 400)
     }
     if (url.pathname === '/functions/v1/academic-ocr') {
@@ -1705,6 +1705,11 @@ try {
     await page.goto(`${base}/academy/family/email?unsubscribe=u-token`, { waitUntil: 'domcontentloaded' })
     await page.getByText('You will not get these e-mails any more. The reports stay in the app.').waitFor()
     assert.deepEqual(mock.state.emailLinks.at(-1), { action: 'email_unsubscribe', token: 'u-token' })
+    // The same link in a Premium-ending e-mail (NOTIF-005) turns off account e-mails.
+    await page.goto(`${base}/academy/family/email?unsubscribe=acct-token`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('You will not get e-mails about your account any more. You can turn them on again in My data.').waitFor()
+    await page.getByRole('heading', { name: 'E-mails from Bitdoin' }).waitFor()
+    assert.equal(await page.getByRole('link', { name: 'Go to My data' }).getAttribute('href'), '/academy/scores/data')
     await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(parent.errors, [])
@@ -1715,7 +1720,7 @@ try {
     await lo.page.getByRole('heading', { name: 'ລາຍງານປະຈຳເດືອນທາງອີເມວ' }).waitFor()
     await shot(lo.page, 'my-scores-guardians-7-email-lo-mobile')
     await lo.context.close()
-    pass('Guardian e-mails: opt in from the Family page with scores off by default, confirmation link sent and waiting; a bad link is refused, the right link confirms; include scores saved; one-click unsubscribe from the e-mail; Lao card; axe clean')
+    pass('Guardian e-mails: opt in from the Family page with scores off by default, confirmation link sent and waiting; a bad link is refused, the right link confirms; include scores saved; one-click unsubscribe from the e-mail, and from a Premium-ending e-mail turns off account e-mails; Lao card; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons
@@ -2267,6 +2272,13 @@ try {
     await page.getByRole('button', { name: 'ປິດ', exact: true }).click()
     await page.getByRole('button', { name: 'ເປີດ: ໃຫ້ຜູ້ກວດສອບກວດຄຳຕອບຂອງຄູຝຶກ' }).waitFor()
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'coach_review' })
+    // E-mails about the account (NOTIF-005, migration 163): off until turned on here, and off again.
+    await page.getByRole('button', { name: 'ເປີດ: ສົ່ງອີເມວຫາຂ້ອຍ' }).click()
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_grant_consent').args, { p_purpose: 'email', p_notice_version: '2026-10-draft' })
+    await page.getByRole('button', { name: 'ປິດ', exact: true }).click()
+    await page.getByRole('button', { name: 'ເປີດ: ສົ່ງອີເມວຫາຂ້ອຍ' }).waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'email' })
     await page.getByRole('button', { name: 'ຢຸດ' }).first().click()
     await page.getByText('ຢຸດເກັບຄະແນນໃໝ່ບໍ?').waitFor()
     await shot(page, 'my-scores-21-consents-lo-mobile')
@@ -2275,7 +2287,7 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_withdraw_consent').args, { p_purpose: 'module_processing' })
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Consents (Lao): device reminders stopped and hidden until given again; usage statistics switched on and off; Coach review sharing off by default, switched on and off; module processing withdrawn after a warning, profile shown read-only')
+    pass('Consents (Lao): device reminders stopped and hidden until given again; usage statistics switched on and off; Coach review sharing and account e-mails off by default, switched on and off; module processing withdrawn after a warning, profile shown read-only')
   }
 
   // Reminders (Lao, phone): bell count, dashboard banner, inbox read/dismiss, settings.

@@ -402,6 +402,7 @@ const copy = {
   'consent.purpose.module_processing': { en: 'Keep my scores in Schooling', lo: 'ເກັບຄະແນນໄວ້ໃນ ໂຮງຮຽນ' },
   'consent.purpose.push': { en: 'Send reminders to my device', lo: 'ສົ່ງການແຈ້ງເຕືອນໄປທີ່ອຸປະກອນ' },
   'consent.purpose.email': { en: 'Email me', lo: 'ສົ່ງອີເມວຫາຂ້ອຍ' },
+  'consent.email.body': { en: 'E-mails about your account to the address on your Bitdoin account, such as 7 days and 1 day before Academy Premium ends.', lo: 'ອີເມວກ່ຽວກັບບັນຊີ ໄປທີ່ອີເມວໃນບັນຊີ Bitdoin ຂອງເຈົ້າ, ເຊັ່ນ ກ່ອນ Academy Premium ໝົດ 7 ມື້ ແລະ 1 ມື້.' },
   'consent.purpose.usage_statistics': { en: 'Usage statistics', lo: 'ສະຖິຕິການນຳໃຊ້' },
   'consent.usageStats.body': {
     en: 'Which screens you use and how long entering scores takes. Never your scores or name.',
