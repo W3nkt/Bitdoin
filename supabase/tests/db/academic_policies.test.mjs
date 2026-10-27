@@ -127,4 +127,13 @@ eq('student reads no audit events', (await as(A, `select count(*)::int as n from
 // Service role bypasses RLS for export/deletion jobs.
 eq('service role sees everything', await visible(null, 'service_role'), all(2))
 
+// PostgREST runs STABLE functions read-only; a callable STABLE function that
+// counts the rate limit, audits or writes fails with 25006 (incident
+// 2026-10-27, migration 160).
+const readOnlyWriters = (await db.query(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname like 'academic%' and p.provolatile in ('s', 'i') and has_function_privilege('authenticated', p.oid, 'execute')
+    and p.prosrc ~ 'academic_require_(user|profile|staff)|academic_rate_limit|academic_deny|academic_audit\\(|insert into|update public\\.|delete from|academic_raise_alert|academic_career_refresh'
+  order by 1`)).rows.map((r) => r.proname)
+eq('no callable STABLE function writes (rate limit, audit, insert)', readOnlyWriters, [])
+
 done()
