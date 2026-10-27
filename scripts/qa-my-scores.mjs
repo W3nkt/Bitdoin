@@ -274,6 +274,11 @@ function backend(initial) {
       ],
       scholarships: [{ slug: 's-uhs', name_en: 'Health Sciences Scholarship', name_lo: 'ທຶນການສຶກສາ ວິທະຍາສາດສຸຂະພາບ', provider: 'University of Health Sciences', deadline: '2026-12-04', academic_year: '2026-2027',
         eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', out_of_date: false }],
+      exam_blueprints: [{ slug: 'e-nuol-2026-a', name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', group: 'A', intake_year: '2026-2027', exam_date: '2026-08-08',
+        sessions: [{ label_en: 'Morning: Mathematics A and Physics', label_lo: 'ຕອນເຊົ້າ: ຄະນິດສາດ A ແລະ ຟີຊິກສາດ', minutes: 120, subjects: ['MATH', 'PHYS'] }],
+        note_en: 'Question count and maximum score are not stated in the source.', note_lo: 'ແຫຼ່ງຂໍ້ມູນບໍ່ໄດ້ບອກຈຳນວນຂໍ້ ແລະ ຄະແນນເຕັມ.',
+        source_name: 'National University of Laos', source_url: 'https://nuol.edu.la/index.php/news/640', verified_on: '2026-10-27', out_of_date: false }],
+      exam_intake_year: '2027-2028',
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
     // Compare school years (migration 162): only this year unless a scenario adds more.
@@ -1768,6 +1773,11 @@ try {
     assert.equal(await programmes.getByText('Bachelor of Nursing Science').count(), 0)
     // UNI-005: save a scholarship and turn on reminders.
     const scholarships = page.locator('section', { has: page.getByRole('heading', { name: 'Scholarships and deadlines' }) })
+    // EXAM-001: the latest official entrance exam structure, with its intake year and source.
+    const exams = page.locator('section', { has: page.getByRole('heading', { name: 'University entrance exam' }) })
+    await exams.getByText('The exam for the 2027-2028 intake is not announced yet. This is the latest official structure.').waitFor()
+    await exams.getByText('Morning: Mathematics A and Physics: 120 minutes').waitFor()
+    await exams.getByText('For the 2026-2027 intake – may change', { exact: false }).waitFor()
     await scholarships.getByText('Who can apply: Grade 12 students').waitFor()
     await scholarships.getByRole('button', { name: 'Save Health Sciences Scholarship' }).click()
     await scholarships.getByLabel('Remind me 14 and 3 days before').check()
@@ -1793,7 +1803,7 @@ try {
     assert.deepEqual(await lo.page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     assert.deepEqual(lo.errors, [])
     await lo.context.close()
-    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; programmes by field and entrance group with unconfirmed groups apart and cut-offs with their year, a scholarship saved with reminders; Lao results; Free sees interests and every career but options need Premium; axe clean')
+    pass('Career guidance: resumes at the first unanswered screen, every question answered before Next (Not sure allowed), optional preferences, options with reasons and preparation and no percentages, Explorer link to the same career, shortlist, what changed, talk-it-over questions, every career open; programmes by field and entrance group with unconfirmed groups apart and cut-offs with their year, the latest entrance exam structure with its intake and source, a scholarship saved with reminders; Lao results; Free sees interests and every career but options need Premium; axe clean')
   }
 
   // Career report (CAREER-006, BILLING-004 #55): buy once by transfer, upload the receipt, wait for review; once

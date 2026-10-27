@@ -923,7 +923,7 @@ export function useRateAi() {
 
 // ─── Career catalogue (ADMIN-010, UNI-001/002/004; migration 148) ────────────
 
-export type CareerKind = 'career' | 'institution' | 'programme' | 'scholarship'
+export type CareerKind = 'career' | 'institution' | 'programme' | 'scholarship' | 'exam_blueprint'
 export type CareerStatus = 'draft' | 'in_review' | 'published' | 'archived'
 
 /** A sourced, dated fact (UNI-002). Requirements and cut-offs also need academic_year (UNI-004). */
@@ -966,6 +966,8 @@ export interface CareerContentView {
   subjects: { code: string; name_en: string }[]
   institutions: { slug: string; name_en: string }[]
   careers: { slug: string; title_en: string }[]
+  /** The intake the current Grade 12 sits the entrance exam for (migration 164). */
+  exam_intake_year: string | null
 }
 
 export function useCareerContent(kind: CareerKind) {

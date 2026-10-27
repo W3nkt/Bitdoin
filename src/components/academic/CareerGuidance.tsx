@@ -12,7 +12,7 @@ import {
 import { formatDate } from '@/lib/academic/format'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
-import { CareerProgrammes, ProgrammeSearch, Scholarships } from './Programmes'
+import { CareerProgrammes, ExamBlueprints, ProgrammeSearch, Scholarships } from './Programmes'
 import { ReportCard } from './CareerReport'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
@@ -57,6 +57,7 @@ function Intro({ view }: { view: CareerGuidanceView }) {
       </section>
       <AllCareers shortlist={view.shortlist} />
       <ProgrammeSearch />
+      <ExamBlueprints />
       <Scholarships />
     </div>
   )
@@ -296,6 +297,7 @@ function Results({ view }: { view: CareerGuidanceView }) {
 
       <AllCareers shortlist={view.shortlist} />
       <ProgrammeSearch />
+      <ExamBlueprints />
       <Scholarships />
     </div>
   )

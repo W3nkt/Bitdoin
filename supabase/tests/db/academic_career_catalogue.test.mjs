@@ -120,4 +120,19 @@ await db.exec(`create or replace function public.academic_today() returns date l
 eq('after the deadline it is hidden and cannot be saved', [(await catalogue()).scholarships.length, (await rpcError(S, `public.academic_set_scholarship_saved('${sch.slug}', true)`))?.details?.field], [0, 'slug'])
 eq('the saved scholarship is in "Download my data"', (await rpc(S, `public.academic_export_my_scholarships()`)).map((x) => x.scholarship), [sch.slug])
 
+
+// ─── Entrance exam blueprints (EXAM-001, migration 164) ──────────────────────
+
+const blueprints = await list('exam_blueprint')
+eq('Groups A and B for 2026-2027 from the NUOL exam-day report, complete drafts', blueprints.map((b) => [b.slug, b.status, b.draft.group, b.draft.intake_year, b.draft.sessions.map((x) => x.minutes), Object.keys(b.problems).length]).sort(),
+  [['e-nuol-2026-a', 'draft', 'A', '2026-2027', [120, 90], 0], ['e-nuol-2026-b', 'draft', 'B', '2026-2027', [120, 90], 0]])
+const badBlueprint = await save(A1, { kind: 'exam_blueprint', data: { ...blueprints[0].draft, group: 'AB', sessions: [{ label_en: 'x', label_lo: 'x', minutes: 5, subjects: ['ASTRO'] }] } })
+eq('a blueprint needs one group letter and sessions with minutes and real subjects', [badBlueprint.problems.group, badBlueprint.problems['sessions.1'], badBlueprint.slug.startsWith('e-')],
+  ['One letter, as in the official notice', 'Minutes (15 to 300) and at least one school subject', true])
+await review(A1, blueprints.find((b) => b.slug === 'e-nuol-2026-a').id, 'submit')
+await review(A2, blueprints.find((b) => b.slug === 'e-nuol-2026-a').id, 'approve')
+const examCat = await catalogue()
+eq('published blueprints reach students with the intake the current Grade 12 sits for', [examCat.exam_blueprints.map((b) => [b.slug, b.source_url]), examCat.exam_intake_year],
+  [[['e-nuol-2026-a', 'https://nuol.edu.la/index.php/news/640']], '2027-2028'])
+
 done()

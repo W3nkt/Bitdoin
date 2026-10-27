@@ -146,6 +146,12 @@ export const careerCopy = {
   'careers.note.deadline.title': { en: '{name}: {days} days left', lo: '{name}: ເຫຼືອ {days} ມື້' },
   'careers.note.deadline.body': { en: 'The deadline is {date}.', lo: 'ກຳນົດສົ່ງແມ່ນ {date}.' },
 
+  // Entrance exam structure (EXAM-001).
+  'careers.exams': { en: 'University entrance exam', lo: 'ການສອບເສັງເຂົ້າມະຫາວິທະຍາໄລ' },
+  'careers.exams.forIntake': { en: 'For the {year} intake – may change', lo: 'ສຳລັບການເຂົ້າຮຽນສົກ {year} – ອາດປ່ຽນແປງ' },
+  'careers.exams.minutes': { en: '{minutes} minutes', lo: '{minutes} ນາທີ' },
+  'careers.exams.notAnnounced': { en: 'The exam for the {year} intake is not announced yet. This is the latest official structure.', lo: 'ການສອບເສັງສຳລັບການເຂົ້າຮຽນສົກ {year} ຍັງບໍ່ທັນປະກາດ. ນີ້ແມ່ນໂຄງສ້າງທາງການຫຼ້າສຸດ.' },
+
   // Career report (CAREER-006) and its one-time purchase (BILLING-004).
   'careers.report.title': { en: 'Career report', lo: 'ລາຍງານອາຊີບ' },
   'careers.report.body': { en: 'A printable report of your options, the preparation that helps until Grade 12, where to study in Laos and questions to discuss with your family.', lo: 'ລາຍງານທີ່ພິມໄດ້ ກ່ຽວກັບທາງເລືອກຂອງເຈົ້າ, ການກະກຽມຈົນຈົບ ມ.7, ບ່ອນຮຽນໃນລາວ ແລະ ຄຳຖາມເພື່ອລົມກັບຄອບຄົວ.' },

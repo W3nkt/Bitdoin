@@ -29,7 +29,9 @@ const KINDS: { id: CareerKind; label: string }[] = [
   { id: 'institution', label: 'Institutions' },
   { id: 'programme', label: 'Programmes' },
   { id: 'scholarship', label: 'Scholarships' },
+  { id: 'exam_blueprint', label: 'Exam blueprints' },
 ]
+type ExamSession = { label_en: string; label_lo: string; minutes: number | string; subjects: string[] }
 const AREAS: Record<string, string> = { R: 'Building & fixing', I: 'Investigating & science', A: 'Creating & designing', S: 'Helping & teaching', E: 'Leading & business', C: 'Organising & data' }
 const STUDY: Record<string, string> = { le3: 'Up to 3 years', '4to5': '4–5 years', '6plus': '6 years or more' }
 const SETTINGS: Record<string, string> = { office: 'Office', outdoors: 'Outdoors', workshop_lab: 'Workshop or lab', with_people: 'With people' }
@@ -80,8 +82,8 @@ export function CareersAdmin() {
       <Panel title="Career catalogue"
         description="One catalogue with the Academy Career Explorer. Students only see published copies; a different admin approves every change."
         actions={<Button size="sm" icon={<Plus className="h-4 w-4" />} disabled={!view}
-          onClick={() => setEditing({ data: kind === 'programme' ? { institution: view?.institutions[0]?.slug ?? '', requirements: [], careers: [] } : kind === 'career' ? { facts: [], related_subjects: [], work_settings: [] } : kind === 'scholarship' ? { institution: '' } : { type: 'university', province_code: 'vientiane-prefecture', faculties: [] } })}>
-          New {kind}</Button>}>
+          onClick={() => setEditing({ data: kind === 'programme' ? { institution: view?.institutions[0]?.slug ?? '', requirements: [], careers: [] } : kind === 'career' ? { facts: [], related_subjects: [], work_settings: [] } : kind === 'scholarship' ? { institution: '' } : kind === 'exam_blueprint' ? { sessions: [{ label_en: '', label_lo: '', minutes: 120, subjects: [] }] } : { type: 'university', province_code: 'vientiane-prefecture', faculties: [] } })}>
+          New {kind === 'exam_blueprint' ? 'exam blueprint' : kind}</Button>}>
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Content" className="flex gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800">
             {KINDS.map(item => (
@@ -188,6 +190,16 @@ function Summary({ record, view }: { record: CareerRecord; view: CareerContentVi
       </div>
     )
   }
+  if (record.kind === 'exam_blueprint') {
+    const sessions = (d.sessions as ExamSession[] | undefined) ?? []
+    return (
+      <div className="mt-2 grid gap-1 text-sm">
+        <p>Group {str(d.group) || '—'} · intake {str(d.intake_year) || '—'}{d.exam_date ? ` · exam ${str(d.exam_date)}` : ''}{d.intake_year && d.intake_year !== view.exam_intake_year ? ` · not the current intake (${view.exam_intake_year ?? '—'}): mocks show as practice sets` : ''}</p>
+        <ul className="list-disc pl-5 text-slate-600 dark:text-slate-400">{sessions.map((x, i) => <li key={i}>{x.label_en || `Session ${i + 1}`}: {x.minutes} min · {list(x.subjects).join(', ')}</li>)}</ul>
+        <SourceLink name={str(d.source_name)} url={str(d.source_url)} verified={str(d.verified_on)} reviewBy={str(d.review_by)} />
+      </div>
+    )
+  }
   if (record.kind === 'scholarship') {
     return (
       <div className="mt-2 grid gap-1 text-sm">
@@ -262,7 +274,7 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
         save.mutate({ id: value.record?.id, kind, slug: value.record ? undefined : slug.trim() || undefined, data },
           { onSuccess: () => { toast.success('Saved. Send it for review when it is ready.'); onClose() }, onError: error => toast.error(adminErrorText(error)) })
       }}>
-        {!value.record && kind !== 'programme' && kind !== 'scholarship' && (
+        {!value.record && kind !== 'programme' && kind !== 'scholarship' && kind !== 'exam_blueprint' && (
           <Field label="Slug" hint={kind === 'career' ? 'Use the Career Explorer id for an existing career, e.g. software-engineer.' : 'Short id, e.g. nuol.'}>
             <input value={slug} required pattern="[a-z0-9][a-z0-9\-]{1,63}" onChange={event => setSlug(event.target.value)} />
           </Field>
@@ -354,6 +366,39 @@ function Editor({ kind, view, value, onClose }: { kind: CareerKind; view: Career
             {source}
           </div>
         )}
+
+        {kind === 'exam_blueprint' && <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {text('name_en', 'Name (English)', { hint: 'For example: Entrance exam, Group A (STEM)' })}
+            {text('name_lo', 'Name (Lao)')}
+            {text('group', 'Entrance group', { hint: 'One letter, as in the official notice.' })}
+            {text('intake_year', 'Intake year', { hint: `The year students start university, e.g. ${view.exam_intake_year ?? '2027-2028'}. Only the current intake makes a "Mock exam".` })}
+            {text('exam_date', 'Exam date (optional)', { type: 'date' })}
+            {source}
+            {text('note_en', 'Note (English, optional)', { hint: 'E.g. what the source does not say.' })}
+            {text('note_lo', 'Note (Lao, optional)')}
+          </div>
+          <fieldset className="grid gap-3"><legend className="mb-1 text-xs font-black text-slate-600 dark:text-slate-300">Sessions: minutes and the school subjects in each (EXAM-001)</legend>
+            {((data.sessions as ExamSession[] | undefined) ?? []).map((session, index, all) => {
+              const setSession = (patch: Partial<ExamSession>) => set({ sessions: all.map((x, i) => (i === index ? { ...x, ...patch } : x)) })
+              return (
+                <fieldset key={index} className="grid gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700 sm:grid-cols-2">
+                  <legend className="px-1 text-xs font-black">Session {index + 1}</legend>
+                  <Field label="Label (English)"><input value={session.label_en} onChange={event => setSession({ label_en: event.target.value })} /></Field>
+                  <Field label="Label (Lao)"><input value={session.label_lo} onChange={event => setSession({ label_lo: event.target.value })} /></Field>
+                  <Field label="Minutes"><input type="number" min={15} max={300} value={String(session.minutes)} onChange={event => setSession({ minutes: Number(event.target.value) })} /></Field>
+                  <div className="sm:col-span-2 flex flex-wrap gap-3 text-sm">{view.subjects.map(sub => (
+                    <label key={sub.code} className="flex items-center gap-1.5"><input type="checkbox" checked={list(session.subjects).includes(sub.code)}
+                      onChange={() => setSession({ subjects: list(session.subjects).includes(sub.code) ? list(session.subjects).filter(c => c !== sub.code) : [...list(session.subjects), sub.code] })} />{sub.name_en}</label>
+                  ))}</div>
+                  <div className="sm:col-span-2"><IconButton label={`Remove session ${index + 1}`} danger onClick={() => set({ sessions: all.filter((_, i) => i !== index) })}><Trash2 className="h-4 w-4" /></IconButton></div>
+                </fieldset>
+              )
+            })}
+            <div><Button type="button" size="sm" variant="ghost" icon={<Plus className="h-4 w-4" />}
+              onClick={() => set({ sessions: [...((data.sessions as ExamSession[] | undefined) ?? []), { label_en: '', label_lo: '', minutes: 90, subjects: [] }] })}>Add session</Button></div>
+          </fieldset>
+        </>}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>

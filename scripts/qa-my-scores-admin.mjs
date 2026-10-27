@@ -35,6 +35,10 @@ function careerFixtures() {
       problems: { duration_years: 'Confirm the length with the faculty, then tick Length confirmed' },
       draft: { institution: 'uhs', faculty: 'ຄະນະວິທະຍາສາດທຳມະຊາດ', name_en: 'Computer Science', name_lo: 'ວິທະຍາສາດຄອມພິວເຕີ', degree_level: 'bachelor', duration_years: '4', duration_unconfirmed: true,
         entrance_group: '', careers: [], requirements: [], source_name: 'National University of Laos: bachelor programmes', source_url: 'https://nuol.edu.la/', verified_on: '2026-10-27', review_by: '2027-04-27' } },
+    { ...base, id: 'k11', kind: 'exam_blueprint', slug: 'e-nuol-2026-a', status: 'draft', author: null, last_edited_by: null, can_approve: false,
+      draft: { name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', group: 'A', intake_year: '2026-2027', exam_date: '2026-08-08',
+        sessions: [{ label_en: 'Morning: Mathematics A and Physics', label_lo: 'ຕອນເຊົ້າ', minutes: 120, subjects: ['MATH', 'PHYS'] }],
+        source_name: 'National University of Laos', source_url: 'https://nuol.edu.la/index.php/news/640', verified_on: '2026-10-27', review_by: '2027-04-27' } },
   ].map((c) => ({ ...c, published: c.status === 'published' ? c.draft : null }))
 }
 
@@ -218,6 +222,7 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       return {
         items, clusters: ['technology', 'health', 'education'], subjects: [{ code: 'BIO', name_en: 'Biology' }, { code: 'CHEM', name_en: 'Chemistry' }, { code: 'MATH', name_en: 'Mathematics' }],
         institutions: [{ slug: 'uhs', name_en: 'University of Health Sciences' }], careers: [{ slug: 'registered-nurse', title_en: 'Registered Nurse' }, { slug: 'pharmacist', title_en: 'Pharmacist' }],
+        exam_intake_year: '2027-2028',
       }
     },
     academic_admin_career_due: () => [{ id: 'k9', kind: 'programme', slug: 'p-nursing', name: 'Bachelor of Nursing Science', review_by: '2026-11-15', overdue: false }],
@@ -824,6 +829,21 @@ try {
     assert.equal(await uhs.getByRole('link', { name: 'University of Health Sciences official website' }).getAttribute('href'), 'https://uhs.edu.la/')
     await page.getByRole('tab', { name: 'Scholarships' }).click()
     await page.getByRole('button', { name: 'New scholarship' }).waitFor()
+    // EXAM-001 (migration 164): exam blueprints, flagged when not for the current intake.
+    await page.getByRole('tab', { name: 'Exam blueprints' }).click()
+    const blueprint = page.locator('li', { hasText: 'Entrance exam, Group A (STEM)' })
+    await blueprint.getByText('not the current intake (2027-2028): mocks show as practice sets', { exact: false }).waitFor()
+    await blueprint.getByText('Morning: Mathematics A and Physics: 120 min · MATH, PHYS').waitFor()
+    await blueprint.getByRole('button', { name: 'Edit' }).click()
+    const examDialog = page.getByRole('dialog')
+    await examDialog.getByRole('button', { name: 'Add session' }).click()
+    await examDialog.getByLabel('Label (English)').nth(1).fill('Afternoon: Chemistry and Biology')
+    await examDialog.getByRole('group', { name: 'Session 2' }).getByLabel('Chemistry').check()
+    await examDialog.getByRole('button', { name: 'Save working copy' }).click()
+    await examDialog.waitFor({ state: 'hidden' })
+    const examSaved = lastCall(mock, 'academic_admin_save_career_content').args.p_input
+    assert.deepEqual([examSaved.kind, examSaved.data.sessions.length, examSaved.data.sessions[1].label_en, examSaved.data.sessions[1].subjects, examSaved.data.sessions[1].minutes],
+      ['exam_blueprint', 2, 'Afternoon: Chemistry and Biology', ['CHEM'], 90])
     await page.getByRole('tab', { name: 'Programmes' }).click()
     // Migration 159: a pre-filled length is marked not confirmed until an admin ticks it.
     const computing = page.locator('li', { hasText: 'Computer Science' })
@@ -856,7 +876,7 @@ try {
     await ops.page.getByRole('heading', { name: 'Support lookup' }).waitFor()
     assert.equal(await ops.page.getByRole('button', { name: 'Careers' }).count(), 0)
     await ops.context.close()
-    pass('Careers: seeded record approved by another admin, own edit needs a second admin, institution shows its official source and faculties, a cut-off without its year is refused with the reason, a pre-filled length confirmed by ticking, review-by dates listed, axe clean; Operations has no tab')
+    pass('Careers: seeded record approved by another admin, own edit needs a second admin, institution shows its official source and faculties, a cut-off without its year is refused with the reason, a pre-filled length confirmed by ticking, exam blueprints with sessions and a not-current-intake flag, review-by dates listed, axe clean; Operations has no tab')
   }
 
   // AI review (ADMIN-009): reported answers, unsafe first; text only when shared; rubric saved.

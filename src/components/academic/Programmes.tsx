@@ -159,6 +159,38 @@ function ScholarshipItem({ scholarship, saved }: { scholarship: CatalogueScholar
   )
 }
 
+/** EXAM-001: the published entrance exam structure per group, with its year and source. */
+export function ExamBlueprints() {
+  const { t, language } = useAcademicCopy()
+  const catalogue = useCareerCatalogue()
+  const lo = language === 'lo'
+  const blueprints = catalogue.data?.exam_blueprints ?? []
+  if (blueprints.length === 0) return null
+  const current = catalogue.data?.exam_intake_year ?? null
+  return (
+    <section className={card}>
+      <h2 className="text-lg font-black">{t('careers.exams')}</h2>
+      {current && !blueprints.some(b => b.intake_year === current) && <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.exams.notAnnounced', { year: current })}</p>}
+      <ul className="mt-3 grid gap-2">
+        {blueprints.map(b => (
+          <li key={b.slug} className="rounded-2xl border border-slate-200 p-3 text-sm dark:border-slate-700">
+            <p className="font-bold">{lo ? b.name_lo : b.name_en}</p>
+            <p className="text-slate-600 dark:text-slate-400">{t('careers.exams.forIntake', { year: b.intake_year })}{b.exam_date ? ` · ${formatDate(b.exam_date, language)}` : ''}</p>
+            <ul className="mt-1 list-disc pl-5">
+              {b.sessions.map((session, index) => <li key={index}>{lo ? session.label_lo : session.label_en}: {t('careers.exams.minutes', { minutes: session.minutes })}</li>)}
+            </ul>
+            {(lo ? b.note_lo : b.note_en) && <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{lo ? b.note_lo : b.note_en}</p>}
+            <a href={b.source_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-slate-600 underline dark:text-slate-400">
+              {t('careers.fact.source', { source: b.source_name, date: formatDate(b.verified_on, language) })}<ExternalLink aria-hidden className="h-3 w-3" />
+            </a>
+            {b.out_of_date && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">{t('careers.fact.outOfDate')}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 /** UNI-005: open scholarships, nearest deadline first; save and get reminded. */
 export function Scholarships() {
   const { t } = useAcademicCopy()

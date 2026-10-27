@@ -1191,7 +1191,16 @@ export interface CatalogueScholarship {
   slug: string; name_en: string; name_lo: string; provider: string; institution?: string; deadline: string; academic_year: string
   eligibility_en: string; eligibility_lo: string; amount_en?: string; amount_lo?: string; source_name: string; source_url: string; verified_on: string; out_of_date: boolean
 }
-export interface CareerCatalogue { careers: GuidanceCareer[]; institutions: CatalogueInstitution[]; programmes: CatalogueProgramme[]; scholarships: CatalogueScholarship[] }
+export interface CatalogueExamBlueprint {
+  slug: string; name_en: string; name_lo: string; group: string; intake_year: string; exam_date?: string
+  sessions: { label_en: string; label_lo: string; minutes: number; subjects: string[] }[]
+  note_en?: string; note_lo?: string; source_name: string; source_url: string; verified_on: string; out_of_date: boolean
+}
+export interface CareerCatalogue {
+  careers: GuidanceCareer[]; institutions: CatalogueInstitution[]; programmes: CatalogueProgramme[]; scholarships: CatalogueScholarship[]
+  /** EXAM-001 (migration 164): published entrance exam structures, and the intake the current Grade 12 sits for. */
+  exam_blueprints: CatalogueExamBlueprint[]; exam_intake_year: string | null
+}
 
 /** Every published career, institution, programme and open scholarship (CAREER-003, UNI-003, UNI-005). */
 export function useCareerCatalogue() {

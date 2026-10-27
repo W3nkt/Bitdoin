@@ -11,7 +11,8 @@
 -- save a scholarship and turn on reminders 14 and 3 days before the deadline.
 
 alter table public.academic_career_content drop constraint if exists academic_career_content_kind_check;
-alter table public.academic_career_content add constraint academic_career_content_kind_check check (kind in ('career', 'institution', 'programme', 'scholarship'));
+-- not valid: a re-run (rollback rehearsal) must not fail on kinds added later (164).
+alter table public.academic_career_content add constraint academic_career_content_kind_check check (kind in ('career', 'institution', 'programme', 'scholarship')) not valid;
 
 alter table public.academic_notifications drop constraint if exists academic_notifications_category_check;
 alter table public.academic_notifications add constraint academic_notifications_category_check check (category in ('score_reminder', 'guardian_link', 'guardian_report', 'scholarship_deadline'));
