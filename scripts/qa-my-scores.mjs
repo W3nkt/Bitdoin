@@ -276,6 +276,9 @@ function backend(initial) {
         eligibility_en: 'Grade 12 students', eligibility_lo: 'ນັກຮຽນ ມ.7', source_name: 'UHS', source_url: 'https://uhs.edu.la/', verified_on: '2026-11-01', out_of_date: false }],
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Compare school years (migration 162): only this year unless a scenario adds more.
+    academic_compare_years: (args) => state.compareYears ?? { subject: { name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ' }, years: [{ subject_enrolment_id: args.p_subject_enrolment_id, current: true, year: '2026-2027',
+      grade_en: 'Grade 11', grade_lo: 'ມ.6', scale: { family: 'numeric_linear', min: 0, max: 10, normalisable: true }, compatible: true, reason: null, series: [] }] },
     // Guardian report e-mails (migration 161).
     academic_guardian_email_settings: () => (state.guardianEmail ??= { account_email: 'mother@example.com', is_guardian: true, status: 'off', email: null, include_scores: false, confirmed_at: null }),
     academic_guardian_email_subscribe: (args) => (state.guardianEmail = state.guardianEmail.status === 'confirmed'
@@ -1875,6 +1878,43 @@ try {
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
     pass('Career report: price and Premium inclusion shown, bought once by transfer with the accounts listed, a GIF refused before upload, receipt uploaded to the buyer\'s own folder and sent for review; once verified, the frozen report has options with reasons, latest scores, pathways with cut-off years, history, family guide, sources and disclaimer, no percentages; Lao report; a guardian buys or cancels from the child page and sees the child\'s reports only while career answers are shared; axe clean')
+  }
+
+  // Compare school years (DASH-007 #52): the same subject last year, aligned by month, as a share of each scale when
+  // the scales differ; disabled with the reason when the scales cannot be compared.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = insightsDashboard()
+    const month = (m, label_en, value, normalised) => ({ month: m, label_en, label_lo: label_en, status: 'scored', value, normalised })
+    const year = (extra) => ({ subject_enrolment_id: 'se-math', current: true, year: '2027-2028', grade_en: 'Grade 12', grade_lo: 'ມ.7',
+      scale: { family: 'numeric_linear', min: 0, max: 10, normalisable: true }, compatible: true, reason: null, ...extra })
+    const lastYear = { subject_enrolment_id: 'se-old', current: false, year: '2026-2027', grade_en: 'Grade 11', grade_lo: 'ມ.6' }
+    mock.state.compareYears = { subject: { name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ' }, years: [
+      year({ series: [month(9, 'September', 6, 0.6), month(10, 'October', 7, 0.7)] }),
+      year({ ...lastYear, scale: { family: 'numeric_linear', min: 0, max: 50, normalisable: true }, series: [month(9, 'September', 40, 0.8), month(10, 'October', 35, 0.7), month(11, 'November', 30, 0.6)] }),
+    ] }
+    await page.goto(`${base}/academy/scores?subject=se-math`, { waitUntil: 'domcontentloaded' })
+    const section = page.locator('section', { has: page.getByRole('heading', { name: 'Compare school years' }) })
+    await section.getByRole('button', { name: 'Compare years' }).click()
+    assert.deepEqual(lastCall(mock, 'academic_compare_years').args, { p_subject_enrolment_id: 'se-math' })
+    const card = page.locator('section', { has: page.getByRole('heading', { name: 'Mathematics: this year and before' }) }).last()
+    await card.getByText('Shown as a share of each year’s scale (0–10 and 0–50), because the scales differ.').waitFor()
+    await card.getByText('2026-2027 (Grade 11)').first().waitFor()
+    await shot(page, 'my-scores-compare-years-1-chart-en-mobile')
+    await card.getByRole('button', { name: 'View as table' }).click()
+    const rows = await card.locator('tbody tr').allInnerTexts()
+    assert.deepEqual(rows.map(r => r.split('\t').map(c => c.trim())), [['September', '60%', '80%'], ['October', '70%', '70%'], ['November', '—', '60%']], 'aligned by month, September first')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    // A year on another kind of scale: the option is disabled and says why.
+    mock.state.compareYears = { ...mock.state.compareYears, years: [mock.state.compareYears.years[0],
+      year({ ...lastYear, scale: { family: 'ordinal', min: null, max: null, normalisable: false }, compatible: false, reason: 'different_scale', series: null })] }
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    assert.equal(await section.getByRole('button', { name: 'Compare years' }).isDisabled(), true)
+    await section.getByText('2026-2027 (Grade 11) used a different kind of scale, so the years cannot be compared.').waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Compare years: the same subject last year aligned by month (September first), shown as a share of each scale when ranges differ, with a table; another kind of scale disables the option with the reason; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

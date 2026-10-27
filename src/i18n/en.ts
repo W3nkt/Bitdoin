@@ -29,6 +29,32 @@ const en = {
 
   // ── Home ──────────────────────────────────────────────────────────────────────
   home: {
+    welcome: {
+      eyebrow: 'A little curiosity goes a long way',
+      title: 'A little reading.',
+      titleEnd: 'A world of possibility.',
+      description: 'Discover physical books from bookstores across Lao PDR with Bitdoin.store. Your next chapter starts here.',
+      discover: 'Find your next book',
+      explore: 'Explore the shelves',
+      picks: 'A good place to begin',
+      picksNote: 'Books to spark ideas and open new doors.',
+      viewBooks: 'View all books',
+      arrivals: 'New on the shelves',
+      arrivalsNote: 'Fresh arrivals for your next quiet moment.',
+      readingTitle: 'One page today.',
+      readingEnd: 'A new perspective tomorrow.',
+      readingLink: 'A little reading inspiration',
+      identity: 'Bitdoin.store is an online bookstore for physical books in Lao PDR. We do not offer cryptocurrency services.',
+      loadError: 'We could not load these books. Please try again.',
+      retry: 'Try again',
+      interests: {
+        growth: 'Personal growth', growthNote: 'Build a brighter you',
+        business: 'Business', businessNote: 'Ideas for real life',
+        fiction: 'Fiction', fictionNote: 'Great stories, new worlds',
+        lao: 'Lao books', laoNote: 'Stories from home',
+        children: 'Children', childrenNote: 'Curious minds, bright futures',
+      },
+    },
     hero: 'Find books from stores across Lao PDR',
     heroSub: 'Compare prices, order online, delivered to your door.',
     searchPlaceholder: 'Search by title, author, or ISBN…',

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Home, ShoppingCart, PackageSearch, User, Search, X, Lightbulb, GraduationCap, Moon, Sun } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
@@ -24,6 +24,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { profile } = useAuth()
   const { language, setLanguage } = useLanguage()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const theme = useTheme(state => state.theme)
   const toggleTheme = useTheme(state => state.toggleTheme)
 
@@ -162,7 +163,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       </header>
 
       {/* ── Page content ── */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-4 pb-4">
+      <main className={cn('flex-1 mx-auto w-full', pathname === '/bookstore' || pathname === '/bookstore/' ? '' : 'max-w-6xl px-4 py-4 pb-4')}>
         {children}
       </main>
 

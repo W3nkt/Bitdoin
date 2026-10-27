@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck, Target, Compass } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
-import { useDashboard, usePeriods, type Change, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
+import { useCompareYears, useDashboard, usePeriods, type Change, type CompareYear, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
 import { explainSubject, labelReason, selectInsights } from '@/lib/academic/insights'
 import { plainNumber } from '@/lib/academic/scoreInput'
@@ -552,10 +552,108 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
           </ResponsiveContainer>
         </div>
       </ChartCard>
+      <CompareYears subjectEnrolmentId={subject.subject_enrolment_id} name={name} />
       <ExplanationCard view={view} subject={subject} name={name} />
       <QuizOffer subjectEnrolmentId={subject.subject_enrolment_id} needsAttention={subject.label?.value === 'relatively_lower'} />
       <AskCoachLink subject={name} />
     </div>
+  )
+}
+
+// ─── Compare school years (DASH-007) ─────────────────────────────────────────
+
+// School-year order: September first.
+const MONTH_ORDER = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
+
+/** The same subject in another school year, aligned by month; only when the scales can be compared. */
+function CompareYears({ subjectEnrolmentId, name }: { subjectEnrolmentId: string; name: string }) {
+  const { t, lo } = useAcademicCopy()
+  const chart = useChartTheme()
+  const colors = useSeries()
+  const compare = useCompareYears(subjectEnrolmentId)
+  const [open, setOpen] = useState(false)
+  const [otherId, setOtherId] = useState<string | null>(null)
+  const years = compare.data?.years ?? []
+  const current = years.find(year => year.current)
+  const others = years.filter(year => !year.current)
+  const other = others.find(year => year.subject_enrolment_id === otherId) ?? others.find(year => year.compatible) ?? others[0]
+  const sameRange = !!current && !!other && Number(current.scale.min) === Number(other.scale.min) && Number(current.scale.max) === Number(other.scale.max)
+  const data = useMemo(() => {
+    if (!current?.series || !other?.series) return []
+    const point = (year: CompareYear, month: number) => {
+      const found = year.series?.find(p => p.month === month && p.status === 'scored')
+      if (!found || found.value === null) return null
+      return sameRange ? Number(found.value) : Math.round(Number(found.normalised) * 1000) / 10
+    }
+    const labelOf = (month: number) => {
+      const found = current.series?.find(p => p.month === month) ?? other.series?.find(p => p.month === month)
+      return found ? (lo ? found.label_lo : found.label_en) : String(month)
+    }
+    return MONTH_ORDER.filter(month => current.series?.some(p => p.month === month) || other.series?.some(p => p.month === month))
+      .map(month => ({ label: labelOf(month), now: point(current, month), before: point(other, month) }))
+  }, [current, other, sameRange, lo])
+  if (!current || others.length === 0) return null
+
+  const yearName = (year: CompareYear) => `${year.year} (${lo ? year.grade_lo : year.grade_en})`
+  const scaleName = (year: CompareYear) => `${year.scale.min ?? '—'}–${year.scale.max ?? '—'}`
+  const anyCompatible = others.some(year => year.compatible)
+  const show = (value: number | null) => (value === null ? '—' : sameRange ? plainNumber(value) : `${value}%`)
+  const domain: [number, number] = sameRange ? [Number(current.scale.min ?? 0), Number(current.scale.max ?? 10)] : [0, 100]
+
+  return (
+    <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-black">{t('dash.years.title')}</h2>
+        <button type="button" disabled={!anyCompatible} aria-pressed={open} onClick={() => setOpen(value => !value)}
+          className="rounded-full px-3 py-1.5 text-sm font-black text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:text-slate-500 disabled:ring-slate-200 dark:text-indigo-300 dark:ring-indigo-500/40 dark:hover:bg-indigo-500/10 dark:disabled:text-slate-500 dark:disabled:ring-slate-700">
+          {open ? t('dash.years.hide') : t('dash.years.show')}
+        </button>
+      </div>
+      {!anyCompatible && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t(other?.reason === 'different_scale' ? 'dash.years.differentScale' : 'dash.years.notNormalisable', { year: other ? yearName(other) : '' })}</p>}
+      {open && anyCompatible && other && (
+        <div className="mt-3">
+          {others.length > 1 && (
+            <label className="mb-3 flex flex-wrap items-center gap-2 text-sm font-bold">{t('dash.years.with')}
+              <select value={other.subject_enrolment_id} onChange={event => setOtherId(event.target.value)}
+                className="rounded-xl border border-slate-300 bg-white px-2 py-1.5 font-medium dark:border-slate-600 dark:bg-gray-950">
+                {others.map(year => <option key={year.subject_enrolment_id} value={year.subject_enrolment_id}>{yearName(year)}</option>)}
+              </select>
+            </label>
+          )}
+          {!other.compatible ? <p className="text-sm text-slate-700 dark:text-slate-300">{t(other.reason === 'different_scale' ? 'dash.years.differentScale' : 'dash.years.notNormalisable', { year: yearName(other) })}</p> : (
+            <ChartCard
+              chartId="subject_detail"
+              title={t('dash.years.chart', { subject: name })}
+              subtitle={(
+                <span className="flex flex-col gap-1">
+                  {!sameRange && <span>{t('dash.years.percent', { now: scaleName(current), before: scaleName(other) })}</span>}
+                  <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                    <LegendKey color={colors.main} label={yearName(current)} />
+                    <LegendKey color={colors.second} label={yearName(other)} />
+                  </span>
+                </span>
+              )}
+              table={<DataTable head={[t('dash.table.month'), yearName(current), yearName(other)]} rows={data.map(point => [point.label, show(point.now), show(point.before)])} />}
+              footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.years.note')}</p>}
+            >
+              <div className="h-56" role="img" aria-label={`${t('dash.years.chart', { subject: name })}: ${data.map(point => `${point.label} ${show(point.now)} / ${show(point.before)}`).join(', ')}`}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -12 }}>
+                    <CartesianGrid vertical={false} stroke={colors.grid} strokeWidth={1} />
+                    <XAxis dataKey="label" tick={{ ...chart.tick, fontSize: 12 }} axisLine={{ stroke: chart.axisLine }} tickLine={false} interval="preserveStartEnd" />
+                    <YAxis domain={domain} tick={{ ...chart.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
+                    <Line type="linear" dataKey="now" name={yearName(current)} stroke={colors.main} strokeWidth={2} connectNulls={false} isAnimationActive={false}
+                      dot={{ r: 4, fill: colors.main, stroke: chart.surface, strokeWidth: 2 }} />
+                    <Line type="linear" dataKey="before" name={yearName(other)} stroke={colors.second} strokeWidth={2} strokeDasharray="5 4" connectNulls={false} isAnimationActive={false}
+                      dot={{ r: 4, fill: colors.second, stroke: chart.surface, strokeWidth: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )}
+        </div>
+      )}
+    </section>
   )
 }
 

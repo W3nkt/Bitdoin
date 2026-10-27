@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { searchCatalogBooks } from '@/lib/catalogSearch'
 import type { Book, Category, SearchFilters } from '@/types'
 import { BookCard } from '@/components/ui/BookCard'
 import { BrowseSidebar } from '@/components/ui/BrowseSidebar'
@@ -23,8 +24,13 @@ function parseSort(value: string | null): Sort {
   return SORTS.includes(value as Sort) ? value as Sort : 'best'
 }
 
+function categoryFilters(params: URLSearchParams): Pick<SearchFilters, 'category_id' | 'category_ids'> {
+  const ids = [...new Set(params.getAll('category').filter(Boolean))]
+  return { category_id: ids.length === 1 ? ids[0] : '', category_ids: ids.length > 1 ? ids : [] }
+}
+
 export function Catalog() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { addItem } = useCart()
   const { success, error: showError } = useToast()
@@ -35,7 +41,7 @@ export function Catalog() {
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<SearchFilters>({
     query: searchParams.get('q') ?? '',
-    category_id: searchParams.get('category') ?? '',
+    ...categoryFilters(searchParams),
     language: searchParams.get('language') ?? '',
   })
   // An explicit ?sort= means a quick link / sort option was chosen; without
@@ -47,7 +53,7 @@ export function Catalog() {
     setFilters(prev => ({
       ...prev,
       query: searchParams.get('q') ?? '',
-      category_id: searchParams.get('category') ?? '',
+      ...categoryFilters(searchParams),
       language: searchParams.get('language') ?? '',
     }))
     setPage(1)
@@ -94,22 +100,7 @@ export function Catalog() {
     queryKey: ['books', 'catalog', filters, sort, page],
     queryFn: async () => {
       const from = (page - 1) * PAGE_SIZE
-      const { data, error } = await supabase.rpc('search_books', {
-        p_query: filters.query?.trim() || null,
-        p_category_id: filters.category_id || null,
-        p_language: filters.language || null,
-        p_isbn: filters.isbn?.trim() || null,
-        p_sort: sort,
-        p_offset: from,
-        p_limit: PAGE_SIZE,
-      })
-      if (error) throw error
-
-      const result = data as { books?: Book[]; count?: number } | null
-      return {
-        data: result?.books ?? [],
-        count: Number(result?.count ?? 0),
-      }
+      return searchCatalogBooks(filters, sort, from, PAGE_SIZE)
     },
   })
 
@@ -119,7 +110,8 @@ export function Catalog() {
     setPage(1)
     const params = new URLSearchParams()
     if (next.query) params.set('q', next.query)
-    if (next.category_id) params.set('category', next.category_id)
+    if (next.category_ids?.length) next.category_ids.forEach(id => params.append('category', id))
+    else if (next.category_id) params.set('category', next.category_id)
     if (next.language) params.set('language', next.language)
     if (nextSort) params.set('sort', nextSort)
     setSearchParams(params)
@@ -130,7 +122,7 @@ export function Catalog() {
   }
 
   function clearFilters() {
-    setFilters({ query: '', category_id: '', language: '' })
+    setFilters({ query: '', category_id: '', category_ids: [], language: '' })
     setSearchParams({})
     setPage(1)
   }
@@ -173,15 +165,16 @@ export function Catalog() {
     setLoginOpen(false)
   }
 
-  const hasFilters = !!(filters.query || filters.category_id || filters.language || sort === 'featured')
+  const hasFilters = !!(filters.query || filters.category_id || filters.category_ids?.length || filters.language || sort === 'featured')
 
   return (
     <div className="-mt-4 grid min-h-[calc(100vh-7rem)] grid-cols-1 bg-white dark:bg-gray-900 lg:-mx-4 lg:grid-cols-[176px_minmax(0,1fr)]">
       <BrowseSidebar
         categories={categories}
         activeCategoryId={filters.category_id}
+        activeCategoryIds={filters.category_ids}
         activeQuickLink={explicitSort ?? undefined}
-        onSelectCategory={categoryId => applyFilters({ category_id: categoryId }, categoryId ? explicitSort : null)}
+        onSelectCategory={categoryId => applyFilters({ category_id: categoryId, category_ids: [] }, categoryId ? explicitSort : null)}
         onSelectQuickLink={value => setSort(parseSort(value))}
         showFilters
         availableLanguages={availableLanguages}
@@ -203,7 +196,7 @@ export function Catalog() {
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 <span className="text-xs font-medium">{t('catalog.filter', 'Filter')}</span>
-                {(filters.category_id || filters.language) && (
+                {(filters.category_id || filters.category_ids?.length || filters.language) && (
                   <span className="h-2 w-2 rounded-full bg-accent-500" />
                 )}
               </button>
@@ -249,6 +242,12 @@ export function Catalog() {
             </select>
           </div>
         </div>
+
+        {!!filters.category_ids?.length && (
+          <p className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            {categories?.filter(category => filters.category_ids?.includes(category.id)).map(category => i18n.language === 'lo' ? category.name_lo : category.name_en).join(' · ')}
+          </p>
+        )}
 
         {data && (
           <p className="mb-4 text-xs text-slate-500 dark:text-slate-400">

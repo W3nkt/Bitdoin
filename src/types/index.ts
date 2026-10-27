@@ -379,6 +379,7 @@ export interface PaginatedResult<T> {
 export interface SearchFilters {
   query?: string
   category_id?: string
+  category_ids?: string[]
   language?: string
   min_price?: number
   max_price?: number

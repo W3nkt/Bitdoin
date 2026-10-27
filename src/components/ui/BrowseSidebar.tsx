@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 interface BrowseSidebarProps {
   categories?: Category[]
   activeCategoryId?: string
+  activeCategoryIds?: string[]
   /** Highlights the matching quick link (e.g. 'best', 'featured') */
   activeQuickLink?: string
   onSelectCategory: (categoryId: string) => void
@@ -32,6 +33,7 @@ const quickLinks = [
 export function BrowseSidebar({
   categories,
   activeCategoryId,
+  activeCategoryIds,
   activeQuickLink,
   onSelectCategory,
   onSelectQuickLink,
@@ -48,7 +50,7 @@ export function BrowseSidebar({
   const [expanded, setExpanded] = useState(false)
 
   const useDrawer = mobileOpen !== undefined
-  const allBooksActive = !activeCategoryId && !activeQuickLink
+  const allBooksActive = !activeCategoryId && !activeCategoryIds?.length && !activeQuickLink
 
   const activeLabel = activeCategoryId
     ? categories?.find(c => c.id === activeCategoryId)?.[language === 'lo' ? 'name_lo' : 'name_en']
@@ -151,7 +153,7 @@ export function BrowseSidebar({
               onClick={() => { onSelectCategory(cat.id); close() }}
               className={cn(
                 'block w-full rounded-lg px-2 py-2.5 text-left text-xs transition-colors',
-                activeCategoryId === cat.id
+                activeCategoryId === cat.id || activeCategoryIds?.includes(cat.id)
                   ? 'bg-accent-500 text-white font-semibold'
                   : 'text-white/74 hover:bg-white/10 hover:text-white active:bg-white/20',
               )}

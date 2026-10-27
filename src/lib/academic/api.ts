@@ -1471,3 +1471,22 @@ export async function guardianEmailLink(action: 'email_confirm' | 'email_unsubsc
   if (error) throw error
   return (data as { status: 'confirmed' | 'expired' | 'invalid' | 'unsubscribed' }).status
 }
+
+// ─── Compare a subject across school years (DASH-007, migration 162) ─────────
+
+export interface CompareYear {
+  subject_enrolment_id: string
+  current: boolean
+  year: string
+  grade_en: string
+  grade_lo: string
+  scale: { family: string; min: number | null; max: number | null; normalisable: boolean }
+  compatible: boolean
+  reason: 'different_scale' | 'not_normalisable' | null
+  series: { month: number; label_en: string; label_lo: string; status: string; value: number | null; normalised: number | null }[] | null
+}
+
+export function useCompareYears(subjectEnrolmentId: string) {
+  return useQuery({ queryKey: [...academicKeys.all, 'compare-years', subjectEnrolmentId], retry: shouldRetryAcademic,
+    queryFn: () => callAcademicRpc<{ subject: { name_en: string; name_lo: string }; years: CompareYear[] }>('academic_compare_years', { p_subject_enrolment_id: subjectEnrolmentId }) })
+}
