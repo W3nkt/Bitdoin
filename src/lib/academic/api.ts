@@ -792,7 +792,9 @@ export interface Recommendation {
   route: string | null
   priority: number
   reason: {
-    code: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7' | 'gap'
+    code: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R7' | 'gap' | 'R3_mock' | 'R4_mock'
+    /** EXAM-003: set when the topic band came from a mock exam or practice set. */
+    source?: 'mock_exam'
     subject_lo?: string; subject_en?: string; topic_lo?: string; topic_en?: string
     period_lo?: string; period_en?: string; band?: string; date?: string; label?: string; trend?: string
   }

@@ -153,6 +153,9 @@ two drafts for the 2026-2027 intake waiting for review; both published at the ow
 Applied 2026-10-27 (#56, piece 2): 165 (mock exams and practice sets at /academy/scores/exams; items per subject
 and the minimum in `mock_rules`). Nothing can start until the quiz bank has approved items for the blueprint subjects.
 
+Applied 2026-10-27 (#56): 166 (48 draft questions in 16 topics for review in the Quiz items tab) and 167 (mock and
+practice results feed the next actions, EXAM-003).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

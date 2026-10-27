@@ -18,6 +18,9 @@ export const recommendationCopy = {
   },
   'week.reason.R3': { en: 'Because {topic} was Needs practice in your quiz on {date}.', lo: 'ເພາະວ່າ {topic} ຢູ່ໃນລະດັບ “ຄວນຝຶກຕື່ມ” ໃນແບບທົດສອບວັນທີ {date}.' },
   'week.reason.R4': { en: 'Because {topic} was Developing in your quiz on {date}.', lo: 'ເພາະວ່າ {topic} ຢູ່ໃນລະດັບ “ກຳລັງພັດທະນາ” ໃນແບບທົດສອບວັນທີ {date}.' },
+  // EXAM-003: the same rules from a mock exam or practice set (migration 167).
+  'week.reason.R3_mock': { en: 'Because {topic} was Needs practice in your mock exam on {date}.', lo: 'ເພາະວ່າ {topic} ຢູ່ໃນລະດັບ “ຄວນຝຶກຕື່ມ” ໃນການສອບເສັງທົດລອງວັນທີ {date}.' },
+  'week.reason.R4_mock': { en: 'Because {topic} was Developing in your mock exam on {date}.', lo: 'ເພາະວ່າ {topic} ຢູ່ໃນລະດັບ “ກຳລັງພັດທະນາ” ໃນການສອບເສັງທົດລອງວັນທີ {date}.' },
   'week.reason.R5': { en: 'Check what changed in {subject} since your quiz on {date}.', lo: 'ກວດເບິ່ງວ່າ {subject} ມີຫຍັງປ່ຽນ ຕັ້ງແຕ່ແບບທົດສອບວັນທີ {date}.' },
   'week.reason.R7': { en: '{subject} is going well. Try something harder.', lo: '{subject} ໄປໄດ້ດີ. ລອງສິ່ງທີ່ຍາກຂຶ້ນ.' },
   'week.reason.gap': { en: "We don't have practice for {topic} yet.", lo: 'ພວກເຮົາຍັງບໍ່ມີບົດຝຶກສຳລັບ {topic}.' },

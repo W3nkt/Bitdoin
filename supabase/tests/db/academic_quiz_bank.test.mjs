@@ -2,7 +2,7 @@
 // and items, draft -> in_review -> approved -> retired, approval by an admin who
 // neither wrote nor last edited the version, versioning of approved items,
 // immutability, the leaked/official-exam guard, and the servable gate.
-import { createDb, ok, fails, eq, done, ACADEMIC_MIGRATIONS } from './harness.mjs'
+import { createDb, ok, fails, eq, done, readMigration, ACADEMIC_MIGRATIONS } from './harness.mjs'
 import { CONFIG_SQL, ID, apiFor, json } from './fixtures.mjs'
 
 const db = await createDb(ACADEMIC_MIGRATIONS)
@@ -120,5 +120,19 @@ eq('with the setting off, the author may approve', (await a1(`public.academic_ad
 const audit = (await db.query(`select action, count(*)::int as n from academic_audit_events where action like 'quiz.%' group by action order by action`)).rows
 eq('every change is audited', audit.map((r) => r.action), ['quiz.item_approve', 'quiz.item_retire', 'quiz.item_return', 'quiz.item_save', 'quiz.item_submit', 'quiz.topic_create', 'quiz.topic_update'])
 eq('return note kept in the audit log', (await one(`select reason from academic_audit_events where action = 'quiz.item_return'`)).reason, 'Option C is also correct')
+
+// ─── Draft questions for mock exams (migration 166) ──────────────────────────
+
+// Migrations run before the fixtures, so re-run 166 now (it must be safe to re-run).
+// The fixtures have only LAO, MATH, PE and PHYS, so only those subjects' drafts load here.
+await ok(db, 'drafts after the fixtures', readMigration('166_academic_quiz_item_drafts.sql') + readMigration('166_academic_quiz_item_drafts.sql'))
+const drafts166 = (await db.query(`select s.code, i.status, i.author_id, i.explanation_origin, i.licence, i.id from academic_quiz_items i
+  join academic_quiz_topics t on t.id = i.topic_id join academic_subjects s on s.id = t.subject_id where i.source like 'Drafted by Claude%' order by s.code, i.created_at`)).rows
+eq('drafts load as unserved, authorless drafts with AI-marked explanations, 6 per subject',
+  [drafts166.length, [...new Set(drafts166.map((d) => d.code))].sort(), drafts166.every((d) => d.status === 'draft' && d.author_id === null && d.explanation_origin === 'ai' && d.licence === 'original'),
+   (await Promise.all(drafts166.slice(0, 3).map((d) => servable(d.id)))).some(Boolean)],
+  [18, ['LAO', 'MATH', 'PHYS'], true, false])
+await a1(`public.academic_admin_review_quiz_item('${drafts166[0].id}', 'submit')`)
+eq('a reviewer approves a draft, which can then be served', [(await a2(`public.academic_admin_review_quiz_item('${drafts166[0].id}', 'approve')`)).status, await servable(drafts166[0].id)], ['approved', true])
 
 done()

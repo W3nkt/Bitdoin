@@ -74,4 +74,19 @@ eq('with Academy Premium: more mock exams', (await rpc(S, `public.academic_start
 eq('practice sets stay free', (await rpc(B, `public.academic_start_mock('e-old')`)).kind, 'practice')
 eq('kept apart from school scores and quizzes, and in Download my data', [(await rpc(S, `public.academic_export_my_mocks()`)).length, (await one(`select count(*)::int as n from academic_quiz_attempts`)).n], [5, 0])
 
+// ─── EXAM-003 (migration 167): weak topics feed the next actions ─────────────
+
+await ok(db, 'practice content and insights', `update academic_settings set value = 'true' where key = 'insights_enabled';
+  insert into academic_content_items (kind, external_id, subject_ids, grade_min, grade_max, topic_ids, difficulty, language, est_minutes, status, published_at)
+  values ('practice_set', '${ALG}', array['${ID.math}']::uuid[], 10, 12, array['${ALG}']::uuid[], 1, 'lo', 8, 'published', now());
+  update academic_mock_attempts set result = jsonb_build_object('correct', 3, 'total', 12, 'subjects', '[]'::jsonb, 'topics', jsonb_build_array(
+    jsonb_build_object('topic_id', '${ALG}', 'subject', 'MATH', 'name_en', 'Algebra', 'name_lo', 'ພຶດຊະຄະນິດ', 'correct', 1, 'total', 5, 'band', 'needs_practice'),
+    jsonb_build_object('topic_id', '${MECH}', 'subject', 'PHYS', 'name_en', 'Mechanics', 'name_lo', 'ກົນຈັກ', 'correct', 3, 'total', 6, 'band', 'developing')))
+  where id = (select id from academic_mock_attempts where student_profile_id = (select id from academic_student_profiles where user_id = '${S}') and status = 'finished' order by finished_at desc limit 1)`)
+const recs = await rpc(S, `public.academic_get_recommendations()`)
+const fromMock = (recs.items ?? []).filter((r) => r.reason?.source === 'mock_exam')
+eq('a Needs-practice topic from the mock exam suggests its practice set, saying it came from the mock exam',
+  fromMock.map((r) => [r.rule_id, r.kind, r.reason.code, r.reason.topic_en]), [['R3', 'practice_set', 'R3_mock', 'Algebra']])
+eq('a Developing topic without a practice set is logged as a content gap', (await one(`select count(*)::int as n from academic_content_gap_events where rule_id = 'R4' and topic_id = '${MECH}'`)).n, 1)
+
 done()

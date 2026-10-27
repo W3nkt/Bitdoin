@@ -2027,9 +2027,14 @@ try {
     assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
     await page.getByRole('link', { name: 'Mock exams' }).last().click()
     await page.getByText('Mock exam results are kept apart from your school scores and quizzes', { exact: false }).waitFor()
+    // EXAM-003: a weak topic from the mock exam becomes a next action that names the mock exam.
+    mock.state.dashboard = workedExampleDashboard()
+    mock.state.recommendations = [{ ...WEEK[1], reason: { ...WEEK[1].reason, code: 'R3_mock', source: 'mock_exam' } }]
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByText('Because Algebra was Needs practice in your mock exam on 12 Oct 2026.').waitFor()
     assert.deepEqual(errors, [])
     await context.close()
-    pass('Mock exams: free allowance shown; a practice set from the latest structure with why it is not a mock exam; a structure without enough questions cannot start; a part waits for Start, timer and answers; hand in with a warning; time up hands in the last part; results by subject and topic kept apart, review with answers; axe clean')
+    pass('Mock exams: free allowance shown; a practice set from the latest structure with why it is not a mock exam; a structure without enough questions cannot start; a part waits for Start, timer and answers; hand in with a warning; time up hands in the last part; results by subject and topic kept apart, review with answers; a weak topic becomes a next action naming the mock exam; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.
