@@ -9,6 +9,7 @@ import { plannerCopy } from './plannerCopy'
 import { careerCopy } from './careerCopy'
 import { guardianCopy } from './guardianCopy'
 import { coachCopy } from './coachCopy'
+import { examCopy } from './examCopy'
 
 // Every Schooling interface string, in one place.
 //
@@ -430,6 +431,8 @@ const copy = {
   ...guardianCopy,
   // AI Coach in Schooling (P3-AI)
   ...coachCopy,
+  // Mock exams (P5-EXAM)
+  ...examCopy,
 } as const satisfies Record<string, { en: string; lo: string }>
 
 export type AcademicCopyKey = keyof typeof copy

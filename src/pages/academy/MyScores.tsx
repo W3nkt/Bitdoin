@@ -11,6 +11,7 @@ import { ScoreEntry } from '@/components/academic/ScoreEntry'
 import { Planner } from '@/components/academic/Planner'
 import { CareerGuidance } from '@/components/academic/CareerGuidance'
 import { CareerReportPage } from '@/components/academic/CareerReport'
+import { MockExams, MockRunner } from '@/components/academic/MockExams'
 import { GuardianConsentStep } from '@/components/academic/Guardians'
 import { History } from '@/components/academic/History'
 import { Inbox } from '@/components/academic/Inbox'
@@ -126,6 +127,18 @@ export function MyScores() {
         path="planner"
         element={data.next_step === 'ready' && data.active_enrolment_id
           ? <MyScoresShell subtitle={t('planner.title')} backTo="/academy/scores" inbox><Planner /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="exams/:attemptId"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('exams.title')} backTo="/academy/scores/exams" inbox><MockRunner /></MyScoresShell>
+          : <Navigate to="/academy/scores" replace />}
+      />
+      <Route
+        path="exams"
+        element={data.profile
+          ? <MyScoresShell subtitle={t('exams.title')} backTo="/academy/scores" inbox><MockExams /></MyScoresShell>
           : <Navigate to="/academy/scores" replace />}
       />
       <Route

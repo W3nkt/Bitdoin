@@ -41,6 +41,33 @@ const CAREERS = [
   { slug: 'lawyer', title_en: 'Lawyer', title_lo: 'ທະນາຍຄວາມ', summary_en: 'Advise people about the law.', summary_lo: 'ໃຫ້ຄຳປຶກສາກ່ຽວກັບກົດໝາຍ.', cluster: 'law_public', primary_area: 'E', secondary_area: 'S',
     related_subjects: ['CIV'], study_years: '4to5', work_settings: ['office'], preparation_en: ['Read widely'], preparation_lo: ['ອ່ານຫຼາຍ'], facts: [] },
 ]
+// A mock attempt (migration 165 shape): two parts, three items.
+const MOCK_ITEMS = [
+  { id: 'mi1', subject: 'MATH', topic: { name_en: 'Algebra', name_lo: 'ພຶດຊະຄະນິດ' }, stem_lo: '2 + 2 = ?', stem_en: '2 + 2 = ?', options: [{ key: 'A', text_lo: '3', text_en: '3' }, { key: 'B', text_lo: '4', text_en: '4' }], correct_key: 'B' },
+  { id: 'mi2', subject: 'PHYS', topic: { name_en: 'Mechanics', name_lo: 'ກົນຈັກ' }, stem_lo: 'Unit of force?', stem_en: 'Unit of force?', options: [{ key: 'A', text_lo: 'Newton', text_en: 'Newton' }, { key: 'B', text_lo: 'Watt', text_en: 'Watt' }], correct_key: 'A' },
+  { id: 'mi3', subject: 'CHEM', topic: { name_en: 'Atoms', name_lo: 'ອາຕອມ' }, stem_lo: 'H2O is?', stem_en: 'H2O is?', options: [{ key: 'A', text_lo: 'Water', text_en: 'Water' }, { key: 'B', text_lo: 'Salt', text_en: 'Salt' }], correct_key: 'A' },
+]
+const mockAttempt = () => ({ status: 'in_progress', session_index: 0, sessions: [
+  { label_en: 'Morning: Mathematics A and Physics', label_lo: 'ຕອນເຊົ້າ', minutes: 120, subjects: ['MATH', 'PHYS'], items: ['mi1', 'mi2'], started_at: null, ends_at: null, finished_at: null },
+  { label_en: 'Afternoon: Chemistry', label_lo: 'ຕອນບ່າຍ', minutes: 90, subjects: ['CHEM'], items: ['mi3'], started_at: null, ends_at: null, finished_at: null },
+] })
+function mockView(state) {
+  const m = state.mock
+  const answers = state.mockAnswers ?? {}
+  const strip = ({ correct_key, ...item }) => ({ ...item, position: 1, chosen_key: answers[item.id] ?? null }) // eslint-disable-line no-unused-vars
+  return {
+    attempt_id: 'ma1', kind: 'practice', status: m.status, name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', intake_year: '2026-2027',
+    session_index: m.session_index, now: new Date().toISOString(), grace_seconds: 30, finished_at: m.status === 'finished' ? new Date().toISOString() : null,
+    sessions: m.sessions.map((s, i) => ({ ...s, item_count: s.items.length,
+      items: i === m.session_index && m.status === 'in_progress' && s.started_at ? s.items.map(id => strip(MOCK_ITEMS.find(x => x.id === id))) : null })),
+    result: m.status === 'finished' ? { correct: 1, total: 3,
+      subjects: [{ code: 'CHEM', name_en: 'Chemistry', name_lo: 'ເຄມີ', correct: 0, total: 1 }, { code: 'MATH', name_en: 'Mathematics', name_lo: 'ຄະນິດ', correct: 1, total: 1 }, { code: 'PHYS', name_en: 'Physics', name_lo: 'ຟີຊິກ', correct: 0, total: 1 }],
+      topics: [{ topic_id: 't1', subject: 'MATH', name_en: 'Algebra', name_lo: 'ພຶດຊະຄະນິດ', correct: 1, total: 1, band: 'not_enough' }] } : null,
+    review: m.status === 'finished' ? MOCK_ITEMS.map((x, i) => ({ session: i < 2 ? 1 : 2, position: 1, subject: x.subject, topic: x.topic, stem_lo: x.stem_lo, stem_en: x.stem_en, options: x.options,
+      chosen_key: answers[x.id] ?? null, correct_key: x.correct_key, is_correct: answers[x.id] === x.correct_key, explanation_lo: null, explanation_en: null, explanation_origin: 'human' })) : null,
+  }
+}
+
 // A frozen career report (migration 157 shape).
 const CAREER_REPORT = {
   student_name: 'Noy', generated_at: '2026-10-27T03:00:00Z', school_year: '2026-2027', grade_en: 'Grade 11', grade_lo: 'ມ.6', scores_as_of: '2026-10-20T03:00:00Z', questionnaire_on: '2026-10-24T03:00:00Z',
@@ -281,6 +308,28 @@ function backend(initial) {
       exam_intake_year: '2027-2028',
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Mock exams (migration 165): a small stateful stand-in.
+    academic_mock_exams: () => ({
+      entitled: false, free_left: 3, intake_year: '2027-2028', rules: { items_per_subject: 10, min_items_per_subject: 5 },
+      blueprints: [
+        { slug: 'e-nuol-2026-a', name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', group: 'A', intake_year: '2026-2027', kind: 'practice', missing: [],
+          sessions: [{ label_en: 'Morning: Mathematics A and Physics', label_lo: 'ຕອນເຊົ້າ', minutes: 120, subjects: ['MATH', 'PHYS'] }, { label_en: 'Afternoon: Chemistry', label_lo: 'ຕອນບ່າຍ', minutes: 90, subjects: ['CHEM'] }] },
+        { slug: 'e-nuol-2026-b', name_en: 'Entrance exam, Group B (non-STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ B', group: 'B', intake_year: '2026-2027', kind: 'practice', missing: ['GEO', 'HIST'],
+          sessions: [{ label_en: 'Afternoon: Geography and History', label_lo: 'ຕອນບ່າຍ', minutes: 90, subjects: ['GEO', 'HIST'] }] },
+      ],
+      open: state.mock && state.mock.status === 'in_progress' ? { attempt_id: 'ma1', name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', kind: 'practice' } : null,
+      history: state.mock?.status === 'finished' ? [{ attempt_id: 'ma1', kind: 'practice', name_en: 'Entrance exam, Group A (STEM)', name_lo: 'ສອບເສັງເຂົ້າ ກຸ່ມ A (STEM)', finished_at: new Date().toISOString(), correct: 1, total: 3 }] : [],
+    }),
+    academic_start_mock: () => { state.mock = mockAttempt(); return mockView(state) },
+    academic_get_mock: () => mockView(state),
+    academic_start_mock_session: () => { const s = state.mock.sessions[state.mock.session_index]; s.started_at = new Date().toISOString(); s.ends_at = new Date(Date.now() + (state.mockEndsSoon ? 0 : s.minutes * 60000)).toISOString(); return mockView(state) },
+    academic_answer_mock_item: (args) => { (state.mockAnswers ??= {})[args.p_item_id] = args.p_key; return { answered: Object.keys(state.mockAnswers).length, total: 2 } },
+    academic_finish_mock_session: () => {
+      const m = state.mock
+      m.sessions[m.session_index].finished_at = new Date().toISOString()
+      if (m.session_index === m.sessions.length - 1) m.status = 'finished'; else m.session_index += 1
+      return mockView(state)
+    },
     // Compare school years (migration 162): only this year unless a scenario adds more.
     academic_compare_years: (args) => state.compareYears ?? { subject: { name_en: 'Mathematics', name_lo: 'ຄະນິດສາດ' }, years: [{ subject_enrolment_id: args.p_subject_enrolment_id, current: true, year: '2026-2027',
       grade_en: 'Grade 11', grade_lo: 'ມ.6', scale: { family: 'numeric_linear', min: 0, max: 10, normalisable: true }, compatible: true, reason: null, series: [] }] },
@@ -1930,6 +1979,57 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Compare years: the same subject last year aligned by month (September first), shown as a share of each scale when ranges differ, with a table; another kind of scale disables the option with the reason; axe clean')
+  }
+
+  // Mock exams (EXAM-001/002 #56): practice set from the latest structure, a part waits for Start, timer, answers,
+  // hand in with a warning, time up closes the last part, results by subject and topic with a review.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('link', { name: 'Mock exams' }).click()
+    await page.getByText('3 of 3 free mock exams left this school year. Practice sets are always free.').waitFor()
+    const groupA = page.locator('section', { has: page.getByRole('heading', { name: 'Entrance exam, Group A (STEM)' }) })
+    await groupA.getByText('Follows the 2026-2027 structure. It becomes a mock exam when the structure for the 2027-2028 intake is confirmed.').waitFor()
+    await groupA.getByText('Morning: Mathematics A and Physics: 120 minutes').waitFor()
+    const groupB = page.locator('section', { has: page.getByRole('heading', { name: 'Entrance exam, Group B (non-STEM)' }) })
+    await groupB.getByText('Not enough questions yet for: GEO, HIST. We are adding more.').waitFor()
+    assert.equal(await groupB.getByRole('button', { name: 'Start' }).isDisabled(), true)
+    await shot(page, 'my-scores-mock-1-list-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    await groupA.getByRole('button', { name: 'Start' }).click()
+    await page.getByText('2 questions, 120 minutes. The timer starts when you tap Start.').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_start_mock').args, { p_blueprint_slug: 'e-nuol-2026-a' })
+    await page.getByRole('button', { name: 'Start part 1' }).click()
+    await page.getByRole('timer').getByText(/Time left: 1(19|20):\d\d/).waitFor()
+    await page.getByRole('group', { name: /2 \+ 2 = \?/ }).getByText('4', { exact: true }).click()
+    await page.getByText('1 of 2 answered').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_answer_mock_item').args, { p_attempt_id: 'ma1', p_item_id: 'mi1', p_key: 'B' })
+    await shot(page, 'my-scores-mock-2-part-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    await page.getByRole('button', { name: 'Hand in this part' }).click()
+    await page.getByText('Hand in now? Questions you have not answered count as wrong.').waitFor()
+    await page.getByRole('button', { name: 'Yes, hand in' }).click()
+    await page.getByRole('button', { name: 'Start part 2' }).waitFor()
+    // Part 2: the time runs out at once; the page hands it in and shows the results.
+    mock.state.mockEndsSoon = true
+    await page.getByRole('button', { name: 'Start part 2' }).click()
+    await page.getByRole('heading', { name: 'Entrance exam, Group A (STEM): results' }).waitFor()
+    await page.getByText('1 of 3 correct', { exact: true }).waitFor()
+    await page.getByRole('heading', { name: 'By topic' }).waitFor()
+    await page.getByText('Not enough questions to judge').waitFor()
+    await page.getByText('This is practice, not a prediction of your entrance exam result.', { exact: false }).waitFor()
+    await page.getByText('Correct answer: A', { exact: false }).first().waitFor()
+    assert.equal(mock.state.calls.filter(c => c.fn === 'academic_finish_mock_session').length, 2, 'handed in once by the student, once when time ran out')
+    await shot(page, 'my-scores-mock-3-result-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    await page.getByRole('link', { name: 'Mock exams' }).last().click()
+    await page.getByText('Mock exam results are kept apart from your school scores and quizzes', { exact: false }).waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Mock exams: free allowance shown; a practice set from the latest structure with why it is not a mock exam; a structure without enough questions cannot start; a part waits for Start, timer and answers; hand in with a warning; time up hands in the last part; results by subject and topic kept apart, review with answers; axe clean')
   }
 
   // Study planner (P3-PLAN #54): suggested goal, live feasibility, study time, week, skip or keep, pause; Free limit.

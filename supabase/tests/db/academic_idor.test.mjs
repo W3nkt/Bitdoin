@@ -80,6 +80,9 @@ const aInvite = (await rpc(A, `public.academic_create_guardian_invite()`)).id
 // A's career report and report purchase (migration 157).
 const aReport = (await one(`insert into academic_career_reports (student_profile_id, content) values ('${a.profile_id}', '{}') returning id`)).id
 const aPurchase = (await one(`insert into academic_report_purchases (user_id, amount_lak) values ('${A}', 49000) returning id`)).id
+// A's mock exam attempt (migration 165), its first part started.
+const aMock = (await one(`insert into academic_mock_attempts (student_profile_id, blueprint_slug, kind, blueprint, sessions)
+  values ('${a.profile_id}', 'e-x', 'practice', '{}', '[{"label_en": "x", "minutes": 60, "subjects": ["MATH"], "items": [], "started_at": "2026-10-27T00:00:00Z", "ends_at": "2099-01-01T00:00:00Z"}]') returning id`)).id
 // A's academic Coach answer (migration 145).
 const aCoachConv = (await one(`insert into premium_coach_conversations (user_id, title, mode, student_profile_id) values ('${A}', 'Maths', 'academic', '${a.profile_id}') returning id`)).id
 const aCoachAnswer = (await one(`insert into premium_coach_messages (conversation_id, user_id, role, content) values ('${aCoachConv}', '${A}', 'assistant', 'answer') returning id`)).id
@@ -127,6 +130,8 @@ const BY_ID = [
   'academic_guardian_career_reports(uuid)', 'academic_guardian_career_report(uuid)',
   // The caller's own subject across school years (migration 162).
   'academic_compare_years(uuid)',
+  // The caller's own mock exam attempt (migration 165).
+  'academic_get_mock(uuid)', 'academic_start_mock_session(uuid)', 'academic_answer_mock_item(uuid,uuid,text)', 'academic_finish_mock_session(uuid)',
 ]
 const OWN_READ = [
   'academic_get_session()', 'academic_get_my_data_summary()', 'academic_get_history()', 'academic_export_my_data()',
@@ -152,6 +157,8 @@ const OWN_READ = [
   'academic_career_reports()', 'academic_export_my_career_reports()', 'academic_my_report_purchase()',
   // The caller's own guardian e-mail settings (migration 161).
   'academic_guardian_email_settings()',
+  // The caller's own mock exams and their export (migration 165).
+  'academic_mock_exams()', 'academic_export_my_mocks()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -185,6 +192,8 @@ const OWN_WRITE = [
   'academic_start_report_purchase()', 'academic_generate_career_report()',
   // The caller's own guardian e-mail opt-in; no IDs accepted (migration 161).
   'academic_guardian_email_subscribe(boolean)', 'academic_guardian_email_stop()',
+  // A mock for the caller from a published blueprint slug (shared content), migration 165.
+  'academic_start_mock(text)',
 ]
 const STAFF_ONLY = [
   'academic_admin_approve_scale_version(uuid)', 'academic_admin_create_scale_version(uuid,jsonb)',
@@ -277,6 +286,10 @@ const attacks = [
   ['academic_guardian_career_reports(uuid)', aLink, (id) => `public.academic_guardian_career_reports('${id}')`],
   ['academic_guardian_career_report(uuid)', aReport, (id) => `public.academic_guardian_career_report('${id}')`],
   ['academic_compare_years(uuid)', aMath, (id) => `public.academic_compare_years('${id}')`],
+  ['academic_get_mock(uuid)', aMock, (id) => `public.academic_get_mock('${id}')`],
+  ['academic_start_mock_session(uuid)', aMock, (id) => `public.academic_start_mock_session('${id}')`],
+  ['academic_answer_mock_item(uuid,uuid,text)', aMock, (id) => `public.academic_answer_mock_item('${id}', '${quizItem}', 'B')`],
+  ['academic_finish_mock_session(uuid)', aMock, (id) => `public.academic_finish_mock_session('${id}')`],
 ]
 eq('every ID-taking RPC except mark-read has an attack', [...attacks.map(([sig]) => sig), 'academic_mark_notifications_read(uuid[])'].sort(), [...BY_ID].sort())
 
@@ -338,6 +351,8 @@ const ownReads = {
   'academic_export_my_career_reports()': 'public.academic_export_my_career_reports()',
   'academic_my_report_purchase()': 'public.academic_my_report_purchase()',
   'academic_guardian_email_settings()': 'public.academic_guardian_email_settings()',
+  'academic_mock_exams()': 'public.academic_mock_exams()',
+  'academic_export_my_mocks()': 'public.academic_export_my_mocks()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {

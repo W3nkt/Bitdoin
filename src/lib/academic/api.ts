@@ -518,7 +518,7 @@ export function useGrantUsageStatistics() {
 }
 
 export const exportMyData = async (): Promise<import('./exportZip').ExportData> => {
-  const [data, quizzes, reports, recommendations, guidance, scholarships, careerReports] = await Promise.all([
+  const [data, quizzes, reports, recommendations, guidance, scholarships, careerReports, mocks] = await Promise.all([
     callAcademicRpc<import('./exportZip').ExportData>('academic_export_my_data'),
     // Diagnostic quiz attempts (migration 132) and problem reports (133) come from their own RPCs.
     callAcademicRpc<{ attempts?: Record<string, unknown>[]; practice?: Record<string, unknown>[] } | null>('academic_export_my_quizzes'),
@@ -531,9 +531,11 @@ export const exportMyData = async (): Promise<import('./exportZip').ExportData> 
     callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_scholarships'),
     // Career reports (migration 157) too.
     callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_career_reports'),
+    // Mock exams and practice sets (migration 165), kept apart from quizzes in the same file.
+    callAcademicRpc<Record<string, unknown>[] | null>('academic_export_my_mocks'),
   ])
   return {
-    ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] },
+    ...data, quizzes: { attempts: quizzes?.attempts ?? [], practice: quizzes?.practice ?? [], mock_exams: mocks ?? [] }, reports: reports?.reports ?? [], recommendations: recommendations ?? { shown: [], feedback: [] },
     planner: guidance?.planner ?? {}, coach: guidance?.coach ?? {}, careers: { ...(guidance?.careers ?? {}), scholarships: scholarships ?? [], reports: careerReports ?? [] },
   }
 }
@@ -1498,4 +1500,62 @@ export interface CompareYear {
 export function useCompareYears(subjectEnrolmentId: string) {
   return useQuery({ queryKey: [...academicKeys.all, 'compare-years', subjectEnrolmentId], retry: shouldRetryAcademic,
     queryFn: () => callAcademicRpc<{ subject: { name_en: string; name_lo: string }; years: CompareYear[] }>('academic_compare_years', { p_subject_enrolment_id: subjectEnrolmentId }) })
+}
+
+// ─── Mock exams and practice sets (EXAM-001, EXAM-002; migration 165) ────────
+
+export interface MockBlueprintOffer {
+  slug: string; name_en: string; name_lo: string; group: string; intake_year: string
+  sessions: { label_en: string; label_lo: string; minutes: number; subjects: string[] }[]
+  kind: 'mock' | 'practice'; missing: string[]
+}
+export interface MockExamsView {
+  entitled: boolean; free_left: number; intake_year: string | null
+  rules: { items_per_subject: number; min_items_per_subject: number }
+  blueprints: MockBlueprintOffer[]
+  open: { attempt_id: string; name_en: string; name_lo: string; kind: 'mock' | 'practice' } | null
+  history: { attempt_id: string; kind: 'mock' | 'practice'; name_en: string; name_lo: string; finished_at: string; correct: number; total: number }[]
+}
+export interface MockItem {
+  id: string; position: number; subject: string; topic: { name_en: string; name_lo: string }
+  stem_lo: string; stem_en: string | null; options: { key: string; text_lo: string; text_en?: string | null }[]; chosen_key: string | null
+}
+export interface MockAttempt {
+  attempt_id: string; kind: 'mock' | 'practice'; status: 'in_progress' | 'finished'; name_en: string; name_lo: string; intake_year: string
+  session_index: number; now: string; grace_seconds: number; finished_at: string | null
+  sessions: { label_en: string; label_lo: string; minutes: number; subjects: string[]; started_at: string | null; ends_at: string | null; finished_at: string | null; item_count: number; items: MockItem[] | null }[]
+  result: {
+    correct: number; total: number
+    subjects: { code: string; name_en: string; name_lo: string; correct: number; total: number }[]
+    topics: { topic_id: string; subject: string; name_en: string; name_lo: string; correct: number; total: number; band: 'secure' | 'developing' | 'needs_practice' | 'not_enough' }[]
+  } | null
+  review: { session: number; position: number; subject: string; topic: { name_en: string; name_lo: string }; stem_lo: string; stem_en: string | null
+    options: { key: string; text_lo: string; text_en?: string | null }[]; chosen_key: string | null; correct_key: string; is_correct: boolean
+    explanation_lo: string | null; explanation_en: string | null; explanation_origin: 'human' | 'ai' }[] | null
+}
+
+const mockKey = [...academicKeys.all, 'mock-exams'] as const
+
+export function useMockExams() {
+  return useQuery({ queryKey: mockKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<MockExamsView>('academic_mock_exams') })
+}
+export function useMockAttempt(attemptId: string) {
+  return useQuery({ queryKey: [...mockKey, attemptId], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<MockAttempt>('academic_get_mock', { p_attempt_id: attemptId }) })
+}
+function useMockMutation<A>(fn: (args: A) => Promise<MockAttempt>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: data => {
+      queryClient.setQueryData([...mockKey, data.attempt_id], data)
+      return queryClient.invalidateQueries({ queryKey: mockKey, exact: true })
+    },
+  })
+}
+export const useStartMock = () => useMockMutation((slug: string) => callAcademicRpc<MockAttempt>('academic_start_mock', { p_blueprint_slug: slug }))
+export const useStartMockSession = () => useMockMutation((attemptId: string) => callAcademicRpc<MockAttempt>('academic_start_mock_session', { p_attempt_id: attemptId }))
+export const useFinishMockSession = () => useMockMutation((attemptId: string) => callAcademicRpc<MockAttempt>('academic_finish_mock_session', { p_attempt_id: attemptId }))
+export function useAnswerMockItem() {
+  return useMutation({ mutationFn: ({ attemptId, itemId, key }: { attemptId: string; itemId: string; key: string }) =>
+    callAcademicRpc<{ answered: number; total: number }>('academic_answer_mock_item', { p_attempt_id: attemptId, p_item_id: itemId, p_key: key }) })
 }

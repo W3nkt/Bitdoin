@@ -148,7 +148,10 @@ Applied 2026-10-27 (#51, NOTIF-005): 163 (e-mail 7 days and 1 day before Academy
 who turned on account e-mails; daily at 09:00 Vientiane), then `academic-alerts` redeployed.
 
 Applied 2026-10-27 (#56, piece 1): 164 (exam blueprints in the career catalogue, Careers tab → Exam blueprints;
-two drafts for the 2026-2027 intake waiting for review).
+two drafts for the 2026-2027 intake waiting for review; both published at the owner's request).
+
+Applied 2026-10-27 (#56, piece 2): 165 (mock exams and practice sets at /academy/scores/exams; items per subject
+and the minimum in `mock_rules`). Nothing can start until the quiz bank has approved items for the blueprint subjects.
 
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 

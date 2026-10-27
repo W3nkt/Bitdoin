@@ -29,6 +29,9 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   GUARDIAN_ALREADY_LINKED: 'family.error.already',
   CAREER_NOT_STARTED: 'careers.report.needQuestions',
   EMAIL_MISSING: 'family.email.noEmail',
+  MOCK_NOT_READY: 'exams.error.notReady',
+  MOCK_IN_PROGRESS: 'exams.error.inProgress',
+  MOCK_SESSION_CLOSED: 'exams.error.closed',
   EMAIL_CONFIRM_LIMIT: 'family.email.limit',
 }
 

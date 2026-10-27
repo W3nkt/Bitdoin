@@ -12,7 +12,7 @@ export interface ExportData {
   revisions: Record<string, unknown>[]
   consents: Record<string, unknown>[]
   /** Diagnostic quiz attempts (migration 132) and practice sets (137) with answers. */
-  quizzes?: { attempts: Record<string, unknown>[]; practice: Record<string, unknown>[] }
+  quizzes?: { attempts: Record<string, unknown>[]; practice: Record<string, unknown>[]; mock_exams?: Record<string, unknown>[] }
   /** "Report a problem" reports the user sent (migration 133). */
   reports?: Record<string, unknown>[]
   /** Next actions shown and feedback on them (migration 138). */
