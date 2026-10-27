@@ -142,6 +142,8 @@ guardians only if the FROM_EMAIL domain is verified in Resend; failures show as 
 To stop all guardian e-mails at once: `update academic_email_outbox set cancelled_at = now() where sent_at is null and cancelled_at is null;`
 and `update academic_guardian_email_prefs set status = 'unsubscribed' where status <> 'unsubscribed';`
 
+Applied 2026-10-27 (#52, DASH-007): 162 (compare a subject across school years).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
