@@ -118,6 +118,8 @@ Applied 2026-10-27 (#55, piece 3): 155 (programme field and search, scholarships
 saved scholarships and reminders daily at 08:20 Vientiane time; fix: missing dates are refused by the
 catalogue's checks). Admins add programmes and scholarships on the Careers tab.
 
+Applied 2026-10-27: 156 (106 draft programmes from official sources; each needs its length added on the Careers tab before review).
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:

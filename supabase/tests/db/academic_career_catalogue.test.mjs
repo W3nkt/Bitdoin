@@ -29,6 +29,10 @@ eq('everything waits for a reviewer; nothing is published yet', [...careers, ...
 eq('every seeded record is complete', [...careers, ...institutions].filter((c) => Object.keys(c.problems).length).map((c) => c.slug), [])
 eq('unsourced Explorer salary and demand figures are not entered (OD-10)', careers.every((c) => c.draft.facts.length === 0), true)
 eq('students see nothing until it is approved', (await catalogue()).careers.length, 0)
+const drafts = await list('programme')
+eq('106 programme drafts from official sources; each only needs its length before review (migration 156)',
+  [drafts.length, drafts.every((p) => p.status === 'draft' && JSON.stringify(p.problems) === JSON.stringify({ duration_years: 'Duration in years (0.5 to 8)' })), drafts.filter((p) => p.draft.entrance_group).length],
+  [106, true, 29])
 
 // ─── Four-eyes publication (UNI-001) ─────────────────────────────────────────
 
