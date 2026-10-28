@@ -10,7 +10,7 @@ export function Skeleton({ className, style }: { className?: string; style?: CSS
 }
 
 /** Wraps a placeholder so assistive tech hears one "Loading" instead of a pile of empty boxes. */
-function Busy({ children, className }: { children: ReactNode; className?: string }) {
+export function Busy({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div role="status" aria-busy="true" aria-live="polite" className={className}>
       <span className="sr-only">Loading…</span>

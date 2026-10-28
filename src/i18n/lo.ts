@@ -85,6 +85,21 @@ const lo: Translations = {
     showing: 'ພົບ {{count}} ລາຍການ',
     sortTitle: 'ຊື່ A-Z',
     clearSearch: 'ລ້າງການຄົ້ນຫາ',
+    filter: 'ກັ່ນຕອງ',
+    add: 'ເພີ່ມ',
+    heroTitle: 'ຊອກຫາໜັງສືເຫຼັ້ມຕໍ່ໄປຂອງທ່ານ',
+    resultsFor: 'ຜົນການຄົ້ນຫາ “{{query}}”',
+    showBooks: 'ເບິ່ງ {{count}} ລາຍການ',
+    selectedCount: 'ເລືອກແລ້ວ {{count}}',
+    listView: 'ມຸມມອງລາຍການ',
+    gridView: 'ມຸມມອງຕາຕະລາງ',
+    removeFilter: 'ເອົາຕົວກັ່ນຕອງ {{name}} ອອກ',
+    sortHint: {
+      best: 'ຂາຍດີທີ່ສຸດກ່ອນ',
+      newest: 'ມາໃໝ່ກ່ອນ',
+      featured: 'ຄັດເລືອກໂດຍທີມງານ',
+      title: 'ລຽງຕາມຕົວອັກສອນ',
+    },
   },
 
   book: {

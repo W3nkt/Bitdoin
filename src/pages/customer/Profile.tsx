@@ -387,7 +387,7 @@ export function Profile() {
                       currency === cur ? 'bg-primary-700 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     }`}
                   >
-                    {cur}
+                    {cur === 'LAK' ? t('common.lak') : cur}
                   </button>
                 ))}
               </div>

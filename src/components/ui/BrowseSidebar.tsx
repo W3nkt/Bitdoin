@@ -22,6 +22,8 @@ interface BrowseSidebarProps {
   /** When provided, switches mobile to a fixed left drawer controlled by the parent */
   mobileOpen?: boolean
   onMobileClose?: () => void
+  /** Render only the desktop sidebar; the page supplies its own mobile filters */
+  desktopOnly?: boolean
 }
 
 const quickLinks = [
@@ -44,6 +46,7 @@ export function BrowseSidebar({
   onSelectLanguage,
   mobileOpen,
   onMobileClose,
+  desktopOnly = false,
 }: BrowseSidebarProps) {
   const { t } = useTranslation()
   const { language } = useLanguage()
@@ -171,7 +174,19 @@ export function BrowseSidebar({
     </div>
   )
 
-  /* ── Drawer mode (Catalog page mobile) ── */
+  /* ── Desktop only (Catalog page: phones use the filter sheet instead) ── */
+  if (desktopOnly) {
+    return (
+      <aside className={cn(
+        'hidden lg:block bg-[#30343a] text-white lg:max-h-none lg:h-[calc(100vh-4rem)] lg:overflow-y-auto scrollbar-hide',
+        className,
+      )}>
+        {sidebarBody}
+      </aside>
+    )
+  }
+
+  /* ── Drawer mode (mobile drawer controlled by the parent) ── */
   if (useDrawer) {
     return (
       <>

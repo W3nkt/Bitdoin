@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import i18n from '@/i18n'
 import type { Currency, Language, OrderStatus, PaymentStatus, DeliveryStatus } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
@@ -10,14 +11,11 @@ export function cn(...inputs: ClassValue[]) {
 
 const LAK_RATE = 20000 // approximate LAK per USD
 
+/** Kip is written after the amount: "77,000 KIP", or "77,000 ກີບ" while the app is in Lao. */
 export function formatPrice(amount: number, currency: Currency = 'LAK'): string {
   if (currency === 'LAK') {
-    return new Intl.NumberFormat('lo-LA', {
-      style: 'currency',
-      currency: 'LAK',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
+    const digits = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(amount)
+    return `${digits} ${i18n.language?.startsWith('lo') ? 'ກີບ' : 'KIP'}`
   }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
