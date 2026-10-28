@@ -159,11 +159,11 @@ practice results feed the next actions, EXAM-003).
 Applied 2026-10-27 (#56, piece 4): 168 (Books that may help: admins tag Bookstore titles in the Content tab as
 "Bookstore book"; at most 2 in-stock titles per subject page).
 
-Ready, not yet applied (#51): 169 (Family plan: plans family-monthly 79,000 and family-yearly 790,000 kip;
-children covered via the `family_plan` setting). Apply after the code is pushed: dry run, then `db push --yes`.
+Applied 2026-10-28 (#51): 169 (Family plan: plans family-monthly 79,000 and family-yearly 790,000 kip;
+children covered via the `family_plan` setting).
 
-Ready, not yet applied (#47): 170 (staged launch: the `rollout` setting starts at 100%, so nothing changes until an
-admin picks a step on the Pilot tab). Apply after the code is pushed, with 169: dry run, then `db push --yes`.
+Applied 2026-10-28 (#47): 170 (staged launch: the `rollout` setting starts at 100%, so nothing changes until an
+admin picks a step on the Pilot tab).
 
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
