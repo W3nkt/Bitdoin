@@ -17,17 +17,30 @@ import { cn } from '@/lib/utils'
 import { academicErrorText } from './errorText'
 
 /** Shared card frame, matching the other My data cards. */
-export function PrivacyCard({ icon, title, children, tone = 'default' }: { icon: React.ReactNode; title: string; children: React.ReactNode; tone?: 'default' | 'warn' }) {
+export function PrivacyCard({ icon, title, children, tone = 'default', color = '#6366f1' }: { icon: React.ReactNode; title: string; children: React.ReactNode; tone?: 'default' | 'warn'; color?: string }) {
   return (
     <section className={cn('rounded-3xl p-6 shadow-sm ring-1', tone === 'warn'
       ? 'bg-amber-50 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30'
       : 'bg-white ring-slate-200 dark:bg-gray-900 dark:ring-slate-800')}>
       <div className="mb-4 flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">{icon}</span>
+        <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ color, backgroundColor: `${color}1f` }}>{icon}</span>
         <h2 className="flex-1 text-lg font-black">{title}</h2>
       </div>
       {children}
     </section>
+  )
+}
+
+const CONSENT_EMOJI: Record<string, string> = {
+  module_processing: '📚', push: '🔔', ocr_processing: '📷', usage_statistics: '📊', coach_review: '🧠', email: '✉️',
+}
+
+/** The purpose's emoji, greyed out while the consent is off. */
+function ConsentEmoji({ purpose, on }: { purpose: string; on: boolean }) {
+  return (
+    <span aria-hidden className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-xl', on ? 'bg-emerald-50 dark:bg-emerald-500/15' : 'bg-slate-100 grayscale dark:bg-slate-800')}>
+      {CONSENT_EMOJI[purpose] ?? '🔑'}
+    </span>
   )
 }
 
@@ -40,7 +53,7 @@ export function DeletionPending({ deletion }: { deletion: MyDataSummary['deletio
   if (deletion.status !== 'deletion_pending' || !deletion.deletion_scheduled_for) return null
   const date = formatDate(deletion.deletion_scheduled_for, language)
   return (
-    <PrivacyCard icon={<CalendarClock className="h-5 w-5" />} title={t('privacy.pending.title')} tone="warn">
+    <PrivacyCard icon={<CalendarClock className="h-5 w-5" />} title={t('privacy.pending.title')} tone="warn" color="#d97706">
       <p className="text-sm font-bold">{t(deletion.deletion_scope === 'scores' ? 'privacy.pending.scores' : 'privacy.pending.profile', { date })}</p>
       <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('privacy.pending.readOnly')}</p>
       <Button className="mt-4" variant="outline" loading={cancel.isPending}
@@ -75,10 +88,13 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
 
   const row = (purpose: string, current: NonNullable<typeof module>, action: React.ReactNode) => (
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-      <span>
+      <span className="flex items-start gap-3">
+        <ConsentEmoji purpose={purpose} on />
+        <span>
         <span className="block font-bold">{t(`consent.purpose.${purpose}` as AcademicCopyKey)}</span>
         <span className="block text-xs text-slate-500 dark:text-slate-400">
           {t('data.consentActive', { date: formatDate(current.granted_at, language) })}
+        </span>
         </span>
       </span>
       {action}
@@ -86,7 +102,7 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
   )
 
   return (
-    <PrivacyCard icon={<KeyRound className="h-5 w-5" />} title={t('data.consents')}>
+    <PrivacyCard icon={<KeyRound className="h-5 w-5" />} title={t('data.consents')} color="#10b981">
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
         {module && row('module_processing', module, (
           <Button size="sm" variant="ghost" onClick={() => setConfirming(true)}>{t('privacy.withdraw')}</Button>
@@ -102,11 +118,14 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
         {/* Usage statistics (migration 124): on with the notice, off and on here at any time. */}
         {module && (
           <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <span className="min-w-0 flex-1 basis-56">
+            <span className="flex min-w-0 flex-1 basis-56 items-start gap-3">
+              <ConsentEmoji purpose="usage_statistics" on={!!stats} />
+              <span className="min-w-0 flex-1">
               <span className="block font-bold">{t('consent.purpose.usage_statistics')}</span>
               <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.usageStats.body')}</span>
               <span className="block text-xs text-slate-500 dark:text-slate-400">
                 {stats ? t('data.consentActive', { date: formatDate(stats.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
               </span>
             </span>
             {stats
@@ -118,11 +137,14 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
         {/* Coach chats for reviewers (migration 146): off until the student turns it on. */}
         {module && (
           <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <span className="min-w-0 flex-1 basis-56">
+            <span className="flex min-w-0 flex-1 basis-56 items-start gap-3">
+              <ConsentEmoji purpose="coach_review" on={!!coachReview} />
+              <span className="min-w-0 flex-1">
               <span className="block font-bold">{t('consent.purpose.coach_review')}</span>
               <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.coachReview.body')}</span>
               <span className="block text-xs text-slate-500 dark:text-slate-400">
                 {coachReview ? t('data.consentActive', { date: formatDate(coachReview.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
               </span>
             </span>
             {coachReview
@@ -135,11 +157,14 @@ export function ConsentChoices({ consents }: { consents: MyDataSummary['consents
         {/* E-mails about the account, e.g. Premium ending (NOTIF-005, migration 163): off until turned on. */}
         {module && (
           <li className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <span className="min-w-0 flex-1 basis-56">
+            <span className="flex min-w-0 flex-1 basis-56 items-start gap-3">
+              <ConsentEmoji purpose="email" on={!!email} />
+              <span className="min-w-0 flex-1">
               <span className="block font-bold">{t('consent.purpose.email')}</span>
               <span className="block text-xs text-slate-600 dark:text-slate-400">{t('consent.email.body')}</span>
               <span className="block text-xs text-slate-500 dark:text-slate-400">
                 {email ? t('data.consentActive', { date: formatDate(email.granted_at, language) }) : t('consent.usageStats.off')}
+              </span>
               </span>
             </span>
             {email
@@ -178,7 +203,7 @@ export function OcrPhotos() {
   const remove = useDeleteOcrPhoto()
   if (!photos.data?.length) return null
   return (
-    <PrivacyCard icon={<Camera className="h-5 w-5" />} title={t('scan.photos.title')}>
+    <PrivacyCard icon={<Camera className="h-5 w-5" />} title={t('scan.photos.title')} color="#0d9488">
       <p className="mb-2 text-sm text-slate-600 dark:text-slate-400">{t('scan.photos.body')}</p>
       <ul className="divide-y divide-slate-100 dark:divide-slate-800">
         {photos.data.map(photo => (
@@ -231,7 +256,7 @@ export function ExportCard() {
   const [busy, setBusy] = useState(false)
   const [reauth, setReauth] = useState(false)
   return (
-    <PrivacyCard icon={<Download className="h-5 w-5" />} title={t('privacy.export.title')}>
+    <PrivacyCard icon={<Download className="h-5 w-5" />} title={t('privacy.export.title')} color="#0ea5e9">
       <p className="text-sm text-slate-600 dark:text-slate-400">{t('privacy.export.body')}</p>
       {reauth ? <ReauthNotice body="privacy.export.reauthBody" /> : (
         <Button className="mt-4" variant="outline" icon={<Download className="h-4 w-4" />} loading={busy}
@@ -278,7 +303,7 @@ export function DeleteCard() {
   )
 
   return (
-    <PrivacyCard icon={<Trash2 className="h-5 w-5" />} title={t('privacy.delete.title')}>
+    <PrivacyCard icon={<Trash2 className="h-5 w-5" />} title={t('privacy.delete.title')} color="#e11d48">
       <div className="space-y-3">
         {option('scores', 'privacy.delete.scores', 'privacy.delete.scoresBody')}
         {option('profile', 'privacy.delete.profile', 'privacy.delete.profileBody')}

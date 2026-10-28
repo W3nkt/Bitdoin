@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { MessageCircleHeart } from 'lucide-react'
+import { Clock3, EyeOff, MessageCircleHeart, Send } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useMyDataSummary } from '@/lib/academic/api'
 import { useTrackUsage } from '@/lib/academic/usageEvents'
-import { cn } from '@/lib/utils'
+import { CardTitle, EmojiRating } from './visuals'
 
 // Pilot ratings (REL-001, PRD §36.4/§35.5): usefulness and ease of entry,
 // 1–5, asked once after the second recorded month. Sent as usage events, so
@@ -37,7 +37,7 @@ export function FeedbackCard({ userId, recordedMonths }: { userId: string; recor
   const statisticsOn = summary.data?.consents.some(consent => consent.purpose === 'usage_statistics' && !consent.withdrawn_at)
 
   if (sent) {
-    return <p role="status" className="rounded-3xl bg-emerald-50 p-5 text-sm font-bold text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200">{t('feedback.thanks')}</p>
+    return <p role="status" className="flex items-center gap-3 rounded-3xl bg-emerald-50 p-5 text-sm font-bold text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200"><span aria-hidden className="text-3xl">🙏</span>{t('feedback.thanks')}</p>
   }
   if (!due || !statisticsOn) return null
 
@@ -59,30 +59,18 @@ export function FeedbackCard({ userId, recordedMonths }: { userId: string; recor
 
   return (
     <section aria-labelledby="feedback-title" className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 id="feedback-title" className="flex items-center gap-2 text-lg font-black"><MessageCircleHeart className="h-5 w-5 text-indigo-600 dark:text-indigo-300" aria-hidden />{t('feedback.title')}</h2>
-      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t('feedback.anonymous')}</p>
+      <CardTitle id="feedback-title" icon={MessageCircleHeart} color="#ec4899" title={t('feedback.title')} />
+      <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"><EyeOff aria-hidden className="h-3.5 w-3.5" />{t('feedback.anonymous')}</p>
       <div className="mt-4 space-y-5">
         {QUESTIONS.map(question => (
-          <fieldset key={question.id}>
-            <legend className="font-bold">{t(question.label)}</legend>
-            <div className="mt-2 flex gap-2">
-              {(['1', '2', '3', '4', '5'] as Rating[]).map(rating => (
-                <button key={rating} type="button" aria-pressed={answers[question.id] === rating}
-                  aria-label={`${rating} / 5${rating === '1' ? ` · ${t(question.low)}` : rating === '5' ? ` · ${t(question.high)}` : ''}`}
-                  onClick={() => setAnswers(current => ({ ...current, [question.id]: rating }))}
-                  className={cn('grid h-11 flex-1 place-items-center rounded-2xl font-black ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500',
-                    answers[question.id] === rating ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white ring-slate-200 hover:ring-indigo-300 dark:bg-gray-900 dark:ring-slate-700')}>
-                  {rating}
-                </button>
-              ))}
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-slate-600 dark:text-slate-400"><span>{t(question.low)}</span><span>{t(question.high)}</span></div>
-          </fieldset>
+          <EmojiRating key={question.id} label={t(question.label)} low={t(question.low)} high={t(question.high)}
+            value={answers[question.id] ? Number(answers[question.id]) : undefined}
+            onChange={rating => setAnswers(current => ({ ...current, [question.id]: String(rating) as Rating }))} />
         ))}
       </div>
       <div className="mt-5 flex flex-wrap justify-end gap-2">
-        <Button variant="ghost" onClick={later}>{t('feedback.later')}</Button>
-        <Button onClick={send} disabled={!answers.usefulness || !answers.entry_ease}>{t('feedback.send')}</Button>
+        <Button variant="ghost" icon={<Clock3 className="h-4 w-4" />} onClick={later}>{t('feedback.later')}</Button>
+        <Button icon={<Send className="h-4 w-4" />} onClick={send} disabled={!answers.usefulness || !answers.entry_ease}>{t('feedback.send')}</Button>
       </div>
     </section>
   )

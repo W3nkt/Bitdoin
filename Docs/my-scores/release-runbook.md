@@ -159,6 +159,12 @@ practice results feed the next actions, EXAM-003).
 Applied 2026-10-27 (#56, piece 4): 168 (Books that may help: admins tag Bookstore titles in the Content tab as
 "Bookstore book"; at most 2 in-stock titles per subject page).
 
+Ready, not yet applied (#51): 169 (Family plan: plans family-monthly 79,000 and family-yearly 790,000 kip;
+children covered via the `family_plan` setting). Apply after the code is pushed: dry run, then `db push --yes`.
+
+Ready, not yet applied (#47): 170 (staged launch: the `rollout` setting starts at 100%, so nothing changes until an
+admin picks a step on the Pilot tab). Apply after the code is pushed, with 169: dry run, then `db push --yes`.
+
 ### Changing the Coach's model or prompt (AI-010, QG-5)
 
 No new model (`QWEN_ACADEMIC_MODEL`) or prompt version goes live without a passing evaluation:
@@ -258,6 +264,21 @@ Privacy actions (export, consent withdrawal, deletion) keep working while the
 module is off (PRIV-003..005). Other switches in the same table:
 `admin_mfa_required`, `scale_four_eyes_required`, `break_glass_minutes`,
 `score_reminders`, `notification_quiet_hours`, `push_caps`, `rate_limits`.
+
+### Staged launch (REL-002, #47, migration 170)
+
+After the pilot, open Schooling in steps on Admin → Schooling → **Pilot** → *Launch steps*:
+
+1. Before switching the pilot gate off, pick **10%** (reason required). Switching the gate off starts the step clock.
+2. After at least 7 days, when every criterion reads Met or Not enough data (availability, read and write response
+   time, dashboard on phones, no open alerts, no unresolved priority problem reports) and Bookstore orders and
+   Academy lessons look normal, pick **50%**, then **Everyone** the same way. Moving on with a criterion not met
+   needs the tick box; the audit log names what was not met.
+3. **Roll back** by picking a smaller step: new set-ups outside it stop, students who already set up keep Schooling.
+   To stop everyone, use `my_scores_enabled` above.
+
+The share is fixed per account (a hash of the account id), so the 10% group stays in at 50%. Outside the share a
+new student sees "Opening soon" and nothing is stored; a cohort code still lets them in.
 
 Subject labels, trends and diagnostic quizzes (Phase 2, #49) have their own
 switch, on from migration 134. The owner approved the Lao strings, the

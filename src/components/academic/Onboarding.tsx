@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeft, Baby, CalendarDays } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Baby, CalendarDays, PartyPopper } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
@@ -14,10 +14,13 @@ import { PrivacyNotice } from './PrivacyNotice'
 import { SchoolPicker, type SchoolChoice } from './SchoolPicker'
 import { SubjectPicker } from './SubjectPicker'
 import { academicErrorText, errorField } from './errorText'
+import { SubjectIcon } from './visuals'
 
 type Step = 'notice' | 'age' | 'details' | 'subjects' | 'goals'
 const STEPS: Step[] = ['notice', 'age', 'details', 'subjects', 'goals']
 const AGE_BANDS: (AgeBand | 'u13')[] = ['u13', '13_15', '16_17', '18_plus']
+const AGE_EMOJI: Record<AgeBand | 'u13', string> = { u13: '🧒', '13_15': '🧑', '16_17': '🧑‍🎓', '18_plus': '🎓' }
+const GOAL_EMOJI: Record<string, string> = { exams: '📝', university: '🎓', weak: '📈', scholarship: '🏆' }
 export const GOAL_CHIPS = ['exams', 'university', 'weak', 'scholarship'] as const
 
 /** Server field -> step that shows it, for VALIDATION_FAILED errors. */
@@ -110,7 +113,9 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
 
   if (config.isPending) return <div className="mx-auto h-80 max-w-2xl animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
 
-  if (config.data?.pilotMode && !pilotName) {
+  // REL-002: outside the open share a code from the school is the only way in.
+  const notYetOpen = !config.data?.pilotMode && config.data?.rolloutOpen === false
+  if ((config.data?.pilotMode || notYetOpen) && !pilotName) {
     const check = async () => {
       setCheckingCode(true)
       setPilotError(null)
@@ -126,14 +131,14 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
     }
     return (
       <section className="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-8">
-        <StepBody title={t('pilot.title')} hint={t('pilot.hint')}>
+        <StepBody emoji={notYetOpen ? '🌱' : '🎟️'} title={t(notYetOpen ? 'rollout.title' : 'pilot.title')} hint={t(notYetOpen ? 'rollout.hint' : 'pilot.hint')}>
           <form onSubmit={event => { event.preventDefault(); if (pilotCode.trim()) void check() }}>
             <Input label={t('pilot.code')} value={pilotCode} maxLength={9} autoComplete="off" autoCapitalize="characters" spellCheck={false}
               onChange={event => { setPilotCode(event.target.value.toUpperCase()); setPilotError(null) }} error={pilotError ?? undefined}
               className="font-mono text-lg tracking-[0.3em]" />
             <Button type="submit" className="mt-6" fullWidth size="lg" loading={checkingCode} disabled={!pilotCode.trim()}>{t('common.next')}</Button>
           </form>
-          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">{t('pilot.noCode')}</p>
+          <p className="mt-4 text-sm text-slate-600 dark:text-slate-400">{t(notYetOpen ? 'rollout.noCode' : 'pilot.noCode')}</p>
         </StepBody>
       </section>
     )
@@ -209,20 +214,21 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
       </div>
 
       {step === 'age' && (
-        <StepBody title={t('age.title')} hint={t('age.hint')}>
+        <StepBody emoji="🎂" title={t('age.title')} hint={t('age.hint')}>
           <div className="grid grid-cols-2 gap-3">
             {AGE_BANDS.map(band => (
               <ChoiceButton key={band} selected={ageBand === band} onClick={() => setAgeBand(band)}>
+                <span aria-hidden className="mb-1 block text-2xl">{AGE_EMOJI[band]}</span>
                 {t(`age.${band}` as AcademicCopyKey)}
               </ChoiceButton>
             ))}
           </div>
-          <Button className="mt-6" fullWidth size="lg" disabled={!ageBand} onClick={() => advance('details')}>{t('common.next')}</Button>
+          <Button className="mt-6" fullWidth size="lg" icon={<ArrowRight className="h-5 w-5" />} disabled={!ageBand} onClick={() => advance('details')}>{t('common.next')}</Button>
         </StepBody>
       )}
 
       {step === 'details' && (
-        <StepBody title={t('details.title')}>
+        <StepBody emoji="🏫" title={t('details.title')}>
           <div className="space-y-4">
             <Input label={t('details.name')} hint={t('details.nameHint')} value={name} maxLength={40} required
               onChange={event => { setName(event.target.value); clearError('display_name') }} error={errors.display_name} autoComplete="nickname" />
@@ -258,7 +264,7 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
       )}
 
       {step === 'subjects' && (
-        <StepBody title={t('subjects.title')} hint={t('subjects.hint')}>
+        <StepBody emoji="📚" title={t('subjects.title')} hint={t('subjects.hint')}>
           <SubjectPicker catalogue={applicable} value={chosenSubjects} onChange={items => { setSubjects(items); clearError('subjects') }}
             max={config.data?.maxSubjects ?? 25} error={errors.subjects} />
           <Button className="mt-6" fullWidth size="lg"
@@ -271,14 +277,14 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
       )}
 
       {step === 'goals' && (
-        <StepBody title={t('goals.title')} hint={t('goals.hint')}>
+        <StepBody emoji="🎯" title={t('goals.title')} hint={t('goals.hint')}>
           <div className="flex flex-wrap gap-2">
             {GOAL_CHIPS.map(chip => {
               const on = chips.includes(chip)
               return (
                 <ChoiceChip key={chip} selected={on} disabled={!on && chips.length >= 3}
                   onClick={() => setChips(on ? chips.filter(item => item !== chip) : [...chips, chip])}>
-                  {t(`goals.chip.${chip}` as AcademicCopyKey)}
+                  <span aria-hidden className="mr-1.5">{GOAL_EMOJI[chip] ?? '⭐'}</span>{t(`goals.chip.${chip}` as AcademicCopyKey)}
                 </ChoiceChip>
               )
             })}
@@ -294,14 +300,14 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
               return (
                 <ChoiceChip key={subject.code} selected={on}
                   onClick={() => setInterests(on ? interests.filter(code => code !== subject.code) : [...interests, subject.code])}>
-                  {lo ? subject.name_lo : subject.name_en}
+                  <span className="inline-flex items-center gap-1.5"><SubjectIcon code={subject.code} name={subject.name_en} />{lo ? subject.name_lo : subject.name_en}</span>
                 </ChoiceChip>
               )
             })}
           </div>
           <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
             <Button variant="ghost" fullWidth size="lg" disabled={create.isPending} onClick={() => void submit(false)}>{t('goals.skip')}</Button>
-            <Button fullWidth size="lg" loading={create.isPending} onClick={() => void submit(true)}>{t('goals.finish')}</Button>
+            <Button fullWidth size="lg" icon={<PartyPopper className="h-5 w-5" />} loading={create.isPending} onClick={() => void submit(true)}>{t('goals.finish')}</Button>
           </div>
         </StepBody>
       )}
@@ -309,9 +315,10 @@ export function Onboarding({ noticeVersion }: { noticeVersion: string }) {
   )
 }
 
-function StepBody({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function StepBody({ title, hint, emoji, children }: { title: string; hint?: string; emoji?: string; children: ReactNode }) {
   return (
     <div>
+      {emoji && <span aria-hidden className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-50 text-3xl dark:bg-indigo-500/15">{emoji}</span>}
       <h2 className="text-xl font-black sm:text-2xl">{title}</h2>
       {hint && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{hint}</p>}
       <div className="mt-5">{children}</div>

@@ -1,4 +1,4 @@
-// Academy route separation and wheel navigation, against an isolated mock backend.
+// Academy route separation and card navigation, against an isolated mock backend.
 // Run with a local Vite server: node scripts/qa-academy-navigation.mjs
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
@@ -20,10 +20,11 @@ const plans = [
 ].map((plan, i) => ({ ...plan, description: 'Learn with Bitdoin', features: ['Learning and practice'], is_active: true, sort_order: i }))
 const guidance = { id: 'motivation-1', publish_date: '2026-10-24', quote: 'Small steps make a difference.', reflection: 'What did you learn?', challenge: 'Read for ten minutes.', mission: 'Write a sentence.' }
 
-async function openAs(browser, { mobile = false, lang = 'en', tier = 'paid', dark = false, scoresEnabled = false } = {}) {
+async function openAs(browser, { mobile = false, lang = 'en', tier = 'paid', dark = false, scoresEnabled = false, unread = 0 } = {}) {
   const context = await browser.newContext({ ...(mobile ? devices['Pixel 7'] : { viewport: { width: 1440, height: 1000 } }), reducedMotion: 'reduce' })
   const errors = []
   const writes = []
+  const notifications = { unread }
   await context.route('**/*', async route => {
     const request = route.request()
     const url = new URL(request.url())
@@ -38,7 +39,7 @@ async function openAs(browser, { mobile = false, lang = 'en', tier = 'paid', dar
     if (url.pathname.endsWith('/rpc/get_premium_member_dashboard')) return json({ member: { streak: 3, xp: 120, rank: 1, completed_days: 3, completed_items: 9 }, leaderboard: [] })
     if (url.pathname.endsWith('/rpc/academic_get_session')) return json({ user, module_enabled: scoresEnabled, next_step: scoresEnabled ? 'consent' : 'unavailable', profile: scoresEnabled ? { id: 'student-1', display_name: 'Noy', age_band: '18_plus', status: 'active', consent_state: 'active', version: 1 } : null, active_enrolment_id: null, notice_version: '1', consent: { module_processing: false, notice_version: null } })
     if (url.pathname.endsWith('/rpc/academic_get_history')) return json({ enrolments: [] })
-    if (url.pathname.endsWith('/rpc/academic_list_notifications')) return json({ items: [], unread_count: 0, next_before: null })
+    if (url.pathname.endsWith('/rpc/academic_list_notifications')) return json({ items: [], unread_count: notifications.unread, next_before: null })
     if (url.pathname.includes('/rpc/')) return json(null)
     const table = url.pathname.split('/').at(-1)
     if (request.method() !== 'GET') { writes.push(table); return json([]) }
@@ -64,23 +65,17 @@ async function openAs(browser, { mobile = false, lang = 'en', tier = 'paid', dar
   }, { storageKey, user, lang, tier, dark })
   const page = await context.newPage()
   page.on('pageerror', error => errors.push(error.message))
-  return { page, context, errors, writes }
+  return { page, context, errors, writes, notifications }
 }
 
 const browser = await chromium.launch({ headless: true })
 try {
   for (const mobile of [false, true]) {
     const { page, context, errors } = await openAs(browser, { mobile, scoresEnabled: true })
-    const menu = page.getByRole('dialog', { name: 'Academy menu' })
-    const openMenu = () => page.getByRole('button', { name: 'Open menu', exact: true }).click()
+    // Desktop docks the menu as a right sidebar that is shown by default.
+    const menu = mobile ? page.locator('.academy-menu-panel.is-open') : page.getByRole('navigation', { name: 'Academy menu' })
+    const openMenu = () => mobile ? page.getByRole('button', { name: 'Open menu', exact: true }).click() : menu.waitFor()
     async function choose(label) {
-      for (let turn = 0; mobile && turn < 8; turn++) {
-        if (await menu.getByRole('button', { name: label, exact: true }).count()) break
-        const previous = await menu.locator('.is-selected').getAttribute('aria-label')
-        await menu.locator('.is-selected').hover()
-        await page.mouse.wheel(0, 60)
-        await page.waitForFunction(previous => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') !== previous, previous)
-      }
       await menu.getByRole('button', { name: label, exact: true }).click()
     }
     await page.goto(`${base}/academy/home`)
@@ -89,14 +84,23 @@ try {
       console.error('Page:', await page.locator('body').innerText(), 'Runtime errors:', errors)
       throw error
     })
-    const triggerBox = await page.getByRole('button', { name: 'Open menu', exact: true }).boundingBox()
     if (mobile) {
+      const triggerBox = await page.getByRole('button', { name: 'Open menu', exact: true }).boundingBox()
       assert.equal(triggerBox.width, 44)
       assert.equal(triggerBox.height, 44)
       assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(247, 147, 26)')
+      assert.ok(triggerBox.y > 700, 'Toggle floats at the bottom on mobile')
+      assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => getComputedStyle(el).position), 'fixed')
+    } else {
+      await menu.waitFor()
+      const panel = await page.locator('.academy-menu-panel').boundingBox()
+      assert.ok(panel.x === 1440 - 208 && panel.width === 208, 'Desktop sidebar is shown on the right by default, at a narrow width')
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).paddingRight), '208px', 'The page moves aside for the sidebar')
+      const header = await page.locator('header').first().boundingBox()
+      assert.ok(header.x + header.width <= 1440 - 208, 'The sidebar does not cover the page header')
+      assert.equal(await page.getByRole('button', { name: 'Show menu', exact: true }).count(), 0)
+      assert.equal(await page.locator('.academy-menu-heading').evaluate(el => [el.innerText, el.getBoundingClientRect().height].join()), `Menu,${header.height}`, 'Sidebar heading lines up with the header')
     }
-    assert.ok(mobile ? triggerBox.y > 700 : triggerBox.y < 80, 'Toggle floats at the bottom on mobile and at the top on desktop')
-    assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => getComputedStyle(el).position), 'fixed')
     assert.equal(await page.locator('#plans, #membership, #mentor, #play, #community').count(), 0, 'Home must not render the other sections')
     assert.equal(await page.locator('header .lucide-arrow-left').count(), 0, 'Menu landing pages have no back button')
     await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'desktop'}-home.png`, fullPage: true })
@@ -105,56 +109,60 @@ try {
     if (mobile) {
       await page.waitForFunction(() => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') === 'Home')
       const box = await menu.boundingBox()
-      assert.ok(box.width <= 245 && box.height <= 310 && box.y > 400, 'Mobile wheel stays in the bottom corner with space for its entry motion')
-      assert.equal(await menu.locator('.academy-radial-surface').evaluate(el => getComputedStyle(el).borderRadius), '50%')
-      const geometry = await menu.evaluate(el => ['.academy-radial-surface', '.academy-radial-core', '.academy-radial-hub', '.is-selected .academy-wheel-icon'].map(selector => {
-        const box = el.querySelector(selector).getBoundingClientRect()
-        return { width: box.width, height: box.height, centerX: box.x + box.width / 2, centerY: box.y + box.height / 2 }
+      const viewport = page.viewportSize()
+      assert.ok(box.width > 300 && box.width <= 420 && box.height <= viewport.height / 2, 'Mobile popup uses at most half the phone screen')
+      assert.equal(box.y + box.height, viewport.height, 'The card starts at the bottom edge')
+      assert.equal(await page.locator('.academy-menu-backdrop, [aria-modal="true"]').count(), 0, 'Mobile navigation has no modal backdrop or semantics')
+      assert.equal(await menu.locator('.academy-radial-surface').count(), 0, 'The radial menu is removed')
+      assert.equal(await menu.locator('.academy-menu-grid').count(), 1)
+      assert.equal(await menu.locator('.academy-wheel-label').count(), 8, 'Every card has a visible label')
+      const cards = await menu.locator('.academy-wheel-item').evaluateAll(elements => elements.map(el => {
+        const box = el.getBoundingClientRect()
+        const icon = el.querySelector('svg').getBoundingClientRect()
+        return { width: box.width, height: box.height, icon: icon.width }
       }))
-      for (const circle of geometry) assert.ok(Math.abs(circle.width - circle.height) < 1, 'Circles have equal width and height')
-      assert.equal(geometry[0].centerX, geometry[1].centerX)
-      assert.equal(geometry[0].centerY, geometry[1].centerY)
-      assert.equal(geometry[0].centerX, geometry[2].centerX)
-      assert.equal(geometry[0].centerY, geometry[2].centerY)
-      assert.equal(await menu.locator('.academy-radial-surface').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(250, 250, 248)')
-      assert.equal(await menu.locator('.academy-radial-core').evaluate(el => getComputedStyle(el, '::before').backgroundColor), 'rgb(15, 31, 53)')
-      assert.equal(await menu.locator('.academy-radial-hub').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(250, 250, 248)')
-      assert.equal(await menu.locator('.academy-radial-hub').evaluate(el => el.parentElement.classList.contains('academy-wheel-track')), true, 'The white hub moves independently of the dark wheel')
-      assert.notEqual(await menu.locator('.academy-radial-hub').evaluate(el => getComputedStyle(el).boxShadow), 'none', 'The hub has a visible depth shadow')
-      assert.notEqual(await menu.locator('.academy-radial-surface').evaluate(el => getComputedStyle(el).maskImage), 'none', 'Outer rings leave room for the independently animated hub')
-      assert.notEqual(await menu.locator('.academy-radial-core').evaluate(el => getComputedStyle(el, '::before').maskImage), 'none')
-      assert.equal(await menu.locator('.academy-radial-count').count(), 0)
-      const closeColor = await page.getByRole('button', { name: 'Close menu', exact: true }).evaluate(el => getComputedStyle(el).backgroundColor)
-      assert.ok(['rgb(220, 38, 38)', 'rgb(185, 28, 28)'].includes(closeColor), 'Close button stays solid red, including hover')
-      assert.equal(await menu.locator('.academy-wheel-item:not(.is-outside)').count(), 5)
-      assert.equal(await menu.locator('.academy-wheel-label').count(), 0, 'Mobile destinations show icons only, with accessible names')
-      assert.equal(await menu.locator('.is-edge').count(), 2)
-      for (const edge of await menu.locator('.is-edge').all()) {
-        assert.ok(await edge.evaluate(el => Number(getComputedStyle(el).opacity)) < .5, 'Edge options fade to suggest more destinations')
-      }
-      assert.equal(await menu.locator('.academy-radial-more').count(), 0)
-      assert.equal(await menu.locator('.academy-radial-caption textPath').count(), 1, 'The title follows a circular text path')
-      assert.equal(await menu.locator('.academy-radial-caption textPath').textContent(), 'Home')
-      for (const target of await menu.locator('.academy-wheel-item:not(.is-outside)').all()) {
-        const hit = await target.boundingBox()
-        assert.ok(hit.width >= 44 && hit.height >= 44, 'Targets remain large enough to tap')
+      assert.ok(cards.every(card => card.width >= 44 && card.height >= 44), 'Cards remain large enough to tap')
+      assert.ok(cards[0].height > cards[1].height * 1.5, 'The featured card is taller')
+      assert.ok(new Set(cards.map(card => card.icon)).size >= 3, 'Icon sizes follow the card hierarchy')
+      const scrollable = await menu.locator('.academy-wheel-scroll').evaluate(el => el.scrollHeight > el.clientHeight)
+      if (scrollable) {
+        assert.equal(await menu.locator('.has-more-below').count(), 1)
+        assert.notEqual(await menu.locator('.academy-wheel-scroll').evaluate(el => getComputedStyle(el).maskImage), 'none', 'Lower cards fade to hint at more menus')
       }
     } else {
       assert.equal(await menu.locator('.academy-wheel-item').first().getAttribute('aria-label'), 'Home')
-      assert.ok((await menu.boundingBox()).height >= 950, 'Desktop uses a full-height sidebar')
+      assert.ok((await page.locator('.academy-menu-panel').boundingBox()).height >= 950, 'Desktop uses a full-height sidebar')
     }
     assert.equal(await menu.locator('.academy-wheel-item').count(), 8, 'Scores is a main menu entry; plans and billing share one entry')
     await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'desktop'}-menu.png` })
     assert.equal(await menu.locator('[aria-current="page"]').count(), 1)
-    assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden')
-    if (mobile) await menu.locator('.is-selected').focus()
+    assert.equal(await page.evaluate(() => document.body.style.overflow), '', 'Navigation leaves page scrolling available')
+    await menu.locator(mobile ? '.is-selected' : '[aria-current="page"]').focus()
     await page.keyboard.press('End')
     await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Membership')
     await page.waitForTimeout(300)
-    if (mobile) assert.equal(await menu.locator('.is-selected').getAttribute('aria-label'), 'Membership')
-    await page.keyboard.press('Escape')
-    assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => el === document.activeElement), true)
-    assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    if (mobile) {
+      assert.equal(await menu.locator('.is-selected').getAttribute('aria-label'), 'Membership')
+      await page.keyboard.press('Escape')
+      assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => el === document.activeElement), true)
+      assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    } else {
+      await page.keyboard.press('Escape')
+      assert.equal(await menu.isVisible(), true, 'Escape does not hide the docked sidebar')
+      await page.getByRole('button', { name: 'Hide menu', exact: true }).click()
+      const show = page.getByRole('button', { name: 'Show menu', exact: true })
+      assert.equal(await show.evaluate(el => el === document.activeElement), true, 'Focus moves to the edge tab')
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).paddingRight), '0px')
+      assert.equal(await menu.count(), 0)
+      await page.screenshot({ path: `${output}/desktop-sidebar-hidden.png` })
+      await page.reload()
+      await show.waitFor()
+      assert.equal(await menu.count(), 0, 'Hiding the sidebar is remembered')
+      await show.click()
+      await menu.waitFor()
+      assert.equal(await page.getByRole('button', { name: 'Hide menu', exact: true }).evaluate(el => el === document.activeElement), true)
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).paddingRight), '208px')
+    }
 
     for (const [path, label, selector] of [
       ['mentor', 'Daily Mentor', '#mentor'], ['play', 'Play & Learn', '#play'],
@@ -171,7 +179,8 @@ try {
       }
       assert.equal(await page.locator('#home').count(), 0)
       assert.equal(await page.locator('#home, #mentor, #play, #community, #plans, #membership').count(), path === 'membership' ? 2 : 1)
-      assert.equal(await page.getByRole('dialog', { name: 'Academy menu' }).count(), 0)
+      if (mobile) assert.equal(await page.locator('.academy-menu-panel.is-open').count(), 0)
+      if (!mobile) assert.equal(await menu.isVisible(), true, 'The sidebar stays shown after choosing a page')
       assert.equal(await page.locator('header .lucide-arrow-left').count(), 0, `${label} has no back button`)
     }
     await page.reload()
@@ -182,45 +191,63 @@ try {
 
     await openMenu()
     if (mobile) {
-      const before = await menu.locator('.is-selected').getAttribute('aria-label')
-      await menu.locator('.is-selected').hover()
-      await page.mouse.wheel(0, 60)
-      await page.waitForFunction(before => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') !== before, before)
-      assert.notEqual(await menu.locator('.is-selected').getAttribute('aria-label'), before)
-      assert.equal(new URL(page.url()).pathname, '/academy/community')
-      const beforeSwipe = await menu.locator('.is-selected').getAttribute('aria-label')
-      const hit = await menu.locator('.is-selected').boundingBox()
+      await page.setViewportSize({ width: 320, height: 568 })
+      const track = menu.locator('.academy-wheel-scroll')
+      await track.evaluate(el => { el.scrollTop = 0 })
+      await track.hover()
+      await page.mouse.wheel(0, 200)
+      await page.waitForFunction(() => document.querySelector('.academy-wheel-scroll').scrollTop > 0)
+      assert.equal(new URL(page.url()).pathname, '/academy/community', 'Scrolling never opens a destination')
+      await track.evaluate(el => { el.scrollTop = 0 })
+      const hit = await track.boundingBox()
       const touch = await context.newCDPSession(page)
-      const point = { x: hit.x + hit.width / 2, y: hit.y + hit.height / 2 }
+      const point = { x: hit.x + hit.width / 2, y: hit.y + hit.height - 30 }
       await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [point] })
-      await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, y: point.y - 60 }] })
+      for (let step = 1; step <= 6; step++) {
+        await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...point, y: point.y - step * 20 }] })
+        await page.waitForTimeout(20)
+      }
       await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
-      await page.waitForFunction(before => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') !== before, beforeSwipe)
-      assert.equal(new URL(page.url()).pathname, '/academy/community', 'A swipe rotates without opening a page')
+      await page.waitForFunction(() => document.querySelector('.academy-wheel-scroll').scrollTop > 0)
+      assert.equal(new URL(page.url()).pathname, '/academy/community', 'A swipe scrolls without opening a page')
       await touch.detach()
+      await page.setViewportSize({ width: 412, height: 839 })
     }
-    await choose('Learning')
+    await choose('Learning Hub')
     await page.waitForURL(`${base}/academy/learn`)
     await page.getByRole('heading', { name: 'Learning Hub', exact: true }).waitFor()
     assert.equal(await page.locator('header .lucide-arrow-left').count(), 0)
     assert.equal(await page.locator('a[href="/academy/scores"]').count(), 0, 'Scores no longer appears inside Learning')
-    await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor()
+    if (mobile) await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor()
     await openMenu()
     await choose('Schooling')
     await page.waitForURL(`${base}/academy/scores`)
     await page.getByRole('heading', { name: 'Schooling', exact: true }).waitFor()
-    assert.equal(await page.locator('header .lucide-school').count(), 1, 'Schooling page uses the School icon')
+    assert.equal(await page.locator('main .lucide-school').count(), 1, 'Schooling page title uses the School icon')
+    if (!mobile) {
+      // Schooling uses the Home header; the sidebar heading follows its height.
+      const header = await page.locator('header').first().boundingBox()
+      assert.equal(header.height, 73)
+      assert.equal(await page.locator('header').first().getByRole('link', { name: 'Bitdoin Academy', exact: true }).count(), 1)
+      assert.equal(await page.locator('.academy-menu-heading').evaluate(el => el.getBoundingClientRect().height), 73, 'Sidebar heading lines up with the header')
+    }
     assert.equal(await page.locator('header .lucide-arrow-left').count(), 0, 'Scores landing page has no back button')
     await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'desktop'}-scores.png` })
     await openMenu()
     assert.equal(await menu.locator('[aria-current="page"]').getAttribute('aria-label'), 'Schooling')
     assert.equal(await menu.getByRole('button', { name: 'Schooling', exact: true }).locator('.lucide-school').count(), 1)
-    if (mobile) assert.equal(await menu.locator('.academy-radial-caption textPath').textContent(), 'Schooling')
+    if (mobile) assert.equal(await menu.getByRole('button', { name: 'Schooling', exact: true }).getAttribute('aria-current'), 'page')
     await choose('AI Coach')
     await page.waitForURL(`${base}/academy/coach`)
     await page.getByText('Ready to coach', { exact: true }).waitFor()
     assert.equal(await page.locator('header .lucide-arrow-left').count(), 0)
-    await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor()
+    if (mobile) await page.getByRole('button', { name: 'Open menu', exact: true }).waitFor()
+    else {
+      // The Coach's fixed header stops at the sidebar.
+      const coachHeader = await page.locator('header').first().boundingBox()
+      assert.ok(coachHeader.x + coachHeader.width <= 1440 - 208)
+      await page.screenshot({ path: `${output}/desktop-coach.png` })
+    }
 
     // Deep links return to their menu landing page, even after visiting another menu.
     for (const [path, parent] of [['careers', 'learn'], ['challenges', 'learn'], ['habits', 'learn'], ['progress', 'learn'], ['prompts', 'learn'], ['top-corner-lab', 'play'], ['scores/history', 'scores']]) {
@@ -254,25 +281,25 @@ try {
     assert.deepEqual(errors, [], 'No browser runtime errors')
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'No horizontal overflow')
     await context.close()
-    console.log(`PASS ${mobile ? 'mobile' : 'desktop'}: dedicated routes, reload/back, wheel, keyboard, focus, legacy links`)
+    console.log(`PASS ${mobile ? 'mobile' : 'desktop'}: dedicated routes, reload/back, card, keyboard, focus, legacy links`)
   }
 
   const { page, context, errors } = await openAs(browser, { mobile: true, lang: 'lo', tier: 'free', dark: true })
   await page.goto(`${base}/academy/community`)
   await page.locator('#community').waitFor()
   await page.getByRole('button', { name: 'ເປີດເມນູ', exact: true }).click()
-  await page.getByRole('dialog').waitFor()
+  await page.locator('.academy-menu-panel.is-open').waitFor()
   await page.screenshot({ path: `${output}/mobile-lao-dark-menu.png` })
-  assert.equal(await page.getByRole('dialog').locator('[aria-current="page"]').count(), 1)
-  assert.equal(await page.getByRole('dialog').innerText().then(text => text.includes('????')), false)
+  assert.equal(await page.locator('.academy-menu-panel.is-open').locator('[aria-current="page"]').count(), 1)
+  assert.equal(await page.locator('.academy-menu-panel.is-open').innerText().then(text => text.includes('????')), false)
   await page.keyboard.press('Home')
   await page.keyboard.press('ArrowDown')
   await page.keyboard.press('ArrowDown')
-  const laoSchooling = page.getByRole('dialog').getByRole('button', { name: 'ໂຮງຮຽນ', exact: true })
+  const laoSchooling = page.locator('.academy-menu-panel.is-open').getByRole('button', { name: 'ໂຮງຮຽນ', exact: true })
   await laoSchooling.click()
   await page.waitForURL(`${base}/academy/scores`)
   await page.getByRole('heading', { name: 'ໂຮງຮຽນ', exact: true }).waitFor()
-  assert.equal(await page.locator('header .lucide-school').count(), 1)
+  assert.equal(await page.locator('main .lucide-school').count(), 1)
   await page.keyboard.press('Escape')
   assert.deepEqual(errors, [])
   await context.close()
@@ -311,28 +338,45 @@ try {
   await small.page.setViewportSize({ width: 320, height: 568 })
   await small.page.goto(`${base}/academy/home`)
   await small.page.getByRole('button', { name: 'Open menu', exact: true }).click()
-  const smallMenu = small.page.getByRole('dialog', { name: 'Academy menu' })
+  const smallMenu = small.page.locator('.academy-menu-panel.is-open')
   await smallMenu.waitFor()
   await small.page.waitForFunction(() => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') === 'Home')
   const box = await smallMenu.boundingBox()
-  assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= 320 && box.y + box.height <= 568)
+  assert.ok(box.x >= 0 && box.y >= 284 && box.x + box.width <= 320 && box.y + box.height === 568 && box.height <= 284)
   await small.page.screenshot({ path: `${output}/small-mobile-menu.png` })
   assert.equal(await small.page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+  await small.page.evaluate(() => {
+    const outside = document.createElement('button')
+    outside.id = 'popup-outside-action'
+    outside.textContent = 'Page action'
+    outside.style.cssText = 'position:fixed;top:100px;left:10px;z-index:70'
+    outside.onclick = () => { outside.dataset.clicked = 'yes' }
+    document.body.append(outside)
+  })
+  await small.page.getByRole('button', { name: 'Page action', exact: true }).click()
+  assert.equal(await small.page.locator('#popup-outside-action').getAttribute('data-clicked'), 'yes', 'The same tap reaches the underlying page')
+  assert.equal(await small.page.locator('.academy-menu-panel.is-open').count(), 0, 'An outside tap dismisses the popup')
+  await small.page.getByRole('button', { name: 'Open menu', exact: true }).click()
+  await small.page.locator('.academy-menu-trigger').focus()
+  await small.page.keyboard.press('Tab')
+  assert.equal(await small.page.locator('.academy-menu-panel.is-open').count(), 0, 'Tab can leave the popup without a focus trap')
+  await small.page.locator('#popup-outside-action').evaluate(el => el.remove())
+
   await small.page.setViewportSize({ width: 1280, height: 800 })
-  await small.page.locator('.is-desktop .academy-menu-panel.is-open').waitFor()
-  assert.equal(await smallMenu.locator('[aria-current="page"]').getAttribute('aria-label'), 'Home')
+  await small.page.locator('.is-desktop.is-sidebar .academy-menu-panel.is-open').waitFor()
+  assert.equal(await small.page.locator('.academy-menu-panel [aria-current="page"]').getAttribute('aria-label'), 'Home')
   assert.equal(await small.page.locator('.is-desktop > .academy-menu-trigger').count(), 1)
-  await small.page.keyboard.press('Escape')
+  assert.equal(await small.page.evaluate(() => document.body.style.overflow), '', 'Widening to desktop releases the mobile scroll lock')
   await small.context.close()
   console.log('PASS small mobile viewport')
 
-  // Real motion: finish the wheel close before either page-fade implementation.
+  // Real motion: finish the card close before either page-fade implementation.
   for(const fallback of [false,true]){
     const {page,context,errors}=await openAs(browser,{mobile:true})
     await page.emulateMedia({reducedMotion:'no-preference'})
     await page.goto(base+'/academy/home')
     await page.getByRole('button',{name:'Open menu',exact:true}).click()
-    const menu=page.getByRole('dialog',{name:'Academy menu'})
+    const menu=page.locator('.academy-menu-panel.is-open')
     await menu.evaluate(async el=>{await Promise.all(el.getAnimations({subtree:true}).map(animation=>animation.finished.catch(()=>{})))})
     await page.evaluate(fallback=>{
       window.__menuNavigationPhases=[]
@@ -340,25 +384,25 @@ try {
       const original=document.startViewTransition.bind(document)
       document.startViewTransition=callback=>{
         const panel=document.querySelector('.academy-menu-panel')
-        window.__menuNavigationPhases.push({phase:'page-fade-start', time:performance.now(), location:location.pathname, wheelMoving:panel.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform')})
+        window.__menuNavigationPhases.push({phase:'page-fade-start', time:performance.now(), location:location.pathname, cardMoving:panel.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform')})
         return original(callback)
       }
     },fallback)
     const start=await page.evaluate(()=>performance.now())
-    const target=menu.getByRole('button',{name:'Learning',exact:true})
+    const target=menu.getByRole('button',{name:'Learning Hub',exact:true})
     await target.click()
     await page.waitForTimeout(150)
-    assert.equal(new URL(page.url()).pathname,'/academy/home','Old page remains visible while wheel closes')
+    assert.equal(new URL(page.url()).pathname,'/academy/home','Old page remains visible while card closes')
     const closing=await page.locator('.academy-menu-panel').evaluate(el=>el.getAnimations({subtree:true}).some(animation=>animation.playState==='running'&&animation.transitionProperty==='transform'))
-    assert.equal(closing,true,'Selection plays the wheel close animation')
+    assert.equal(closing,true,'Selection plays the card close animation')
     await page.waitForURL(base+'/academy/learn')
     const elapsed=await page.evaluate(start=>performance.now()-start,start)
-    assert.ok(elapsed>=400,'Route changes only after the wheel closes')
+    assert.ok(elapsed>=400,'Route changes only after the card closes')
     if(!fallback){
       const phases=await page.evaluate(()=>window.__menuNavigationPhases)
       assert.equal(phases.length,1)
       assert.equal(phases[0].location,'/academy/home')
-      assert.equal(phases[0].wheelMoving,false,'Page fade starts only after wheel motion ends')
+      assert.equal(phases[0].cardMoving,false,'Page fade starts only after card motion ends')
       await page.waitForFunction(()=>!document.documentElement.dataset.flight)
     } else {
       await page.waitForTimeout(300)
@@ -366,9 +410,32 @@ try {
     }
     assert.deepEqual(errors,[])
     await page.screenshot({path:output+'/navigation-'+(fallback?'fallback':'native')+'.png'})
-    console.log('PASS '+(fallback?'fallback fade':'native fade')+': wheel close before page fade, lazy destination, '+Math.round(elapsed)+'ms before route switch')
+    console.log('PASS '+(fallback?'fallback fade':'native fade')+': card close before page fade, lazy destination, '+Math.round(elapsed)+'ms before route switch')
     await context.close()
   }
+
+  const updates = await openAs(browser, { mobile: true, unread: 3 })
+  await updates.page.clock.install()
+  await updates.page.goto(`${base}/academy/home`)
+  const updatesTrigger = updates.page.getByRole('button', { name: 'Open menu', exact: true })
+  await updatesTrigger.locator('.academy-menu-badge').getByText('3', { exact: true }).waitFor()
+  await updatesTrigger.click()
+  const updatesMenu = updates.page.locator('.academy-menu-panel.is-open')
+  assert.equal(await updatesMenu.locator('.academy-menu-total').textContent(), '3')
+  assert.equal(await updatesMenu.getByRole('button', { name: 'Schooling', exact: true }).locator('.academy-menu-badge').textContent(), '3')
+  await updates.page.screenshot({ path: `${output}/mobile-notification-badges.png` })
+  updates.notifications.unread = 125
+  await updates.page.clock.fastForward(61_000)
+  await updatesMenu.locator('.academy-menu-total').getByText('99+', { exact: true }).waitFor()
+  assert.equal(await updates.page.locator('.academy-menu-trigger .academy-menu-badge').textContent(), '99+')
+  assert.equal(await updatesMenu.getByRole('button', { name: 'Schooling', exact: true }).locator('.academy-menu-badge').textContent(), '99+')
+  updates.notifications.unread = 0
+  await updates.page.clock.fastForward(61_000)
+  await updatesMenu.locator('.academy-menu-total').waitFor({ state: 'detached' })
+  assert.equal(await updates.page.locator('.academy-menu-badge').count(), 0, 'Zero updates removes the floating and tile badges')
+  assert.deepEqual(updates.errors, [])
+  await updates.context.close()
+  console.log('PASS live mobile notification counts, 99+ overflow and zero state')
 
   const guest = await openAs(browser, { tier: 'guest' })
   await guest.page.goto(`${base}/academy/plans`)

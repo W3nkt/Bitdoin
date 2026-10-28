@@ -176,7 +176,23 @@ function quizFixture() {
 function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
   const state = {
     calls: [], writes: [], factors: [...factors], tables: fixtures(role), token: jwt(aal),
-    pilot: { pilot_mode: false, cohorts: [{ id: 'pc1', code: 'ABC234', name: 'Matthayom Thotlong', school_id: null, school_name: null, max_students: 60, active: true, created_at: '2026-10-25T04:00:00Z', students: 41 }] },
+    pilot: {
+      pilot_mode: false, cohorts: [{ id: 'pc1', code: 'ABC234', name: 'Matthayom Thotlong', school_id: null, school_name: null, max_students: 60, active: true, created_at: '2026-10-25T04:00:00Z', students: 41 }],
+      // Staged launch (REL-002, migration 170): 9 days at 10%, availability below target.
+      rollout: {
+        percent: 10, since: '2026-10-19T03:00:00Z', new_students: 118,
+        criteria: [
+          { key: 'days', value: 9, target: 7, met: true },
+          { key: 'availability', value: 0.991, target: 0.995, met: false },
+          { key: 'read_p95_ms', value: 180, target: 300, met: true },
+          { key: 'write_p95_ms', value: null, target: 500, met: null },
+          { key: 'dashboard_p75_ms', value: 1900, target: 2500, met: true },
+          { key: 'open_alerts', value: 0, target: 0, met: true },
+          { key: 'priority_reports', value: 0, target: 0, met: true },
+        ],
+        history: [{ at: '2026-10-19T03:00:00Z', reason: '100% to 10%: GA step 1 after the pilot' }],
+      },
+    },
     quiz: quizFixture(),
     diagnostics: {
       rules: { min_items: 10, max_items: 15, min_per_topic: 3, resume_days: 7 },
@@ -307,6 +323,12 @@ function backend({ role = 'ADMIN', aal = 'aal1', factors = [] } = {}) {
       return state.pilot
     },
     academic_admin_set_pilot_mode: (args) => { state.pilot.pilot_mode = args.p_enabled; return state.pilot },
+    academic_admin_set_rollout: (args) => {
+      const rollout = state.pilot.rollout
+      rollout.history.unshift({ at: '2026-10-28T03:00:00Z', reason: `${rollout.percent}% to ${args.p_percent}%: ${args.p_reason}` })
+      Object.assign(rollout, { percent: args.p_percent, since: '2026-10-28T03:00:00Z', new_students: 0 })
+      return state.pilot
+    },
     academic_admin_list_quiz_bank: (args) => (args.p_filter?.status ? { ...state.quiz, items: state.quiz.items.filter(item => item.status === args.p_filter.status) } : state.quiz),
     academic_admin_list_diagnostics: () => state.diagnostics,
     academic_admin_list_content: () => state.content,
@@ -657,12 +679,10 @@ try {
     const { context, page, mock, errors } = await openAs(browser, { role: 'OPERATIONS', aal: 'aal2', factors: VERIFIED })
     await page.goto(`${base}/academy-admin/scores?tab=subjects`, { waitUntil: 'domcontentloaded' })
     await page.getByRole('heading', { name: 'Support lookup' }).waitFor()
-    await page.getByRole('button', { name: 'Open menu', exact: true }).click()
-    // allInnerTexts() does not wait: let the menu dialog open first.
-    await page.getByRole('dialog', { name: 'Schooling admin sections' }).waitFor()
+    // Desktop shows the section sidebar by default; allInnerTexts() does not wait.
+    await page.getByRole('navigation', { name: 'Schooling admin sections' }).waitFor()
     const tabs = await page.getByRole('navigation', { name: 'Schooling admin sections' }).getByRole('button').allInnerTexts()
     assert.deepEqual(tabs.map(text => text.trim()), ['Support', 'Reports', 'Audit log'])
-    await page.keyboard.press('Escape')
     await page.getByLabel('Member code or user ID').fill('BA-ACA-NOPE00')
     await page.getByRole('button', { name: 'Look up' }).click()
     await page.getByText('No Schooling account for that reference.').waitFor()
@@ -691,7 +711,6 @@ try {
     assert.deepEqual(lastCall(mock, 'academic_support_break_glass').args, { p_student_profile_id: 'prof-1', p_reason: 'Ticket 42: student says October scores vanished' })
     await shot(page, 'admin-6-support')
     await axe(page)
-    await page.getByRole('button', { name: 'Open menu', exact: true }).click()
     await page.getByRole('button', { name: 'Audit log' }).click()
     await page.getByRole('heading', { name: 'Audit log' }).waitFor()
     assert.equal(await page.getByRole('button', { name: 'Export CSV' }).count(), 0)
@@ -967,6 +986,39 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Pilot: cohorts listed with codes and counts, new cohort gets a code, gate switched on with an audited reason')
+  }
+
+  // Staged launch (REL-002): criteria shown, an unmet one needs a tick to move on, rolling back needs only a reason.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { aal: 'aal2', factors: VERIFIED })
+    await page.goto(`${base}/academy-admin/scores?tab=pilot`, { waitUntil: 'domcontentloaded' })
+    const panel = page.locator('section', { has: page.getByRole('heading', { name: 'Launch steps' }) })
+    await panel.getByText('Open to 10% of accounts').waitFor()
+    await panel.getByText('118 new students since', { exact: false }).waitFor()
+    await panel.getByText('99.10% (target 99.5%)').waitFor()
+    assert.equal(await panel.getByText('Not met').count(), 1)
+    assert.equal(await panel.getByText('Not enough data').count(), 1)
+    await panel.getByText('100% to 10%: GA step 1 after the pilot', { exact: false }).waitFor()
+    await panel.getByRole('button', { name: '50%' }).click()
+    const confirm = page.getByRole('button', { name: 'Open to 50%' })
+    await page.getByLabel('Reason (saved in the audit log)').fill('Owner accepts the error blip')
+    assert.equal(await confirm.isDisabled(), true, 'an unmet criterion needs the tick')
+    await page.getByLabel(/Not met: Availability\. Move on anyway/).check()
+    await confirm.click()
+    await panel.getByText('Open to 50% of accounts').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_set_rollout').args, { p_percent: 50, p_reason: 'Owner accepts the error blip', p_confirm_unmet: true })
+    await shot(page, 'admin-11b-launch-steps')
+    await axe(page)
+    await panel.getByRole('button', { name: '10%' }).click()
+    await page.getByText('Students who already set up keep Schooling.', { exact: false }).last().waitFor()
+    assert.equal(await page.getByLabel(/Move on anyway/).count(), 0, 'rolling back needs no tick')
+    await page.getByLabel('Reason (saved in the audit log)').fill('Support backlog')
+    await page.getByRole('button', { name: 'Open to 10%' }).click()
+    await panel.getByText('Open to 10% of accounts').waitFor()
+    assert.deepEqual(lastCall(mock, 'academic_admin_set_rollout').args, { p_percent: 10, p_reason: 'Support backlog', p_confirm_unmet: false })
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Launch steps: criteria with met, not met and not enough data; moving up past an unmet one needs a tick; rolling back needs only a reason; changes listed')
   }
 
   // Quiz items (ADMIN-007, QUIZ-005): approve another admin's item, not your own; return with a note; new item payload.

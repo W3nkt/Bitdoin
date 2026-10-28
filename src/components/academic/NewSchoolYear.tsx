@@ -68,13 +68,15 @@ export function NewSchoolYear({ hasEnrolment }: { hasEnrolment: boolean }) {
       {hasEnrolment && (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <ChoiceButton selected={choice === 'promoted'} onClick={() => setChoice('promoted')}>
+            <span aria-hidden className="mb-1 block text-2xl">🎉</span>
             {nextGrade ? t('year.promoted', { grade: gradeLabel(nextGrade) }) : t('year.lastGrade')}
           </ChoiceButton>
           <ChoiceButton selected={choice === 'repeated'} onClick={() => setChoice('repeated')}>
+            <span aria-hidden className="mb-1 block text-2xl">🔁</span>
             {t('year.repeated', { grade: gradeLabel(currentGrade) })}
           </ChoiceButton>
-          <ChoiceButton selected={choice === 'changed'} onClick={() => setChoice('changed')}>{t('year.transferred')}</ChoiceButton>
-          <ChoiceButton selected={choice === 'left'} onClick={() => setChoice('left')}>{t('year.left')}</ChoiceButton>
+          <ChoiceButton selected={choice === 'changed'} onClick={() => setChoice('changed')}><span aria-hidden className="mb-1 block text-2xl">🏫</span>{t('year.transferred')}</ChoiceButton>
+          <ChoiceButton selected={choice === 'left'} onClick={() => setChoice('left')}><span aria-hidden className="mb-1 block text-2xl">👋</span>{t('year.left')}</ChoiceButton>
         </div>
       )}
 

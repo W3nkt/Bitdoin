@@ -45,7 +45,7 @@ export function MyData({ activeEnrolmentId }: { activeEnrolmentId: string | null
       )}
       <ProfileCard profile={profile} />
 
-      <Card icon={<Database className="h-5 w-5" />} title={t('data.held')}>
+      <Card icon={<Database className="h-5 w-5" />} title={t('data.held')} color="#0ea5e9">
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {COUNTS.map(([key, label]) => (
             <div key={key} className="rounded-2xl bg-slate-50 p-3 dark:bg-gray-800/60">
@@ -155,7 +155,7 @@ function TransferCard({ enrolmentId, lo }: { enrolmentId: string; lo: boolean })
   const choices = months.slice(1)
   if (!open) {
     return (
-      <Card icon={<ArrowRightLeft className="h-5 w-5" />} title={t('transfer.title')}
+      <Card icon={<ArrowRightLeft className="h-5 w-5" />} color="#f97316" title={t('transfer.title')}
         action={<Button variant="ghost" size="sm" onClick={() => setOpen(true)} disabled={choices.length === 0}>{t('year.transferred')}</Button>}>
         <p className="text-sm text-slate-600 dark:text-slate-400">{t('transfer.body')}</p>
       </Card>
@@ -163,7 +163,7 @@ function TransferCard({ enrolmentId, lo }: { enrolmentId: string; lo: boolean })
   }
 
   return (
-    <Card icon={<ArrowRightLeft className="h-5 w-5" />} title={t('transfer.title')}>
+    <Card icon={<ArrowRightLeft className="h-5 w-5" />} color="#f97316" title={t('transfer.title')}>
       <div className="space-y-4">
         <Select label={t('transfer.month')} required value={seq} placeholder={t('details.choose')}
           onChange={event => setSeq(event.target.value)}
@@ -192,11 +192,11 @@ function TransferCard({ enrolmentId, lo }: { enrolmentId: string; lo: boolean })
   )
 }
 
-function Card({ icon, title, action, children }: { icon: React.ReactNode; title: string; action?: React.ReactNode; children: React.ReactNode }) {
+function Card({ icon, title, action, color = '#6366f1', children }: { icon: React.ReactNode; title: string; action?: React.ReactNode; color?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800">
       <div className="mb-4 flex items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">{icon}</span>
+        <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ color, backgroundColor: `${color}1f` }}>{icon}</span>
         <h2 className="flex-1 text-lg font-black">{title}</h2>
         {action}
       </div>

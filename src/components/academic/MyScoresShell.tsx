@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
-import { ArrowLeft, School } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
+import { AcademyPageHeader, AcademyPageTitle } from '@/components/academy/AcademyPageHeader'
+import { academyNavigation } from '@/components/academy/academyMenuItems'
 import { useAcademicCopy } from '@/lib/academic/copy'
-import { cn } from '@/lib/utils'
 import { InboxButton } from './Inbox'
 import { ReportProblem } from './ReportProblem'
 
-/** Page frame for every My Scores screen, matching the other Academy pages. */
+const schooling = academyNavigation.find(item => item.id === 'scores')!
+
+/** Page frame for every My Scores screen, using the Academy Home header. */
 export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
   subtitle?: string
   backTo?: string
@@ -15,35 +15,18 @@ export function MyScoresShell({ subtitle, backTo, inbox = false, children }: {
   inbox?: boolean
   children: ReactNode
 }) {
-  const { t, lo } = useAcademicCopy()
-  const navigate = useNavigate()
+  const { t } = useAcademicCopy()
+  const title = t('shell.title')
+  const detail = subtitle ?? t('shell.subtitle')
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
-      <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/90 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/90">
-        <div className="mx-auto flex min-h-20 max-w-4xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
-          {backTo && <button
-            type="button"
-            onClick={() => navigate(backTo)}
-            aria-label={t('common.back')}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-slate-900/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:hover:bg-white/10"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>}
-          <span className="hidden h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 text-white sm:grid">
-            <School className="h-6 w-6" />
-          </span>
-          <div className="min-w-[7rem] flex-1">
-            <h1 className="break-words font-black">{t('shell.title')}</h1>
-            {/* Letter-spacing suits Latin caps but breaks up Lao script. */}
-            <p className={cn('break-words font-bold text-indigo-700 dark:text-indigo-300', lo ? 'text-xs' : 'text-[10px] uppercase tracking-[0.18em]')}>
-              {subtitle ?? t('shell.subtitle')}
-            </p>
-          </div>
-          {inbox && <InboxButton />}
-          <AcademyHeaderActions />
-        </div>
-      </header>
+      <AcademyPageHeader title={title} detail={detail}
+        back={backTo ? { to: backTo, label: t('common.back') } : undefined}
+        actions={inbox && <InboxButton />} />
       <div className="mx-auto max-w-4xl px-4 py-8 sm:py-10">
+        <div className="mb-6 md:hidden">
+          <AcademyPageTitle icon={schooling.icon} color={schooling.color} title={title} detail={detail} />
+        </div>
         {children}
         <ReportProblem />
       </div>

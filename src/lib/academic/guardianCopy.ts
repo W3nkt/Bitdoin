@@ -165,6 +165,16 @@ export const guardianCopy = {
   },
   'family.report.print': { en: 'Print', lo: 'ພິມ' },
 
+  // Family plan (BILLING-005).
+  'family.plan.title': { en: 'Family plan', lo: 'ແພັກເກດຄອບຄົວ' },
+  'family.plan.body': {
+    en: 'Academy Premium for you, and Schooling Premium for up to {seats} linked children: {monthly} kip a month or {yearly} kip a year.',
+    lo: 'Academy Premium ສຳລັບທ່ານ, ແລະ Premium ຂອງ ໂຮງຮຽນ ສຳລັບລູກທີ່ເຊື່ອມຕໍ່ ສູງສຸດ {seats} ຄົນ: {monthly} ກີບຕໍ່ເດືອນ ຫຼື {yearly} ກີບຕໍ່ປີ.',
+  },
+  'family.plan.covers': { en: 'Your family plan covers {names} until {date}.', lo: 'ແພັກເກດຄອບຄົວຂອງທ່ານ ຄຸ້ມຄອງ {names} ຮອດວັນທີ {date}.' },
+  'family.plan.notCovered': { en: 'Not covered: {names}. The plan covers the first {seats} linked children.', lo: 'ບໍ່ໄດ້ຄຸ້ມຄອງ: {names}. ແພັກເກດຄຸ້ມຄອງລູກ {seats} ຄົນທຳອິດທີ່ເຊື່ອມຕໍ່.' },
+  'family.plan.see': { en: 'See plans', lo: 'ເບິ່ງແພັກເກດ' },
+
   // Monthly reports by e-mail (NOTIF-002).
   'family.email.title': { en: 'Monthly reports by e-mail', lo: 'ລາຍງານປະຈຳເດືອນທາງອີເມວ' },
   'family.email.body': { en: 'Get each monthly report by e-mail too. We ask you to confirm first, and every e-mail has a link to stop.', lo: 'ຮັບລາຍງານປະຈຳເດືອນທາງອີເມວນຳ. ພວກເຮົາຈະໃຫ້ທ່ານຢືນຢັນກ່ອນ, ແລະ ທຸກອີເມວມີລິ້ງເພື່ອຢຸດຮັບ.' },

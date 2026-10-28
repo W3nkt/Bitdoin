@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock, Sparkles } from 'lucide-react'
+import { CalendarClock, Camera, Crown, Sparkles } from 'lucide-react'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import { useEntitlements, useOcrStatus } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -23,18 +23,21 @@ export function PlanCard() {
   const { premium, features } = plan.data
   const scans = features.ocr_upload?.quota
   return (
-    <PrivacyCard icon={<Sparkles className="h-5 w-5" />} title={t('plan.title')}>
-      <p className="font-black">
-        {premium.active ? (premium.until ? t('plan.premiumUntil', { date: formatDate(premium.until, language) }) : t('plan.premiumOpen')) : t('plan.free')}
+    <PrivacyCard icon={<Sparkles className="h-5 w-5" />} title={t('plan.title')} color="#d59627">
+      <p className="flex items-center gap-2 font-black"><span aria-hidden className="text-xl">{premium.active ? '👑' : '🌱'}</span><span>
+        {!premium.active ? t('plan.free')
+          : premium.source === 'family_plan' ? t('plan.familyUntil', { date: premium.until ? formatDate(premium.until, language) : '—' })
+          : premium.until ? t('plan.premiumUntil', { date: formatDate(premium.until, language) }) : t('plan.premiumOpen')}
+        </span>
       </p>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{premium.active ? t('plan.keepData') : t('plan.freeBody')}</p>
       {ocr.data?.available && scans && (
-        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('plan.scans', { remaining: scans.remaining, limit: scans.limit })}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300"><Camera aria-hidden className="h-4 w-4" />{t('plan.scans', { remaining: scans.remaining, limit: scans.limit })}</p>
       )}
       <PremiumEndingNotice />
       {!premium.active && (
-        <Link to="/academy/subscription" className="mt-3 inline-block text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
-          {t('premium.see')}
+        <Link to="/academy/subscription" className="mt-3 inline-flex items-center gap-1.5 text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
+          <Crown aria-hidden className="h-4 w-4" />{t('premium.see')}
         </Link>
       )}
     </PrivacyCard>
@@ -45,7 +48,8 @@ export function PlanCard() {
 export function PremiumEndingNotice() {
   const { t, language } = useAcademicCopy()
   const plan = useEntitlements()
-  const until = plan.data?.premium.active ? plan.data.premium.until : null
+  // A family plan is renewed by the guardian, so the child gets no renewal notice.
+  const until = plan.data?.premium.active && plan.data.premium.source !== 'family_plan' ? plan.data.premium.until : null
   const days = premiumDaysLeft(until)
   if (!until || days === null) return null
   const date = formatDate(until, language)

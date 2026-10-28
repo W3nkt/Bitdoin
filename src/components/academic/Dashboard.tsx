@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
-import { ArrowDownRight, ArrowLeft, ArrowUpRight, ChevronRight, CloudOff, History as HistoryIcon, Minus, PenLine, ShieldCheck, Target, Compass, Timer } from 'lucide-react'
+  ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, CalendarRange, ChevronRight, CloudOff, Compass, History as HistoryIcon, Info, Library, Lightbulb,
+  LineChart as LineChartIcon, PenLine, Scale, ShieldCheck, ShoppingBag, Table2, Target, Timer, TrendingUp, type LucideIcon,
+} from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useCompareYears, useDashboard, usePeriods, useSubjectBooks, type Change, type CompareYear, type Confidence, type DashboardSubject, type DashboardView } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
 import { explainSubject, labelReason, selectInsights } from '@/lib/academic/insights'
 import { plainNumber } from '@/lib/academic/scoreInput'
-import { useChartTheme, useTheme } from '@/lib/theme'
+import { useTheme } from '@/lib/theme'
 import { MyScoresNotice } from './MyScoresShell'
 import { academicErrorText } from './errorText'
 import { useDashboardTiming } from '@/lib/academic/telemetry'
@@ -21,6 +21,13 @@ import { WeekCard } from './WeekCard'
 import { PremiumNote } from './PremiumNote'
 import { PremiumEndingNotice } from './PlanCard'
 import { AskCoachLink, CoachCard } from './CoachCard'
+import { ActionTile, CardTitle, ConfidenceBars, DirectionChip, ScoreFace, ScorePill, SubjectBadge, scoreLevel, subjectVisual } from './visuals'
+import { cn } from '@/lib/utils'
+
+// recharts loads after the summary card (DASH-006: route JS budget).
+const TrendChart = lazy(() => import('./DashboardCharts').then(m => ({ default: m.TrendChart })))
+const SubjectChart = lazy(() => import('./DashboardCharts').then(m => ({ default: m.SubjectChart })))
+const YearsChart = lazy(() => import('./DashboardCharts').then(m => ({ default: m.YearsChart })))
 
 // Identity never rests on colour alone: single series name their measure in
 // the title, the two-series trend has a legend, and direction always has an
@@ -35,12 +42,10 @@ const SERIES = {
 
 type Scale = DashboardView['scale']
 
-/** Five equal steps across the grading scale: 0–10 → 0, 2, 4 … 10. */
-function scaleTicks(scale: Scale) {
-  const min = Number(scale.min ?? 0)
-  const max = Number(scale.max ?? 10)
-  return Array.from({ length: 6 }, (_, i) => Math.round((min + ((max - min) * i) / 5) * 100) / 100)
-}
+/** One colour per Schooling area, shared by the dashboard tiles and each page's title. */
+export const ACTION_COLORS = {
+  entry: '#6366f1', history: '#0ea5e9', planner: '#f97316', careers: '#14b8a6', exams: '#e11d48', data: '#10b981',
+} as const
 
 /**
  * My Scores dashboard (FE-005): summary, monthly average trend, latest
@@ -69,29 +74,13 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
   const label = (period: { label_lo: string; label_en: string }) => (lo ? period.label_lo : period.label_en)
   const periodById = new Map(view.periods.map(period => [period.period_id, period]))
   const actions = (
-    <div className="flex flex-wrap gap-2">
-      {!view.enrolment.read_only && (
-        <Link to="/academy/scores/entry" className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-          <PenLine className="h-4 w-4" />{t('entry.cta')}
-        </Link>
-      )}
-      <Link to="/academy/scores/history" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
-        <HistoryIcon className="h-4 w-4" />{t('history.link')}
-      </Link>
-      {!view.enrolment.read_only && (
-        <Link to="/academy/scores/planner" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
-          <Target className="h-4 w-4" />{t('planner.link')}
-        </Link>
-      )}
-      <Link to="/academy/scores/careers" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
-        <Compass className="h-4 w-4" />{t('careers.link')}
-      </Link>
-      <Link to="/academy/scores/exams" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
-        <Timer className="h-4 w-4" />{t('exams.link')}
-      </Link>
-      <Link to="/academy/scores/data" className="inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-gray-900">
-        <ShieldCheck className="h-4 w-4" />{t('data.link')}
-      </Link>
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      {!view.enrolment.read_only && <ActionTile primary to="/academy/scores/entry" icon={PenLine} color={ACTION_COLORS.entry} label={t('entry.cta')} />}
+      <ActionTile to="/academy/scores/history" icon={HistoryIcon} color={ACTION_COLORS.history} label={t('history.link')} />
+      {!view.enrolment.read_only && <ActionTile to="/academy/scores/planner" icon={Target} color={ACTION_COLORS.planner} label={t('planner.link')} />}
+      <ActionTile to="/academy/scores/careers" icon={Compass} color={ACTION_COLORS.careers} label={t('careers.link')} />
+      <ActionTile to="/academy/scores/exams" icon={Timer} color={ACTION_COLORS.exams} label={t('exams.link')} />
+      <ActionTile to="/academy/scores/data" icon={ShieldCheck} color={ACTION_COLORS.data} label={t('data.link')} />
     </div>
   )
 
@@ -99,7 +88,7 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
     return (
       <div className="space-y-6">
         <ReminderBanner />
-        <MyScoresNotice icon={<PenLine className="h-7 w-7" />} title={t('dash.empty.title')} body={t('dash.empty.body')} action={<div className="flex justify-center">{actions}</div>} />
+        <MyScoresNotice icon={<span aria-hidden className="text-3xl">✏️</span>} title={t('dash.empty.title')} body={t('dash.empty.body')} action={actions} />
       </div>
     )
   }
@@ -139,13 +128,12 @@ export function Dashboard({ userId, enrolmentId }: { userId: string; enrolmentId
 
 function ChangeText({ change, periodLabel, scale }: { change: Change | null; periodLabel: (id: string) => string; scale: Scale }) {
   const { t } = useAcademicCopy()
-  if (!change) return <span className="text-sm text-slate-600 dark:text-slate-400">{t('dash.change.first')}</span>
-  const Icon = change.direction === 'up' ? ArrowUpRight : change.direction === 'down' ? ArrowDownRight : Minus
+  if (!change) return <span className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400"><span aria-hidden>🌱</span>{t('dash.change.first')}</span>
   const amount = formatMean(Math.abs(change.value), scale) ?? ''
   const key = `dash.change.${change.direction}` as AcademicCopyKey
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-700 dark:text-slate-200">
-      <Icon aria-hidden className="h-4 w-4 shrink-0" />
+    <span className="inline-flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+      <DirectionChip direction={change.direction} />
       {t(key, { value: amount, period: periodLabel(change.compared_period_id) })}
     </span>
   )
@@ -155,25 +143,39 @@ function SummaryCard({ view, periodLabel, actions }: { view: DashboardView; peri
   const { t } = useAcademicCopy()
   const summary = view.summary!
   const mean = formatMean(summary.mean, view.scale)
+  const { recorded, active } = summary.coverage
   return (
-    <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800">
-      <p className="text-sm font-bold text-slate-600 dark:text-slate-400">{periodLabel(summary.latest_period_id)} · {view.enrolment.academic_year}</p>
-      <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-1">
-        {mean ? (
-          <p className="text-5xl font-black leading-none">{mean}<span className="ml-1 text-lg font-bold text-slate-500 dark:text-slate-400">/ {plainNumber(view.scale.max)}</span></p>
-        ) : (
-          <p className="text-base font-bold text-slate-700 dark:text-slate-300">{t('dash.lowCoverage')}</p>
-        )}
-        {mean && <p className="pb-1 text-sm font-bold text-slate-600 dark:text-slate-400">{t('dash.average')}</p>}
-      </div>
-      <div className="mt-3 flex flex-col gap-1">
-        {mean && <ChangeText change={summary.change} periodLabel={periodLabel} scale={view.scale} />}
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          {t('dash.coverage', { recorded: summary.coverage.recorded, active: summary.coverage.active })}
-          {summary.missing > 0 && <> · {t('dash.missing', { count: summary.missing })}</>}
+    <section className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800">
+      <div className="bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-6 dark:from-indigo-500/10 dark:via-gray-900 dark:to-sky-500/10">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-xs font-black text-slate-600 ring-1 ring-slate-200 dark:bg-gray-900/70 dark:text-slate-300 dark:ring-slate-700">
+          <CalendarDays aria-hidden className="h-3.5 w-3.5" />{periodLabel(summary.latest_period_id)} · {view.enrolment.academic_year}
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          {mean && <ScoreFace value={summary.mean} scale={view.scale} />}
+          {mean ? (
+            <div>
+              <p className="text-5xl font-black leading-none">{mean}<span className="ml-1 text-lg font-bold text-slate-500 dark:text-slate-400">/ {plainNumber(view.scale.max)}</span></p>
+              <p className="mt-1 text-sm font-bold text-slate-600 dark:text-slate-400">{t('dash.average')}</p>
+            </div>
+          ) : (
+            <p className="flex items-center gap-2 text-base font-bold text-slate-700 dark:text-slate-300"><span aria-hidden className="text-2xl">📝</span>{t('dash.lowCoverage')}</p>
+          )}
+        </div>
+        <div className="mt-4 flex flex-col gap-2">
+          {mean && <ChangeText change={summary.change} periodLabel={periodLabel} scale={view.scale} />}
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <BookOpenCheck aria-hidden className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
+            <span aria-hidden className="h-2 w-24 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+              <span className="block h-full rounded-full bg-indigo-500" style={{ width: `${active ? Math.round((recorded / active) * 100) : 0}%` }} />
+            </span>
+            <span>
+              {t('dash.coverage', { recorded, active })}
+              {summary.missing > 0 && <> · {t('dash.missing', { count: summary.missing })}</>}
+            </span>
+          </div>
+        </div>
       </div>
-      <div className="mt-5">{actions}</div>
+      <div className="border-t border-slate-100 p-4 dark:border-slate-800 sm:p-5">{actions}</div>
     </section>
   )
 }
@@ -182,11 +184,7 @@ function SummaryCard({ view, periodLabel, actions }: { view: DashboardView; peri
 
 function ConfidenceChip({ confidence }: { confidence: Confidence }) {
   const { t } = useAcademicCopy()
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 dark:text-slate-200 dark:ring-slate-600">
-      {t(`insights.confidence.${confidence}`)}
-    </span>
-  )
+  return <ConfidenceBars confidence={confidence} label={t(`insights.confidence.${confidence}`)} />
 }
 
 /**
@@ -198,17 +196,18 @@ function InsightsCard({ view, onOpen }: { view: DashboardView; onOpen: (id: stri
   const { t, lo } = useAcademicCopy()
   const { state, stronger, attention } = selectInsights(view)
   if (state === 'hidden') return null
-  const group = (title: string, Icon: typeof ArrowUpRight, subjects: DashboardSubject[]) => (
-    <div>
-      <h3 className="flex items-center gap-1.5 text-sm font-black"><Icon aria-hidden className="h-4 w-4 shrink-0" />{title}</h3>
+  const group = (title: string, emoji: string, tone: string, subjects: DashboardSubject[]) => (
+    <div className={cn('rounded-2xl p-3', tone)}>
+      <h3 className="flex items-center gap-2 text-sm font-black"><span aria-hidden className="text-xl">{emoji}</span>{title}</h3>
       {subjects.length === 0 ? (
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('insights.emptyList')}</p>
       ) : (
-        <ul className="mt-1 divide-y divide-slate-100 dark:divide-slate-800">
+        <ul className="mt-1 divide-y divide-slate-900/5 dark:divide-white/5">
           {subjects.map(subject => (
             <li key={subject.subject_enrolment_id}>
               <button type="button" onClick={() => onOpen(subject.subject_enrolment_id)}
-                className="flex w-full items-start gap-3 py-2.5 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800/60">
+                className="flex w-full items-center gap-3 rounded-xl px-1 py-2.5 text-left hover:bg-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-900/60">
+                <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block break-words font-bold">{lo ? subject.name_lo : subject.name_en}</span>
                   <span className="block text-xs text-slate-600 dark:text-slate-400">{labelReason(subject, view.scale, t)}</span>
@@ -224,15 +223,16 @@ function InsightsCard({ view, onOpen }: { view: DashboardView; onOpen: (id: stri
   )
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 className="text-lg font-black">{t('insights.title')}</h2>
-      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('insights.note')}</p>
+      <CardTitle icon={Scale} color="#8b5cf6" title={t('insights.title')} />
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><ShieldCheck aria-hidden className="h-3.5 w-3.5 shrink-0" />{t('insights.note')}</p>
       {state === 'ready' ? (
-        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-          {group(t('insights.stronger'), ArrowUpRight, stronger)}
-          {group(t('insights.attention'), ArrowDownRight, attention)}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {group(t('insights.stronger'), '💪', 'bg-emerald-50 dark:bg-emerald-500/10', stronger)}
+          {group(t('insights.attention'), '🎯', 'bg-amber-50 dark:bg-amber-500/10', attention)}
         </div>
       ) : (
-        <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400">
+        <p className="mt-3 flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400">
+          <span aria-hidden className="text-2xl">{state === 'insufficient' ? '⏳' : '⚖️'}</span>
           {t(state === 'insufficient' ? 'insights.insufficient' : 'insights.none')}
         </p>
       )}
@@ -248,7 +248,7 @@ function ExplanationCard({ view, subject, name }: { view: DashboardView; subject
   if (view.detail_locked) {
     return (
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-        <h2 className="text-lg font-black">{t('explain.title')}</h2>
+        <CardTitle icon={Lightbulb} color="#f59e0b" title={t('explain.title')} />
         <PremiumNote body="premium.explain" />
       </section>
     )
@@ -257,26 +257,29 @@ function ExplanationCard({ view, subject, name }: { view: DashboardView; subject
   if (facts.length === 0) return null
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 className="text-lg font-black">{t('explain.title')}</h2>
-      <ul className="mt-2 space-y-3">
+      <CardTitle icon={Lightbulb} color="#f59e0b" title={t('explain.title')} />
+      <ul className="mt-3 space-y-3">
         {facts.map(fact => (
-          <li key={fact.text}>
+          <li key={fact.text} className="flex gap-3">
+            <span aria-hidden className="mt-0.5 text-base">🔎</span>
+            <div className="min-w-0">
             <p className="text-sm text-slate-800 dark:text-slate-200">{fact.text}</p>
             {fact.confidence && (
               <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
                 <ConfidenceChip confidence={fact.confidence} />{t(`insights.confidenceText.${fact.confidence}`)}
               </p>
             )}
+            </div>
           </li>
         ))}
       </ul>
       {suggestions.length > 0 && (
-        <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
-          <h3 className="text-sm font-black">{t('explain.helps')}</h3>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-300">
-            {suggestions.map(text => <li key={text}>{text}</li>)}
+        <div className="mt-4 rounded-2xl bg-amber-50 p-4 dark:bg-amber-500/10">
+          <CardTitle as="h3" emoji="✨" color="#f59e0b" title={t('explain.helps')} />
+          <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+            {suggestions.map(text => <li key={text} className="flex gap-2"><span aria-hidden>👉</span><span>{text}</span></li>)}
           </ul>
-          <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">{t('explain.helpsNote')}</p>
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"><Info aria-hidden className="h-3.5 w-3.5 shrink-0" />{t('explain.helpsNote')}</p>
         </div>
       )}
     </section>
@@ -287,21 +290,25 @@ function ExplanationCard({ view, subject, name }: { view: DashboardView; subject
 
 type ChartId = UsageEvents['chart_table_toggled']['chart_id']
 
-function ChartCard({ chartId, title, subtitle, table, children, footer }: { chartId: ChartId; title: string; subtitle?: ReactNode; table: ReactNode; children: ReactNode; footer?: ReactNode }) {
+function ChartCard({ chartId, title, icon = LineChartIcon, color = '#2a78d6', info, subtitle, table, children, footer }: {
+  chartId: ChartId; title: string; icon?: LucideIcon; color?: string; info?: ReactNode; subtitle?: ReactNode; table: ReactNode; children: ReactNode; footer?: ReactNode
+}) {
   const { t } = useAcademicCopy()
   const track = useTrackUsage()
   const [asTable, setAsTable] = useState(false)
+  const toggle = asTable ? t('dash.table.hide') : t('dash.table.show')
+  const ToggleIcon = asTable ? LineChartIcon : Table2
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-black">{title}</h2>
-          {subtitle && <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{subtitle}</div>}
-        </div>
-        <button type="button" onClick={() => { if (!asTable) track('chart_table_toggled', { chart_id: chartId }); setAsTable(value => !value) }} aria-pressed={asTable}
-          className="shrink-0 rounded-full px-3 py-1.5 text-xs font-black text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-500/10">
-          {asTable ? t('dash.table.hide') : t('dash.table.show')}
-        </button>
+      <div className="mb-3">
+        <CardTitle icon={icon} color={color} title={title} info={info}>
+          <button type="button" onClick={() => { if (!asTable) track('chart_table_toggled', { chart_id: chartId }); setAsTable(value => !value) }} aria-pressed={asTable}
+            aria-label={toggle} title={toggle}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:ring-indigo-500/30 dark:hover:bg-indigo-500/10">
+            <ToggleIcon aria-hidden className="h-4 w-4" />
+          </button>
+        </CardTitle>
+        {subtitle && <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">{subtitle}</div>}
       </div>
       {asTable ? <div className="overflow-x-auto">{table}</div> : children}
       {footer}
@@ -330,27 +337,15 @@ function useSeries() {
   return SERIES[useTheme(state => state.theme) === 'dark' ? 'dark' : 'light']
 }
 
-function ValueTooltip({ active, payload, label, scale }: { active?: boolean; payload?: { name: string; value: number | null; color: string }[]; label?: string; scale: Scale }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-xl bg-white px-3 py-2 text-sm shadow-lg ring-1 ring-slate-200 dark:bg-gray-800 dark:ring-slate-700">
-      <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{label}</p>
-      {payload.filter(item => item.value !== null && item.value !== undefined).map(item => (
-        <p key={item.name} className="flex items-center gap-2">
-          <span aria-hidden className="inline-block h-0.5 w-3 rounded" style={{ background: item.color }} />
-          <span className="font-black tabular-nums text-slate-900 dark:text-white">{formatMean(item.value, scale)}</span>
-          <span className="text-slate-500 dark:text-slate-400">{item.name}</span>
-        </p>
-      ))}
-    </div>
-  )
+/** Holds the chart's space while recharts loads. */
+function ChartSlot({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div data-chart-loading className="h-full w-full animate-pulse rounded-2xl bg-slate-50 dark:bg-gray-800/60" />}>{children}</Suspense>
 }
 
 // ─── Monthly average (DASH-002) ──────────────────────────────────────────────
 
 function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Map<number, string> }) {
   const { t, lo } = useAcademicCopy()
-  const chart = useChartTheme()
   const colors = useSeries()
   const scale = view.scale
   const bySeq = new Map(view.periods.map(period => [period.sequence, period]))
@@ -375,8 +370,8 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
 
   if (withMean < 2) {
     return (
-      <ChartCard chartId="trend" title={t('dash.trend.title')} table={<DataTable head={[t('dash.table.month'), t('dash.average'), t('dash.table.recorded')]} rows={data.map(point => [point.label, formatMean(point.mean, scale) ?? '—', point.recorded])} />}>
-        <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400">{t('dash.trend.empty')}</p>
+      <ChartCard chartId="trend" icon={TrendingUp} title={t('dash.trend.title')} table={<DataTable head={[t('dash.table.month'), t('dash.average'), t('dash.table.recorded')]} rows={data.map(point => [point.label, formatMean(point.mean, scale) ?? '—', point.recorded])} />}>
+        <p className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-gray-800/60 dark:text-slate-400"><span aria-hidden className="text-2xl">📈</span>{t('dash.trend.empty')}</p>
       </ChartCard>
     )
   }
@@ -384,6 +379,7 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
   return (
     <ChartCard
       chartId="trend"
+      icon={TrendingUp}
       title={t('dash.trend.title')}
       subtitle={showRolling && (
         <span className="flex flex-wrap gap-x-4 gap-y-1">
@@ -396,17 +392,7 @@ function TrendCard({ view, monthLabels }: { view: DashboardView; monthLabels: Ma
       footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.trend.gap')}{transferredFrom && ` · ${t('dash.trend.schoolChanged', { period: transferredFrom })}`}</p>}
     >
       <div className="h-56" role="img" aria-label={`${t('dash.trend.title')}: ${data.map(point => `${point.label} ${formatMean(point.mean, scale) ?? '—'}`).join(', ')}`}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
-            <CartesianGrid vertical={false} stroke={colors.grid} strokeWidth={1} />
-            <XAxis dataKey="label" tick={{ ...chart.tick, fontSize: 12 }} axisLine={{ stroke: chart.axisLine }} tickLine={false} interval="preserveStartEnd" />
-            <YAxis domain={[scale.min ?? 0, scale.max ?? 10]} tick={{ ...chart.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={40} ticks={scaleTicks(scale)} interval={0} />
-            <Tooltip content={<ValueTooltip scale={scale} />} cursor={{ stroke: chart.axisLine, strokeWidth: 1 }} />
-            {showRolling && <Line type="linear" dataKey="rolling" name={rollingName} stroke={colors.second} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />}
-            <Line type="linear" dataKey="mean" name={meanName} stroke={colors.main} strokeWidth={2} connectNulls={false} isAnimationActive={false}
-              dot={{ r: 4, fill: colors.main, stroke: chart.surface, strokeWidth: 2 }} activeDot={{ r: 6, stroke: chart.surface, strokeWidth: 2 }} />
-          </LineChart>
-        </ResponsiveContainer>
+        <ChartSlot><TrendChart data={data} scale={scale} colors={colors} showRolling={showRolling} meanName={meanName} rollingName={rollingName} /></ChartSlot>
       </div>
     </ChartCard>
   )
@@ -420,8 +406,6 @@ function LegendKey({ color, label }: { color: string; label: string }) {
 
 function LatestCard({ view }: { view: DashboardView }) {
   const { t, lo } = useAcademicCopy()
-  const chart = useChartTheme()
-  const colors = useSeries()
   const latestId = view.summary!.latest_period_id
   const latest = view.periods.find(period => period.period_id === latestId)!
   const periodName = lo ? latest.label_lo : latest.label_en
@@ -429,40 +413,55 @@ function LatestCard({ view }: { view: DashboardView }) {
   const atLatest = view.subjects.filter(subject => subject.latest?.period_id === latestId)
   const scored = atLatest
     .filter(subject => subject.latest?.status === 'scored' && subject.latest.value !== null && view.numeric)
-    .map(subject => ({ name: name(subject), value: Number(subject.latest!.value) }))
+    .map(subject => ({ id: subject.subject_enrolment_id, code: subject.code, name: name(subject), value: Number(subject.latest!.value) }))
     .sort((a, b) => b.value - a.value)
   const others = atLatest.filter(subject => subject.latest?.status !== 'scored')
+  const min = Number(view.scale.min ?? 0)
+  const max = Number(view.scale.max ?? 10)
 
   return (
     <ChartCard
       chartId="subjects"
+      icon={BarChart3}
+      color="#6366f1"
       title={t('dash.compare.title', { period: periodName })}
       table={<DataTable head={[t('dash.table.subject'), t('dash.table.score')]}
         rows={[...scored.map(row => [row.name, plainNumber(row.value)]), ...others.map(subject => [name(subject), t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)])]} />}
       footer={others.length > 0 && (
         <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">
-          <p className="font-bold text-slate-600 dark:text-slate-400">{t('dash.compare.others')}</p>
-          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-            {others.map(subject => <li key={subject.subject_enrolment_id}>{name(subject)} · <span className="text-slate-500 dark:text-slate-400">{t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)}</span></li>)}
+          <p className="flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-400"><span aria-hidden>➖</span>{t('dash.compare.others')}</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {others.map(subject => (
+              <li key={subject.subject_enrolment_id} className="flex items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3 ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-700">
+                <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />{name(subject)} · <span className="text-slate-500 dark:text-slate-400">{t(`entry.status.${subject.latest!.status}` as AcademicCopyKey)}</span>
+              </li>
+            ))}
           </ul>
         </div>
       )}
     >
       {scored.length > 0 && (
-        <div style={{ height: Math.max(scored.length * 40, 80) }} role="img"
+        <ul role="img" className="space-y-2.5"
           aria-label={`${t('dash.compare.title', { period: periodName })}: ${scored.map(row => `${row.name} ${plainNumber(row.value)}`).join(', ')}`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={scored} layout="vertical" margin={{ top: 0, right: 36, bottom: 0, left: 0 }} barCategoryGap={8}>
-              <CartesianGrid horizontal={false} stroke={colors.grid} strokeWidth={1} />
-              <XAxis type="number" domain={[view.scale.min ?? 0, view.scale.max ?? 10]} hide />
-              <YAxis type="category" dataKey="name" width={112} tick={{ ...chart.tick, fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ValueTooltip scale={view.scale} />} cursor={chart.tooltip.cursor} />
-              <Bar dataKey="value" name={t('dash.table.score')} fill={colors.main} barSize={20} radius={[0, 4, 4, 0]} isAnimationActive={false}>
-                <LabelList dataKey="value" position="right" formatter={(value: number) => plainNumber(value)} style={{ fill: chart.tick.fill, fontSize: 12, fontWeight: 800 }} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+          {scored.map(row => {
+            const { color } = subjectVisual(row.code, row.name)
+            const share = Math.max(0, Math.min(1, (row.value - min) / ((max - min) || 1)))
+            return (
+              <li key={row.id} aria-hidden data-subject-bar={row.name} data-value={plainNumber(row.value)} className="flex items-center gap-3">
+                <SubjectBadge code={row.code} name={row.name} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2 text-sm">
+                    <span className="min-w-0 break-words font-bold">{row.name}</span>
+                    <span className="flex items-center gap-1 font-black tabular-nums"><span className="text-xs">{scoreLevel(row.value, view.scale)?.emoji}</span>{plainNumber(row.value)}</span>
+                  </div>
+                  <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div className="h-full rounded-full" style={{ width: `${Math.round(share * 100)}%`, backgroundColor: color }} />
+                  </div>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </ChartCard>
   )
@@ -475,21 +474,22 @@ function SubjectList({ view, onOpen }: { view: DashboardView; onOpen: (id: strin
   const subjects = view.subjects.filter(subject => subject.series.length > 0 || subject.active)
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 className="mb-2 text-lg font-black">{t('dash.subjects.title')}</h2>
-      <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+      <div className="mb-3"><CardTitle icon={Library} color="#6366f1" title={t('dash.subjects.title')} /></div>
+      <ul className="grid gap-2 sm:grid-cols-2">
         {subjects.map(subject => (
           <li key={subject.subject_enrolment_id}>
             <button type="button" onClick={() => onOpen(subject.subject_enrolment_id)}
-              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800/60">
-              <span className="min-w-[8rem] flex-1">
+              className="flex w-full items-center gap-3 rounded-2xl bg-slate-50 p-3 text-left ring-1 ring-transparent transition hover:bg-white hover:ring-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-gray-800/60 dark:hover:bg-gray-900 dark:hover:ring-slate-700">
+              <SubjectBadge code={subject.code} name={subject.name_en} />
+              <span className="min-w-0 flex-1">
                 <span className="block break-words font-bold">{lo ? subject.name_lo : subject.name_en}</span>
                 <span className="block text-xs text-slate-500 dark:text-slate-400">
                   {subject.mean !== null ? t('dash.subjects.average', { value: formatMean(subject.mean, view.scale) ?? '', count: subject.window_n }) : t('dash.subjects.fewMonths')}
                 </span>
               </span>
-              {subject.latest?.status === 'scored' && <span className="text-lg font-black">{plainNumber(subject.latest.value)}</span>}
-              <DirectionIcon change={subject.change} />
-              <ChevronRight aria-hidden className="h-4 w-4 text-slate-400" />
+              {subject.latest?.status === 'scored' && <ScorePill value={subject.latest.value} scale={view.scale} label={plainNumber(subject.latest.value)} />}
+              {subject.change ? <DirectionChip direction={subject.change.direction} /> : <span className="w-7" />}
+              <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
             </button>
           </li>
         ))}
@@ -498,17 +498,11 @@ function SubjectList({ view, onOpen }: { view: DashboardView; onOpen: (id: strin
   )
 }
 
-function DirectionIcon({ change }: { change: Change | null }) {
-  if (!change) return <span className="w-4" />
-  const Icon = change.direction === 'up' ? ArrowUpRight : change.direction === 'down' ? ArrowDownRight : Minus
-  return <Icon aria-hidden className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-}
-
 function SubjectDetail({ view, subject, periodLabel, onBack }: { view: DashboardView; subject: DashboardSubject; periodLabel: (id: string) => string; onBack: () => void }) {
   const { t, lo } = useAcademicCopy()
-  const chart = useChartTheme()
   const colors = useSeries()
   const name = lo ? subject.name_lo : subject.name_en
+  const visual = subjectVisual(subject.code, subject.name_en)
   const data = useMemo(() => subject.series.map(point => ({
     label: periodLabel(point.period_id),
     value: point.status === 'scored' && point.value !== null ? Number(point.value) : null,
@@ -522,14 +516,24 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
       <button type="button" onClick={onBack} className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-sm font-black text-indigo-700 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:hover:bg-indigo-500/10">
         <ArrowLeft className="h-4 w-4" />{t('dash.subject.back')}
       </button>
+      <div className="flex items-center gap-4 rounded-3xl p-5 ring-1 ring-slate-200 dark:ring-slate-800" style={{ backgroundColor: `${visual.color}14` }}>
+        <SubjectBadge code={subject.code} name={subject.name_en} size="lg" />
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-2xl font-black">{name}</p>
+          <div className="mt-1"><ChangeText change={subject.change} periodLabel={periodLabel} scale={view.scale} /></div>
+        </div>
+        {subject.latest?.status === 'scored' && <ScorePill size="lg" value={subject.latest.value} scale={view.scale} label={plainNumber(subject.latest.value)} />}
+      </div>
       <ChartCard
         chartId="subject_detail"
+        icon={visual.icon}
+        color={visual.color}
         title={t('dash.subject.chart', { subject: name })}
+        info={t('dash.oneMonth')}
         subtitle={(
           <span className="flex flex-col gap-1">
             {subject.latest?.status === 'scored' && <span>{t('dash.subject.latest', { value: plainNumber(subject.latest.value), period: periodLabel(subject.latest.period_id) })}</span>}
             <span>{mean !== null ? t('dash.subjects.average', { value: formatMean(mean, view.scale) ?? '', count: subject.window_n }) : t('dash.subjects.fewMonths')}</span>
-            <ChangeText change={subject.change} periodLabel={periodLabel} scale={view.scale} />
             <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
               <LegendKey color={colors.main} label={scoreName} />
               {mean !== null && <LegendKey color={colors.second} label={t('dash.subject.meanLine')} />}
@@ -537,22 +541,9 @@ function SubjectDetail({ view, subject, periodLabel, onBack }: { view: Dashboard
           </span>
         )}
         table={<DataTable head={[t('dash.table.month'), scoreName]} rows={data.map(point => [point.label, point.value === null ? t(`entry.status.${point.status}` as AcademicCopyKey) : plainNumber(point.value)])} />}
-        footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.oneMonth')}</p>}
       >
         <div className="h-56" role="img" aria-label={`${t('dash.subject.chart', { subject: name })}: ${data.map(point => `${point.label} ${point.value ?? '—'}`).join(', ')}`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -12 }}>
-              <CartesianGrid vertical={false} stroke={colors.grid} strokeWidth={1} />
-              <XAxis dataKey="label" tick={{ ...chart.tick, fontSize: 12 }} axisLine={{ stroke: chart.axisLine }} tickLine={false} interval="preserveStartEnd" />
-              <YAxis domain={[view.scale.min ?? 0, view.scale.max ?? 10]} tick={{ ...chart.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={40} ticks={scaleTicks(view.scale)} interval={0} />
-              <Tooltip content={<ValueTooltip scale={view.scale} />} cursor={{ stroke: chart.axisLine, strokeWidth: 1 }} />
-              {mean !== null && (
-                <ReferenceLine y={mean} stroke={colors.second} strokeWidth={2} />
-              )}
-              <Line type="linear" dataKey="value" name={scoreName} stroke={colors.main} strokeWidth={2} connectNulls={false} isAnimationActive={false}
-                dot={{ r: 4, fill: colors.main, stroke: chart.surface, strokeWidth: 2 }} activeDot={{ r: 6, stroke: chart.surface, strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <ChartSlot><SubjectChart data={data} scale={view.scale} colors={colors} mean={mean} scoreName={scoreName} /></ChartSlot>
         </div>
       </ChartCard>
       <CompareYears subjectEnrolmentId={subject.subject_enrolment_id} name={name} />
@@ -572,8 +563,8 @@ function SubjectBooks({ subjectEnrolmentId }: { subjectEnrolmentId: string }) {
   const kip = (value: number) => Number(value).toLocaleString('en')
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 className="text-lg font-black">{t('books.title')}</h2>
-      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('books.optional')}</p>
+      <CardTitle emoji="📚" color="#0ea5e9" title={t('books.title')} />
+      <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Info aria-hidden className="h-3.5 w-3.5" />{t('books.optional')}</p>
       <ul className="mt-3 grid gap-3">
         {books.data.map(book => (
           <li key={book.book_id} className="flex gap-3 rounded-2xl border border-slate-200 p-3 text-sm dark:border-slate-700">
@@ -585,7 +576,9 @@ function SubjectBooks({ subjectEnrolmentId }: { subjectEnrolmentId: string }) {
                   book.price_min !== null ? (book.price_max !== null && book.price_max !== book.price_min ? t('books.price', { min: kip(book.price_min), max: kip(book.price_max) }) : t('books.priceOne', { price: kip(book.price_min) })) : null,
                 ].filter(Boolean).join(' · ')}
               </p>
-              <Link to={book.route} className="mt-1 inline-block font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('books.open')}</Link>
+              <Link to={book.route} className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 font-black text-sky-800 hover:bg-sky-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:bg-sky-500/15 dark:text-sky-200">
+                <ShoppingBag aria-hidden className="h-4 w-4" />{t('books.open')}
+              </Link>
             </div>
           </li>
         ))}
@@ -602,7 +595,6 @@ const MONTH_ORDER = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
 /** The same subject in another school year, aligned by month; only when the scales can be compared. */
 function CompareYears({ subjectEnrolmentId, name }: { subjectEnrolmentId: string; name: string }) {
   const { t, lo } = useAcademicCopy()
-  const chart = useChartTheme()
   const colors = useSeries()
   const compare = useCompareYears(subjectEnrolmentId)
   const [open, setOpen] = useState(false)
@@ -637,7 +629,7 @@ function CompareYears({ subjectEnrolmentId, name }: { subjectEnrolmentId: string
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-black">{t('dash.years.title')}</h2>
+        <div className="min-w-0 flex-1"><CardTitle icon={CalendarRange} color="#eb6834" title={t('dash.years.title')} /></div>
         <button type="button" disabled={!anyCompatible} aria-pressed={open} onClick={() => setOpen(value => !value)}
           className="rounded-full px-3 py-1.5 text-sm font-black text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:cursor-not-allowed disabled:text-slate-500 disabled:ring-slate-200 dark:text-indigo-300 dark:ring-indigo-500/40 dark:hover:bg-indigo-500/10 dark:disabled:text-slate-500 dark:disabled:ring-slate-700">
           {open ? t('dash.years.hide') : t('dash.years.show')}
@@ -671,17 +663,7 @@ function CompareYears({ subjectEnrolmentId, name }: { subjectEnrolmentId: string
               footer={<p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t('dash.years.note')}</p>}
             >
               <div className="h-56" role="img" aria-label={`${t('dash.years.chart', { subject: name })}: ${data.map(point => `${point.label} ${show(point.now)} / ${show(point.before)}`).join(', ')}`}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: -12 }}>
-                    <CartesianGrid vertical={false} stroke={colors.grid} strokeWidth={1} />
-                    <XAxis dataKey="label" tick={{ ...chart.tick, fontSize: 12 }} axisLine={{ stroke: chart.axisLine }} tickLine={false} interval="preserveStartEnd" />
-                    <YAxis domain={domain} tick={{ ...chart.tick, fontSize: 12 }} axisLine={false} tickLine={false} width={40} />
-                    <Line type="linear" dataKey="now" name={yearName(current)} stroke={colors.main} strokeWidth={2} connectNulls={false} isAnimationActive={false}
-                      dot={{ r: 4, fill: colors.main, stroke: chart.surface, strokeWidth: 2 }} />
-                    <Line type="linear" dataKey="before" name={yearName(other)} stroke={colors.second} strokeWidth={2} strokeDasharray="5 4" connectNulls={false} isAnimationActive={false}
-                      dot={{ r: 4, fill: colors.second, stroke: chart.surface, strokeWidth: 2 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <ChartSlot><YearsChart data={data} domain={domain} colors={colors} nowName={yearName(current)} beforeName={yearName(other)} /></ChartSlot>
               </div>
             </ChartCard>
           )}

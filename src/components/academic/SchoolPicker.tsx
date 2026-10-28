@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Check, School, Search } from 'lucide-react'
+import { Check, MapPin, School, Search } from 'lucide-react'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import { useSchoolSearch } from '@/lib/academic/api'
 import { cn } from '@/lib/utils'
@@ -117,11 +117,11 @@ export function SchoolPicker({ value, onChange, provinceCode, districtCode = nul
                   onClick={() => onChange({ school_id: school.id, name })}
                   className="flex w-full items-center gap-3 border-b border-slate-100 p-3 text-left last:border-b-0 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none dark:border-slate-800 dark:hover:bg-gray-800 dark:focus:bg-gray-800"
                 >
-                  <School className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"><School className="h-4 w-4" /></span>
                   <span className="min-w-0">
                     <span className="block break-words font-bold">{name}</span>
                     {school.romanised_name && <span className="block break-words text-xs text-slate-500 dark:text-slate-400">{school.romanised_name}</span>}
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">{locationLabel}</span>
+                    <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400"><MapPin aria-hidden className="h-3 w-3 shrink-0" />{locationLabel}</span>
                   </span>
                 </button>
               )

@@ -37,7 +37,8 @@ function Tile({ label, value, note }: { label: string; value: ReactNode; note: s
 
 function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto">
+    // Focusable so keyboard users can scroll a table wider than the page.
+    <div tabIndex={0} className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-left text-sm">
         <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
           <tr>{head.map(cell => <th key={cell} className="py-2 pr-4 last:pr-0">{cell}</th>)}</tr>

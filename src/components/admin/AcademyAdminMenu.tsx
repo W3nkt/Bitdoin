@@ -19,5 +19,5 @@ export function AcademyAdminMenu({ sections }: { sections?: AcademyMenuItem[] })
   ]
 
   return <ResponsiveAcademyMenu key={pathname} pathname={pathname} items={items}
-    title={{ en: 'Academy Admin menu', lo: 'ເມນູຈັດການ Academy' }} brand="BITDOIN ACADEMY ADMIN" preload={preloadAdminDestination} />
+    title={{ en: 'Academy Admin menu', lo: 'ເມນູຈັດການ Academy' }} brand="BITDOIN ACADEMY ADMIN" preload={preloadAdminDestination} docked />
 }

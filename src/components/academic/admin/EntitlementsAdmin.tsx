@@ -154,7 +154,7 @@ function MemberView({ member, onChanged }: { member: MemberEntitlements; onChang
   return (
     <>
       <Panel title={`${member.user.name} · ${member.user.member_code ?? ''}`}
-        description={plan.premium.active ? `Premium (${plan.premium.source === 'manual_grant' ? 'manual grant' : 'Academy membership'})${plan.premium.until ? ` until ${formatDateTime(plan.premium.until)}` : ''}` : 'Free'}
+        description={plan.premium.active ? `Premium (${plan.premium.source === 'manual_grant' ? 'manual grant' : plan.premium.source === 'family_plan' ? 'family plan of a linked guardian' : 'Academy membership'})${plan.premium.until ? ` until ${formatDateTime(plan.premium.until)}` : ''}` : 'Free'}
         actions={<Pill tone={plan.enforced ? 'amber' : 'gray'}>{plan.enforced ? 'Locks on' : 'Locks off: all features open'}</Pill>}>
         <div className="grid gap-6 lg:grid-cols-2">
           <div>

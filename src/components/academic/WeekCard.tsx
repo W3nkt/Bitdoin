@@ -1,15 +1,22 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BookOpen, CalendarCheck, ListChecks, PenLine, Search, Trophy } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarCheck, Clock3, ListChecks, PenLine, Search, Trophy } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useRecommendationFeedback, useRecommendations, type Recommendation } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 import { useToast } from '@/components/ui/Toast'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
+import { CardTitle } from './visuals'
 
-const ICONS: Record<Recommendation['kind'], typeof PenLine> = {
-  enter_scores: PenLine, diagnostic: ListChecks, practice_set: CalendarCheck, academy_lesson: BookOpen, academy_challenge: Trophy, gap: Search,
+const ICONS: Record<Recommendation['kind'], { icon: typeof PenLine; color: string }> = {
+  enter_scores: { icon: PenLine, color: '#6366f1' },
+  diagnostic: { icon: ListChecks, color: '#8b5cf6' },
+  practice_set: { icon: CalendarCheck, color: '#f97316' },
+  academy_lesson: { icon: BookOpen, color: '#0ea5e9' },
+  academy_challenge: { icon: Trophy, color: '#eab308' },
+  gap: { icon: Search, color: '#64748b' },
 }
+const FEEDBACK = { done: '✅', not_now: '⏰', not_helpful: '👎' } as const
 
 /**
  * "This week" (LEARN-001): up to three next actions from the rules engine
@@ -40,18 +47,17 @@ export function WeekCard() {
 
   return (
     <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-      <h2 className="text-lg font-black">{t('week.title')}</h2>
-      <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('week.subtitle')}</p>
+      <CardTitle emoji="🗓️" color="#f97316" title={t('week.title')} info={t('week.subtitle')} />
       <ol className="mt-3 grid gap-3">
         {items.map(item => {
-          const Icon = ICONS[item.kind]
+          const { icon: Icon, color } = ICONS[item.kind]
           return (
             <li key={item.key} className="flex flex-wrap items-start gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
-              <Icon aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-indigo-700 dark:text-indigo-300" />
+              <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" style={{ color, backgroundColor: `${color}1f` }}><Icon className="h-5 w-5" /></span>
               <div className="min-w-[10rem] flex-1">
                 <p className="break-words font-bold">{item.kind === 'gap' ? reason(item) : title(item)}</p>
                 {item.kind !== 'gap' && <p className="mt-0.5 text-sm text-slate-700 dark:text-slate-300">{reason(item)}</p>}
-                {item.est_minutes && <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{t('week.minutes', { count: item.est_minutes })}</p>}
+                {item.est_minutes && <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs font-bold text-slate-600 ring-1 ring-slate-200 dark:bg-gray-900 dark:text-slate-400 dark:ring-slate-700"><Clock3 aria-hidden className="h-3.5 w-3.5" />{t('week.minutes', { count: item.est_minutes })}</p>}
               </div>
               {item.route && (
                 <Link to={item.route}
@@ -62,15 +68,15 @@ export function WeekCard() {
                 </Link>
               )}
               {item.kind !== 'gap' && (
-                <div role="group" aria-label={t('week.feedback.label', { title: title(item) })} className="flex w-full flex-wrap gap-1 pl-8">
+                <div role="group" aria-label={t('week.feedback.label', { title: title(item) })} className="flex w-full flex-wrap gap-1.5 pl-[3.25rem]">
                   {(['done', 'not_now', 'not_helpful'] as const).map(response => (
                     <button key={response} type="button" disabled={feedback.isPending}
                       onClick={() => feedback.mutate({ key: item.key, response }, {
                         onSuccess: () => toast.success(t('week.feedback.thanks')),
                         onError: error => toast.error(academicErrorText(t, error)),
                       })}
-                      className="rounded-full px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-50 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-gray-900">
-                      {t(`week.feedback.${response}`)}
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-50 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-gray-900">
+                      <span aria-hidden>{FEEDBACK[response]}</span>{t(`week.feedback.${response}`)}
                     </button>
                   ))}
                 </div>

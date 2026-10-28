@@ -10,6 +10,7 @@ import {
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 import { academicErrorText } from './errorText'
+import { CardTitle } from './visuals'
 
 // Programmes in Laos (UNI-003, UNI-004) and scholarships with deadlines
 // (UNI-005), from the published career catalogue. Entrance requirements and
@@ -84,7 +85,7 @@ export function ProgrammeSearch() {
 
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('careers.programmes')}</h2>
+      <CardTitle as="h2" emoji="🎓" color="#2563eb" title={t('careers.programmes')} />
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.programmesNote')}</p>
       {programmes.length === 0 ? <p className="mt-3 text-sm">{t('careers.programmesNone')}</p> : <>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -116,7 +117,7 @@ export function ProgrammeSearch() {
         {confirmed.length === 0 && notConfirmed.length === 0 ? <p className="mt-3 text-sm">{t('careers.noMatch')}</p> : <>
           <ul className="mt-3 grid gap-2">{confirmed.map(p => <ProgrammeItem key={p.slug} programme={p} institution={institutions.get(p.institution)} />)}</ul>
           {notConfirmed.length > 0 && <>
-            <h3 className="mt-4 text-sm font-black">{t('careers.groupNotConfirmed')}</h3>
+            <div className="mt-4"><CardTitle as="h3" emoji="⏳" color="#64748b" title={t('careers.groupNotConfirmed')} /></div>
             <ul className="mt-1 grid gap-2">{notConfirmed.map(p => <ProgrammeItem key={p.slug} programme={p} institution={institutions.get(p.institution)} />)}</ul>
           </>}
         </>}
@@ -169,7 +170,7 @@ export function ExamBlueprints() {
   const current = catalogue.data?.exam_intake_year ?? null
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('careers.exams')}</h2>
+      <CardTitle as="h2" emoji="📝" color="#e11d48" title={t('careers.exams')} />
       {current && !blueprints.some(b => b.intake_year === current) && <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.exams.notAnnounced', { year: current })}</p>}
       <ul className="mt-3 grid gap-2">
         {blueprints.map(b => (
@@ -200,7 +201,7 @@ export function Scholarships() {
   const saved = new Map((mine.data ?? []).map(s => [s.slug, s]))
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('careers.scholarships')}</h2>
+      <CardTitle as="h2" emoji="🏅" color="#eab308" title={t('careers.scholarships')} />
       {catalogue.data.scholarships.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.scholarshipsNone')}</p> : (
         <ul className="mt-3 grid gap-2">{catalogue.data.scholarships.map(s => <ScholarshipItem key={s.slug} scholarship={s} saved={saved.get(s.slug)} />)}</ul>
       )}

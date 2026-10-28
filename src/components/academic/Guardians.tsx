@@ -11,6 +11,7 @@ import { useAcademicSession } from '@/lib/academic/session'
 import { formatDate } from '@/lib/academic/format'
 import { PrivacyCard } from './Privacy'
 import { academicErrorText } from './errorText'
+import { CardTitle } from './visuals'
 
 // Parents and guardians (P3-PAR #52: PARENT-001..004, PARENT-007, PARENT-009).
 // The student invites with a one-time code, confirms the guardian's name and
@@ -137,7 +138,7 @@ export function GuardiansCard() {
 
       {data.invites.length > 0 && (
         <div className="mt-4">
-          <h3 className="text-sm font-black">{t('guardians.openInvites')}</h3>
+          <CardTitle as="h3" emoji="✉️" color="#6366f1" title={t('guardians.openInvites')} />
           <ul className="mt-1 grid gap-1 text-sm">
             {data.invites.map(invite => (
               <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2">

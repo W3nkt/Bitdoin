@@ -416,7 +416,7 @@ export function PremiumCoach() {
 
   return (
     <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
-      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
+      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 lg:right-[var(--academy-sidebar-w,0px)] h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between gap-2">
           {/* In the flow (not absolutely centered) so the buttons beside it can never overlap it on narrow screens. */}
           <div className="flex min-w-0 flex-1 items-center justify-center gap-2">

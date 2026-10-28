@@ -53,13 +53,6 @@ async function openAs(browser, { mobile = false, motion = 'reduce', language = '
 }
 
 async function choose(page, menu, label, mobile) {
-  for (let turn = 0; mobile && turn < 12; turn++) {
-    if (await menu.getByRole('button', { name: label, exact: true }).count()) break
-    const previous = await menu.locator('.is-selected').getAttribute('aria-label')
-    await menu.locator('.is-selected').hover()
-    await page.mouse.wheel(0, 60)
-    await page.waitForFunction(previous => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') !== previous, previous)
-  }
   await menu.getByRole('button', { name: label, exact: true }).click()
 }
 
@@ -67,8 +60,10 @@ const browser = await chromium.launch({ headless: true })
 try {
   for (const mobile of [false, true]) {
     const { context, page, errors, writes } = await openAs(browser, { mobile })
-    const menu = page.getByRole('dialog', { name: 'Academy Admin menu', exact: true })
-    const open = () => page.getByRole('button', { name: 'Open menu', exact: true }).click()
+    // Desktop docks each admin menu as a right sidebar that is shown by default.
+    const role = 'navigation'
+    const menu = mobile ? page.locator('.academy-menu-panel.is-open') : page.getByRole(role, { name: 'Academy Admin menu', exact: true })
+    const open = () => mobile ? page.getByRole('button', { name: 'Open menu', exact: true }).click() : Promise.resolve()
     await page.goto(`${base}/academy-admin`)
     await page.locator('#premium-overview').waitFor()
     await open()
@@ -77,34 +72,48 @@ try {
     assert.equal(await menu.locator('.academy-menu-badge').textContent(), '1', 'Member requests retain their badge')
     assert.equal(await menu.locator('[aria-current="page"]').count(), 1)
     assert.equal(await menu.locator('[aria-current="page"]').getAttribute('aria-label'), 'Overview', 'The loaded dashboard starts on Overview')
-    assert.equal(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    assert.equal(await page.evaluate(() => document.body.style.overflow), '', 'The popup leaves page scrolling available')
     if (mobile) {
       assert.equal(await page.locator('.academy-navigation.is-mobile').count(), 1)
-      assert.equal(await menu.locator('.academy-radial-surface').evaluate(el => getComputedStyle(el).borderRadius), '50%')
-      assert.equal(await menu.locator('.academy-wheel-item:not(.is-outside)').count(), 5)
-      // Rotate through every entry, including the routes beyond the old eight-item limit.
-      const labels = new Set()
-      for (let turn = 0; turn < 11; turn++) {
-        const label = await menu.locator('.is-selected').getAttribute('aria-label')
-        labels.add(label)
-        await menu.locator('.is-selected').hover()
-        await page.mouse.wheel(0, 60)
-        await page.waitForFunction(label => document.querySelector('.academy-wheel-item.is-selected')?.getAttribute('aria-label') !== label, label)
-      }
-      assert.equal(labels.size, 11, 'The mobile ring reaches all destinations and wraps')
+      const box = await menu.boundingBox()
+      assert.ok(box.height <= page.viewportSize().height / 2)
+      assert.equal(box.y + box.height, page.viewportSize().height, 'Admin popup starts at the bottom edge')
+      assert.equal(await page.locator('.academy-menu-backdrop, [aria-modal="true"]').count(), 0)
+      assert.equal(await menu.locator('.academy-radial-surface').count(), 0)
+      assert.equal(await menu.locator('.academy-menu-grid').count(), 1)
+      assert.equal(await menu.locator('.academy-wheel-label').count(), 11)
+      assert.equal(await page.locator('.academy-menu-trigger .academy-menu-badge').textContent(), '1', 'Floating button shows the total pending count')
+      assert.equal(await menu.locator('.academy-menu-total').textContent(), '1', 'Open menu repeats the total')
+      await page.waitForFunction(() => document.querySelector('.academy-wheel-scroll.has-more-below'))
+      assert.notEqual(await menu.locator('.academy-wheel-scroll').evaluate(el => getComputedStyle(el).maskImage), 'none')
+      await menu.getByRole('button', { name: 'Bookstore Admin', exact: true }).scrollIntoViewIfNeeded()
+      await page.waitForFunction(() => document.querySelector('.academy-wheel-scroll.has-more-above:not(.has-more-below)'))
+      assert.equal(await menu.getByRole('button', { name: 'Bookstore Admin', exact: true }).isVisible(), true, 'Every destination remains reachable by scrolling')
+      await menu.locator('.academy-wheel-scroll').evaluate(el => { el.scrollTop = 0 })
     } else {
-      assert.equal(await page.locator('.academy-navigation.is-desktop').count(), 1)
-      assert.equal((await menu.boundingBox()).width, 340)
-      assert.equal((await menu.boundingBox()).height, 1000)
+      assert.equal(await page.locator('.academy-navigation.is-desktop.is-sidebar').count(), 1)
+      const panel = await page.locator('.academy-menu-panel').boundingBox()
+      assert.deepEqual([panel.x, panel.width, panel.height], [1440 - 208, 208, 1000], 'A narrow full-height sidebar on the right')
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).paddingRight), '208px', 'The page moves aside for the sidebar')
       assert.ok(await menu.getByRole('button', { name: 'Bookstore Admin', exact: true }).isVisible())
     }
     await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'desktop'}-menu.png` })
-    if (mobile) await menu.locator('.is-selected').focus()
+    await menu.locator(mobile ? '.is-selected' : '[aria-current="page"]').focus()
     await page.keyboard.press('End')
     await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Bookstore Admin')
-    await page.keyboard.press('Escape')
-    assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => el === document.activeElement), true)
-    assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    if (mobile) {
+      await page.keyboard.press('Escape')
+      assert.equal(await page.getByRole('button', { name: 'Open menu', exact: true }).evaluate(el => el === document.activeElement), true)
+      assert.notEqual(await page.evaluate(() => document.body.style.overflow), 'hidden')
+    } else {
+      await page.getByRole('button', { name: 'Hide menu', exact: true }).click()
+      const show = page.getByRole('button', { name: 'Show menu', exact: true })
+      assert.equal(await show.evaluate(el => el === document.activeElement), true, 'Focus moves to the edge tab')
+      assert.equal(await page.evaluate(() => getComputedStyle(document.body).paddingRight), '0px')
+      await page.screenshot({ path: `${output}/desktop-menu-hidden.png` })
+      await show.click()
+      await menu.waitFor()
+    }
 
     await open()
     await choose(page, menu, 'Plans', mobile)
@@ -120,15 +129,24 @@ try {
     await page.waitForURL(`${base}/academy-admin/scores`)
     await page.getByRole('heading', { name: 'Schooling', exact: true }).waitFor()
     await open()
-    const schoolingMenu = page.getByRole('dialog', { name: 'Schooling admin sections', exact: true })
+    const schoolingMenu = mobile ? page.locator('.academy-menu-panel.is-open') : page.getByRole(role, { name: 'Schooling admin sections', exact: true })
     assert.equal(await schoolingMenu.locator('[aria-current="page"]').getAttribute('aria-label'), 'Subjects')
     assert.equal(await schoolingMenu.getByRole('button', { name: 'Overview', exact: true }).count(), 0)
+    if (!mobile) await page.screenshot({ path: `${output}/desktop-schooling.png` })
     await choose(page, schoolingMenu, 'Schools', mobile)
     await page.waitForURL(url => url.pathname === '/academy-admin/scores' && url.searchParams.get('tab') === 'schools')
     await open()
     assert.equal(await schoolingMenu.locator('[aria-current="page"]').getAttribute('aria-label'), 'Schools')
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Back to Academy admin', exact: true }).click()
+    // Schooling reuses the Academy admin header, with Schooling centred and a back button.
+    if (!mobile) {
+      const header = await page.locator('header').first().boundingBox()
+      const title = await page.locator('header h1').boundingBox()
+      assert.ok(Math.abs(title.x + title.width / 2 - (header.x + header.width / 2)) < 2, 'Schooling title is centred')
+      assert.equal(await page.locator('.academy-menu-heading').evaluate(el => [el.innerText, el.getBoundingClientRect().height].join()), 'Menu,81')
+      assert.equal(header.height, 81, 'Sidebar heading lines up with the header')
+    }
+    await page.getByRole('link', { name: 'Back to Academy admin', exact: true }).click()
     await page.waitForURL(`${base}/academy-admin`)
     await page.locator('#premium-overview').waitFor()
 
@@ -164,7 +182,7 @@ try {
   const { context, page, errors } = await openAs(browser, { mobile: true, motion: 'no-preference', language: 'lo', dark: true })
   await page.goto(`${base}/academy-admin/learning`)
   await page.getByRole('button', { name: 'ເປີດເມນູ', exact: true }).click()
-  const menu = page.getByRole('dialog', { name: 'ເມນູຈັດການ Academy', exact: true })
+  const menu = page.locator('.academy-menu-panel.is-open')
   await menu.waitFor()
   await menu.evaluate(async element => {
     await Promise.allSettled(element.getAnimations({ subtree: true }).map(animation => animation.finished))

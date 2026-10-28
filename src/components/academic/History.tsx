@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, History as HistoryIcon, Lock, PenLine } from 'lucide-react'
+import { CalendarDays, Calculator, Check, ChevronDown, History as HistoryIcon, Lock, PenLine, Ruler, School } from 'lucide-react'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { useAcademicHistory, usePeriods, type HistoryEnrolment, type HistoryPeriod, type HistoryTerm, type PeriodOption } from '@/lib/academic/api'
 import { formatDate, formatMean } from '@/lib/academic/format'
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { RevisionList } from './ScoreEntry'
 import { academicErrorText } from './errorText'
+import { SubjectIcon } from './visuals'
 
 type Scale = NonNullable<HistoryEnrolment['scale']>
 
@@ -56,19 +57,22 @@ function YearSection({ enrolment }: { enrolment: HistoryEnrolment }) {
 
   return (
     <section aria-labelledby={`year-${enrolment.enrolment_id}`} className="space-y-4">
-      <header className="px-1">
+      <header className="flex items-start gap-3 px-1">
+        <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-sky-50 text-2xl dark:bg-sky-500/15">{enrolment.read_only ? '📦' : '🎒'}</span>
+        <div className="min-w-0 flex-1">
         <h2 id={`year-${enrolment.enrolment_id}`} className="text-xl font-black">
           {t('history.year', { year: enrolment.academic_year, grade: lo ? enrolment.grade.label_lo : enrolment.grade.label_en })}
         </h2>
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-slate-600 dark:text-slate-400">
-          <span>{(lo ? enrolment.school.name_lo : enrolment.school.name_en) ?? ''}</span>
-          {scale?.family === 'numeric_linear' && <span>· {t('history.scale', { min: plainNumber(scale.min), max: plainNumber(scale.max) })}</span>}
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <span className="inline-flex items-center gap-1"><School aria-hidden className="h-3.5 w-3.5" />{(lo ? enrolment.school.name_lo : enrolment.school.name_en) ?? ''}</span>
+          {scale?.family === 'numeric_linear' && <span className="inline-flex items-center gap-1"><Ruler aria-hidden className="h-3.5 w-3.5" />{t('history.scale', { min: plainNumber(scale.min), max: plainNumber(scale.max) })}</span>}
           {enrolment.read_only && (
             <span className="inline-flex items-center gap-1 font-bold"><Lock aria-hidden className="h-3.5 w-3.5" />{t('history.closed')}
               {enrolment.closed_reason && <> · {t(`history.closedReason.${enrolment.closed_reason}` as AcademicCopyKey)}</>}
             </span>
           )}
         </p>
+        </div>
       </header>
 
       {termNumbers.map(termNo => {
@@ -81,7 +85,8 @@ function YearSection({ enrolment }: { enrolment: HistoryEnrolment }) {
         const submittedMonths = rows.map(row => recorded.get(row.id)).filter((p): p is HistoryPeriod => !!p && p.entry.state === 'submitted' && p.period_type === 'monthly')
         return (
           <div key={termNo ?? 'none'} className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
-            <h3 className="mb-2 px-1 text-sm font-black uppercase tracking-wide text-slate-600 dark:text-slate-400">
+            <h3 className="mb-2 flex items-center gap-2 px-1 text-sm font-black uppercase tracking-wide text-slate-600 dark:text-slate-400">
+              <CalendarDays aria-hidden className="h-4 w-4 text-sky-600 dark:text-sky-300" />
               {termNo ? t('history.term', { term: termNo }) : t('history.otherPeriods')}
             </h3>
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -110,7 +115,7 @@ function MissingRow({ label, periodId, canAdd }: { label: string; periodId: stri
   const { t } = useAcademicCopy()
   return (
     <li className="flex items-center justify-between gap-3 py-3">
-      <span className="px-1 font-bold">{label}</span>
+      <span className="flex items-center gap-3 px-1 font-bold"><StatusDot state="missing" />{label}</span>
       <span className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
         {t('history.notRecorded')}
         {canAdd && (
@@ -134,6 +139,7 @@ function PeriodRow({ period, enrolment, official = false }: { period: HistoryPer
     <li className={cn('py-3', official && 'mt-3 list-none rounded-2xl bg-slate-50 px-3 dark:bg-gray-800/60')}>
       <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open}
         className="flex w-full items-center gap-3 px-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+        <StatusDot state={draft ? 'draft' : 'submitted'} />
         <span className="min-w-0 flex-1">
           <span className="block font-bold">{label}{official && <span className="ml-2 text-xs font-black uppercase text-indigo-700 dark:text-indigo-300">{t('history.officialResult')}</span>}</span>
           <span className="block text-xs text-slate-500 dark:text-slate-400">
@@ -152,6 +158,7 @@ function PeriodRow({ period, enrolment, official = false }: { period: HistoryPer
               return (
                 <li key={item.subject_enrolment_id}>
                   <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <SubjectIcon code={item.code} name={item.name_en} className="text-slate-500 dark:text-slate-400" />
                     <span className="min-w-[8rem] flex-1 break-words">{name}</span>
                     {line && line.source !== 'manual' && <Badge tone="sky">{t(`history.source.${line.source}` as AcademicCopyKey)}</Badge>}
                     {line && line.verification !== 'self_reported' && <Badge tone="emerald">{t(`history.verification.${line.verification}` as AcademicCopyKey)}</Badge>}
@@ -197,7 +204,7 @@ function TermAverage({ months, scale }: { months: HistoryPeriod[]; scale: Scale 
   if (!bySubject.size) return null
   return (
     <div className="mt-3 rounded-2xl border border-dashed border-slate-300 p-3 dark:border-slate-700">
-      <p className="text-xs font-black text-slate-700 dark:text-slate-300">{t('history.calculated')}</p>
+      <p className="flex items-center gap-1.5 text-xs font-black text-slate-700 dark:text-slate-300"><Calculator aria-hidden className="h-3.5 w-3.5" />{t('history.calculated')}</p>
       <p className="text-xs text-slate-500 dark:text-slate-400">{t('history.calculatedHint')}</p>
       <ul className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {[...bySubject.values()].map(({ name, values }) => (
@@ -209,6 +216,18 @@ function TermAverage({ months, scale }: { months: HistoryPeriod[]; scale: Scale 
         ))}
       </ul>
     </div>
+  )
+}
+
+/** ✓ saved, ✎ draft, empty circle for a month with nothing yet. */
+function StatusDot({ state }: { state: 'submitted' | 'draft' | 'missing' }) {
+  return (
+    <span aria-hidden className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-black',
+      state === 'submitted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+        : state === 'draft' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+          : 'border-2 border-dashed border-slate-300 dark:border-slate-600')}>
+      {state === 'submitted' ? <Check className="h-4 w-4" /> : state === 'draft' ? <PenLine className="h-3.5 w-3.5" /> : null}
+    </span>
   )
 }
 

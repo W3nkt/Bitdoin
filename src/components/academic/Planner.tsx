@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Check, Flag, Pause, Play, Target } from 'lucide-react'
+import { ArrowRight, BookOpen, Compass, Check, Clock3, Dumbbell, Flag, ListChecks, NotebookPen, Pause, Pencil, Play, Plus, Target, Trash2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
@@ -14,9 +14,18 @@ import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
+import { CardTitle, SubjectBadge } from './visuals'
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
 const chip = 'rounded-full px-3.5 py-2 text-sm font-bold ring-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500'
+const FEASIBILITY_EMOJI: Record<Feasibility, string> = { steady: '🙂', stretch: '💪', ambitious: '🚀', maintain: '🏆' }
+const TASK_ICONS: Record<StudyTask['kind'], { icon: typeof Target; color: string }> = {
+  diagnostic: { icon: ListChecks, color: '#8b5cf6' },
+  practice_set: { icon: Dumbbell, color: '#f97316' },
+  academy_lesson: { icon: BookOpen, color: '#0ea5e9' },
+  academy_challenge: { icon: Trophy, color: '#eab308' },
+  self_study: { icon: NotebookPen, color: '#6366f1' },
+}
 const TONES: Record<Feasibility, string> = {
   steady: 'bg-emerald-100 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200',
   stretch: 'bg-sky-100 text-sky-900 dark:bg-sky-500/15 dark:text-sky-200',
@@ -46,7 +55,25 @@ export function Planner() {
 
 function FeasibilityChip({ value }: { value: Feasibility }) {
   const { t } = useAcademicCopy()
-  return <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide', TONES[value])}>{t(`planner.feasibility.${value}` as AcademicCopyKey)}</span>
+  return <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide', TONES[value])}><span aria-hidden className="text-sm normal-case">{FEASIBILITY_EMOJI[value]}</span>{t(`planner.feasibility.${value}` as AcademicCopyKey)}</span>
+}
+
+/** Baseline → target bar with the latest score marked; the text keeps the number. */
+function GoalProgress({ baseline, target, latest, label }: { baseline: number; target: number; latest: number; label: string }) {
+  const span = Number(target) - Number(baseline)
+  const share = span > 0 ? Math.max(0, Math.min(1, (Number(latest) - Number(baseline)) / span)) : 1
+  return (
+    <div className="mt-2">
+      <div aria-hidden className="flex items-center gap-2 text-xs font-black text-slate-500 dark:text-slate-400">
+        <span>{plainNumber(baseline)}</span>
+        <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="h-full rounded-full bg-gradient-to-r from-orange-400 to-emerald-500" style={{ width: `${Math.round(share * 100)}%` }} />
+        </div>
+        <span>🏁 {plainNumber(target)}</span>
+      </div>
+      <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{label}</p>
+    </div>
+  )
 }
 
 function GoalsCard({ view }: { view: PlannerView }) {
@@ -60,12 +87,14 @@ function GoalsCard({ view }: { view: PlannerView }) {
 
   return (
     <section className={card}>
-      <h2 className="flex items-center gap-2 text-lg font-black"><Target aria-hidden className="h-5 w-5" />{t('planner.goals')}</h2>
+      <CardTitle emoji="🎯" color="#f97316" title={t('planner.goals')} />
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"><Compass aria-hidden className="h-3.5 w-3.5 shrink-0" />{t('planner.guide')}</p>
       {view.goals.length === 0 && !editing && (
         <div className="mt-3 space-y-3">
-          <p className="text-sm text-slate-600 dark:text-slate-400">{t('planner.empty')}</p>
+          <p className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400"><span aria-hidden className="text-2xl">🌱</span>{t('planner.empty')}</p>
           {view.suggestion && (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-indigo-50 p-4 text-sm dark:bg-indigo-500/10">
+              <span aria-hidden className="text-2xl">💡</span>
               <span className="min-w-[12rem] flex-1 font-bold">{t('planner.suggestion', {
                 subject: lo ? view.suggestion.name_lo : view.suggestion.name_en,
                 baseline: plainNumber(view.suggestion.baseline), target: plainNumber(view.suggestion.target),
@@ -82,8 +111,9 @@ function GoalsCard({ view }: { view: PlannerView }) {
           <li key={goal.id}><GoalForm view={view} goal={goal} onDone={() => setEditing(null)} /></li>
         ) : (
           <li key={goal.id} className="rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="min-w-[12rem] flex-1 font-black">{t('planner.goal.line', {
+            <div className="flex flex-wrap items-center gap-3">
+              <SubjectBadge code={null} name={goal.subject_en} />
+              <p className="min-w-[10rem] flex-1 font-black">{t('planner.goal.line', {
                 subject: name(goal), baseline: plainNumber(goal.baseline), target: plainNumber(goal.target),
                 period: lo ? goal.target_period.label_lo : goal.target_period.label_en,
               })}</p>
@@ -95,10 +125,10 @@ function GoalsCard({ view }: { view: PlannerView }) {
                 {t('planner.milestone', { value: plainNumber(goal.milestone.value), period: lo ? goal.milestone.period.label_lo : goal.milestone.period.label_en })}
               </p>
             )}
-            {goal.latest !== null && <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{t('planner.latest', { value: plainNumber(goal.latest) })}</p>}
+            {goal.latest !== null && <GoalProgress baseline={goal.baseline} target={goal.target} latest={goal.latest} label={t('planner.latest', { value: plainNumber(goal.latest) })} />}
             <div className="mt-2 flex gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setEditing(goal)}>{t('planner.editGoal')}</Button>
-              <Button size="sm" variant="ghost" loading={archive.isPending && archive.variables === goal.id}
+              <Button size="sm" variant="ghost" icon={<Pencil className="h-4 w-4" />} onClick={() => setEditing(goal)}>{t('planner.editGoal')}</Button>
+              <Button size="sm" variant="ghost" icon={<Trash2 className="h-4 w-4" />} loading={archive.isPending && archive.variables === goal.id}
                 onClick={() => archive.mutate(goal.id, { onSuccess: () => toast.success(t('planner.goalRemoved')), onError: error => toast.error(academicErrorText(t, error)) })}>
                 {t('planner.removeGoal')}
               </Button>
@@ -108,9 +138,8 @@ function GoalsCard({ view }: { view: PlannerView }) {
       </ul>
       {editing === 'new' && <div className="mt-3"><GoalForm view={view} prefill={prefill} onDone={() => { setEditing(null); setPrefill(null) }} /></div>}
       {!editing && (atLimit ? <PremiumNote body="premium.planner" /> : (
-        <Button className="mt-3" variant="outline" size="sm" onClick={() => setEditing('new')}>{t('planner.addGoal')}</Button>
+        <Button className="mt-3" variant="outline" size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setEditing('new')}>{t('planner.addGoal')}</Button>
       ))}
-      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">{t('planner.guide')}</p>
     </section>
   )
 }
@@ -201,10 +230,10 @@ function PlanCard({ view }: { view: PlannerView }) {
 
   return (
     <section className={card}>
-      <h2 className="flex items-center gap-2 text-lg font-black"><CalendarDays aria-hidden className="h-5 w-5" />{t('planner.plan')}</h2>
+      <CardTitle emoji="📅" color="#6366f1" title={t('planner.plan')} />
       {plan && !editing ? (
         <div className="mt-2 space-y-3">
-          <p className="font-bold">{t('planner.planLine', { days: plan.days.map(dayName).join(', '), minutes: plan.minutes_per_day })}</p>
+          <p className="flex items-center gap-2 font-bold"><Clock3 aria-hidden className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />{t('planner.planLine', { days: plan.days.map(dayName).join(', '), minutes: plan.minutes_per_day })}</p>
           {/* PLAN-005 (OD-09): opt-in, never punitive. */}
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" className="mt-0.5 h-4 w-4" checked={xpOn} disabled={xp.isPending}
@@ -213,14 +242,14 @@ function PlanCard({ view }: { view: PlannerView }) {
                 setXpOn(on)
                 xp.mutate(on, { onError: error => { setXpOn(!on); onError(error) } })
               }} />
-            <span><span className="block font-bold">{t('planner.xp', { xp: plan.xp_per_task })}</span>
+            <span><span className="block font-bold"><span aria-hidden>⭐ </span>{t('planner.xp', { xp: plan.xp_per_task })}</span>
               <span className="block text-xs text-slate-600 dark:text-slate-400">{t('planner.xpHelp')}</span></span>
           </label>
           {plan.paused_until && (
-            <p role="status" className="rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">{t('planner.pausedUntil', { date: formatDate(plan.paused_until, language) })}</p>
+            <p role="status" className="flex items-center gap-2 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60"><span aria-hidden>⏸️</span><span>{t('planner.pausedUntil', { date: formatDate(plan.paused_until, language) })}</span></p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>{t('planner.editPlan')}</Button>
+            <Button size="sm" variant="outline" icon={<Pencil className="h-4 w-4" />} onClick={() => setEditing(true)}>{t('planner.editPlan')}</Button>
             {plan.paused_until
               ? <Button size="sm" variant="ghost" icon={<Play className="h-4 w-4" />} loading={pause.isPending} onClick={() => pause.mutate(null, { onError })}>{t('planner.resume')}</Button>
               : <Button size="sm" variant="ghost" icon={<Pause className="h-4 w-4" />} onClick={() => setPausing(value => !value)}>{t('planner.pause')}</Button>}
@@ -255,7 +284,7 @@ function PlanCard({ view }: { view: PlannerView }) {
               {view.minutes_options.map(m => (
                 <button key={m} type="button" aria-pressed={minutes === m} onClick={() => setMinutes(m)}
                   className={cn(chip, minutes === m ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white ring-slate-200 dark:bg-gray-900 dark:ring-slate-700')}>
-                  {t('planner.task.minutes', { count: m })}
+                  <span aria-hidden>⏱ </span>{t('planner.task.minutes', { count: m })}
                 </button>
               ))}
             </div>
@@ -281,6 +310,12 @@ function taskTitle(task: StudyTask, lo: boolean, t: (key: AcademicCopyKey, vars?
   return (lo ? task.title_lo ?? task.title_en : task.title_en ?? task.title_lo) ?? ''
 }
 
+function TaskIcon({ kind, subject }: { kind: StudyTask['kind']; subject: string | null }) {
+  if (kind === 'self_study' && subject) return <SubjectBadge code={null} name={subject} size="sm" />
+  const { icon: Icon, color } = TASK_ICONS[kind]
+  return <span aria-hidden className="grid h-8 w-8 shrink-0 place-items-center rounded-xl" style={{ color, backgroundColor: `${color}1f` }}><Icon className="h-4 w-4" /></span>
+}
+
 function WeekView({ view }: { view: PlannerView }) {
   const { t, lo, language } = useAcademicCopy()
   const toast = useToast()
@@ -293,11 +328,12 @@ function WeekView({ view }: { view: PlannerView }) {
 
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('planner.week')}</h2>
+      <CardTitle emoji="🗓️" color="#0ea5e9" title={t('planner.week')} />
       {week.decisions.length > 0 && (
         <ul className="mt-3 space-y-2">
           {week.decisions.map(task => (
             <li key={task.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-slate-50 p-3 text-sm dark:bg-gray-800/60">
+              <span aria-hidden className="text-xl">🤔</span>
               <span className="min-w-[12rem] flex-1"><span className="block font-bold">{taskTitle(task, lo, t)}</span>{t('planner.decision')}</span>
               <Button size="sm" variant="outline" onClick={() => act(task.id, 'keep')}>{t('planner.keep')}</Button>
               <Button size="sm" variant="ghost" onClick={() => act(task.id, 'skip')}>{t('planner.skip')}</Button>
@@ -310,17 +346,18 @@ function WeekView({ view }: { view: PlannerView }) {
           const tasks = week.tasks.filter(task => task.date === date && !task.needs_decision)
           const studyDay = plan.days.includes(i + 1)
           return (
-            <li key={date} className="py-3">
-              <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <li key={date} className={cn('py-3', date === view.today && '-mx-2 rounded-2xl bg-indigo-50/70 px-2 dark:bg-indigo-500/10')}>
+              <p className={cn('text-xs font-black uppercase tracking-wide', date === view.today ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400')}>
                 {t(`planner.day.${i + 1}` as AcademicCopyKey)} · {formatDate(date, language)}{date === view.today ? ` · ${t('planner.today')}` : ''}
               </p>
               {tasks.length === 0 ? (
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{studyDay ? '—' : t('planner.rest')}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{studyDay ? '—' : <><span aria-hidden>😴 </span>{t('planner.rest')}</>}</p>
               ) : (
                 <ul className="mt-1 space-y-2">
                   {tasks.map(task => (
                     <li key={task.id} data-testid={`task-${task.id}`} className="flex flex-wrap items-center gap-2">
-                      <span className="min-w-[12rem] flex-1">
+                      <TaskIcon kind={task.kind} subject={task.subject_en} />
+                      <span className="min-w-[10rem] flex-1">
                         <span className={cn('block font-bold', task.state !== 'scheduled' && 'text-slate-500 dark:text-slate-400')}>{taskTitle(task, lo, t)}</span>
                         <span className="block text-xs text-slate-600 dark:text-slate-400">
                           {t('planner.task.minutes', { count: task.est_minutes })}
@@ -328,14 +365,14 @@ function WeekView({ view }: { view: PlannerView }) {
                         </span>
                       </span>
                       {task.state === 'done' && <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 dark:text-emerald-300"><Check className="h-4 w-4" />{t('planner.task.finished')}</span>}
-                      {task.xp > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">{t('planner.task.xp', { xp: task.xp })}</span>}
-                      {task.state === 'skipped' && <span className="text-xs font-bold text-slate-500">{t('planner.task.skipped')}</span>}
+                      {task.xp > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-black text-amber-900 dark:bg-amber-500/15 dark:text-amber-200"><span aria-hidden>⭐ </span>{t('planner.task.xp', { xp: task.xp })}</span>}
+                      {task.state === 'skipped' && <span className="text-xs font-bold text-slate-500"><span aria-hidden>⏭️ </span>{t('planner.task.skipped')}</span>}
                       {task.state === 'scheduled' && task.route && (
                         <Link to={task.route} className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300 dark:ring-indigo-500/40">
                           {t('planner.task.open')}<ArrowRight aria-hidden className="h-3.5 w-3.5" />
                         </Link>
                       )}
-                      {task.state === 'scheduled' && <Button size="sm" variant="outline" onClick={() => act(task.id, 'done')}>{t('planner.task.done')}</Button>}
+                      {task.state === 'scheduled' && <Button size="sm" variant="outline" icon={<Check className="h-4 w-4" />} onClick={() => act(task.id, 'done')}>{t('planner.task.done')}</Button>}
                       {task.state === 'done' && task.done_by === 'student' && <Button size="sm" variant="ghost" onClick={() => act(task.id, 'undo')}>{t('planner.task.undo')}</Button>}
                     </li>
                   ))}
@@ -345,7 +382,7 @@ function WeekView({ view }: { view: PlannerView }) {
           )
         })}
       </ol>
-      {rest && <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('planner.weekEmpty')}</p>}
+      {rest && <p className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400"><span aria-hidden className="text-xl">🎉</span>{t('planner.weekEmpty')}</p>}
     </section>
   )
 }
@@ -355,8 +392,8 @@ function ReviewCard({ review }: { review: NonNullable<PlannerView['review']> }) 
   const topics = review.topics.map(topic => (lo ? topic.lo ?? topic.en : topic.en ?? topic.lo)).filter(Boolean)
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('planner.review')}</h2>
-      <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('planner.reviewLine', { done: review.done, planned: review.planned, minutes: review.minutes })}</p>
+      <CardTitle emoji="📊" color="#10b981" title={t('planner.review')} />
+      <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('planner.reviewLine', { done: review.done, planned: review.planned, minutes: review.minutes })}</p>
       {topics.length > 0 && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('planner.reviewTopics', { topics: topics.join(', ') })}</p>}
     </section>
   )

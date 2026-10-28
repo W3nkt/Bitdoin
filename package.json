@@ -15,7 +15,8 @@
     "eval:ocr": "node scripts/ocr-eval.mjs",
     "test:coach": "node scripts/test-coach.mjs",
     "eval:coach": "node scripts/coach-eval.mjs",
-    "test:e2e": "node scripts/qa-run.mjs"
+    "test:e2e": "node scripts/qa-run.mjs",
+    "test:bundle": "node scripts/bundle-budget.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.5.0",

@@ -12,6 +12,7 @@ import {
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 import { academicErrorText } from './errorText'
+import { CardTitle } from './visuals'
 
 // Career report (CAREER-006) and its one-time purchase (BILLING-004). The
 // report is included in Academy Premium; otherwise it is bought once
@@ -105,7 +106,7 @@ export function ReportCard({ hasAnswers }: { hasAnswers: boolean }) {
             : <p className="mt-2 text-sm">{t('careers.report.needQuestions')}</p>}
           {reports.data.reports.length > 0 && (
             <>
-              <h3 className="mt-4 text-sm font-black">{t('careers.report.list')}</h3>
+              <div className="mt-4"><CardTitle as="h3" emoji="📄" color="#6366f1" title={t('careers.report.list')} /></div>
               <ul className="mt-1 grid gap-1 text-sm">
                 {reports.data.reports.map(report => (
                   <li key={report.id}>
@@ -138,7 +139,7 @@ function Sources({ content }: { content: CareerReportContent }) {
   if (all.size === 0) return null
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('careers.doc.sources')}</h2>
+      <CardTitle as="h2" emoji="🔗" color="#64748b" title={t('careers.doc.sources')} />
       <ul className="mt-2 grid gap-1 text-sm">
         {[...all.values()].map(source => <li key={source.url + source.name}>{source.name} · <a href={source.url} className="break-all underline">{source.url}</a> · {formatDate(source.verified, language)}</li>)}
       </ul>
@@ -187,7 +188,7 @@ function CareerReportDocument({ report, backTo, backLabel }: { report: UseQueryR
         <h1 className="text-2xl font-black">{t('careers.doc.for', { name: c.student_name })}</h1>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.doc.meta', { grade: (lo ? c.grade_lo : c.grade_en) ?? '—', year: c.school_year ?? '—', date: date(c.generated_at) })}</p>
         <p className="mt-2 text-sm">{t('careers.doc.basedOn', { questions: date(c.questionnaire_on), scores: date(c.scores_as_of) })}</p>
-        <h2 className="mt-4 text-lg font-black">{t('careers.interests')}</h2>
+        <div className="mt-4"><CardTitle as="h2" emoji="❤️" color="#e11d48" title={t('careers.interests')} /></div>
         <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
           {(['R', 'I', 'A', 'S', 'E', 'C'] as const).map(area => (
             <div key={area} className="flex justify-between gap-3"><dt>{t(`careers.area.${area}` as AcademicCopyKey)}</dt><dd className="font-black">{t(`careers.level.${c.interests[area]?.level ?? 'not_enough'}` as AcademicCopyKey)}</dd></div>
@@ -201,20 +202,20 @@ function CareerReportDocument({ report, backTo, backLabel }: { report: UseQueryR
           <p className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">{t(`careers.cluster.${option.cluster}` as AcademicCopyKey)}</p>
           <h2 className="text-xl font-black">{lo ? option.title_lo : option.title_en}</h2>
           <p className="mt-1 text-sm">{lo ? option.summary_lo : option.summary_en}</p>
-          <h3 className="mt-3 text-sm font-black">{t('careers.why')}</h3>
+          <div className="mt-3"><CardTitle as="h3" emoji="💡" color="#f59e0b" title={t('careers.why')} /></div>
           <ul className="mt-1 list-disc pl-5 text-sm">
             {option.factors.saved && <li>{t('careers.why.saved')}</li>}
             {option.factors.interest?.length ? <li>{t('careers.why.interest', { areas: option.factors.interest.map(a => t(`careers.area.${a}` as AcademicCopyKey)).join(', ') })}</li> : null}
             {option.factors.subjects?.length ? <li>{t('careers.why.subjects', { subjects: option.subjects.filter(s => option.factors.subjects?.includes(s.code)).map(s => lo ? s.name_lo : s.name_en).join(', ') || option.factors.subjects.join(', ') })}</li> : null}
             {(option.factors.preferences ?? []).map(p => <li key={p}>{t(`careers.why.${p}` as AcademicCopyKey)}</li>)}
           </ul>
-          <h3 className="mt-3 text-sm font-black">{t('careers.doc.plan')}</h3>
+          <div className="mt-3"><CardTitle as="h3" emoji="🗺️" color="#14b8a6" title={t('careers.doc.plan')} /></div>
           <ul className="mt-1 list-disc pl-5 text-sm">
             {option.subjects.map(s => <li key={s.code}>{s.latest !== null ? t('careers.doc.subjectNow', { subject: lo ? s.name_lo : s.name_en, score: String(s.latest) }) : t('careers.doc.subjectNone', { subject: lo ? s.name_lo : s.name_en })}</li>)}
             {(lo ? option.preparation_lo : option.preparation_en).map(step => <li key={step}>{step}</li>)}
           </ul>
           <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">{t('careers.studyLength', { length: t(`careers.study.${option.study_years}` as AcademicCopyKey) })}</p>
-          <h3 className="mt-3 text-sm font-black">{t('careers.doc.pathways')}</h3>
+          <div className="mt-3"><CardTitle as="h3" emoji="🛤️" color="#6366f1" title={t('careers.doc.pathways')} /></div>
           {option.programmes.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.doc.noPathways')}</p> : (
             <ul className="mt-1 grid gap-2 text-sm">
               {option.programmes.map(p => (
@@ -233,13 +234,13 @@ function CareerReportDocument({ report, backTo, backLabel }: { report: UseQueryR
       <section className={card}>
         <p className="text-sm">{t('careers.doc.timeline')}</p>
         {c.scholarships.length > 0 && <>
-          <h2 className="mt-3 text-lg font-black">{t('careers.scholarships')}</h2>
+          <div className="mt-3"><CardTitle as="h2" emoji="🏅" color="#eab308" title={t('careers.scholarships')} /></div>
           <ul className="mt-1 grid gap-1 text-sm">
             {c.scholarships.map(s => <li key={s.name_en}><span className="font-bold">{lo ? s.name_lo : s.name_en}</span> · {s.provider} · {t('careers.deadline', { date: date(s.deadline) })} · {t('careers.whoCanApply', { text: lo ? s.eligibility_lo : s.eligibility_en })}</li>)}
           </ul>
         </>}
         {c.history.length > 1 && <>
-          <h2 className="mt-3 text-lg font-black">{t('careers.doc.history')}</h2>
+          <div className="mt-3"><CardTitle as="h2" emoji="📈" color="#2563eb" title={t('careers.doc.history')} /></div>
           <ul className="mt-1 grid gap-1 text-sm">
             {c.history.map((h, i) => <li key={i}>{date(h.created_at)} · {t(`careers.reason.${h.reason}` as AcademicCopyKey)}</li>)}
           </ul>
@@ -247,7 +248,7 @@ function CareerReportDocument({ report, backTo, backLabel }: { report: UseQueryR
       </section>
 
       <section className={card}>
-        <h2 className="text-lg font-black">{t('careers.doc.guide')}</h2>
+        <CardTitle as="h2" emoji="👨‍👩‍👧" color="#ec4899" title={t('careers.doc.guide')} />
         <p className="mt-1 text-sm">{t('careers.doc.guideIntro', { name: c.student_name })}</p>
         <ol className="mt-2 list-decimal pl-5 text-sm">
           {(['q1', 'q2', 'q3', 'q4', 'q5'] as const).map(q => <li key={q}>{t(`careers.adults.${q}` as AcademicCopyKey)}</li>)}

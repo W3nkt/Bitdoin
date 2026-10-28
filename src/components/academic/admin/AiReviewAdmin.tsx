@@ -116,7 +116,7 @@ export function AiReviewAdmin() {
       </Panel>
       <Panel title="Review results by prompt version" description="Average reviewer ratings over the last 90 days. The release check for a new model or prompt needs a Lao rating of at least 4.0.">
         {review.data.ratings.length === 0 ? <Empty>No reviewed answers yet.</Empty> : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-slate-600 dark:text-slate-400">
                 <tr><th className="py-2 pr-4">Prompt</th><th className="py-2 pr-4">Model</th><th className="py-2 pr-4">Reviewed</th><th className="py-2 pr-4">Accuracy</th><th className="py-2 pr-4">Lao</th><th className="py-2">Safety</th></tr>

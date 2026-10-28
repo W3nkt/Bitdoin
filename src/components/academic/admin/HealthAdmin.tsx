@@ -209,7 +209,7 @@ export function HealthAdmin() {
 
       <Panel title="Scheduled jobs" description="Reminders, push delivery, deletions, clean-up and monitoring. A failed or late job raises an alert.">
         {view.jobs.length === 0 ? <Empty>No jobs found.</Empty> : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400"><tr><th className="py-2 pr-4">Job</th><th className="py-2 pr-4">Schedule (UTC)</th><th className="py-2 pr-4">Last run</th><th className="py-2 pr-4">Result</th><th className="py-2">Failed, 24 h</th></tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

@@ -2,7 +2,7 @@ import { Brain, Crown, Gamepad2, GraduationCap, Home, School, Sparkles, Users } 
 
 export const academyNavigation = [
   { id: 'home', path: '/academy/home', en: 'Home', lo: 'ໜ້າຫຼັກ', detail: 'Your goals, streak and progress.', detailLo: 'ເປົ້າໝາຍ ແລະ ຄວາມກ້າວໜ້າຂອງທ່ານ', icon: Home, color: '#e48b26' },
-  { id: 'learn', path: '/academy/learn', en: 'Learning', lo: 'ການຮຽນຮູ້', detail: 'Explore lessons and build new skills.', detailLo: 'ຄົ້ນຫາບົດຮຽນ ແລະ ສ້າງທັກສະໃໝ່', icon: GraduationCap, color: '#3989cd' },
+  { id: 'learn', path: '/academy/learn', en: 'Learning Hub', lo: 'ສູນການຮຽນຮູ້', detail: 'Explore lessons and build new skills.', detailLo: 'ຄົ້ນຫາບົດຮຽນ ແລະ ສ້າງທັກສະໃໝ່', icon: GraduationCap, color: '#3989cd' },
   { id: 'scores', path: '/academy/scores', en: 'Schooling', lo: 'ໂຮງຮຽນ', detail: 'Your school results, privately.', detailLo: 'ຜົນການຮຽນຂອງເຈົ້າ ເປັນສ່ວນຕົວ', icon: School, color: '#6366f1' },
   { id: 'play', path: '/academy/play', en: 'Play & Learn', lo: 'ຮຽນຜ່ານການຫຼິ້ນ', detail: 'Practice with games and roleplay.', detailLo: 'ຝຶກຝົນຜ່ານເກມ ແລະ ບົດບາດສົມມຸດ', icon: Gamepad2, color: '#ab69ce' },
   { id: 'mentor', path: '/academy/mentor', en: 'Daily Mentor', lo: 'ຜູ້ແນະນຳປະຈຳວັນ', detail: 'Reflect, take a challenge and grow.', detailLo: 'ທົບທວນ ແລະ ທ້າທາຍຕົນເອງທຸກມື້', icon: Sparkles, color: '#df779d' },

@@ -49,6 +49,7 @@ const copy = {
   'common.cancel': { en: 'Cancel', lo: 'ຍົກເລີກ' },
   'common.optional': { en: 'optional', lo: 'ບໍ່ບັງຄັບ' },
   'common.stepOf': { en: 'Step {step} of {total}', lo: 'ຂັ້ນຕອນ {step} ຈາກ {total}' },
+  'common.info': { en: 'More info', lo: 'ຂໍ້ມູນເພີ່ມເຕີມ' },
   'feedback.title': { en: 'Two quick questions', lo: 'ສອງຄຳຖາມສັ້ນໆ' },
   'feedback.anonymous': { en: 'Answers are counted without your name.', lo: 'ຄຳຕອບຖືກນັບໂດຍບໍ່ມີຊື່ຂອງເຈົ້າ.' },
   'feedback.useful': { en: 'How useful is Schooling for you?', lo: 'ໂຮງຮຽນ ມີປະໂຫຍດຕໍ່ເຈົ້າຫຼາຍປານໃດ?' },
@@ -74,6 +75,20 @@ const copy = {
   'pilot.error.required': { en: 'Enter the pilot code from your school.', lo: 'ກະລຸນາໃສ່ລະຫັດທົດລອງຈາກໂຮງຮຽນຂອງເຈົ້າ.' },
   'pilot.error.invalid': { en: 'This code is not valid. Check it with your school.', lo: 'ລະຫັດນີ້ບໍ່ຖືກຕ້ອງ. ກະລຸນາກວດກັບໂຮງຮຽນຂອງເຈົ້າ.' },
   'pilot.error.full': { en: 'This pilot group is full. Ask your school for help.', lo: 'ກຸ່ມທົດລອງນີ້ເຕັມແລ້ວ. ກະລຸນາສອບຖາມໂຮງຮຽນຂອງເຈົ້າ.' },
+  // REL-002: outside the open share of accounts (migration 170).
+  'rollout.title': { en: 'Schooling is opening soon for you', lo: 'ໂຮງຮຽນ ຈະເປີດໃຫ້ເຈົ້າໃນໄວໆນີ້' },
+  'rollout.hint': {
+    en: 'Schooling is opening to students group by group, and your account is in a later group. If your school gave you a code, enter it to start now.',
+    lo: 'ໂຮງຮຽນ ກຳລັງເປີດໃຫ້ນັກຮຽນເທື່ອລະກຸ່ມ ແລະ ບັນຊີຂອງເຈົ້າຢູ່ໃນກຸ່ມຕໍ່ໄປ. ຖ້າໂຮງຮຽນຂອງເຈົ້າໃຫ້ລະຫັດມາ, ໃສ່ລະຫັດເພື່ອເລີ່ມດຽວນີ້.',
+  },
+  'rollout.noCode': {
+    en: 'No code? Nothing has been saved. Come back in a few weeks: it opens for everyone soon.',
+    lo: 'ບໍ່ມີລະຫັດບໍ? ຍັງບໍ່ມີຫຍັງຖືກບັນທຶກ. ກັບມາອີກໃນສອງສາມອາທິດ: ມັນຈະເປີດໃຫ້ທຸກຄົນໃນໄວໆນີ້.',
+  },
+  'rollout.error': {
+    en: 'Schooling is not open for your account yet. A code from your school lets you start now.',
+    lo: 'ໂຮງຮຽນ ຍັງບໍ່ເປີດໃຫ້ບັນຊີຂອງເຈົ້າເທື່ອ. ລະຫັດຈາກໂຮງຮຽນຈະໃຫ້ເຈົ້າເລີ່ມໄດ້ດຽວນີ້.',
+  },
   'error.generic': { en: 'Something went wrong. Please try again.', lo: 'ມີບາງຢ່າງຜິດພາດ. ກະລຸນາລອງໃໝ່.' },
   'error.noticeOutdated': { en: 'The privacy notice was updated. Please read it again.', lo: 'ແຈ້ງການຄວາມເປັນສ່ວນຕົວຖືກປັບປຸງ. ກະລຸນາອ່ານອີກຄັ້ງ.' },
   'error.versionConflict': { en: 'This changed on another device. Reload and try again.', lo: 'ຂໍ້ມູນນີ້ຖືກປ່ຽນຢູ່ອຸປະກອນອື່ນ. ໂຫຼດໃໝ່ ແລ້ວລອງອີກຄັ້ງ.' },

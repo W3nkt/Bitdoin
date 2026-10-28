@@ -99,7 +99,7 @@ export function CalendarsAdmin() {
                       </p>
                       <Button size="sm" variant="ghost" icon={<Plus className="h-4 w-4" />} onClick={() => newPeriod(calendar)}>Add period</Button>
                     </header>
-                    <div className="overflow-x-auto">
+                    <div tabIndex={0} className="overflow-x-auto">
                       <table className="w-full min-w-[720px] text-left text-sm">
                         <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                           <tr><th className="px-4 py-2">Type</th><th className="px-4 py-2">Term</th><th className="px-4 py-2">#</th><th className="px-4 py-2">Lao</th><th className="px-4 py-2">English</th><th className="px-4 py-2">Dates</th><th className="px-4 py-2"><span className="sr-only">Actions</span></th></tr>

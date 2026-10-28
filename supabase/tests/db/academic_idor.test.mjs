@@ -161,6 +161,10 @@ const OWN_READ = [
   'academic_guardian_email_settings()',
   // The caller's own mock exams and their export (migration 165).
   'academic_mock_exams()', 'academic_export_my_mocks()',
+  // The caller's own family plan and the children it covers (migration 169).
+  'academic_family_plan()',
+  // Whether the caller's own account is in the open share (migration 170).
+  'academic_rollout_status()',
 ]
 const OWN_WRITE = [
   'academic_create_profile(jsonb)', 'academic_update_profile(integer,jsonb)', 'academic_transition_enrolment(jsonb)',
@@ -203,7 +207,7 @@ const STAFF_ONLY = [
   'academic_admin_resolve_school_task(uuid,uuid,text)', 'academic_admin_set_user_role(uuid,text,text)',
   'academic_support_lookup(text)', 'academic_support_break_glass(uuid,text)', 'academic_support_view_scores(uuid)',
   'academic_admin_health()', 'academic_admin_test_alert()', 'academic_admin_usage_metrics(uuid)',
-  'academic_admin_list_pilot()', 'academic_admin_save_pilot_cohort(jsonb)', 'academic_admin_set_pilot_mode(boolean,text)',
+  'academic_admin_list_pilot()', 'academic_admin_save_pilot_cohort(jsonb)', 'academic_admin_set_pilot_mode(boolean,text)', 'academic_admin_set_rollout(integer,text,boolean)',
   'academic_admin_list_quiz_bank(jsonb)', 'academic_admin_save_quiz_topic(jsonb)', 'academic_admin_save_quiz_item(jsonb)',
   'academic_admin_review_quiz_item(uuid,text,text)',
   'academic_admin_list_diagnostics()', 'academic_admin_save_diagnostic(jsonb)', 'academic_admin_set_diagnostic_status(uuid,text,text)',
@@ -356,6 +360,8 @@ const ownReads = {
   'academic_guardian_email_settings()': 'public.academic_guardian_email_settings()',
   'academic_mock_exams()': 'public.academic_mock_exams()',
   'academic_export_my_mocks()': 'public.academic_export_my_mocks()',
+  'academic_family_plan()': 'public.academic_family_plan()',
+  'academic_rollout_status()': 'public.academic_rollout_status()',
 }
 eq('every own-scoped read is exercised', Object.keys(ownReads).sort(), [...OWN_READ].sort())
 for (const [sig, call] of Object.entries(ownReads)) {
@@ -403,6 +409,7 @@ const staffCalls = {
   'academic_admin_list_pilot()': `public.academic_admin_list_pilot()`,
   'academic_admin_save_pilot_cohort(jsonb)': `public.academic_admin_save_pilot_cohort('{"name": "x"}')`,
   'academic_admin_set_pilot_mode(boolean,text)': `public.academic_admin_set_pilot_mode(false, 'testing')`,
+  'academic_admin_set_rollout(integer,text,boolean)': `public.academic_admin_set_rollout(10, 'testing')`,
   'academic_admin_list_quiz_bank(jsonb)': `public.academic_admin_list_quiz_bank()`,
   'academic_admin_save_quiz_topic(jsonb)': `public.academic_admin_save_quiz_topic('{"code": "x"}')`,
   'academic_admin_save_quiz_item(jsonb)': `public.academic_admin_save_quiz_item('{"stem_lo": "x"}')`,

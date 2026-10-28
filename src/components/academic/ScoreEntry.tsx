@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { CheckCircle2, CloudOff, History, Keyboard, Loader2, Lock, Pencil, ScanLine } from 'lucide-react'
+import { Camera, CheckCircle2, CloudOff, Eye, History, Keyboard, Loader2, Lock, Pencil, Ruler, ScanLine } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
@@ -22,8 +22,10 @@ import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { ScanScores } from './ScanScores'
 import { academicErrorText } from './errorText'
+import { CardTitle, ScorePill, SubjectBadge } from './visuals'
 
 const STATUSES: LineStatus[] = ['scored', 'missing', 'not_applicable', 'exempt']
+const STATUS_EMOJI: Record<LineStatus, string> = { scored: '✏️', missing: '⏳', not_applicable: '🚫', exempt: '🛡️' }
 const AUTOSAVE_MS = 800
 
 /** A failed request that never reached the server (offline, timeout). */
@@ -116,7 +118,7 @@ export function ScoreEntry({ userId, enrolmentId }: { userId: string; enrolmentI
                 {period.period_type === 'monthly' ? label : t('entry.official', { label })}
                 {period.state !== 'empty' && (
                   <span className={cn('rounded-full px-1.5 text-[10px] uppercase', selected ? 'bg-white/20' : period.state === 'submitted' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200')}>
-                    {t(`entry.periodState.${period.state}` as AcademicCopyKey)}
+                    <span aria-hidden>{period.state === 'submitted' ? '✓ ' : '✎ '}</span>{t(`entry.periodState.${period.state}` as AcademicCopyKey)}
                   </span>
                 )}
               </button>
@@ -154,7 +156,7 @@ function EntryMethod({ mode, status, onChange }: { mode: 'type' | 'scan'; status
   const exhausted = status.allowance.remaining <= 0
   const option = (value: 'type' | 'scan', icon: React.ReactNode, label: string, disabled = false) => (
     <button type="button" aria-pressed={mode === value} disabled={disabled} onClick={() => onChange(value)}
-      className={cn('flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40',
+      className={cn('flex items-center justify-center gap-2.5 rounded-xl px-3 py-3 text-sm font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40',
         mode === value ? 'bg-white text-indigo-700 shadow-sm dark:bg-gray-900 dark:text-indigo-300' : 'text-slate-600 dark:text-slate-300')}>
       {icon}{label}
     </button>
@@ -162,10 +164,11 @@ function EntryMethod({ mode, status, onChange }: { mode: 'type' | 'scan'; status
   return (
     <div>
       <div role="group" aria-label={t('scan.choose.label')} className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 dark:bg-gray-800">
-        {option('type', <Keyboard className="h-4 w-4" />, t('scan.choose.type'))}
-        {option('scan', <ScanLine className="h-4 w-4" />, t('scan.choose.scan'), exhausted && mode !== 'scan')}
+        {option('type', <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200"><Keyboard className="h-5 w-5" /></span>, t('scan.choose.type'))}
+        {option('scan', <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-200"><ScanLine className="h-5 w-5" /></span>, t('scan.choose.scan'), exhausted && mode !== 'scan')}
       </div>
-      <p className="mt-1.5 px-1 text-xs text-slate-500 dark:text-slate-400">
+      <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs text-slate-500 dark:text-slate-400">
+        <Camera aria-hidden className="h-3.5 w-3.5" />
         {exhausted ? t('scan.allowanceUsed', { limit: status.allowance.limit }) : t('scan.remaining', { remaining: status.allowance.remaining, limit: status.allowance.limit })}
       </p>
     </div>
@@ -328,24 +331,25 @@ function DraftForm({ userId, view, prefill }: { userId: string; view: ScoreEntry
   if (reviewing) {
     return (
       <section className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800">
-        <h2 className="text-xl font-black">{t('entry.reviewTitle')}</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{periodLabel} · {t('entry.reviewHint')}</p>
+        <CardTitle emoji="👀" color="#6366f1" title={t('entry.reviewTitle')} />
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{periodLabel} · {t('entry.reviewHint')}</p>
         <ul className="mt-5 divide-y divide-slate-100 dark:divide-slate-800">
           {view.subjects.map(subject => {
             const line = lines[subject.subject_enrolment_id]
             return (
-              <li key={subject.subject_enrolment_id} className="flex items-center justify-between gap-3 py-3">
-                <span className="font-bold">{lo ? subject.name_lo : subject.name_en}</span>
-                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500 dark:text-slate-400')}>
-                  {line?.status === 'scored' ? normaliseScoreText(line.text) : line?.status ? statusText(line.status) : '—'}
-                </span>
+              <li key={subject.subject_enrolment_id} className="flex items-center gap-3 py-3">
+                <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />
+                <span className="min-w-0 flex-1 break-words font-bold">{lo ? subject.name_lo : subject.name_en}</span>
+                {line?.status === 'scored'
+                  ? <ScorePill value={normaliseScoreText(line.text)} scale={scale} label={normaliseScoreText(line.text)} />
+                  : <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">{line?.status && <span aria-hidden>{STATUS_EMOJI[line.status]}</span>}{line?.status ? statusText(line.status) : '—'}</span>}
               </li>
             )
           })}
         </ul>
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
-          <Button variant="ghost" fullWidth size="lg" disabled={submitting} onClick={() => setReviewing(false)}>{t('entry.backToEdit')}</Button>
-          <Button fullWidth size="lg" loading={submitting} onClick={() => void submit()}>{t('entry.confirm')}</Button>
+          <Button variant="ghost" fullWidth size="lg" icon={<Pencil className="h-4 w-4" />} disabled={submitting} onClick={() => setReviewing(false)}>{t('entry.backToEdit')}</Button>
+          <Button fullWidth size="lg" icon={<CheckCircle2 className="h-5 w-5" />} loading={submitting} onClick={() => void submit()}>{t('entry.confirm')}</Button>
         </div>
       </section>
     )
@@ -354,7 +358,8 @@ function DraftForm({ userId, view, prefill }: { userId: string; view: ScoreEntry
   return (
     <section className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6">
       <div className="mb-3 flex items-center justify-between gap-3 px-1">
-        <p className="text-sm font-bold text-slate-600 dark:text-slate-400">
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-sm font-bold text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200">
+          <Ruler aria-hidden className="h-4 w-4" />
           {scale.family === 'numeric_linear' ? t('entry.scaleHint', { max: plainNumber(scale.max) }) : (scale.levels ?? []).map(level => level.code).join(' · ')}
         </p>
         <SyncBadge state={sync} />
@@ -368,7 +373,8 @@ function DraftForm({ userId, view, prefill }: { userId: string; view: ScoreEntry
           return (
             <li key={id} className="py-2.5">
               <div className="flex flex-wrap items-center gap-2">
-                <label htmlFor={`score-${id}`} className="min-w-[8rem] flex-1 break-words px-1 font-bold">{name}</label>
+                <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />
+                <label htmlFor={`score-${id}`} className="min-w-[7rem] flex-1 break-words px-1 font-bold">{name}</label>
                 <input
                   id={`score-${id}`}
                   ref={element => { inputs.current[index] = element }}
@@ -412,8 +418,8 @@ function DraftForm({ userId, view, prefill }: { userId: string; view: ScoreEntry
           )
         })}
       </ul>
-      {unfilled > 0 && !invalid && <p className="mt-3 px-1 text-xs text-slate-500 dark:text-slate-400">{t('entry.unfilled', { count: unfilled })}</p>}
-      <Button className="mt-4" fullWidth size="lg" disabled={invalid || unfilled > 0} onClick={() => setReviewing(true)}>{t('entry.review')}</Button>
+      {unfilled > 0 && !invalid && <p className="mt-3 flex items-center gap-1.5 px-1 text-xs text-slate-500 dark:text-slate-400"><span aria-hidden>✍️</span>{t('entry.unfilled', { count: unfilled })}</p>}
+      <Button className="mt-4" fullWidth size="lg" icon={<Eye className="h-5 w-5" />} disabled={invalid || unfilled > 0} onClick={() => setReviewing(true)}>{t('entry.review')}</Button>
     </section>
   )
 }
@@ -426,7 +432,8 @@ function SyncBadge({ state }: { state: 'idle' | 'saving' | 'saved' | 'local' }) 
     saved: [<CheckCircle2 key="i" className="h-3.5 w-3.5" />, t('entry.savedDraft')],
     local: [<CloudOff key="i" className="h-3.5 w-3.5" />, t('entry.savedLocal')],
   }[state]
-  return <span role="status" className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">{content}</span>
+  return <span role="status" className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-bold',
+    state === 'saved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : state === 'local' ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200' : 'text-slate-500 dark:text-slate-400')}>{content}</span>
 }
 
 // ─── Submitted period: view and correct (SCORE-007/012) ──────────────────────
@@ -449,12 +456,13 @@ function SubmittedView({ view }: { view: ScoreEntryView }) {
           return (
             <li key={subject.subject_enrolment_id} className="py-3">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="min-w-[8rem] flex-1 break-words px-1 font-bold">{name}</span>
+                <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />
+                <span className="min-w-[7rem] flex-1 break-words px-1 font-bold">{name}</span>
                 {line?.edited && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">{t('entry.edited')}</span>}
                 {line && line.verification !== 'self_reported' && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-800">{t('entry.badge.verified')}</span>}
-                <span className={cn('tabular-nums', line?.status === 'scored' ? 'text-lg font-black' : 'text-sm text-slate-500 dark:text-slate-400')}>
-                  {line ? (line.status === 'scored' ? plainNumber(line.value) : statusText(line.status)) : '—'}
-                </span>
+                {line?.status === 'scored'
+                  ? <ScorePill value={line.value} scale={view.scale} label={plainNumber(line.value)} />
+                  : <span className="inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">{line && <span aria-hidden>{STATUS_EMOJI[line.status]}</span>}{line ? statusText(line.status) : '—'}</span>}
                 {line && !view.read_only && (
                   <button type="button" onClick={() => setEditing(editing === line.id ? null : line.id)} aria-label={t('entry.correctTitle', { subject: name })}
                     className="grid h-9 w-9 place-items-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-gray-800">

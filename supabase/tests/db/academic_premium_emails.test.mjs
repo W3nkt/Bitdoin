@@ -18,7 +18,7 @@ await rpc(X, `public.academic_grant_consent('email', '2026-10-25')`)
 // Premium ending in N days (Vientiane), for each user.
 const endsIn = (days) => `((public.academic_today() + ${days})::timestamp + time '12:00') at time zone 'Asia/Vientiane'`
 await ok(db, 'premium', `insert into premium_subscriptions (user_id, plan_id, status, ends_at)
-  select u, (select id from premium_plans where price_lak > 0), 'ACTIVE', ${endsIn(7)} from unnest(array['${S}', '${N}', '${X}']::uuid[]) u`)
+  select u, (select id from premium_plans where slug = 'premium-monthly'), 'ACTIVE', ${endsIn(7)} from unnest(array['${S}', '${N}', '${X}']::uuid[]) u`)
 const job = async () => (await one(`select public.academic_premium_ending_emails() as n`)).n
 const claim = async () => (await db.query(`select * from public.academic_claim_guardian_emails(20)`)).rows
 const complete = (sent) => db.query(`select public.academic_complete_guardian_emails($1::uuid[], '{}'::uuid[], null)`, [sent])

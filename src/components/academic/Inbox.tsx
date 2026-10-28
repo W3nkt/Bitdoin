@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell, BellOff, BellRing, PenLine, Smartphone, X } from 'lucide-react'
+import { Bell, BellOff, BellRing, CalendarDays, Clock3, PenLine, Smartphone, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
@@ -16,6 +16,7 @@ import { useTrackUsage } from '@/lib/academic/usageEvents'
 import { cn } from '@/lib/utils'
 import { PrivacyCard } from './Privacy'
 import { academicErrorText } from './errorText'
+import { CardTitle, EmojiBubble } from './visuals'
 
 // In-app reminders and their settings (BE-009, #27; SCORE-014, NOTIF-001/003/004).
 
@@ -51,6 +52,10 @@ function useReminderText() {
       cta: t('entry.cta'),
     }
   }
+}
+
+const CATEGORY_EMOJI: Record<AcademicNotification['category'], string> = {
+  score_reminder: '✏️', guardian_link: '👨‍👩‍👧', guardian_report: '📨', scholarship_deadline: '🎓',
 }
 
 // Usage events (ANL-001): a reminder counts as shown once per page load.
@@ -108,7 +113,7 @@ export function ReminderBanner() {
   const done = () => markRead.mutate([note.id])
   return (
     <section aria-labelledby="reminder-banner" className="flex flex-wrap items-start gap-4 rounded-3xl bg-indigo-50 p-5 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:ring-indigo-500/30">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200"><BellRing className="h-5 w-5" /></span>
+      <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-2xl dark:bg-indigo-500/20">{CATEGORY_EMOJI[note.category] ?? '🔔'}</span>
       <div className="min-w-0 flex-1 basis-48">
         <h2 id="reminder-banner" className="font-black">{title}</h2>
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{body}</p>
@@ -117,7 +122,7 @@ export function ReminderBanner() {
             className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
             <PenLine className="h-4 w-4" />{cta}
           </Link>
-          <Button size="sm" variant="ghost" onClick={done}>{t('inbox.later')}</Button>
+          <Button size="sm" variant="ghost" icon={<Clock3 className="h-4 w-4" />} onClick={done}>{t('inbox.later')}</Button>
         </div>
       </div>
     </section>
@@ -152,7 +157,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
   return (
     <div className="space-y-6">
       <section aria-labelledby="inbox-title" className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800">
-        <h2 id="inbox-title" className="mb-2 text-lg font-black">{t('inbox.title')}</h2>
+        <div className="mb-2"><CardTitle id="inbox-title" icon={BellRing} color="#6366f1" title={t('inbox.title')} /></div>
         {query.isPending ? (
           <div className="space-y-3 py-2" aria-busy="true"><Skeleton className="h-16 w-full rounded-2xl" /><Skeleton className="h-16 w-full rounded-2xl" /></div>
         ) : query.isError ? (
@@ -162,7 +167,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
           </div>
         ) : items.length === 0 ? (
           <div className="py-8 text-center">
-            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"><Bell className="h-7 w-7" /></div>
+            <EmojiBubble emoji="📭" className="mb-4" />
             <h3 className="text-xl font-black">{t('inbox.empty.title')}</h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-600 dark:text-slate-400">{t('inbox.empty.body')}</p>
           </div>
@@ -172,7 +177,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
               const { title, body, href, cta } = text(note)
               return (
                 <li key={note.id} className="flex items-start gap-3 py-4">
-                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"><BellRing className="h-4 w-4" /></span>
+                  <span aria-hidden className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-xl dark:bg-indigo-500/15">{CATEGORY_EMOJI[note.category] ?? '🔔'}</span>
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2">
                       <span className="font-bold">{title}</span>
@@ -180,7 +185,7 @@ export function Inbox({ noticeVersion }: { noticeVersion: string | null }) {
                     </p>
                     <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{body}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
-                      <span>{formatDate(note.created_at, language)}</span>
+                      <span className="inline-flex items-center gap-1"><CalendarDays aria-hidden className="h-3.5 w-3.5" />{formatDate(note.created_at, language)}</span>
                       <Link to={href} onClick={() => clicked(note)} className="font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{cta}</Link>
                     </p>
                   </div>

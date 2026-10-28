@@ -33,7 +33,7 @@ function ContentGaps() {
     <Panel title="Content gaps" description="Topics and subjects where a rule fired in the last 30 days but no published, available content matched. Counts are students, never names. Stretch gaps include content that exists for Academy members only.">
       {gaps.isPending ? <Skeleton className="h-24 w-full rounded-2xl" /> : gaps.isError ? <Empty>{adminErrorText(gaps.error)}</Empty>
         : gaps.data.length === 0 ? <Empty>No gaps in the last 30 days.</Empty> : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <tr><th className="py-2 pr-4">Subject · grade</th><th className="py-2 pr-4">Topic</th><th className="py-2 pr-4">Needed</th><th className="py-2 pr-4">Students</th><th className="py-2">Last seen</th></tr>
@@ -99,7 +99,7 @@ function ContentCatalogue() {
       description="Tag existing content so the weekly next actions can match it to a student's subjects, topics and level. Academy content has no school topics of its own, so tag it here. Untagged topics show students “We don't have practice for this topic yet” and appear as content gaps."
       actions={<Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => edit()}>Add content</Button>}>
       {items.data.length === 0 ? <Empty>Nothing catalogued yet. Start with practice sets for topics that have approved quiz items.</Empty> : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
               <tr><th className="py-2 pr-4">Content</th><th className="py-2 pr-4">Subjects · grades</th><th className="py-2 pr-4">Topics</th><th className="py-2 pr-4">Level</th><th className="py-2 pr-4">Status</th><th className="py-2" /></tr>

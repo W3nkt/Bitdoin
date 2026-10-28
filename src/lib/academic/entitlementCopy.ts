@@ -39,6 +39,7 @@ export const entitlementCopy = {
   'plan.free': { en: 'Free', lo: 'ຟຣີ' },
   'plan.premiumUntil': { en: 'Academy Premium until {date}', lo: 'Academy Premium ຮອດວັນທີ {date}' },
   'plan.premiumOpen': { en: 'Academy Premium', lo: 'Academy Premium' },
+  'plan.familyUntil': { en: 'Premium from your family plan until {date}', lo: 'Premium ຈາກແພັກເກດຄອບຄົວ ຮອດວັນທີ {date}' },
   'plan.freeBody': {
     en: 'Your scores, history and charts are always free. Academy Premium adds full explanations, more suggestions and re-tests.',
     lo: 'ຄະແນນ, ປະຫວັດ ແລະ ກຣາຟຂອງເຈົ້າ ຟຣີສະເໝີ. Academy Premium ເພີ່ມຄຳອະທິບາຍເຕັມ, ຄຳແນະນຳຫຼາຍຂຶ້ນ ແລະ ການກວດຄືນ.',

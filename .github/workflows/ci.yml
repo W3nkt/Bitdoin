@@ -71,6 +71,8 @@ jobs:
         run: npm run test:e2e
         env:
           QA_OUTPUT: qa-artifacts
+      - name: JS budget for the My Scores dashboard (DASH-006)
+        run: node scripts/bundle-budget.mjs dist-qa
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4

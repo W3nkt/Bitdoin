@@ -168,7 +168,7 @@ export function AuditAdmin({ isAdmin }: { isAdmin: boolean }) {
           : events.data.events.length === 0 ? <Empty>No entries match.</Empty>
           : (
             <>
-              <div className="overflow-x-auto">
+              <div tabIndex={0} className="overflow-x-auto">
                 <table className="w-full min-w-[880px] text-left text-sm">
                   <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     <tr><th className="py-2 pr-4">When (Laos)</th><th className="py-2 pr-4">Actor</th><th className="py-2 pr-4">Action</th><th className="py-2 pr-4">Target</th><th className="py-2 pr-4">Student</th><th className="py-2 pr-4">Outcome</th><th className="py-2">Reason</th></tr>

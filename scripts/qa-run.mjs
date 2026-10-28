@@ -16,7 +16,8 @@ if (!process.env.QA_SKIP_BUILD) {
   process.env.VITE_SUPABASE_ANON_KEY = 'test'
   // A dummy Web Push key (not a real one) so push settings render like production.
   process.env.VITE_VAPID_PUBLIC_KEY = 'BAcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc'
-  await build({ build: { outDir, emptyOutDir: true }, logLevel: 'warn' })
+  // The manifest lets CI check the JS budget on this build (scripts/bundle-budget.mjs).
+  await build({ build: { outDir, emptyOutDir: true, manifest: true }, logLevel: 'warn' })
 }
 
 const server = await preview({ build: { outDir }, preview: { port, strictPort: true }, logLevel: 'warn' })

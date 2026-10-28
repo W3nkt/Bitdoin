@@ -124,7 +124,7 @@ export function ScalesAdmin() {
                   </p>
                   <Button size="sm" variant="outline" onClick={() => setDraft(draftFrom(scale, scale.versions.find(version => version.status === 'approved') ?? scale.versions[0]))}>New version</Button>
                 </header>
-                <div className="overflow-x-auto">
+                <div tabIndex={0} className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-left text-sm">
                     <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                       <tr><th className="px-4 py-2">Version</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Settings</th><th className="px-4 py-2">Status</th><th className="px-4 py-2"><span className="sr-only">Actions</span></th></tr>

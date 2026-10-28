@@ -587,7 +587,18 @@ export interface PilotCohort {
   students: number
 }
 
-export interface PilotView { pilot_mode: boolean; cohorts: PilotCohort[] }
+export type RolloutCriterionKey = 'days' | 'availability' | 'read_p95_ms' | 'write_p95_ms' | 'dashboard_p75_ms' | 'open_alerts' | 'priority_reports'
+
+/** REL-002 (migration 170): staged launch; met null = not enough data (does not block). */
+export interface RolloutView {
+  percent: 10 | 50 | 100
+  since: string | null
+  new_students: number | null
+  criteria: Array<{ key: RolloutCriterionKey; value: number | null; target: number | null; met: boolean | null }>
+  history: Array<{ at: string; reason: string }>
+}
+
+export interface PilotView { pilot_mode: boolean; cohorts: PilotCohort[]; rollout?: RolloutView }
 
 export function usePilot() {
   return useQuery({ queryKey: [...adminKey, 'pilot'], queryFn: () => callAcademicRpc<PilotView>('academic_admin_list_pilot') })
@@ -601,6 +612,11 @@ export function useSavePilotCohort() {
 export function useSetPilotMode() {
   return useAdminMutation(({ enabled, reason }: { enabled: boolean; reason: string }) =>
     callAcademicRpc<PilotView>('academic_admin_set_pilot_mode', { p_enabled: enabled, p_reason: reason }))
+}
+
+export function useSetRollout() {
+  return useAdminMutation(({ percent, reason, confirmUnmet }: { percent: 10 | 50 | 100; reason: string; confirmUnmet: boolean }) =>
+    callAcademicRpc<PilotView>('academic_admin_set_rollout', { p_percent: percent, p_reason: reason, p_confirm_unmet: confirmUnmet }))
 }
 
 // ─── Diagnostic item bank (ADMIN-007, QUIZ-005, migration 131) ───────────────

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type SyntheticE
 import { useQueryClient } from '@tanstack/react-query'
 import ReactCrop, { centerCrop, convertToPixelCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { AlertTriangle, Camera, Check, CheckCircle2, ImageIcon, Loader2, RotateCw, ShieldCheck, Trash2 } from 'lucide-react'
+import { AlertTriangle, Camera, Check, CheckCircle2, ImageIcon, Keyboard, Loader2, PartyPopper, RotateCw, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
@@ -18,6 +18,7 @@ import { checkScore, normaliseScoreText, plainNumber, type LineStatus, type Scal
 import { academicKeys, useAcademicSession } from '@/lib/academic/session'
 import { cn } from '@/lib/utils'
 import { academicErrorText } from './errorText'
+import { CardTitle } from './visuals'
 
 const STATUSES: LineStatus[] = ['scored', 'missing', 'not_applicable', 'exempt']
 /** OCR-009: values this sure are carried into the typing form. */
@@ -127,7 +128,7 @@ export function ScanScores({ enrolmentId, periodId, periods, status, onTypeInste
       )}
       {stage.kind === 'duplicate' && (
         <div className="space-y-4">
-          <h2 className="text-xl font-black">{t('scan.duplicate.title')}</h2>
+          <CardTitle emoji="🔁" color="#6366f1" title={t('scan.duplicate.title')} />
           <p className="text-slate-700 dark:text-slate-300">{t('scan.duplicate.body', { date: formatDate(stage.duplicate.created_at, language) })}</p>
           <p className="text-sm text-slate-500 dark:text-slate-400">{t('scan.duplicate.free')}</p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
@@ -144,10 +145,10 @@ export function ScanScores({ enrolmentId, periodId, periods, status, onTypeInste
       )}
       {stage.kind === 'failed' && (
         <div role="alert" className="space-y-4">
-          <h2 className="flex items-center gap-2 text-xl font-black"><AlertTriangle className="h-5 w-5 text-amber-600" />{t('scan.failed.title')}</h2>
+          <CardTitle icon={AlertTriangle} color="#d97706" title={t('scan.failed.title')} />
           <p className="text-slate-700 dark:text-slate-300">{t(stage.timeout ? 'scan.failed.timeout' : 'scan.failed.body')}</p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
-            <Button variant="ghost" fullWidth size="lg" onClick={() => typeInstead(periodId, null)}>{t('scan.typeInstead')}</Button>
+            <Button variant="ghost" fullWidth size="lg" icon={<Keyboard className="h-4 w-4" />} onClick={() => typeInstead(periodId, null)}>{t('scan.typeInstead')}</Button>
             <Button fullWidth size="lg" icon={<Camera className="h-4 w-4" />} onClick={() => setStage({ kind: 'pick' })}>{t('scan.tryAnother')}</Button>
           </div>
         </div>
@@ -178,7 +179,7 @@ function ConsentStep({ onAgreed, onDecline }: { onAgreed: () => void; onDecline:
   const noticeVersion = useAcademicSession().data?.notice_version ?? null
   return (
     <div className="space-y-4">
-      <h2 className="flex items-center gap-2 text-xl font-black"><ShieldCheck className="h-5 w-5 text-indigo-600" />{t('scan.consent.title')}</h2>
+      <CardTitle icon={ShieldCheck} color="#10b981" title={t('scan.consent.title')} />
       <ul className="list-disc space-y-2 pl-5 text-slate-700 dark:text-slate-300">
         <li>{t('scan.consent.provider')}</li>
         <li>{t('scan.consent.review')}</li>
@@ -227,7 +228,7 @@ function PickStep({ status, error, onPicked, onError }: {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-black">{t('scan.pick.title')}</h2>
+      <CardTitle emoji="📸" color="#0d9488" title={t('scan.pick.title')} />
       <p className="text-slate-700 dark:text-slate-300">{t('scan.pick.tips')}</p>
       <p className="text-sm font-bold text-slate-500 dark:text-slate-400">{t('scan.remaining', { remaining: status.allowance.remaining, limit: status.allowance.limit })}</p>
       {error && <p role="alert" className="rounded-2xl bg-red-50 p-3 text-sm font-bold text-red-700 dark:bg-red-500/10 dark:text-red-300">{t(error)}</p>}
@@ -294,7 +295,7 @@ function AdjustStep({ src: initial, busy, track, onRetake, onUse, onError }: {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-black">{t('scan.adjust.title')}</h2>
+      <CardTitle emoji="✂️" color="#0ea5e9" title={t('scan.adjust.title')} />
       <p className="text-sm text-slate-600 dark:text-slate-400">{t('scan.adjust.hint')}</p>
       <div className="flex justify-center overflow-hidden rounded-2xl bg-gray-950/95 p-2">
         <ReactCrop crop={crop} onChange={(next: PixelCrop) => { setCrop(next); setChecked(null) }} onComplete={(next: PixelCrop) => setPixelCrop(next)}
@@ -309,8 +310,8 @@ function AdjustStep({ src: initial, busy, track, onRetake, onUse, onError }: {
       )}
       <div className="flex flex-wrap gap-3">
         <Button variant="ghost" icon={<RotateCw className="h-4 w-4" />} disabled={working || busy} onClick={() => void rotate()}>{t('scan.adjust.rotate')}</Button>
-        <Button variant="ghost" disabled={working || busy} onClick={onRetake}>{t('scan.adjust.retake')}</Button>
-        <Button className="ml-auto" size="lg" loading={working || busy} onClick={() => void use()}>{t(checked ? 'scan.adjust.useAnyway' : 'scan.adjust.use')}</Button>
+        <Button variant="ghost" icon={<Camera className="h-4 w-4" />} disabled={working || busy} onClick={onRetake}>{t('scan.adjust.retake')}</Button>
+        <Button className="ml-auto" size="lg" icon={<Check className="h-5 w-5" />} loading={working || busy} onClick={() => void use()}>{t(checked ? 'scan.adjust.useAnyway' : 'scan.adjust.use')}</Button>
       </div>
     </div>
   )
@@ -337,9 +338,9 @@ function ProcessingStep({ scan, job, onDone, onFailed, onTypeInstead }: {
   return (
     <div role="status" aria-live="polite" className="space-y-4 py-6 text-center">
       <Loader2 className="mx-auto h-10 w-10 animate-spin text-indigo-600" />
-      <h2 className="text-xl font-black">{t('scan.processing.title')}</h2>
+      <CardTitle emoji="🔎" color="#8b5cf6" title={t('scan.processing.title')} />
       <p className="text-slate-600 dark:text-slate-400">{t('scan.processing.body')}</p>
-      <Button variant="ghost" onClick={onTypeInstead}>{t('scan.typeInstead')}</Button>
+      <Button variant="ghost" icon={<Keyboard className="h-4 w-4" />} onClick={onTypeInstead}>{t('scan.typeInstead')}</Button>
     </div>
   )
 }
@@ -381,7 +382,7 @@ function ReviewStep({ scan, job, periods, defaultPeriodId, saved, onConfirmed, o
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-black">{t('scan.review.title')}</h2>
+        <CardTitle emoji="👀" color="#6366f1" title={t('scan.review.title')} />
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('scan.review.hint')}</p>
       </div>
       <label className="flex flex-wrap items-center gap-3">
@@ -411,7 +412,7 @@ function ReviewStep({ scan, job, periods, defaultPeriodId, saved, onConfirmed, o
           onTypeInstead={prefill => onTypeInstead(target, prefill)} />
       )}
       {view.isPending && column !== null && <div className="h-40 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />}
-      {column === null && <Button variant="ghost" onClick={() => onTypeInstead(target ?? defaultPeriodId, null)}>{t('scan.typeInstead')}</Button>}
+      {column === null && <Button variant="ghost" icon={<Keyboard className="h-4 w-4" />} onClick={() => onTypeInstead(target ?? defaultPeriodId, null)}>{t('scan.typeInstead')}</Button>}
     </div>
   )
 }
@@ -643,8 +644,8 @@ function ReviewForm({ scan, job, view, rows, onConfirmed, onTypeInstead }: {
       {pending > 0 && <p className="text-xs font-bold text-amber-700 dark:text-amber-300">{t('scan.review.left', { count: pending })}</p>}
       {pending === 0 && unfilled > 0 && <p className="text-xs text-slate-500 dark:text-slate-400">{t('entry.unfilled', { count: unfilled })}</p>}
       <div className="flex flex-col-reverse gap-3 sm:flex-row">
-        <Button variant="ghost" fullWidth size="lg" disabled={saving} onClick={() => onTypeInstead(prefill())}>{t('scan.typeInstead')}</Button>
-        <Button fullWidth size="lg" loading={saving} disabled={!ready} onClick={() => void confirm()}>{t('scan.review.confirm')}</Button>
+        <Button variant="ghost" fullWidth size="lg" icon={<Keyboard className="h-4 w-4" />} disabled={saving} onClick={() => onTypeInstead(prefill())}>{t('scan.typeInstead')}</Button>
+        <Button fullWidth size="lg" icon={<CheckCircle2 className="h-5 w-5" />} loading={saving} disabled={!ready} onClick={() => void confirm()}>{t('scan.review.confirm')}</Button>
       </div>
     </div>
   )
@@ -689,8 +690,8 @@ function DoneStep({ job, periods, saved, onAnother, onFinish }: {
         {t('scan.done.title', { period: last ? (lo ? last.label_lo : last.label_en) : '' })}
       </h2>
       <div className="flex flex-col gap-3 sm:flex-row">
-        {more && <Button variant="outline" fullWidth size="lg" onClick={onAnother}>{t('scan.done.another')}</Button>}
-        <Button fullWidth size="lg" onClick={onFinish}>{t('scan.done.finish')}</Button>
+        {more && <Button variant="outline" fullWidth size="lg" icon={<Camera className="h-4 w-4" />} onClick={onAnother}>{t('scan.done.another')}</Button>}
+        <Button fullWidth size="lg" icon={<PartyPopper className="h-5 w-5" />} onClick={onFinish}>{t('scan.done.finish')}</Button>
       </div>
       {hasImage && (
         <Button variant="ghost" size="sm" icon={<Trash2 className="h-4 w-4" />} loading={deleting} onClick={() => void remove()}>{t('scan.deletePhoto')}</Button>

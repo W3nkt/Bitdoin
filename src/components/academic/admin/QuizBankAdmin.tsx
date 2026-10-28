@@ -71,7 +71,7 @@ export function QuizBankAdmin() {
       <Panel title="Topics" description="Each diagnostic item is tagged to exactly one topic of a subject and grade."
         actions={<Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => editTopic()}>New topic</Button>}>
         {view.topics.length === 0 ? <Empty>No topics yet. Add the topics of a subject first, for example Grade 11 Mathematics: Algebra.</Empty> : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <tr><th className="py-2 pr-4">Subject</th><th className="py-2 pr-4">Topic</th><th className="py-2 pr-4">Code</th><th className="py-2 pr-4">Items</th><th className="py-2 pr-4">Status</th><th className="py-2" /></tr>

@@ -133,6 +133,8 @@ function backend(initial) {
   })
   const rpc = {
     academic_get_session: () => session(),
+    // Staged launch (REL-002, migration 170).
+    academic_rollout_status: () => ({ open: state.rolloutOpen !== false }),
     academic_check_pilot_code: (args) => String(args.p_code).replace(/[s-]/g, '').toUpperCase() === 'ABC234'
       ? { code: 'ABC234', name: 'Matthayom Thotlong' }
       : pgError(422, 'PILOT_CODE_INVALID', { field: 'pilot_code' }),
@@ -308,6 +310,8 @@ function backend(initial) {
       exam_intake_year: '2027-2028',
     }),
     academic_my_scholarships: () => state.scholarships ?? [],
+    // Family plan (migration 169).
+    academic_family_plan: () => state.familyPlan ?? { active: false, until: null, seats: 3, prices: { 'family-monthly': 79000, 'family-yearly': 790000 }, children: [] },
     // Books that may help (migration 168): none unless a scenario adds them.
     academic_subject_books: () => state.subjectBooks ?? [],
     // Mock exams (migration 165): a small stateful stand-in.
@@ -719,8 +723,18 @@ async function openAs(browser, { device, lang, step, enrolment, consentState, en
   return { context, page, mock, errors }
 }
 
+// The dashboard's charts load after the summary (DASH-006); wait until every
+// chart slot has drawn before counting chart marks.
+// Visible text without the decorative emoji, for comparing wording.
+const words = text => text.replace(/\p{Extended_Pictographic}\uFE0F?/gu, ' ').replace(/\s+/g, ' ').trim()
+
+async function chartsDrawn(page) {
+  await page.waitForFunction(() => !document.querySelector('[data-chart-loading]') && !!document.querySelector('.recharts-surface'))
+}
+
 // Let 150 ms colour transitions finish so screenshots show the final state.
 async function shot(page, name) {
+  await page.waitForFunction(() => !document.querySelector('[data-chart-loading]'))
   await page.waitForTimeout(250)
   await page.screenshot({ path: `${output}/${name}.png`, fullPage: true })
 }
@@ -928,6 +942,24 @@ try {
     assert.deepEqual(errors, [])
     await context.close()
     pass('Pilot: code asked first, wrong code explained, accepted code names the school and is sent with the profile')
+  }
+
+  // Staged launch (REL-002): outside the open share "Opening soon", nothing stored; a school code still lets the student in.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'lo', step: 'onboarding' })
+    mock.state.rolloutOpen = false
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: 'ໂຮງຮຽນ ຈະເປີດໃຫ້ເຈົ້າໃນໄວໆນີ້' }).waitFor()
+    await page.getByText('ບໍ່ມີລະຫັດບໍ? ຍັງບໍ່ມີຫຍັງຖືກບັນທຶກ.', { exact: false }).waitFor()
+    assert.equal(mock.state.calls.some(call => call.fn === 'academic_create_profile'), false, 'nothing is stored')
+    await shot(page, 'my-scores-rollout-lo-mobile')
+    await page.getByLabel('ລະຫັດທົດລອງ').fill('ABC234')
+    await page.getByRole('button', { name: 'ຕໍ່ໄປ' }).click()
+    await page.getByText('ລະຫັດຖືກຕ້ອງ: Matthayom Thotlong').waitFor()
+    await page.getByLabel(/ຂ້ອຍໄດ້ອ່ານ/).waitFor()
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Staged launch: outside the open share the student sees "Opening soon" with nothing stored, and a school code continues to set-up')
   }
 
   // Under 13 is not supported (PRIV-002).
@@ -1369,13 +1401,14 @@ try {
     assert.match(summary, /7\.5\s*\/ 10/)
     assert.match(summary, /6 of 6 subjects recorded/)
     // Trend: 6 points, rolling line present, gaps none here.
+    await chartsDrawn(page)
+    await page.locator('.recharts-line-dots circle').nth(5).waitFor()
     assert.equal(await page.locator('.recharts-line').count(), 2, 'average + 3-month average lines')
     assert.equal(await page.locator('.recharts-line-dots circle').count(), 6)
-    // Latest month bars sorted by score, values labelled.
-    const barLabels = await page.locator('.recharts-bar .recharts-label').evaluateAll(els => els.map(el => el.textContent))
-    assert.deepEqual(barLabels, ['9.5', '8.5', '8', '7.5', '6', '5.5'])
-    const yTicks = await page.locator('.recharts-yAxis .recharts-cartesian-axis-tick-value').evaluateAll(els => els.map(el => el.textContent))
-    assert.deepEqual(yTicks.slice(-6), ['Biology', 'Chemistry', 'Lao Language', 'English', 'Physics', 'Mathematics'])
+    // Latest month: one icon bar per subject, sorted by score, values labelled.
+    const bars = await page.locator('[data-subject-bar]').evaluateAll(els => els.map(el => [el.dataset.subjectBar, el.dataset.value]))
+    assert.deepEqual(bars.map(bar => bar[1]), ['9.5', '8.5', '8', '7.5', '6', '5.5'])
+    assert.deepEqual(bars.map(bar => bar[0]), ['Biology', 'Chemistry', 'Lao Language', 'English', 'Physics', 'Mathematics'])
     await shot(page, 'my-scores-15-dashboard-en-mobile')
 
     // Table view of the trend (DASH-008).
@@ -1425,6 +1458,36 @@ try {
     pass('Dashboard: empty state, summary, trend with rolling mean, sorted bars, table views, axe clean, subject detail, offline stale copy')
   }
 
+  // DASH-006: from a warm session (the app's files cached by the service
+  // worker) on Slow 4G, 400 kbps and 400 ms, the summary card shows within
+  // 2.5 s at the 75th percentile of 4 loads; the charts follow it.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.dashboard = workedExampleDashboard()
+    await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
+    await page.evaluate(() => navigator.serviceWorker.ready)
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    assert.equal(await page.evaluate(() => !!navigator.serviceWorker.controller), true, 'the service worker serves the page')
+    await page.getByText('Up 0.3 since January').waitFor()
+    const cdp = await context.newCDPSession(page)
+    await cdp.send('Network.enable')
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 400, downloadThroughput: 400_000 / 8, uploadThroughput: 400_000 / 8 })
+    const times = []
+    for (let i = 0; i < 4; i++) {
+      const started = Date.now()
+      await page.reload({ waitUntil: 'commit' })
+      await page.getByText('Up 0.3 since January').waitFor({ timeout: 15_000 })
+      times.push(Date.now() - started)
+    }
+    await page.locator('.recharts-line-dots circle').first().waitFor({ timeout: 15_000 })
+    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
+    const p75 = [...times].sort((a, b) => a - b)[2]
+    assert.ok(p75 <= 2500, `summary card after ${times.join(', ')} ms on Slow 4G (p75 ${p75} ms)`)
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass(`Dashboard on Slow 4G from a warm session: summary card at p75 ${p75} ms (budget 2,500 ms), charts load after it`)
+  }
+
   // Subject labels, trends and explanations (P2-ANL #49: DASH-005, ANALYSIS-004).
   {
     const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
@@ -1442,11 +1505,11 @@ try {
     const group = (name) => card.locator('div:has(> h3)').filter({ has: page.getByRole('heading', { name }) }).locator('li')
     const stronger = group('Stronger subjects')
     const attention = group('Subjects needing attention')
-    assert.deepEqual(await stronger.allInnerTexts().then(rows => rows.map(r => r.replace(/\s+/g, ' ').trim())), [
+    assert.deepEqual(await stronger.allInnerTexts().then(rows => rows.map(words)), [
       'Biology Above your average in 6 of the last 6 months, by about 1.6 High confidence',
       'Chemistry Above your average in 6 of the last 6 months, by about 0.8 Medium confidence',
     ])
-    assert.deepEqual(await attention.allInnerTexts().then(rows => rows.map(r => r.replace(/\s+/g, ' ').trim())), [
+    assert.deepEqual(await attention.allInnerTexts().then(rows => rows.map(words)), [
       'Mathematics Below your average in 6 of the last 6 months, by about 1.4 High confidence',
       'Physics Below your average in 5 of the last 5 months, by about 1.0 Medium confidence',
     ])
@@ -1462,7 +1525,7 @@ try {
     await attention.first().getByRole('button').click()
     const explain = page.locator('section', { has: page.getByRole('heading', { name: 'What your scores show' }) })
     await explain.waitFor()
-    const text = (await explain.innerText()).replace(/\s+/g, ' ')
+    const text = words(await explain.innerText())
     assert.match(text, /In the last 6 months, Mathematics was below your overall average in 6 of them, by about 1\.4 on average\. High confidence This pattern has been clear for several months\./)
     assert.match(text, /This school year \(6 months of scores\) it has gone down, by about 0\.3 a month\. Medium confidence This pattern shows up in most months so far\./)
     assert.match(text, /Things that sometimes help .*Looking back at recent tests.*Suggestions only: monthly scores cannot show why a result changed\./)
@@ -1471,7 +1534,7 @@ try {
 
     // A volatile, neutral subject: the range, and help for up-and-down months.
     await page.getByRole('button', { name: /^English/ }).last().click()
-    const english = (await explain.innerText()).replace(/\s+/g, ' ')
+    const english = words(await explain.innerText())
     assert.match(english, /English is close to your overall average\./)
     assert.match(english, /It has changed a lot from month to month, between 5 and 8\./)
     assert.match(english, /Writing down when tests happen/)
@@ -1518,8 +1581,8 @@ try {
     await quiz.page.getByRole('button', { name: 'See my results' }).click()
     await quiz.page.getByRole('heading', { name: 'Your topics' }).waitFor()
     const topicRows = await quiz.page.locator('section').first().locator('li').allInnerTexts()
-    assert.deepEqual(topicRows.map(r => r.replace(/\s+/g, ' ').trim()), ['Algebra 2 of 3 correct Developing', 'Geometry 1 of 1 correct Not enough questions to judge'])
-    const review = (await quiz.page.locator('section').nth(1).innerText()).replace(/\s+/g, ' ')
+    assert.deepEqual(topicRows.map(words), ['Algebra 2 of 3 correct Developing', 'Geometry 1 of 1 correct Not enough questions to judge'])
+    const review = words(await quiz.page.locator('section').nth(1).innerText())
     assert.match(review, /If 2x = 8, what is x\? Your answer: A\. 2 \(Not correct\) Correct answer: C\. 4 Why: Divide both sides by 2\. Explanation drafted with AI and checked by a teacher/)
     assert.match(review, /Your answer: B\. 3 \(Correct\) Why: Take 2 from both sides\./)
     await shot(quiz.page, 'my-scores-22-quiz-result-en-mobile')
@@ -1557,7 +1620,7 @@ try {
     await page.reload({ waitUntil: 'domcontentloaded' })
     const week = page.locator('section', { has: page.getByRole('heading', { name: 'This week' }) })
     await week.waitFor()
-    const rows = (await week.locator('li').allInnerTexts()).map(r => r.replace(/\s+/g, ' ').trim())
+    const rows = (await week.locator('li').allInnerTexts()).map(words)
     assert.deepEqual(rows, [
       'Enter your March scores March scores are not entered yet. About 2 min Enter scores Done Not now Not helpful',
       'Practice: Algebra Because Algebra was Needs practice in your quiz on 12 Oct 2026. About 8 min Practise Done Not now Not helpful',
@@ -1738,6 +1801,15 @@ try {
       declared_at: '2026-10-20T05:00:00Z', confirm_by: '2026-10-27T05:00:00Z', confirmed_at: '2026-10-21T05:00:00Z', reconfirm_by: null, removed_at: null, removed_by: null }]
     const { page, mock } = parent
     await page.goto(`${base}/academy/family`, { waitUntil: 'domcontentloaded' })
+    // BILLING-005: the family plan card, before and after buying.
+    const planCard = page.locator('section', { has: page.getByRole('heading', { name: 'Family plan' }) })
+    await planCard.getByText('Academy Premium for you, and Schooling Premium for up to 3 linked children: 79,000 kip a month or 790,000 kip a year.').waitFor()
+    assert.equal(await planCard.getByRole('link', { name: 'See plans' }).getAttribute('href'), '/academy/subscription')
+    mock.state.familyPlan = { active: true, until: '2026-11-27T05:00:00Z', seats: 3, prices: {}, children: [
+      { link_id: 'gl7', name: 'Noy', covered: true }, { link_id: 'gl8', name: 'Kham', covered: true }, { link_id: 'gl9', name: 'Vone', covered: true }, { link_id: 'gl10', name: 'Dao', covered: false }] }
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await planCard.getByText('Your family plan covers Noy, Kham, Vone until 27 Nov 2026.').waitFor()
+    await planCard.getByText('Not covered: Dao. The plan covers the first 3 linked children.').waitFor()
     const card = page.locator('section', { has: page.getByRole('heading', { name: 'Monthly reports by e-mail' }) })
     assert.equal(await card.getByLabel('Include scores in the e-mail', { exact: false }).isChecked(), false, 'scores are off unless chosen')
     await card.getByRole('button', { name: 'E-mail them to mother@example.com' }).click()
@@ -1776,7 +1848,7 @@ try {
     await lo.page.getByRole('heading', { name: 'ລາຍງານປະຈຳເດືອນທາງອີເມວ' }).waitFor()
     await shot(lo.page, 'my-scores-guardians-7-email-lo-mobile')
     await lo.context.close()
-    pass('Guardian e-mails: opt in from the Family page with scores off by default, confirmation link sent and waiting; a bad link is refused, the right link confirms; include scores saved; one-click unsubscribe from the e-mail, and from a Premium-ending e-mail turns off account e-mails; Lao card; axe clean')
+    pass('Family plan card: price before buying, covered and not-covered children after. Guardian e-mails: opt in from the Family page with scores off by default, confirmation link sent and waiting; a bad link is refused, the right link confirms; include scores saved; one-click unsubscribe from the e-mail, and from a Premium-ending e-mail turns off account e-mails; Lao card; axe clean')
   }
 
   // Career guidance (P4-CAR #55): resume the questionnaire where it stopped, optional preferences, 3–6 options with reasons
@@ -2075,7 +2147,8 @@ try {
     await week.getByText('Review Mathematics: redo exercises you found hard').waitFor()
     await week.getByText('Still want to do this? It has moved once already.').waitFor()
     await page.getByText('3 of 4 tasks done · 55 min').waitFor()
-    assert.equal(await page.getByText(/streak|missed|failed/i).count(), 0, 'no streaks or negative words')
+    // The Academy menu's own Home line mentions streaks; the planner itself must not.
+    assert.equal(await page.locator('main').getByText(/streak|missed|failed/i).count(), 0, 'no streaks or negative words')
     await shot(page, 'my-scores-planner-1-en-mobile')
     await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
     const violations = await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' '))))
@@ -2129,6 +2202,7 @@ try {
     await page.getByText('You have used this term’s check for this subject. Re-tests come with Academy Premium.').waitFor()
     await page.getByText('Explanations of what your scores show, month by month, come with Academy Premium.').waitFor()
     await page.getByRole('link', { name: 'See your last quiz results' }).waitFor()
+    await chartsDrawn(page)
     assert.equal(await page.locator('.recharts-line-curve').count() > 0, true, 'the subject chart stays')
     await shot(page, 'my-scores-premium-2-subject-en-mobile')
 
@@ -2227,6 +2301,7 @@ try {
     await page.goto(`${base}/academy/scores`, { waitUntil: 'domcontentloaded' })
     await page.getByText('ເພີ່ມຂຶ້ນ 0.3 ຈາກ ມັງກອນ').waitFor()
     await page.getByText('ບ່ອນຫວ່າງ ແມ່ນເດືອນທີ່ບໍ່ມີຄ່າສະເລ່ຍ.').waitFor()
+    await chartsDrawn(page)
     assert.equal(await page.locator('.recharts-line-dots circle').count(), 5, 'gap month has no point')
     await shot(page, 'my-scores-17-dashboard-lo-desktop')
     assert.deepEqual(errors, [])

@@ -62,7 +62,10 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) return 'react-vendor'
+          // clsx is used by every page (cn) and by recharts; left unassigned,
+          // Rollup puts it in 'charts' and every page then loads the charts
+          // chunk (DASH-006, checked by scripts/bundle-budget.mjs).
+          if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom') || id.includes('/clsx/')) return 'react-vendor'
           if (id.includes('recharts') || id.includes('d3-')) return 'charts'
           if (id.includes('html2canvas')) return 'html2canvas'
           if (id.includes('@supabase')) return 'supabase'

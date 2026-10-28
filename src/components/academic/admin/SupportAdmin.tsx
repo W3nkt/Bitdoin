@@ -83,7 +83,7 @@ export function SupportAdmin({ isAdmin = false }: { isAdmin?: boolean }) {
           </dl>
 
           <h3 className="mt-6 text-sm font-black">School years</h3>
-          <div className="mt-2 overflow-x-auto">
+          <div tabIndex={0} className="mt-2 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 <tr><th className="py-2 pr-4">Year</th><th className="py-2 pr-4">Grade</th><th className="py-2 pr-4">State</th><th className="py-2 pr-4">School</th><th className="py-2 pr-4">Months saved</th><th className="py-2">Drafts</th></tr>
@@ -147,7 +147,7 @@ function ScoresView({ enrolments }: { enrolments: HistoryEnrolment[] }) {
         <section key={enrolment.enrolment_id}>
           <h3 className="text-sm font-black">{enrolment.academic_year} · {enrolment.grade.label_en}</h3>
           {(enrolment.terms ?? []).flatMap(term => term.periods).map(period => (
-            <div key={period.id} className="mt-2 overflow-x-auto">
+            <div key={period.id} tabIndex={0} className="mt-2 overflow-x-auto">
               <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{period.label_en} · {period.entry.state}</p>
               <table className="mt-1 w-full min-w-[360px] text-left text-sm">
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

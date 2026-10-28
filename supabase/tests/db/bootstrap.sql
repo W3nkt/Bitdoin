@@ -107,7 +107,12 @@ create table public.premium_plans (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
-  price_lak integer not null default 0
+  description text not null default '',
+  price_lak integer not null default 0,
+  interval text not null default 'month',
+  features text[] not null default '{}',
+  is_active boolean not null default true,
+  sort_order integer not null default 0
 );
 insert into public.premium_plans (slug, name, price_lak) values ('free', 'Free', 0), ('premium-monthly', 'Premium Monthly', 39000);
 create table public.premium_subscriptions (

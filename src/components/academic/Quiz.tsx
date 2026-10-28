@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CircleDot, Info, ListChecks, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CloudUpload, Info, ListChecks, Sparkles, Tag } from 'lucide-react'
 import { formatDate } from '@/lib/academic/format'
 import { useToast } from '@/components/ui/Toast'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import { AcademicError } from '@/lib/academic/errors'
-import { useAnswerQuizItem, useFinishQuiz, useQuizAttempt, useQuizOffer, useQuizResult, type MasteryBand, type QuizOptionView } from '@/lib/academic/api'
+import { useAnswerQuizItem, useFinishQuiz, useQuizAttempt, useQuizOffer, useQuizResult, type QuizOptionView } from '@/lib/academic/api'
 import { cn } from '@/lib/utils'
 import { MyScoresNotice } from './MyScoresShell'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
+import { CardTitle, MasteryPill, OptionLetter } from './visuals'
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
 const primary = 'inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-black text-white hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50'
@@ -38,15 +39,15 @@ export function QuizOffer({ subjectEnrolmentId, needsAttention }: { subjectEnrol
           <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />{t('quiz.conflict')}
         </p>
       )}
-      <h2 className="flex items-center gap-2 text-lg font-black"><ListChecks aria-hidden className="h-5 w-5 shrink-0" />{t('quiz.offer.cta')}</h2>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('quiz.offer.body', { count: diagnostic.items })}</p>
+      <CardTitle emoji="🧩" color="#8b5cf6" title={t('quiz.offer.cta')} />
+      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('quiz.offer.body', { count: diagnostic.items })}</p>
       {!startId && retakeFrom && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('quiz.offer.retakeFrom', { date: formatDate(retakeFrom, language) })}</p>}
       {locked && <PremiumNote body="premium.diagnostic" />}
       <div className="mt-4 flex flex-wrap gap-2">
         {startId && (
           <Link to={`/academy/scores/quiz/${startId}`} className={primary}>{label}<ArrowRight aria-hidden className="h-4 w-4" /></Link>
         )}
-        {last && <Link to={`/academy/scores/quiz/result/${last.id}`} className={secondary}>{t('quiz.offer.lastResult')}</Link>}
+        {last && <Link to={`/academy/scores/quiz/result/${last.id}`} className={secondary}><ListChecks aria-hidden className="h-4 w-4" />{t('quiz.offer.lastResult')}</Link>}
       </div>
     </section>
   )
@@ -98,10 +99,10 @@ export function QuizRunner({ diagnosticId }: { diagnosticId: string }) {
   return (
     <div className="space-y-4">
       <section className={card}>
-        <p className="text-sm font-bold text-slate-600 dark:text-slate-400">{lo ? view.diagnostic.title_lo : view.diagnostic.title_en}</p>
+        <p className="flex items-center gap-2 text-sm font-bold text-slate-600 dark:text-slate-400"><span aria-hidden className="text-lg">🧩</span>{lo ? view.diagnostic.title_lo : view.diagnostic.title_en}</p>
         <div className="mt-2 flex items-center justify-between gap-3 text-sm font-black">
-          <span>{t('quiz.progress', { n: index + 1, total })}</span>
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{t('quiz.topic', { topic: lo ? item.topic.name_lo : item.topic.name_en })}</span>
+          <span className="rounded-full bg-indigo-600 px-3 py-1 text-white">{t('quiz.progress', { n: index + 1, total })}</span>
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400"><Tag aria-hidden className="h-3.5 w-3.5" />{t('quiz.topic', { topic: lo ? item.topic.name_lo : item.topic.name_en })}</span>
         </div>
         <div role="progressbar" aria-label={t('quiz.answers')} aria-valuemin={0} aria-valuemax={total} aria-valuenow={answered}
           className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -115,11 +116,12 @@ export function QuizRunner({ diagnosticId }: { diagnosticId: string }) {
               const selected = answers[item.id] === option.key
               return (
                 <label key={option.key}
-                  className={cn('flex cursor-pointer items-start gap-3 rounded-2xl px-4 py-3 text-base ring-1 transition-colors focus-within:ring-2 focus-within:ring-amber-500',
-                    selected ? 'bg-indigo-50 font-bold ring-indigo-500 dark:bg-indigo-500/10' : 'ring-slate-200 hover:bg-slate-50 dark:ring-slate-700 dark:hover:bg-gray-800')}>
-                  <input type="radio" name={`q-${item.id}`} value={option.key} checked={selected} onChange={() => choose(option.key)} className="mt-1 h-4 w-4 shrink-0 accent-indigo-600" />
-                  <span className="font-black">{option.key}.</span>
-                  <span className="break-words">{optionText(option, lo)}</span>
+                  className={cn('relative flex cursor-pointer items-center gap-3 rounded-2xl px-3 py-3 text-base ring-1 transition-colors focus-within:ring-2 focus-within:ring-amber-500',
+                    selected ? 'bg-indigo-50 font-bold ring-2 ring-indigo-500 dark:bg-indigo-500/10' : 'ring-slate-200 hover:bg-slate-50 dark:ring-slate-700 dark:hover:bg-gray-800')}>
+                  <input type="radio" name={`q-${item.id}`} value={option.key} checked={selected} onChange={() => choose(option.key)} className="absolute left-3 z-10 h-8 w-8 cursor-pointer appearance-none rounded-full opacity-0 disabled:cursor-default" />
+                  <OptionLetter letter={option.key} state={selected ? 'selected' : 'idle'} />
+                  <span className="min-w-0 flex-1 break-words">{optionText(option, lo)}</span>
+                  {selected && <Check aria-hidden className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300" />}
                 </label>
               )
             })}
@@ -146,12 +148,11 @@ export function QuizRunner({ diagnosticId }: { diagnosticId: string }) {
         </div>
         {index === total - 1 && answered < total && <p className="mt-2 text-right text-xs text-slate-600 dark:text-slate-400">{t('quiz.unanswered')}</p>}
       </section>
-      <p className="px-1 text-xs text-slate-600 dark:text-slate-400">{t('quiz.saved')}</p>
+      <p className="flex items-center gap-1.5 px-1 text-xs text-slate-600 dark:text-slate-400"><CloudUpload aria-hidden className="h-4 w-4" />{t('quiz.saved')}</p>
     </div>
   )
 }
 
-const BAND_ICON: Record<MasteryBand, typeof Check> = { secure: Check, developing: CircleDot, needs_practice: ArrowRight, not_enough: X }
 
 /** QUIZ-002/003: topic bands, then every question with the answer and its explanation. */
 export function QuizResult({ attemptId }: { attemptId: string }) {
@@ -168,10 +169,9 @@ export function QuizResult({ attemptId }: { attemptId: string }) {
     <div className="space-y-4">
       <section className={card}>
         <p className="text-sm font-bold text-slate-600 dark:text-slate-400">{lo ? view.diagnostic.title_lo : view.diagnostic.title_en}</p>
-        <h2 className="mt-1 text-lg font-black">{t('quiz.result.title')}</h2>
+        <div className="mt-2"><CardTitle emoji="🏁" color="#10b981" title={t('quiz.result.title')} /></div>
         <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
           {view.topics.map(topic => {
-            const Icon = BAND_ICON[topic.band]
             return (
               <li key={topic.topic_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
                 <span className="min-w-[8rem] flex-1">
@@ -181,9 +181,7 @@ export function QuizResult({ attemptId }: { attemptId: string }) {
                     {before.get(topic.topic_id) && ` · ${t('quiz.result.before', { correct: before.get(topic.topic_id)!.correct, total: before.get(topic.topic_id)!.total })}`}
                   </span>
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-black text-slate-800 ring-1 ring-slate-300 dark:text-slate-100 dark:ring-slate-600">
-                  <Icon aria-hidden className="h-3.5 w-3.5" />{t(`quiz.band.${topic.band}`)}
-                </span>
+                <MasteryPill band={topic.band} label={t(`quiz.band.${topic.band}`)} />
               </li>
             )
           })}
@@ -192,26 +190,26 @@ export function QuizResult({ attemptId }: { attemptId: string }) {
       </section>
 
       <section className={card}>
-        <h2 className="text-lg font-black">{t('quiz.review.title')}</h2>
+        <CardTitle icon={ListChecks} color="#6366f1" title={t('quiz.review.title')} />
         <ol className="mt-3 space-y-4">
           {view.items.map(item => {
             const chosen = item.options.find(option => option.key === item.chosen_key)
             const correct = item.options.find(option => option.key === item.correct_key)
             const explanation = item.explanation_lo ? text(item.explanation_lo, item.explanation_en) : null
             return (
-              <li key={item.position} className="rounded-2xl bg-slate-50 p-4 dark:bg-gray-800/60">
+              <li key={item.position} className={cn('rounded-2xl p-4 ring-1', item.is_correct ? 'bg-emerald-50/60 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/30' : 'bg-rose-50/60 ring-rose-200 dark:bg-rose-500/10 dark:ring-rose-500/30')}>
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-400">{t('quiz.progress', { n: item.position, total: view.items.length })} · {lo ? item.topic.name_lo : item.topic.name_en}</p>
                 <p className="mt-1 font-bold">{text(item.stem_lo, item.stem_en)}</p>
                 <p className="mt-2 flex items-start gap-2 text-sm">
-                  {item.is_correct ? <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : <X aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />}
+                  <span aria-hidden className="shrink-0">{item.is_correct ? '✅' : '❌'}</span>
                   <span><span className="font-black">{t('quiz.review.yours')}:</span> {chosen ? `${chosen.key}. ${optionText(chosen, lo)}` : '—'} ({t(item.is_correct ? 'quiz.review.right' : 'quiz.review.wrong')})</span>
                 </p>
                 {!item.is_correct && correct && (
-                  <p className="mt-1 pl-6 text-sm"><span className="font-black">{t('quiz.review.correct')}:</span> {correct.key}. {optionText(correct, lo)}</p>
+                  <p className="mt-1 flex items-start gap-2 text-sm"><span aria-hidden className="shrink-0">👉</span><span><span className="font-black">{t('quiz.review.correct')}:</span> {correct.key}. {optionText(correct, lo)}</span></p>
                 )}
                 {explanation && (
-                  <div className="mt-2 pl-6 text-sm text-slate-700 dark:text-slate-300">
-                    <p><span className="font-black">{t('quiz.review.explanation')}:</span> {explanation}</p>
+                  <div className="mt-2 rounded-xl bg-white/70 p-3 text-sm text-slate-700 dark:bg-gray-900/50 dark:text-slate-300">
+                    <p className="flex items-start gap-2"><span aria-hidden className="shrink-0">💡</span><span><span className="font-black">{t('quiz.review.explanation')}:</span> {explanation}</span></p>
                     {item.explanation_origin === 'ai' && (
                       <p className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-400"><Sparkles aria-hidden className="h-3.5 w-3.5" />{t('quiz.review.ai')}</p>
                     )}

@@ -44,6 +44,8 @@ export interface AcademicConfig {
   maxSubjects: number
   /** REL-001 (migration 128): set-up needs a pilot invite code. */
   pilotMode: boolean
+  /** REL-002 (migration 170): this account is in the open share; when false only a code lets it in. */
+  rolloutOpen: boolean
 }
 
 export interface SchoolMatch {
@@ -124,13 +126,15 @@ export function useAcademicConfig(enabled = true) {
     enabled,
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<AcademicConfig> => {
-      const [grades, subjects, year, levels, maxSubjects, pilotMode] = await Promise.all([
+      const [grades, subjects, year, levels, maxSubjects, pilotMode, rollout] = await Promise.all([
         supabase.from('academic_grades').select('id,code,ordinal,level,label_lo,label_en').eq('status', 'active').order('ordinal'),
         supabase.from('academic_subjects').select('id,code,name_lo,name_en,grade_min,grade_max,is_default').eq('status', 'active').order('code'),
         supabase.from('academic_years').select('id,code,start_date,end_date').eq('status', 'active').maybeSingle(),
         readSetting<string[]>('allowed_grade_levels', ['upper_secondary']),
         readSetting<number>('max_subjects_per_enrolment', 25),
         readSetting<boolean>('pilot_mode', false),
+        // Open when the check is not there yet (before migration 170); the server still decides.
+        callAcademicRpc<{ open: boolean }>('academic_rollout_status').catch(() => ({ open: true })),
       ])
       for (const result of [grades, subjects, year]) if (result.error) throw result.error
       return {
@@ -139,6 +143,7 @@ export function useAcademicConfig(enabled = true) {
         activeYear: (year.data ?? null) as AcademicYear | null,
         maxSubjects: Number(maxSubjects) || 25,
         pilotMode: pilotMode === true,
+        rolloutOpen: rollout.open !== false,
       }
     },
   })
@@ -594,10 +599,11 @@ export interface NotificationPage {
 const notificationsKey = [...academicKeys.all, 'notifications'] as const
 
 /** The inbox, newest first, 20 at a time. Page 1 also carries the unread count. */
-export function useNotifications(enabled = true) {
+export function useNotifications(enabled = true, refetchInterval?: number) {
   return useInfiniteQuery({
     queryKey: notificationsKey,
     enabled,
+    refetchInterval: enabled ? refetchInterval : false,
     retry: shouldRetryAcademic,
     staleTime: 60_000,
     initialPageParam: null as string | null,
@@ -984,12 +990,12 @@ export type FeatureCode = 'advanced_analysis' | 'diagnostic_unlimited' | 'ocr_up
 export interface Entitlements {
   enforced: boolean
   tier: 'free' | 'premium'
-  premium: { active: boolean; source: 'academy_premium' | 'manual_grant' | null; until: string | null }
+  premium: { active: boolean; source: 'academy_premium' | 'family_plan' | 'manual_grant' | null; until: string | null }
   period_key: string
   resets_at: string
   features: Partial<Record<FeatureCode, {
     enabled: boolean
-    source: 'academy_premium' | 'manual_grant' | 'free' | 'open' | null
+    source: 'academy_premium' | 'family_plan' | 'manual_grant' | 'free' | 'open' | null
     until: string | null
     quota: { limit: number; used: number; remaining: number } | null
   }>>
@@ -1569,4 +1575,16 @@ export interface SubjectBook { book_id: string; title: string; author: string | 
 export function useSubjectBooks(subjectEnrolmentId: string) {
   return useQuery({ queryKey: [...academicKeys.all, 'subject-books', subjectEnrolmentId], retry: shouldRetryAcademic, staleTime: 1000 * 60 * 10,
     queryFn: () => callAcademicRpc<SubjectBook[]>('academic_subject_books', { p_subject_enrolment_id: subjectEnrolmentId }) })
+}
+
+// ─── Family plan (BILLING-005, migration 169) ────────────────────────────────
+
+export interface FamilyPlanView {
+  active: boolean; until: string | null; seats: number
+  prices: Record<string, number> | null
+  children: { link_id: string; name: string; covered: boolean }[]
+}
+
+export function useFamilyPlan() {
+  return useQuery({ queryKey: ['family', 'plan'], retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<FamilyPlanView>('academic_family_plan') })
 }

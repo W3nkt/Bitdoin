@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, EyeOff, FileText, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { academicErrorText } from '@/components/academic/errorText'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  guardianEmailLink, previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianCareerReports, useGuardianEmail, useGuardianEmailStop, useGuardianEmailSubscribe, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
+  guardianEmailLink, previewGuardianInvite, useAcceptGuardianInvite, useFamily, useGuardianCareerReports, useFamilyPlan, useGuardianEmail, useGuardianEmailStop, useGuardianEmailSubscribe, useGuardianChild, useGuardianRemoveLink, useGuardianReport,
   type GuardianChildView, type GuardianLink, type GuardianScope, type GuardianScopes,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
 import { ReportPurchase } from '@/components/academic/CareerReport'
+import { CardTitle, DirectionChip, SubjectBadge } from '@/components/academic/visuals'
 
 // Family (P3-PAR #52: PARENT-002/003/007): a parent or guardian links to a
 // child with the code the child gave them, says how they are related and
@@ -42,7 +43,7 @@ function Join() {
 
   return (
     <section className={card}>
-      <h2 className="text-lg font-black">{t('family.join')}</h2>
+      <CardTitle as="h2" emoji="🤝" color="#14b8a6" title={t('family.join')} />
       <form onSubmit={check} className="mt-3 flex flex-wrap items-end gap-2">
         <label className="grid flex-1 basis-48 gap-1 text-sm font-bold">
           {t('family.codeLabel')}
@@ -96,7 +97,7 @@ function ChildCard({ link }: { link: GuardianLink }) {
   const name = link.student_name ?? '—'
   return (
     <li className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-      <p className="text-base font-black">{name}{link.grade ? <span className="ml-2 text-sm font-normal text-slate-600 dark:text-slate-400">{link.grade}</span> : null}</p>
+      <p className="flex items-center gap-3 text-base font-black"><span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-orange-50 text-xl dark:bg-orange-500/15">{link.status === 'active' ? '🧑‍🎓' : link.status === 'removed' ? '👋' : '⏳'}</span>{name}{link.grade ? <span className="ml-2 text-sm font-normal text-slate-600 dark:text-slate-400">{link.grade}</span> : null}</p>
       <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
         {link.status === 'pending_student' ? t('family.waiting', { name, date: formatDate(link.confirm_by, language) })
           : link.status === 'removed' ? t('family.ended', { date: formatDate(link.removed_at ?? link.declared_at, language) })
@@ -133,15 +134,15 @@ export function Family() {
           <ArrowLeft aria-hidden className="h-4 w-4" />Academy
         </Link>
         <header>
-          <h1 className="flex items-center gap-2 text-2xl font-black"><Users aria-hidden className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />{t('family.title')}</h1>
+          <h1 className="flex items-center gap-3 text-2xl font-black"><span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-2xl dark:bg-indigo-500/15">👨‍👩‍👧</span>{t('family.title')}</h1>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('family.body')}</p>
         </header>
         <Join />
         <section className={card}>
-          <h2 className="text-lg font-black">{t('family.children')}</h2>
+          <CardTitle as="h2" emoji="🧒" color="#f97316" title={t('family.children')} />
           {family.isPending ? <div className="mt-3 h-20 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
             : family.isError ? <p className="mt-2 text-sm">{academicErrorText(t, family.error)}</p>
-            : links.length === 0 ? <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('family.none')}</p>
+            : links.length === 0 ? <p className="mt-3 flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400"><span aria-hidden className="text-2xl">🔗</span>{t('family.none')}</p>
             : <ul className="mt-3 grid gap-3">{links.map(link => <ChildCard key={link.id} link={link} />)}</ul>}
           {notices.length > 0 && (
             <ul className="mt-4 grid gap-1 text-sm text-slate-600 dark:text-slate-400">
@@ -152,9 +153,33 @@ export function Family() {
             </ul>
           )}
         </section>
+        {links.length > 0 && <FamilyPlanCard />}
         {links.length > 0 && <EmailReports />}
       </div>
     </div>
+  )
+}
+
+/** BILLING-005: the family plan and which linked children it covers. */
+function FamilyPlanCard() {
+  const { t, language } = useAcademicCopy()
+  const plan = useFamilyPlan()
+  if (!plan.data) return null
+  const v = plan.data
+  const kip = (value?: number) => (value ?? 0).toLocaleString('en')
+  const covered = v.children.filter(c => c.covered).map(c => c.name)
+  const waiting = v.children.filter(c => !c.covered).map(c => c.name)
+  return (
+    <section className={card}>
+      <CardTitle as="h2" emoji="👑" color="#d59627" title={t('family.plan.title')} />
+      {v.active ? <>
+        <p role="status" className="mt-1 text-sm font-bold">{t('family.plan.covers', { names: covered.join(', '), date: v.until ? formatDate(v.until, language) : '—' })}</p>
+        {waiting.length > 0 && <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('family.plan.notCovered', { names: waiting.join(', '), seats: v.seats })}</p>}
+      </> : <>
+        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('family.plan.body', { seats: v.seats, monthly: kip(v.prices?.['family-monthly']), yearly: kip(v.prices?.['family-yearly']) })}</p>
+        <Link to="/academy/subscription" className="mt-3 inline-block text-sm font-black text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">{t('family.plan.see')}</Link>
+      </>}
+    </section>
   )
 }
 
@@ -238,12 +263,18 @@ const num = (value: number | string | null | undefined) => (value === null || va
 function Change({ value }: { value: number | null }) {
   const { t } = useAcademicCopy()
   if (value === null || value === undefined) return null
-  return <>{Number(value) > 0 ? t('family.up', { value: num(value) }) : Number(value) < 0 ? t('family.down', { value: num(Math.abs(Number(value))) }) : t('family.same')}</>
+  const direction = Number(value) > 0 ? 'up' : Number(value) < 0 ? 'down' : 'same'
+  return (
+    <span className="inline-flex items-center gap-1.5 align-middle">
+      <DirectionChip direction={direction} />
+      {direction === 'up' ? t('family.up', { value: num(value) }) : direction === 'down' ? t('family.down', { value: num(Math.abs(Number(value))) }) : t('family.same')}
+    </span>
+  )
 }
 
 function NotShared({ name }: { name: string }) {
   const { t } = useAcademicCopy()
-  return <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.notShared', { name })}</p>
+  return <p className="mt-2 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"><EyeOff aria-hidden className="h-4 w-4 shrink-0" />{t('family.notShared', { name })}</p>
 }
 
 /** /academy/family/:linkId — one child, never compared with another (PARENT-005). */
@@ -262,29 +293,35 @@ export function FamilyChild() {
         {child.isPending ? <div className="h-80 animate-pulse rounded-3xl bg-slate-200 dark:bg-slate-800" />
           : !view ? <section className={card}><p>{t('family.childGone')}</p></section> : <>
           <header>
-            <h1 className="text-2xl font-black">{view.name}</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">{[lo ? view.grade_lo : view.grade_en, view.school_year].filter(Boolean).join(' · ')}</p>
+            <div className="flex items-center gap-3">
+              <span aria-hidden className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-orange-50 text-3xl dark:bg-orange-500/15">🧑‍🎓</span>
+              <div>
+                <h1 className="text-2xl font-black">{view.name}</h1>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{[lo ? view.grade_lo : view.grade_en, view.school_year].filter(Boolean).join(' · ')}</p>
+              </div>
+            </div>
             <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('family.childIntro', { name: view.name })}</p>
           </header>
 
           {view.suggestions.length > 0 && (
             <section className={card}>
-              <h2 className="text-lg font-black">{t('family.support')}</h2>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                {view.suggestions.map((item, index) => <li key={index}>{t(`family.suggest.${item.kind}` as AcademicCopyKey, { subject: (lo ? item.subject_lo : item.subject_en) ?? '' })}</li>)}
+              <CardTitle as="h2" emoji="💬" color="#ec4899" title={t('family.support')} />
+              <ul className="mt-3 space-y-1.5 text-sm">
+                {view.suggestions.map((item, index) => <li key={index} className="flex gap-2"><span aria-hidden>👉</span>{t(`family.suggest.${item.kind}` as AcademicCopyKey, { subject: (lo ? item.subject_lo : item.subject_en) ?? '' })}</li>)}
               </ul>
             </section>
           )}
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.reports')}</h2>
+            <CardTitle as="h2" emoji="📨" color="#6366f1" title={t('family.reports')} />
             {!view.scopes.scores ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.reportsNeedScores', { name: view.name })}</p>
               : !view.reports_entitled ? <p className="mt-1 text-sm">{t('family.reportsPremium')} <Link to="/academy/subscription" className="font-black text-indigo-700 hover:underline dark:text-indigo-300">{t('premium.see')}</Link></p>
               : view.reports.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.reportsNone')}</p>
               : (
                 <ul className="mt-2 grid gap-1 text-sm">
                   {view.reports.map(report => (
-                    <li key={report.id}>
+                    <li key={report.id} className="flex flex-wrap items-center gap-1">
+                      <FileText aria-hidden className="mr-1 h-4 w-4 text-indigo-600 dark:text-indigo-300" />
                       <Link to={`/academy/family/${view.link_id}/reports/${report.id}`} className="font-bold text-indigo-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-indigo-300">
                         {lo ? report.label_lo : report.label_en}
                       </Link>
@@ -297,13 +334,13 @@ export function FamilyChild() {
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.months')}</h2>
+            <CardTitle as="h2" emoji="📅" color="#0ea5e9" title={t('family.months')} />
             {view.scores?.hidden_recent && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.hiddenRecent', { name: view.name })}</p>}
             {!view.scores ? <NotShared name={view.name} /> : view.scores.months.length === 0 ? <p className="mt-1 text-sm">{t('family.noMonths')}</p> : (
               <ul className="mt-2 divide-y divide-slate-100 text-sm dark:divide-slate-800">
                 {view.scores.months.map(month => (
-                  <li key={month.label_en} className="flex items-center justify-between gap-3 py-2">
-                    <span>{lo ? month.label_lo : month.label_en}</span>
+                  <li key={month.label_en} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                    <span className="inline-flex items-center gap-2"><CalendarDays aria-hidden className="h-4 w-4 text-sky-600 dark:text-sky-300" />{lo ? month.label_lo : month.label_en}</span>
                     <span className="tabular-nums"><span className="font-black">{num(month.average)}</span> <span className="text-slate-600 dark:text-slate-400"><Change value={month.change} /></span></span>
                   </li>
                 ))}
@@ -313,11 +350,13 @@ export function FamilyChild() {
 
           {view.scores && view.scores.subjects.length > 0 && (
             <section className={card}>
-              <h2 className="text-lg font-black">{t('family.subjects')}</h2>
+              <CardTitle as="h2" emoji="📚" color="#6366f1" title={t('family.subjects')} />
               <ul className="mt-2 grid gap-2">
                 {view.scores.subjects.map(subject => (
-                  <li key={subject.name_en} className="rounded-2xl bg-slate-50 px-3 py-2 text-sm dark:bg-gray-800/60">
-                    <p className="flex flex-wrap items-baseline justify-between gap-2">
+                  <li key={subject.name_en} className="flex items-start gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-sm dark:bg-gray-800/60">
+                    <SubjectBadge code={null} name={subject.name_en} size="sm" />
+                    <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-bold">{lo ? subject.name_lo : subject.name_en}</span>
                       <span className="tabular-nums">{t('family.latest', { value: num(subject.latest) })} <span className="text-slate-600 dark:text-slate-400"><Change value={subject.change} /></span></span>
                     </p>
@@ -326,6 +365,7 @@ export function FamilyChild() {
                         : [subject.label && subject.label !== 'neutral' && subject.label !== 'insufficient_evidence' ? t(`family.label.${subject.label}` as AcademicCopyKey) : null,
                            subject.trend === 'improving' || subject.trend === 'declining' ? t(`family.trend.${subject.trend}` as AcademicCopyKey) : null].filter(Boolean).join(' · ')}
                     </p>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -333,17 +373,17 @@ export function FamilyChild() {
           )}
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.plan')}</h2>
+            <CardTitle as="h2" emoji="🗓️" color="#f97316" title={t('family.plan')} />
             {!view.plan ? <NotShared name={view.name} /> : <>
-              {view.plan.has_plan ? <p className="mt-1 text-sm">{t('family.week', { done: view.plan.week.done, total: view.plan.week.total })}</p> : <p className="mt-1 text-sm">{t('family.noPlan')}</p>}
-              <ul className="mt-1 list-disc pl-5 text-sm">
-                {view.plan.goals.map((goal, index) => <li key={index}>{t('family.goal', { subject: lo ? goal.subject_lo : goal.subject_en, target: num(goal.target), period: lo ? goal.target_period.label_lo : goal.target_period.label_en })}</li>)}
+              {view.plan.has_plan ? <p className="mt-2 flex items-center gap-2 text-sm"><CheckCircle2 aria-hidden className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />{t('family.week', { done: view.plan.week.done, total: view.plan.week.total })}</p> : <p className="mt-2 text-sm">{t('family.noPlan')}</p>}
+              <ul className="mt-1 space-y-1 text-sm">
+                {view.plan.goals.map((goal, index) => <li key={index} className="flex gap-2"><span aria-hidden>🎯</span>{t('family.goal', { subject: lo ? goal.subject_lo : goal.subject_en, target: num(goal.target), period: lo ? goal.target_period.label_lo : goal.target_period.label_en })}</li>)}
               </ul>
             </>}
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.careers')}</h2>
+            <CardTitle as="h2" emoji="🧭" color="#14b8a6" title={t('family.careers')} />
             {!view.careers ? <NotShared name={view.name} /> : <>
               {view.careers.interests && (
                 <ul className="mt-1 flex flex-wrap gap-2 text-sm">
@@ -357,14 +397,14 @@ export function FamilyChild() {
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('careers.report.title')}</h2>
+            <CardTitle as="h2" emoji="📄" color="#6366f1" title={t('careers.report.title')} />
             <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.report.body')}</p>
             <ChildCareerReports linkId={view.link_id} name={view.name} shared={!!view.scopes.careers} />
             <ReportPurchase forGuardian />
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.goals')}</h2>
+            <CardTitle as="h2" emoji="🎯" color="#f97316" title={t('family.goals')} />
             {!view.scopes.goals_text ? <NotShared name={view.name} /> : view.goals_text?.text ? <p className="mt-1 whitespace-pre-line text-sm">{view.goals_text.text}</p> : <p className="mt-1 text-sm">{t('family.noGoals')}</p>}
           </section>
         </>}
@@ -423,13 +463,13 @@ export function FamilyReport() {
           </header>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.recorded')}</h2>
+            <CardTitle as="h2" emoji="✅" color="#10b981" title={t('family.report.recorded')} />
             <p className="mt-1 text-sm">{t('family.report.recordedCount', { recorded: c.recorded.recorded ?? 0, active: c.recorded.active ?? 0 })}</p>
             {c.recorded.missing.length > 0 && <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.report.missing', { list: c.recorded.missing.map(name).join(', ') })}</p>}
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.changes')}</h2>
+            <CardTitle as="h2" emoji="📈" color="#2563eb" title={t('family.report.changes')} />
             {c.changes.mean_change !== null && <p className="mt-1 text-sm">{t('family.report.meanChange', { change: '' })}<Change value={c.changes.mean_change} /></p>}
             <ul className="mt-2 divide-y divide-slate-100 text-sm dark:divide-slate-800">
               {c.changes.subjects.map(subject => (
@@ -446,7 +486,7 @@ export function FamilyReport() {
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.stronger')}</h2>
+            <CardTitle as="h2" emoji="💪" color="#10b981" title={t('family.report.stronger')} />
             {c.stronger.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.report.none')}</p> : (
               <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
                 {c.stronger.map(item => <li key={item.name_en}><span className="font-bold">{name(item)}</span>{item.reason ? `: ${t('family.report.strongerReason', { above: item.reason.above, n: item.reason.n })}` : ''}</li>)}
@@ -455,7 +495,7 @@ export function FamilyReport() {
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.attention')}</h2>
+            <CardTitle as="h2" emoji="🎯" color="#f59e0b" title={t('family.report.attention')} />
             {c.needs_attention.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.report.none')}</p> : (
               <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
                 {c.needs_attention.map(item => <li key={item.name_en}><span className="font-bold">{name(item)}</span>{item.reason ? `: ${t('family.report.attentionReason', { below: item.reason.below, n: item.reason.n })} ${confidence(item.reason.confidence)}` : ''}</li>)}
@@ -464,14 +504,14 @@ export function FamilyReport() {
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.activities')}</h2>
+            <CardTitle as="h2" emoji="🏃" color="#8b5cf6" title={t('family.report.activities')} />
             <p className="mt-1 text-sm">{t('family.report.activityLine', { quizzes: c.activities.quizzes, practice: c.activities.practice })}</p>
             {c.activities.plan_tasks !== null && <p className="text-sm">{t('family.report.tasks', { count: c.activities.plan_tasks })}</p>}
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('family.report.effort')}</p>
           </section>
 
           <section className={card}>
-            <h2 className="text-lg font-black">{t('family.report.nextSteps')}</h2>
+            <CardTitle as="h2" emoji="👣" color="#14b8a6" title={t('family.report.nextSteps')} />
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
               {c.next_steps.map((item, index) => <li key={index}>{t(`family.suggest.${item.kind}` as AcademicCopyKey, { subject: (lo ? item.subject_lo : item.subject_en) ?? '' })}</li>)}
             </ul>

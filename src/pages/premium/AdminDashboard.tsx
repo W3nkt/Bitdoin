@@ -15,22 +15,17 @@ import {
   BrainCircuit,
   Gamepad2,
   LibraryBig,
-  Languages,
-  LogOut,
   Mail,
   MessageSquareText,
   Phone,
   ReceiptText,
   Save,
-  Settings,
   ShieldCheck,
   Sparkles,
   Users,
   WandSparkles,
   XCircle,
   TriangleAlert,
-  Moon,
-  Sun,
   Maximize2,
   Minimize2,
   Pause,
@@ -46,22 +41,18 @@ import { type ExpiringMembership, ExpiringMembersPanel, useExpiringMemberships }
 import { VerifyMemberPanel } from '@/components/premium/VerifyMemberPanel'
 import { isMembershipExpired } from '@/lib/academyMembership'
 import { draftedDeclineReason, PaymentAiReviewCard, usePaymentAiReviews } from '@/components/premium/PaymentAiReviewCard'
-import { AdminProfileModal } from '@/components/admin/AdminProfileModal'
 import { WhatsAppIcon } from '@/components/ui/ContactIcons'
-import { useTheme } from '@/lib/theme'
-import { PwenLogoLockup } from '@/components/brand/PwenLogo'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { DashboardSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { useLanguage } from '@/context/LanguageContext'
-import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { firstRelation } from '@/lib/supabaseRelations'
 import { premiumText, usePremiumTranslation } from '@/i18n/premium'
 import { AcademyAdminMenu } from '@/components/admin/AcademyAdminMenu'
-import { AdminPlatformSwitch } from '@/components/admin/AdminPlatformSwitch'
+import { AcademyAdminHeader } from '@/components/admin/AcademyAdminHeader'
 import { PushAnnouncementComposer } from '@/components/admin/PushAnnouncementComposer'
 import { PremiumOverviewAnalytics } from '@/components/premium/PremiumOverviewAnalytics'
 import { cn, formatDate, formatDateTime, formatPrice } from '@/lib/utils'
@@ -407,14 +398,8 @@ export function PremiumAdminDashboard() {
   usePremiumTranslation()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { language, setLanguage, currency } = useLanguage()
-  const theme = useTheme(state => state.theme)
-  const toggleTheme = useTheme(state => state.toggleTheme)
-  const { profile, signOut } = useAuth()
+  const { language, currency } = useLanguage()
   const { success, error } = useToast()
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const [profileSettingsOpen, setProfileSettingsOpen] = useState(false)
-  const profileMenuRef = useRef<HTMLDivElement>(null)
   const [reviewingSubscriptionId, setReviewingSubscriptionId] = useState<string | null>(null)
   const [rejectingRequest, setRejectingRequest] = useState<RejectingRequest | null>(null)
   const [dismissingRequest, setDismissingRequest] = useState<PremiumSubscription | null>(null)
@@ -448,33 +433,6 @@ export function PremiumAdminDashboard() {
   const [forgeBusy, setForgeBusy] = useState<string | null>(null)
   const staleRecoveryRunId = useRef<string | null>(null)
   const [activeSection, setActiveSection] = useState<PremiumAdminSection>('overview')
-
-  useEffect(() => {
-    if (!profileMenuOpen) return
-
-    function closeProfileMenu(event: MouseEvent) {
-      if (!profileMenuRef.current?.contains(event.target as Node)) {
-        setProfileMenuOpen(false)
-      }
-    }
-
-    function closeProfileMenuOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setProfileMenuOpen(false)
-    }
-
-    document.addEventListener('mousedown', closeProfileMenu)
-    document.addEventListener('keydown', closeProfileMenuOnEscape)
-    return () => {
-      document.removeEventListener('mousedown', closeProfileMenu)
-      document.removeEventListener('keydown', closeProfileMenuOnEscape)
-    }
-  }, [profileMenuOpen])
-
-  async function handleSignOut() {
-    setProfileMenuOpen(false)
-    await signOut()
-    navigate('/')
-  }
 
   const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['premium-admin', 'plans'],
@@ -1470,99 +1428,7 @@ export function PremiumAdminDashboard() {
 
   return (
     <div className="premium-i18n min-h-screen overflow-x-clip bg-slate-50 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:pr-24">
-          <div className="flex min-w-0 items-center gap-3">
-            <PwenLogoLockup
-              textClassName="text-white"
-              subTextClassName="text-primary-200"
-              markClassName="rounded-xl bg-white/10 p-1"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <AdminPlatformSwitch platform="academy" />
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-              className="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-primary-100 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 dark:text-amber-300"
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
-            <div ref={profileMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setProfileMenuOpen(open => !open)}
-                aria-haspopup="menu"
-                aria-expanded={profileMenuOpen}
-                aria-label="Open admin profile menu"
-                className="flex items-center gap-2 rounded-full bg-white/10 p-1.5 pr-3 text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-              >
-                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-400 font-black text-primary-950 ring-2 ring-white/20">
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    profile?.name?.charAt(0).toUpperCase() ?? 'A'
-                  )}
-                </span>
-                <span className="hidden max-w-32 truncate text-sm font-bold sm:block">{profile?.name ?? 'Admin'}</span>
-                <ChevronDown className={cn('h-4 w-4 transition-transform', profileMenuOpen && 'rotate-180')} />
-              </button>
-
-              {profileMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-900 p-2 text-slate-900 dark:text-slate-100 shadow-2xl"
-                >
-                  <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 px-3 py-3">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 dark:bg-amber-500/15 font-black text-amber-800 dark:text-amber-300">
-                      {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        profile?.name?.charAt(0).toUpperCase() ?? 'A'
-                      )}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-black">{profile?.name ?? 'Admin'}</span>
-                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{profile?.email ?? profile?.role}</span>
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => { setProfileMenuOpen(false); setProfileSettingsOpen(true) }}
-                    className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
-                  >
-                    <Settings className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    Profile settings
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => setLanguage(language === 'lo' ? 'en' : 'lo')}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800"
-                  >
-                    <Languages className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                    <span className="flex-1">Language</span>
-                    <span className="text-xs font-black text-primary-700 dark:text-primary-300">{language === 'lo' ? 'ລາວ' : 'English'}</span>
-                  </button>
-                  <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={handleSignOut}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
+      <AcademyAdminHeader />
 
       <div className="border-b border-primary-800 bg-primary-900 text-white">
         <div className="mx-auto max-w-7xl px-4 pb-8 pt-4">
@@ -2389,7 +2255,6 @@ export function PremiumAdminDashboard() {
         )}
       </Modal>
 
-      <AdminProfileModal open={profileSettingsOpen} onClose={() => setProfileSettingsOpen(false)} />
     </div>
   )
 }

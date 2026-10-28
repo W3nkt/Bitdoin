@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useAcademicCopy } from '@/lib/academic/copy'
 import type { AcademicSubject, SubjectItem } from '@/lib/academic/api'
 import { cn } from '@/lib/utils'
+import { SubjectBadge } from './visuals'
 
 /**
  * Subject list for an enrolment (PROFILE-003): grade defaults pre-selected,
@@ -37,7 +38,7 @@ export function SubjectPicker({ catalogue, value, onChange, max, error }: {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label={t('subjects.title')}>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={t('subjects.title')}>
         {catalogue.map(subject => {
           const on = selectedIds.has(subject.id)
           return (
@@ -48,24 +49,27 @@ export function SubjectPicker({ catalogue, value, onChange, max, error }: {
               disabled={!on && full}
               onClick={() => toggle(subject)}
               className={cn(
-                'rounded-full px-4 py-2 text-sm font-bold ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40',
+                'relative flex items-center gap-2.5 rounded-2xl p-2.5 text-left text-sm font-bold ring-1 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-40',
                 on
-                  ? 'bg-indigo-600 text-white ring-indigo-600'
+                  ? 'bg-indigo-50 text-indigo-950 ring-2 ring-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-50'
                   : 'bg-white text-slate-700 ring-slate-200 hover:ring-indigo-300 dark:bg-gray-900 dark:text-slate-200 dark:ring-slate-700',
               )}
             >
-              {lo ? subject.name_lo : subject.name_en}
+              <SubjectBadge code={subject.code} name={subject.name_en} size="sm" />
+              <span className="min-w-0 flex-1 break-words">{lo ? subject.name_lo : subject.name_en}</span>
+              {on && <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-indigo-600 text-white"><Check className="h-3.5 w-3.5" /></span>}
             </button>
           )
         })}
         {customItems.map(item => (
-          <span key={item.custom_name} className="inline-flex items-center gap-1 rounded-full bg-indigo-600 py-2 pl-4 pr-2 text-sm font-bold text-white">
-            {item.custom_name}
+          <span key={item.custom_name} className="flex items-center gap-2.5 rounded-2xl bg-indigo-50 p-2.5 text-sm font-bold text-indigo-950 ring-2 ring-indigo-500 dark:bg-indigo-500/15 dark:text-indigo-50">
+            <SubjectBadge code={null} name={item.custom_name} size="sm" />
+            <span className="min-w-0 flex-1 break-words">{item.custom_name}</span>
             <button
               type="button"
               aria-label={t('subjects.remove', { name: item.custom_name })}
               onClick={() => onChange(value.filter(other => other !== item))}
-              className="grid h-6 w-6 place-items-center rounded-full hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-indigo-500/30"
             >
               <X className="h-3.5 w-3.5" />
             </button>

@@ -22,7 +22,7 @@ export function AcademyHeaderActions({ guestAction }: { guestAction?: ReactNode 
     : (lo ? 'ປ່ຽນເປັນໂໝດມືດ' : 'Switch to dark mode')
 
   return (
-    <div className={cn('ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5', profile && location.pathname.startsWith('/academy/') && 'lg:mr-16')}>
+    <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5">
       <button data-no-premium-translate type="button" onClick={() => setLanguage(lo ? 'en' : 'lo')} aria-label={lo ? 'English' : 'ລາວ'} title={lo ? 'English' : 'ລາວ'} className={cn(controlClass, 'gap-1.5 px-2.5 text-xs font-bold sm:px-3')}>
         <Languages className="h-4 w-4" />
         <span className="hidden min-[420px]:inline">{lo ? 'English' : 'ລາວ'}</span>

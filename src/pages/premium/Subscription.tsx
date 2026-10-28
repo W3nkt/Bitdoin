@@ -44,7 +44,7 @@ import { MemberGreeting, TodayNudges } from '@/components/premium/MemberGreeting
 import { PushOptInPrompt } from '@/components/notifications/PushOptInPrompt'
 import { academyNavigation, academySectionPath, type AcademySectionId } from '@/components/academy/academyMenuItems'
 import { PaymentMethodModal, PlanDetailsModal, type CheckoutPaymentMethod } from '@/components/premium/SubscribeCheckout'
-import { AcademyHeaderActions } from '@/components/academy/AcademyHeaderActions'
+import { AcademyPageHeader, AcademyPageTitle } from '@/components/academy/AcademyPageHeader'
 import { Button } from '@/components/ui/Button'
 import { celebrate } from '@/lib/pageTransition'
 import { Card } from '@/components/ui/Card'
@@ -1070,23 +1070,7 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
 
   return (
     <div className="premium-i18n min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
-      <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:h-[72px] sm:gap-3">
-          <Link to="/academy" aria-label="Bitdoin Academy" className="flex flex-none items-center gap-2.5 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
-            <span className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-gradient-to-br from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_8px_20px_-8px_rgba(247,147,26,0.8)]"><GraduationCap className="h-6 w-6" /></span>
-            <span className="hidden whitespace-nowrap font-black leading-tight sm:block" data-no-premium-translate>Bitdoin Academy</span>
-          </Link>
-          <div className="hidden min-w-0 flex-1 text-center md:block">
-            <h1 className="truncate text-lg font-black lg:text-xl">
-              {lo ? pageInfo.lo : pageInfo.en}
-            </h1>
-            <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400 lg:text-sm">
-              {lo ? pageInfo.detailLo : pageInfo.detail}
-            </p>
-          </div>
-          <AcademyHeaderActions />
-        </div>
-      </header>
+      <AcademyPageHeader title={lo ? pageInfo.lo : pageInfo.en} detail={lo ? pageInfo.detailLo : pageInfo.detail} />
 
       {pageLoading ? (
         <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
@@ -1096,10 +1080,7 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
       ) : (
         <div className="mx-auto max-w-6xl px-4 py-6 pb-32">
           <div className="flex min-w-0 flex-col gap-6">
-          <div data-no-premium-translate className="flex items-center gap-3 md:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white shadow-sm dark:bg-slate-900" style={{ color: pageInfo.color }}><pageInfo.icon className="h-5 w-5" /></span>
-            <div><h1 className="text-xl font-black">{lo ? pageInfo.lo : pageInfo.en}</h1><p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{lo ? pageInfo.detailLo : pageInfo.detail}</p></div>
-          </div>
+          <AcademyPageTitle icon={pageInfo.icon} color={pageInfo.color} title={lo ? pageInfo.lo : pageInfo.en} detail={lo ? pageInfo.detailLo : pageInfo.detail} />
           {isMemberActive ? (
             <>
               {page === 'home' && showExpiryWarning && subscription?.plan && (

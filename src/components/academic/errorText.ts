@@ -10,6 +10,7 @@ const CODE_TEXT: Partial<Record<string, AcademicCopyKey>> = {
   PILOT_CODE_REQUIRED: 'pilot.error.required',
   PILOT_CODE_INVALID: 'pilot.error.invalid',
   PILOT_FULL: 'pilot.error.full',
+  ROLLOUT_NOT_OPEN: 'rollout.error',
   QUIZ_UNAVAILABLE: 'quiz.error.unavailable',
   PRACTICE_UNAVAILABLE: 'practice.error.unavailable',
   QUIZ_CLOSED: 'quiz.error.closed',

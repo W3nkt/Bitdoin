@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bookmark, BookmarkCheck, Compass, ExternalLink, Printer, RefreshCw } from 'lucide-react'
+import { Bookmark, BookmarkCheck, ChevronDown, Clock3, ExternalLink, Play, Printer, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { careerPaths } from '@/data/careerPaths'
@@ -16,6 +16,7 @@ import { CareerProgrammes, ExamBlueprints, ProgrammeSearch, Scholarships } from 
 import { ReportCard } from './CareerReport'
 import { PremiumNote } from './PremiumNote'
 import { academicErrorText } from './errorText'
+import { CardTitle, LevelBars, areaEmoji, clusterEmoji } from './visuals'
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
 const AREAS: InterestArea[] = ['R', 'I', 'A', 'S', 'E', 'C']
@@ -48,12 +49,11 @@ function Intro({ view }: { view: CareerGuidanceView }) {
   return (
     <div className="space-y-5">
       <section className={card}>
-        <Compass aria-hidden className="h-8 w-8 text-indigo-600 dark:text-indigo-300" />
-        <h2 className="mt-3 text-xl font-black">{t('careers.title')}</h2>
+        <CardTitle as="h2" emoji="🧭" color="#14b8a6" title={t('careers.title')} />
         <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('careers.intro')}</p>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('careers.time')}</p>
+        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300"><Clock3 aria-hidden className="h-4 w-4" />{t('careers.time')}</p>
         {view.catalogue_size === 0 && <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">{t('careers.empty')}</p>}
-        <Button className="mt-4" loading={start.isPending} onClick={() => start.mutate('first', { onError: error => toast.error(academicErrorText(t, error)) })}>{t('careers.start')}</Button>
+        <Button className="mt-4" icon={<Play className="h-4 w-4" />} loading={start.isPending} onClick={() => start.mutate('first', { onError: error => toast.error(academicErrorText(t, error)) })}>{t('careers.start')}</Button>
       </section>
       <AllCareers shortlist={view.shortlist} />
       <ProgrammeSearch />
@@ -96,7 +96,7 @@ function Questionnaire({ view }: { view: CareerGuidanceView }) {
   if (screen >= screens.length) {
     return (
       <section className={card}>
-        <h2 className="text-lg font-black">{t('careers.prefs.title')}</h2>
+        <CardTitle as="h2" emoji="🎛️" color="#6366f1" title={t('careers.prefs.title')} />
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.prefs.note')}</p>
         <div className="mt-4 grid gap-4">
           {(Object.keys(PREFS) as (keyof typeof PREFS)[]).map(key => (
@@ -237,7 +237,7 @@ function Results({ view }: { view: CareerGuidanceView }) {
       )}
 
       <section className={card}>
-        <h2 className="text-lg font-black">{t('careers.options')}</h2>
+        <CardTitle as="h2" emoji="✨" color="#8b5cf6" title={t('careers.options')} />
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.optionsNote')}</p>
         {view.options_locked ? <div className="mt-4"><PremiumNote body="premium.careers" /></div> : <>
         {result && !result.has_scores && <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{t('careers.noScores')}</p>}
@@ -246,13 +246,14 @@ function Results({ view }: { view: CareerGuidanceView }) {
             {result.options.map(option => (
               <li key={option.slug} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
+                  <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-teal-50 text-2xl dark:bg-teal-500/15">{clusterEmoji(option.cluster)}</span>
+                  <div className="min-w-0 flex-1">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">{t(`careers.cluster.${option.cluster}` as AcademicCopyKey)}</span>
                     <h3 className="text-base font-black">{language === 'lo' ? option.career.title_lo : option.career.title_en}</h3>
                   </div>
                   <SaveButton career={option.career} saved={view.shortlist.includes(option.slug)} />
                 </div>
-                <h4 className="mt-2 text-sm font-black">{t('careers.why')}</h4>
+                <h4 className="mt-3 flex items-center gap-1.5 text-sm font-black"><span aria-hidden>💡</span>{t('careers.why')}</h4>
                 <Reasons factors={option.factors} view={view} t={t} />
                 <CareerBody career={option.career} t={t} />
               </li>
@@ -266,13 +267,13 @@ function Results({ view }: { view: CareerGuidanceView }) {
 
       {view.area_scores && (
         <section className={card}>
-          <h2 className="text-lg font-black">{t('careers.interests')}</h2>
+          <CardTitle as="h2" emoji="❤️" color="#e11d48" title={t('careers.interests')} />
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.interestsNote')}</p>
           <dl className="mt-3 grid gap-2 sm:grid-cols-2">
             {AREAS.map(area => (
               <div key={area} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-gray-800/60">
-                <dt>{t(`careers.area.${area}` as AcademicCopyKey)}</dt>
-                <dd className="font-black">{t(`careers.level.${view.area_scores!.areas[area].level}` as AcademicCopyKey)}</dd>
+                <dt className="flex items-center gap-2"><span aria-hidden className="text-lg">{areaEmoji(area)}</span>{t(`careers.area.${area}` as AcademicCopyKey)}</dt>
+                <dd className="flex items-center gap-2 font-black"><LevelBars level={view.area_scores!.areas[area].level} />{t(`careers.level.${view.area_scores!.areas[area].level}` as AcademicCopyKey)}</dd>
               </div>
             ))}
           </dl>
@@ -286,9 +287,9 @@ function Results({ view }: { view: CareerGuidanceView }) {
       )}
 
       <section className={cn(card, 'print:shadow-none print:ring-0')}>
-        <h2 className="text-lg font-black">{t('careers.adults.title')}</h2>
+        <CardTitle as="h2" emoji="🗣️" color="#0ea5e9" title={t('careers.adults.title')} />
         <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{t('careers.adults.body')}</p>
-        <h3 className="mt-3 text-sm font-black">{t('careers.adults.questions')}</h3>
+        <div className="mt-3"><CardTitle as="h3" emoji="❓" color="#0ea5e9" title={t('careers.adults.questions')} /></div>
         <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-sm">
           {(['q1', 'q2', 'q3', 'q4', 'q5'] as const).map(q => <li key={q}>{t(`careers.adults.${q}` as AcademicCopyKey)}</li>)}
         </ol>
@@ -313,12 +314,12 @@ function AllCareers({ shortlist }: { shortlist: string[] }) {
   return (
     <>
       <section className={card}>
-        <h2 className="text-lg font-black">{t('careers.shortlist')}</h2>
+        <CardTitle as="h2" emoji="🔖" color="#f59e0b" title={t('careers.shortlist')} />
         {saved.length === 0 ? <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.shortlist.empty')}</p> : (
           <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
             {saved.map(career => (
               <li key={career.slug} className="flex items-center justify-between gap-3 py-2">
-                <span className="font-bold">{language === 'lo' ? career.title_lo : career.title_en}</span>
+                <span className="flex items-center gap-2 font-bold"><span aria-hidden className="text-lg">{clusterEmoji(career.cluster)}</span>{language === 'lo' ? career.title_lo : career.title_en}</span>
                 <SaveButton career={career} saved />
               </li>
             ))}
@@ -326,14 +327,15 @@ function AllCareers({ shortlist }: { shortlist: string[] }) {
         )}
       </section>
       <section className={card}>
-        <h2 className="text-lg font-black">{t('careers.browse')}</h2>
+        <CardTitle as="h2" emoji="🔍" color="#6366f1" title={t('careers.browse')} />
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('careers.browseNote')}</p>
         <ul className="mt-3 grid gap-2">
           {careers.map(career => (
             <li key={career.slug} className="rounded-2xl border border-slate-200 dark:border-slate-700">
               <details className="group p-4">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
-                  <span>{language === 'lo' ? career.title_lo : career.title_en}<span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">{t(`careers.cluster.${career.cluster}` as AcademicCopyKey)}</span></span>
+                  <span className="flex items-center gap-2"><span aria-hidden className="text-lg">{clusterEmoji(career.cluster)}</span><span>{language === 'lo' ? career.title_lo : career.title_en}<span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">{t(`careers.cluster.${career.cluster}` as AcademicCopyKey)}</span></span></span>
+                  <ChevronDown aria-hidden className="h-4 w-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
                 </summary>
                 <CareerBody career={career} t={t} />
                 <div className="mt-3"><SaveButton career={career} saved={shortlist.includes(career.slug)} /></div>
