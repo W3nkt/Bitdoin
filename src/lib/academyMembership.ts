@@ -9,8 +9,12 @@ import { firstRelation } from '@/lib/supabaseRelations'
 // Free row with downgraded_from_id is added). Until that runs, the paid row
 // can still read ACTIVE, so "ACTIVE but past ends_at" also counts as expired.
 
-/** Members (and admins) are warned this many days before a paid membership ends. */
-export const EXPIRY_WARNING_DAYS = 5
+/**
+ * Members (and admins) are warned this many days before a paid membership
+ * ends: the same 7 days as Schooling's notice and NOTIF-005's e-mails
+ * (decision RENEWAL-NOTICE).
+ */
+export const EXPIRY_WARNING_DAYS = 7
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
