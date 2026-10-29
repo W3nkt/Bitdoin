@@ -2,10 +2,10 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, positiveIntEnv, quotaResponse, userSubject } from '../_shared/ai-rate-limit.ts'
 import {
-  BOOK_CHAPTERS, BRAIN_SPRINT_BATCHES, BRAIN_SPRINT_BATCH_SIZE, FAST_MODEL, MODEL, READING_SUMMARY_SLUG, SCHOLARSHIP_SLUG,
+  BOOK_CHAPTERS, BRAIN_SPRINT_BATCHES, BRAIN_SPRINT_BATCH_SIZE, FAST_MODEL, MODEL, REVIEW_MODEL, TRANSLATE_MODEL, READING_SUMMARY_SLUG, SCHOLARSHIP_SLUG,
   WORD_MATCH_BATCHES, WORD_MATCH_BATCH_SIZE, askQwen, bilingualRules, enforceLaoStandard, finishBookSummary,
   generateBrainSprint, generateWordMatch, planBookSummary, requireArray, researchScholarship, withRetry,
-  writeBookChapter, writeScholarship,
+  reviewFeedback, writeBookChapter, writeReviewed, writeScholarship,
   type BookDraft, type BrainSprintItem, type ReaderChapter, type ScholarshipResearch, type WordMatchItem,
 } from './content.ts'
 
@@ -96,16 +96,29 @@ const ROLEPLAY_THEMES = [
 ]
 const PROMPT_LIBRARY_CATEGORIES = ['study', 'research', 'writing', 'english', 'career', 'coding', 'productivity']
 const LONG_FIELD_WORDS = 120
-const generateCheckedItem = (label: string, prompt: string, stepStartedAt: number) => withRetry(label, stepStartedAt, async () => {
-  const result = await askQwen(prompt, { maxTokens: 3000 })
-  return enforceLaoStandard(requireArray(result, 'items', 1)[0])
+// The English is written by the usual Qwen model; qwen3.8-max only writes the Lao, as a translation of it.
+// The Lao reviewer reads the item before it is kept; an item it rejects is translated again with its reasons.
+const generateCheckedItem = (label: string, what: string, prompt: string, stepStartedAt: number) => withRetry(label, stepStartedAt, async () => {
+  const english = requireArray(await askQwen(prompt, { maxTokens: 2000 }), 'items', 1)[0]
+  const textKeys = Object.keys(english).filter(key => key.endsWith('_en') && typeof english[key] === 'string')
+  if (!textKeys.length) throw new Error('Wrong shape: the English item has no text.')
+  return writeReviewed(what, async problems => {
+    const result = await askQwen(`Translate these texts into natural Lao for students in Laos. Keep the same meaning: translate every sentence, add nothing, leave nothing out, never word-for-word. A word or phrase that has no established Lao equivalent stays in English. ${bilingualRules}${reviewFeedback(problems)}
+SOURCE (JSON): ${JSON.stringify(Object.fromEntries(textKeys.map(key => [key, english[key]])))}
+Return a JSON object with the same keys but ending in _lo instead of _en, every value in Lao. Be concise.`, { maxTokens: 3000, model: TRANSLATE_MODEL })
+    const lao = Object.fromEntries(textKeys.map(key => [key.replace(/_en$/, '_lo'), result[key.replace(/_en$/, '_lo')]]))
+    for (const [key, value] of Object.entries(lao)) {
+      if (typeof value !== 'string' || !value.trim()) throw new Error(`Wrong shape: the Lao ${key} is missing.`)
+    }
+    return enforceLaoStandard({ ...english, ...lao })
+  }, stepStartedAt)
 })
 
 async function generateRoleplayMissions(weekStart: string) {
   const startedAt = Date.now()
   const items = await Promise.all(ROLEPLAY_THEMES.map(async (theme, day) => ({
-    ...await generateCheckedItem(DAY_NAMES[day], `Prepare one role-play mission for ${DAY_NAMES[day]} ${addDays(weekStart, day)}: ${theme}, realistic for learners in Laos. ${bilingualRules}
-Return {"items":[1 item]} shaped {"day":${day},"slug":"unique-kebab-slug","title_en":"","title_lo":"","description_en":"one sentence","description_lo":"one sentence","coach_prompt_en":"setup instructing the AI to ask one question at a time, at most ${LONG_FIELD_WORDS} words","coach_prompt_lo":"natural Lao equivalent of coach_prompt_en"}. Be concise.`, startedAt),
+    ...await generateCheckedItem(DAY_NAMES[day], 'role-play mission for learners in Laos: a title, a description and the setup that tells an AI coach how to run the conversation (AI and Prompt stay in English)', `Prepare one role-play mission for ${DAY_NAMES[day]} ${addDays(weekStart, day)}: ${theme}, realistic for learners in Laos. English only: another model translates it into Lao afterwards, so write no Lao.
+Return {"items":[1 item]} shaped {"day":${day},"slug":"unique-kebab-slug","title_en":"","description_en":"one sentence","coach_prompt_en":"setup instructing the AI to ask one question at a time, at most ${LONG_FIELD_WORDS} words"}. Be concise.`, startedAt),
     day,
   })))
   return uniqueSlugs(items)
@@ -114,8 +127,8 @@ Return {"items":[1 item]} shaped {"day":${day},"slug":"unique-kebab-slug","title
 async function generatePromptLibrary(weekStart: string) {
   const startedAt = Date.now()
   const items = await Promise.all(PROMPT_LIBRARY_CATEGORIES.map(async category => ({
-    ...await generateCheckedItem(category, `Prepare one prompt library entry in the "${category}" category for the week of ${weekStart}. ${bilingualRules}
-Return {"items":[1 item]} shaped {"slug":"unique-kebab-slug","category":"${category}","title_en":"","title_lo":"","description_en":"one sentence","description_lo":"one sentence","prompt_en":"reusable copy-ready prompt with [placeholders], at most ${LONG_FIELD_WORDS} words","prompt_lo":"natural Lao equivalent of prompt_en"}. Be concise.`, startedAt),
+    ...await generateCheckedItem(category, 'prompt library entry: a title, a description and a reusable prompt a student copies into an AI tool (every [placeholder] and every English instruction word the AI needs stays exactly as written)', `Prepare one prompt library entry in the "${category}" category for the week of ${weekStart}. English only: another model translates it into Lao afterwards, so write no Lao.
+Return {"items":[1 item]} shaped {"slug":"unique-kebab-slug","category":"${category}","title_en":"","description_en":"one sentence","prompt_en":"reusable copy-ready prompt with [placeholders], at most ${LONG_FIELD_WORDS} words"}. Be concise.`, startedAt),
     category,
   })))
   return uniqueSlugs(items)
@@ -156,37 +169,41 @@ Return {"topic":"short lesson title","angle":"one sentence on what the learner w
 const LESSON_SECTION_SENTENCES = 4
 
 // Step 2 of a lesson: writing from the research notes, no search. The English
-// and the Lao version are written by two requests at the same time from the same
-// notes and section headings: both in one answer ran out of output space, since
-// Lao text costs many tokens. Each half is retried on its own if it fails.
+// is written first, then the Lao as a translation of it (two requests: both in
+// one answer ran out of output space, since Lao text costs many tokens), then
+// the Lao reviewer reads the pair. Each half is retried on its own if it fails.
 // Without notes (an older queued step) it researches first.
 async function generateLesson(category: Category, weekStart: string, research?: LessonResearch): Promise<Record<string, unknown>> {
   const startedAt = Date.now()
   const notes = research?.topic ? research : await researchLesson(category, weekStart)
   const sections = notes.outline.length === 3 ? `exactly these 3 sections in this order: ${notes.outline.join(' | ')}` : '3 sections'
   const brief = `Lesson for category "${category.name_en}" (${category.name_lo}), week of ${weekStart}. Research notes: topic "${notes.topic}"; goal: ${notes.angle}; facts: ${notes.facts.join(' | ')}. Write an original educational lesson with ${sections}. Do not summarize copyrighted books unless the category specifically requires it; even then write an original educational synthesis. Do not use Markdown.`
-  const [english, lao] = await Promise.all([
-    withRetry('English lesson', startedAt, async () => {
-      const result = await askQwen(`${brief} Write it in English only. Avoid invented facts and unsafe advice.
+  // The English is written first and the Lao is a translation of it (not a second
+  // lesson written from the same notes), so the reviewer can compare the two.
+  const english = await withRetry('English lesson', startedAt, async () => {
+    const result = await askQwen(`${brief} Write it in English only. Avoid invented facts and unsafe advice.
 Return {"slug":"${weekStart}-${category.slug}-unique-topic","title_en":"","summary_en":"one sentence","content_en":[3 objects {"heading":"","body":"at most ${LESSON_SECTION_SENTENCES} sentences"}],"key_takeaways_en":[3 short strings],"difficulty":"BEGINNER|INTERMEDIATE|ADVANCED","estimated_minutes":5-12}.`, { maxTokens: 2000 })
-      requireArray(result, 'content_en', 3)
-      requireArray(result, 'key_takeaways_en', 3)
-      return result
-    }),
-    withRetry('Lao lesson', startedAt, async () => {
-      const result = await askQwen(`${brief} Write it in natural Lao only (the section headings translated into Lao). ${bilingualRules}
-Return {"title_lo":"","summary_lo":"one sentence","content_lo":[3 objects {"heading":"","body":"at most ${LESSON_SECTION_SENTENCES} sentences"}],"key_takeaways_lo":[3 short strings]}. Be concise.`, { maxTokens: 4000 })
+    requireArray(result, 'content_en', 3)
+    requireArray(result, 'key_takeaways_en', 3)
+    return result
+  })
+  // The Lao reviewer reads the lesson beside its English; a lesson it rejects is translated again with its reasons.
+  return writeReviewed(`lesson "${String(english.title_en)}"`, async problems => {
+    const lao = await withRetry('Lao lesson', startedAt, async () => {
+      const result = await askQwen(`Translate this lesson into natural Lao for students in Laos. Keep exactly the same structure and meaning: translate every sentence, add nothing, leave nothing out, never word-for-word. A word or phrase that has no established Lao equivalent stays in English. ${bilingualRules}${reviewFeedback(problems)}
+LESSON (JSON): ${JSON.stringify({ title: english.title_en, summary: english.summary_en, content: english.content_en, key_takeaways: english.key_takeaways_en })}
+Return {"title_lo":"","summary_lo":"one sentence","content_lo":[3 objects {"heading":"","body":""}],"key_takeaways_lo":[3 short strings]}. Be concise.`, { maxTokens: 4000, model: TRANSLATE_MODEL })
       requireArray(result, 'content_lo', 3)
       requireArray(result, 'key_takeaways_lo', 3)
       return enforceLaoStandard(result)
-    }),
-  ])
-  return {
-    slug: english.slug, title_en: english.title_en, summary_en: english.summary_en, content_en: english.content_en,
-    key_takeaways_en: english.key_takeaways_en, difficulty: english.difficulty, estimated_minutes: english.estimated_minutes,
-    title_lo: lao.title_lo, summary_lo: lao.summary_lo, content_lo: lao.content_lo, key_takeaways_lo: lao.key_takeaways_lo,
-    source_url: notes.source_url, category_id: category.id,
-  }
+    })
+    return {
+      slug: english.slug, title_en: english.title_en, summary_en: english.summary_en, content_en: english.content_en,
+      key_takeaways_en: english.key_takeaways_en, difficulty: english.difficulty, estimated_minutes: english.estimated_minutes,
+      title_lo: lao.title_lo, summary_lo: lao.summary_lo, content_lo: lao.content_lo, key_takeaways_lo: lao.key_takeaways_lo,
+      source_url: notes.source_url, category_id: category.id,
+    } as Record<string, unknown>
+  }, startedAt)
 }
 
 const publishAt = (weekStart: string, lessonDay?: number) => `${addDays(weekStart, Math.max(0, Math.min(6, Number(lessonDay ?? 0))))}T00:00:00+07:00`
@@ -350,7 +367,7 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     const others = ((existing?.items as BrainSprintItem[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix))
     const items = await generateBrainSprint(batchIndex, others)
     const combined = [...others, ...items]
-    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'brain_sprint', pool_week: weekStart, items: combined, model: FAST_MODEL }, { onConflict: 'activity_type,pool_week' })
+    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'brain_sprint', pool_week: weekStart, items: combined, model: `${FAST_MODEL} + ${TRANSLATE_MODEL}, reviewed by ${REVIEW_MODEL}` }, { onConflict: 'activity_type,pool_week' })
     if (error) throw error
     counts.brain_sprint = combined.length
   } else if (input.action === 'word_match') {
@@ -361,7 +378,7 @@ async function runStep(admin: Admin, run: RunRow, input: StepInput) {
     const others = ((existing?.items as WordMatchItem[] | null) ?? []).filter(item => !String(item.id ?? '').startsWith(prefix))
     const items = await generateWordMatch(batchIndex, others)
     const combined = [...others, ...items]
-    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'word_match', pool_week: weekStart, items: combined, model: MODEL }, { onConflict: 'activity_type,pool_week' })
+    const { error } = await admin.from('premium_arcade_content_pools').upsert({ activity_type: 'word_match', pool_week: weekStart, items: combined, model: `${MODEL} + ${TRANSLATE_MODEL}, reviewed by ${REVIEW_MODEL}` }, { onConflict: 'activity_type,pool_week' })
     if (error) throw error
     counts.word_match = combined.length
   } else if (input.action === 'daily_mentor') {

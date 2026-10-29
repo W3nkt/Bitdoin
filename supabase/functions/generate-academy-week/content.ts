@@ -1,7 +1,8 @@
 // Weekly Content Forge generators: prompts, Qwen calls and the checks that
 // reject bad items. No database access here, so the edge function and a local
 // preview script run exactly the same generation code.
-import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, repairBrainSprintItem, repairLaoFields, wordMatchIssues } from '../_shared/lao-content-standard.ts'
+import { LAO_CONTENT_RULES, brainSprintIssues, collectLaoIssues, hasEnglishPracticeOptions, isMeaningQuestion, quotedEnglishIssues, repairLaoFields, wordMatchIssues } from '../_shared/lao-content-standard.ts'
+import { keepEnglish, reviewLaoUnits, type ReviewAsk } from './lao-review.ts'
 
 const positiveInt = (name: string, fallback: number) => {
   const value = Number(Deno.env.get(name))
@@ -27,7 +28,7 @@ const QWEN_TOTAL_TIMEOUT_MS = positiveInt('ACADEMY_QWEN_TOTAL_TIMEOUT_MS', 110_0
 export const BRAIN_SPRINT_BATCHES = 7
 export const BRAIN_SPRINT_BATCH_SIZE = 5
 // Extra items asked for per batch, so a few rejected ones don't fail it.
-const BRAIN_SPRINT_SPARE_ITEMS = 3
+const BRAIN_SPRINT_SPARE_ITEMS = 5
 export const WORD_MATCH_BATCHES = 6
 export const WORD_MATCH_BATCH_SIZE = 7
 const WORD_MATCH_SPARE_ITEMS = 4
@@ -52,7 +53,7 @@ export type SearchSource = { url: string; title: string }
 
 // `sources`, when given, is filled with the pages the web search really returned, so a caller can check what the model
 // says against them instead of trusting URLs it may have invented.
-export async function askQwen(prompt: string, options: { maxTokens: number; model?: string; enableSearch?: boolean; forceSearch?: boolean; sources?: SearchSource[] }) {
+export async function askQwen(prompt: string, options: { maxTokens: number; model?: string; system?: string; temperature?: number; enableSearch?: boolean; forceSearch?: boolean; sources?: SearchSource[] }) {
   const controller = new AbortController()
   let abortReason = ''
   let idleTimer: ReturnType<typeof setTimeout> | undefined
@@ -77,13 +78,13 @@ export async function askQwen(prompt: string, options: { maxTokens: number; mode
       body: JSON.stringify({
         model: options.model ?? MODEL,
         messages: [
-          { role: 'system', content: 'You are the senior curriculum editor for Bitdoin Academy in Laos. Research current, reliable information when relevant. Create safe, original, practical bilingual learning content. Return valid JSON only.' },
+          { role: 'system', content: options.system ?? 'You are the senior curriculum editor for Bitdoin Academy in Laos. Research current, reliable information when relevant. Create safe, original, practical bilingual learning content. Return valid JSON only.' },
           { role: 'user', content: prompt },
         ],
         response_format: { type: 'json_object' },
         ...(options.enableSearch ? { enable_search: true, ...(options.forceSearch || options.sources ? { search_options: { ...(options.forceSearch ? { forced_search: true } : {}), ...(options.sources ? { enable_source: true } : {}) } } : {}) } : {}),
         enable_thinking: false,
-        temperature: 0.6,
+        temperature: options.temperature ?? 0.6,
         max_tokens: options.maxTokens,
         stream: true,
       }),
@@ -179,6 +180,60 @@ export async function withRetry<T>(label: string, stepStartedAt: number, write: 
 }
 
 // ---------------------------------------------------------------------------
+// Lao reviewer agent. Nothing with Lao in it is saved before a second model has
+// read it (see lao-review.ts). The reviewer only judges: a rejected text goes
+// back to the translator with the reviewer's reason, or is dropped, and a review
+// that cannot finish fails the step, so unreviewed content never reaches students.
+// ---------------------------------------------------------------------------
+
+// The Lao is written and reviewed by the newest Qwen generation. qwen-plus and qwen-max wrote Lao with
+// mistakes (a translated quoted sentence, gibberish for 'half of') and, as reviewers, passed them and
+// rejected good Lao with invented reasons; qwen3.8-max caught all of them. Set QWEN_TRANSLATE_MODEL /
+// QWEN_REVIEW_MODEL to change them. The English is written by the faster models above.
+export const TRANSLATE_MODEL = Deno.env.get('QWEN_TRANSLATE_MODEL') || 'qwen3.8-max'
+export const REVIEW_MODEL = Deno.env.get('QWEN_REVIEW_MODEL') || 'qwen3.8-max'
+// What the reviewer rejected, for the preview script.
+export const reviewLog: string[] = []
+
+const askReviewer: ReviewAsk = (system, prompt) => askQwen(prompt, { maxTokens: 4000, model: REVIEW_MODEL, system, temperature: 0.1 })
+
+export async function reviewLao<T>(context: string, units: T[]) {
+  const reviewed = await reviewLaoUnits(askReviewer, context, units, reviewLog)
+  if (reviewLog.length > 200) reviewLog.splice(0, reviewLog.length - 200)
+  const rejected = reviewed.flatMap(entry => entry.rejected)
+  if (rejected.length) console.warn(`[academy-forge] Lao reviewer rejected ${rejected.length} text(s) of ${context.slice(0, 40)}: ${rejected.slice(0, 2).join('; ')}`)
+  return reviewed
+}
+
+// Content that is saved whole (a lesson, a chapter, a scholarship). `write`
+// produces it, given what the reviewer rejected last time (empty the first time):
+// the translator is asked again with those reasons, once, while there is time.
+// A Lao text the reviewer still rejects is left in English (never saved as Lao):
+// failing the step instead would lose the whole week's content for one sentence.
+export async function writeReviewed<T>(context: string, write: (problems: string[]) => Promise<T>, startedAt = Date.now(), attempts = 2): Promise<T> {
+  let problems: string[] = []
+  for (let attempt = 1; ; attempt++) {
+    const content = await write(problems)
+    const [reviewed] = await reviewLao(context, [content])
+    if (!reviewed.rejected.length) return content
+    problems = reviewed.rejected.slice(0, 8)
+    if (attempt >= attempts || Date.now() - startedAt > REVIEW_RETRY_WINDOW_MS) {
+      console.warn(`[academy-forge] ${context}: ${reviewed.rejections.length} Lao text(s) stay in English because the reviewer still rejected them: ${reviewed.rejected.slice(0, 3).join('; ')}`)
+      return keepEnglish(content, reviewed.rejections)
+    }
+    console.warn(`[academy-forge] ${context}: the Lao reviewer sent it back (${problems.length} problem(s)); translating again`)
+  }
+}
+
+// A second translation only starts while it can still finish inside the step.
+const REVIEW_RETRY_WINDOW_MS = 55_000
+
+// Added to a translation prompt when the reviewer sent the first one back.
+export const reviewFeedback = (problems: string[]) => problems.length
+  ? `\n\nA REVIEWER REJECTED YOUR EARLIER LAO. Fix exactly these problems. Where a word cannot be translated safely, keep it in English (Latin letters); never spell English sounds in Lao letters:\n${problems.map(problem => `- ${problem}`).join('\n')}\n`
+  : ''
+
+// ---------------------------------------------------------------------------
 // Daily Brain Sprint
 // ---------------------------------------------------------------------------
 
@@ -186,14 +241,12 @@ type Localized = { en: string; lo: string }
 export type BrainSprintItem = { id: string; topic?: string; prompt: Localized; options: Localized[]; answerIndex: number; explanation: Localized }
 export type WordMatchItem = { id: string; english: string; lao: string }
 
-const isLocalizedText = (value: unknown) => {
-  const text = value as { en?: unknown; lo?: unknown } | null
-  return typeof text?.en === 'string' && typeof text?.lo === 'string' && text.en.trim() !== '' && text.lo.trim() !== ''
-}
+const isFilled = (value: unknown) => typeof value === 'string' && value.trim() !== ''
 
-const isBrainSprintShape = (value: Record<string, unknown>) =>
-  typeof value.id === 'string' && isLocalizedText(value.prompt) && isLocalizedText(value.explanation)
-  && Array.isArray(value.options) && value.options.length === 4 && value.options.every(isLocalizedText)
+// Qwen writes Brain Sprint questions in English only; a second request writes the Lao and the Lao reviewer checks it.
+const isEnglishBrainSprintShape = (value: Record<string, unknown>) =>
+  isFilled(value.id) && isFilled(value.prompt) && isFilled(value.explanation)
+  && Array.isArray(value.options) && value.options.length === 4 && value.options.every(isFilled)
   && Number.isInteger(value.answerIndex) && (value.answerIndex as number) >= 0 && (value.answerIndex as number) <= 3
 
 // Each batch leans on one theme so the week's 35 questions spread across all of them.
@@ -235,42 +288,199 @@ function isSameQuestion(a: BrainSprintItem, b: BrainSprintItem) {
   return shared / Math.min(wordsA.size, wordsB.size) >= 0.8
 }
 
-// Asks for a few spare questions, repairs the obvious slips (Thai vowel marks,
-// translated English-practice options) and drops any question that still breaks
-// the Lao standard, is off-topic, or repeats one already in this week's pool —
-// every learner's daily set is a slice of the pool, so a unique pool means no
-// repeated question within a day.
+// Three jobs, kept apart. One request writes the questions in English only. A
+// second request translates them under strict rules. The Lao reviewer, a
+// stronger model, then reads every question before it is kept. Lao written in
+// the same request as the English was often unnatural, and it translated the
+// English being tested (the Lao sentence no longer held the word asked about).
+const ENGLISH_QUIZ_RULES = `Write clear, natural English only: another model translates it into Lao afterwards, so write no Lao.
+- Exactly one option is correct; the other three are clearly wrong (no two acceptable answers, e.g. add "yesterday" when testing the past tense). All four options are different and under 8 words. The explanation is one short sentence that matches the answer.
+- Facts must be real and checkable. If unsure, choose a different question; never invent a fact, date, statistic or "official" declaration.
+- When a question tests English itself (the meaning of a word, idiom or phrasal verb, grammar, vocabulary, collocations), put the English being tested in single quotes inside the question, e.g. What does 'keep your cool' mean? or Choose the correct word: 'She ___ to school yesterday.' A "meaning of a word in a sentence" question needs a sentence in which the word clearly has one meaning, and its four options must not overlap in meaning.
+- Math: show the working in the explanation.`
+
+export const LAO_TRANSLATOR_SYSTEM = 'You are a careful English-to-Lao translator for an English-learning academy in Laos. You write the Lao an educated native speaker in Vientiane writes today, never Thai. You translate faithfully: you never change a question, its options, their order or the correct answer. You are strict about what you do not know: when a word or phrase has no established Lao equivalent, or you are not certain a Lao version is correct and makes sense, you leave it in English (Latin letters) and never spell English sounds in Lao letters. A reviewer will check every word you write. Return valid JSON only.'
+
+const BRAIN_SPRINT_TRANSLATION_RULES = `HOW TO TRANSLATE EACH QUESTION
+1. Decide "kind":
+   - "english_practice": the question tests English itself (grammar, tenses, prepositions, articles, vocabulary, idioms, phrasal verbs, collocations, spelling, synonyms, "what does X mean", odd one out among English words).
+   - "general": maths, science, technology, logic or world knowledge.
+2. english_practice: the English being tested is NOT translated. Every English word, phrase, idiom or sentence the learner has to read or choose between stays in English, character for character as in the English version: inside quotes, and also when the question lists English words without quotes. If you translate it the question stops working (for "What does 'light' mean in the sentence: 'She turned on the light.'?" the Lao question must still contain 'light' and 'She turned on the light.' in English, otherwise there is no word "light" left to ask about). Only the instruction and the explanation are Lao. When the explanation points to the English being taught, quote that English in the Lao explanation too ('went', 'yesterday').
+   - "options_are_english": true ONLY when the learner chooses between English words, phrases or sentences (grammar, tense, preposition, fill in the blank, "which word", "which sentence", collocation, odd one out): return the options exactly as in English.
+   - "options_are_english": false for every question of the form "What does X mean?" or "X comes from a word meaning what?": its options are meanings, so write each option as the natural Lao meaning of that idea, short and clear, never in English. Never translate an idiom word for word (do not turn 'keep your cool' into something about cold things).
+3. general: translate the question, the options and the explanation into natural Lao and set "options_are_english" to false. Keep numbers, the signs × ÷ + − = and units as they are. Maths wording: multiply by = ຄູນດ້ວຍ, divide by = ຫານດ້ວຍ, half = ເຄິ່ງໜຶ່ງ, equals = ເທົ່າກັບ.
+4. Translate every sentence of the question and the explanation: do not shorten, restructure, reorder or add anything. Read the Lao back before you answer: it must sound like a Lao teacher speaking, with exactly the meaning of the English. Short sentences. No Thai words or letters. Keep each Lao option under 8 words.
+5. If a word or phrase does not translate well, keep it in English. Never spell an English word in Lao letters to copy its sound (not apple, banana, carrot, orange or any other everyday word), and never use a Lao word you are not sure means the same thing. Technical terms: the Lao term with the English in brackets, e.g. ເຣົາເຕີ (router). Do not leave a plain English word in the middle of a Lao sentence when a Lao word exists.
+6. Return {"items":[{"id":"same id","kind":"english_practice or general","options_are_english":true or false,"prompt":"the Lao question","options":[exactly 4 strings in the same order],"explanation":"the Lao explanation"}]}: one entry per question, in the same order.`
+
+const TRANSLATION_RETRY_WINDOW_MS = 75_000
+
+// What the translator said about a question, kept so the checks can run again after the reviewer's fixes.
+type BrainSprintMeta = { englishPractice: boolean; optionsStayEnglish: boolean }
+type BrainSprintOutcome = {
+  draft: BrainSprintItem
+  item?: BrainSprintItem
+  issues: string[]
+  meta?: BrainSprintMeta
+  // The reviewer says the English itself is the problem: a new translation cannot repair it, so it is dropped, not retried.
+  final?: boolean
+  // For the preview: the Lao the reviewer rejected.
+  before?: BrainSprintItem
+}
+
+// The request for a few questions. `feedback` holds what was wrong with an
+// earlier answer for the same question, so the retry fixes that.
+export function brainSprintTranslationPrompt(drafts: BrainSprintItem[], feedback: Record<string, string[]> = {}) {
+  const source = drafts.map(draft => ({
+    id: draft.id, prompt: draft.prompt.en, options: draft.options.map(option => option.en),
+    correct_option_index: draft.answerIndex, explanation: draft.explanation.en,
+  }))
+  const problems = drafts.filter(draft => feedback[draft.id]?.length).map(draft => `- ${draft.id}: ${feedback[draft.id].join('; ')}`)
+  return `${LAO_CONTENT_RULES}
+
+${BRAIN_SPRINT_TRANSLATION_RULES}
+${problems.length ? `\nYOUR PREVIOUS ANSWER WAS REJECTED. Fix these problems:\n${problems.join('\n')}\n` : ''}
+QUESTIONS (JSON)
+${JSON.stringify(source)}`
+}
+
+// Options that are meanings of an English word must be read by a Lao student, so they need Lao.
+const untranslatedOptionIssues = (item: BrainSprintItem, path: string) =>
+  item.options.filter(option => /[A-Za-z]{3}/.test(option.en) && !LAO_SCRIPT.test(option.lo))
+    .map(option => `${path}: the option "${option.en}" is not a choice between English words, so it must be written as its Lao meaning`)
+
+function brainSprintItemIssues(item: BrainSprintItem, meta: BrainSprintMeta, path: string) {
+  return [
+    ...collectLaoIssues(item, path), ...brainSprintIssues(item, path), ...brainSprintTopicIssues(item, path),
+    ...(meta.englishPractice ? quotedEnglishIssues(item, { optionsStayEnglish: meta.optionsStayEnglish }, path) : []),
+    ...(meta.englishPractice && !meta.optionsStayEnglish ? untranslatedOptionIssues(item, path) : []),
+    ...(LAO_SCRIPT.test(item.prompt.lo) && LAO_SCRIPT.test(item.explanation.lo) ? [] : [`${path}: the Lao prompt and explanation must be written in Lao`]),
+  ]
+}
+
+// Builds the finished question from a translator's answer and runs every check on it.
+export function checkBrainSprintTranslation(draft: BrainSprintItem, entry: unknown): BrainSprintOutcome {
+  const found = (entry ?? {}) as Record<string, unknown>
+  // Options the learner chooses between in English are copied, never trusted to the translator.
+  // A "what does X mean" question has Lao options whatever the translator says; a general-knowledge question
+  // only keeps English options when the translator also calls it English practice.
+  const optionsAreEnglish = !isMeaningQuestion(draft.prompt.en)
+    && (hasEnglishPracticeOptions(draft) || (found.options_are_english === true && found.kind === 'english_practice'))
+  const prompt = isFilled(found.prompt) ? String(found.prompt).trim() : ''
+  const explanation = isFilled(found.explanation) ? String(found.explanation).trim() : ''
+  const options = Array.isArray(found.options) ? found.options.map(option => typeof option === 'string' ? option.trim() : '') : []
+  if (!prompt || !explanation || (!optionsAreEnglish && (options.length !== 4 || options.some(option => !option)))) {
+    const missing = [!prompt && 'prompt', !explanation && 'explanation', !optionsAreEnglish && options.length !== 4 && `${options.length} options instead of 4`, !optionsAreEnglish && options.length === 4 && options.some(option => !option) && 'an empty option'].filter(Boolean)
+    return { draft, issues: [`${draft.id}: the translation is incomplete (${missing.join(', ')}; answer had ${Object.keys(found).join('/') || 'nothing for this question'})`] }
+  }
+  const meta = { englishPractice: found.kind === 'english_practice' || optionsAreEnglish, optionsStayEnglish: optionsAreEnglish }
+  const item = repairLaoFields<BrainSprintItem>({
+    ...draft,
+    prompt: { en: draft.prompt.en, lo: prompt },
+    explanation: { en: draft.explanation.en, lo: explanation },
+    options: draft.options.map((option, optionIndex) => ({ en: option.en, lo: optionsAreEnglish ? option.en : options[optionIndex] })),
+  })
+  const issues = brainSprintItemIssues(item, meta, draft.id)
+  return issues.length ? { draft, issues, meta } : { draft, item, issues, meta }
+}
+
+export const pickTranslation = (returned: Record<string, unknown>[], id: string, index: number) =>
+  returned.find(entry => entry?.id === id) ?? (returned.length > index ? returned[index] : undefined)
+
+const BRAIN_SPRINT_REVIEW_CONTEXT = 'Daily Brain Sprint: multiple-choice quiz questions for Lao secondary-school and university students. Each unit is one question: "prompt", four "options" and an "explanation", each with its English and its Lao. The question is English practice when it tests English itself (a word, idiom, grammar, a sentence, a list of words); then the English being tested must stay in English everywhere, while options that are meanings of an English word or phrase must be Lao.'
+
+// One translation request for a few questions, then the reviewer reads what
+// passed the checks. A question the reviewer fixed is checked again.
+// `review: false` shows the translator's own Lao (preview only).
+export async function translateBrainSprintOnce(drafts: BrainSprintItem[], feedback: Record<string, string[]> = {}, review = true): Promise<BrainSprintOutcome[]> {
+  const result = await askQwen(brainSprintTranslationPrompt(drafts, feedback), { maxTokens: 6000, model: TRANSLATE_MODEL, system: LAO_TRANSLATOR_SYSTEM, temperature: 0.2 })
+  const returned = Array.isArray(result.items) ? result.items as Record<string, unknown>[] : []
+  const outcomes = drafts.map((draft, index) => checkBrainSprintTranslation(draft, returned.length === drafts.length ? pickTranslation(returned, draft.id, index) : returned.find(entry => entry?.id === draft.id)))
+  const passed = outcomes.filter(outcome => outcome.item)
+  if (!review || !passed.length) return outcomes
+  const reviewed = await reviewLao(BRAIN_SPRINT_REVIEW_CONTEXT, passed.map(outcome => outcome.item!))
+  return outcomes.map(outcome => {
+    if (!outcome.item) return outcome
+    const entry = reviewed[passed.indexOf(outcome)]
+    if (!entry.rejected.length) return outcome
+    // Sent back to the translator with the reviewer's reasons, unless the English is at fault.
+    return { draft: outcome.draft, issues: entry.rejected.map(reason => `${outcome.draft.id}: the Lao reviewer rejected it: ${reason}`), meta: outcome.meta, final: entry.englishFault, before: outcome.item }
+  })
+}
+
+// Translates and reviews `need` questions. A question that failed a check, or
+// that the reviewer rejected, is translated again with the reasons (unless the
+// reviewer blames the English: then it is dropped); spare questions fill the
+// gaps, while the step still has time.
+export async function translateBrainSprint(drafts: BrainSprintItem[], need: number, issues: string[] = [], startedAt = Date.now()) {
+  const done: BrainSprintItem[] = []
+  const spares = [...drafts]
+  let batch = spares.splice(0, need)
+  let feedback: Record<string, string[]> = {}
+  for (let round = 1; round <= 3 && batch.length; round++) {
+    if (round > 1 && Date.now() - startedAt > TRANSLATION_RETRY_WINDOW_MS) break
+    const outcomes = await translateBrainSprintOnce(batch, feedback)
+    const retry: BrainSprintItem[] = []
+    feedback = {}
+    for (const outcome of outcomes) {
+      if (outcome.item) done.push(outcome.item)
+      else {
+        issues.push(...outcome.issues)
+        if (!outcome.final) {
+          retry.push(outcome.draft)
+          feedback[outcome.draft.id] = outcome.issues
+        }
+      }
+    }
+    // Questions that can still be repaired go round again, together with as many fresh spares as are still missing.
+    const missing = need - done.length
+    batch = missing > 0 ? [...retry, ...spares.splice(0, missing)] : []
+  }
+  return done
+}
+
+// Asks Qwen for a few spare English questions and drops any that is off-topic,
+// repeats one already in this week's pool, or whose answer key an independent
+// check disputes; the Lao is then written and reviewed, and any question whose
+// Lao breaks the Lao standard or is rejected by the reviewer is dropped too. Every learner's daily set is a slice of the
+// pool, so a unique pool means no repeated question within a day.
 export async function generateBrainSprint(batchIndex: number, existing: BrainSprintItem[] = []) {
+  const startedAt = Date.now()
   const requested = BRAIN_SPRINT_BATCH_SIZE + BRAIN_SPRINT_SPARE_ITEMS
   const avoid = existing.map(item => `- ${item.topic ? `[${item.topic}] ` : ''}${item.prompt.en}`).join('\n')
-  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${BRAIN_SPRINT_BATCHES} of a weekly Daily Brain Sprint quiz. ${bilingualRules}
+  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${BRAIN_SPRINT_BATCHES} of a weekly Daily Brain Sprint quiz for secondary-school and university students in Laos. ${ENGLISH_QUIZ_RULES}
 Theme of this part: ${BRAIN_SPRINT_FOCUS[batchIndex % BRAIN_SPRINT_FOCUS.length]}.
 Brain Sprint is about innovations, technology, English grammar and vocabulary, interesting knowledge and quick math tricks: each question should teach the learner something new and useful. ${BRAIN_SPRINT_OFF_LIMITS}
 Every question must have a different topic from every other question, including the ones already in this week's set below.
-Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","topic":"the specific idea tested, 2-5 words, e.g. 'multiplying by 11' or 'how GPS finds location' (not a broad theme like 'math')","prompt":{"en":"","lo":""},"options":[exactly 4 {"en":"","lo":""}],"answerIndex":0,"explanation":{"en":"one short sentence","lo":"one short sentence"}}. Keep every option under 8 words. Be concise.
+Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","topic":"the specific idea tested, 2-5 words, e.g. 'multiplying by 11' or 'how GPS finds location' (not a broad theme like 'math')","prompt":"the question","options":[exactly 4 short strings],"answerIndex":0,"explanation":"one short sentence"}. Keep every option under 8 words. Be concise.
 
 ALREADY IN THIS WEEK'S SET (do not repeat these topics or questions)
-${avoid || '(none)'}`, { maxTokens: 4000, model: FAST_MODEL })
+${avoid || '(none)'}`, { maxTokens: 3000, model: FAST_MODEL })
   const raw = Array.isArray(result.items) ? result.items as Record<string, unknown>[] : []
   const issues: string[] = []
   const kept: BrainSprintItem[] = []
   raw.forEach((value, index) => {
-    if (!value || typeof value !== 'object' || !isBrainSprintShape(value)) return void issues.push(`items[${index}]: wrong shape`)
-    const item = repairBrainSprintItem(value as unknown as BrainSprintItem)
-    const itemIssues = [
-      ...collectLaoIssues(item, `items[${index}]`), ...brainSprintIssues(item, `items[${index}]`), ...brainSprintTopicIssues(item, `items[${index}]`),
-    ]
-    const repeated = [...existing, ...kept].find(other => other.id.replace(/^b\d+-/, '') === item.id || isSameQuestion(other, item))
+    if (!value || typeof value !== 'object' || !isEnglishBrainSprintShape(value)) return void issues.push(`items[${index}]: wrong shape`)
+    // The English question, with the Lao left empty until it is translated.
+    const draft: BrainSprintItem = {
+      id: String(value.id).trim(), ...(isFilled(value.topic) ? { topic: String(value.topic).trim() } : {}),
+      prompt: { en: String(value.prompt).trim(), lo: '' }, explanation: { en: String(value.explanation).trim(), lo: '' },
+      options: (value.options as string[]).map(option => ({ en: option.trim(), lo: '' })), answerIndex: value.answerIndex as number,
+    }
+    const itemIssues = brainSprintTopicIssues(draft, `items[${index}]`)
+    if (new Set(draft.options.map(option => option.en.toLowerCase())).size !== 4) itemIssues.push(`items[${index}]: English options are not all different`)
+    const repeated = [...existing, ...kept].find(other => other.id.replace(/^b\d+-/, '') === draft.id || isSameQuestion(other, draft))
     if (repeated) itemIssues.push(`items[${index}]: repeats "${repeated.prompt.en}"`)
     if (itemIssues.length) return void issues.push(...itemIssues)
-    kept.push(item)
+    kept.push(draft)
   })
   const checked = kept.length >= BRAIN_SPRINT_BATCH_SIZE ? await keepUnambiguous(kept, issues) : kept
-  if (checked.length < BRAIN_SPRINT_BATCH_SIZE) {
-    throw new Error(`Brain Sprint check failed: only ${checked.length} of ${raw.length} questions passed (need ${BRAIN_SPRINT_BATCH_SIZE}): ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
+  const translated = checked.length >= BRAIN_SPRINT_BATCH_SIZE ? await translateBrainSprint(checked, BRAIN_SPRINT_BATCH_SIZE, issues, startedAt) : []
+  if (translated.length < BRAIN_SPRINT_BATCH_SIZE) {
+    throw new Error(`Brain Sprint check failed: only ${translated.length} of ${raw.length} questions passed (need ${BRAIN_SPRINT_BATCH_SIZE}): ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
   }
-  if (issues.length) console.warn(`[academy-forge] brain_sprint-${batchIndex}: dropped ${raw.length - checked.length} question(s): ${issues.slice(0, 5).join('; ')}`)
-  return checked.slice(0, BRAIN_SPRINT_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
+  if (issues.length) console.warn(`[academy-forge] brain_sprint-${batchIndex}: ${issues.length} problem(s): ${issues.slice(0, 5).join('; ')}`)
+  return translated.slice(0, BRAIN_SPRINT_BATCH_SIZE).map(item => ({ ...item, id: `b${batchIndex + 1}-${item.id}` }))
 }
 
 // A second model answers each question without the answer key. A question it
@@ -307,31 +517,93 @@ const WORD_MATCH_THEMES = [
   'health and the human body', 'travel, places and transport', 'feelings, character and relationships',
 ]
 
-export async function generateWordMatch(batchIndex: number, existing: WordMatchItem[] = []) {
-  const requested = WORD_MATCH_BATCH_SIZE + WORD_MATCH_SPARE_ITEMS
-  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${WORD_MATCH_BATCHES} of a weekly Word Match set. ${bilingualRules}
-Theme of this part: ${WORD_MATCH_THEMES[batchIndex % WORD_MATCH_THEMES.length]}. Choose common, useful words at secondary-school level (single words preferred, at most 2-word phrases) that have a short, well-known Lao equivalent: the word a Lao teacher would write on the board, 1-3 Lao words. Skip any word whose Lao meaning you are not sure of. Do not reuse the glossary words above or terms kept in English (AI, Prompt, Cloud, etc.).
-Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","english":"real English word or short phrase","lao":"natural Lao translation"}. English must use Latin script, Lao must use Lao script. Every English word and every Lao meaning must be different from each other and from the words already in this week's set. Be concise.
+const WORD_MATCH_TRANSLATION_RULES = `HOW TO TRANSLATE EACH WORD
+1. "lao" is the Lao word a teacher in Laos would write on the board for this English word at secondary-school level: its most common everyday meaning, 1-3 Lao words, Lao script only.
+2. A loanword that Lao textbooks and speakers use is right (ຮໍໂມນ, ໂມເລກຸນ, ໂທລະສັບ, ອິນເຕີເນັດ). Keep the part of speech: a noun stays a noun (interview = ການສຳພາດ, not the verb ສຳພາດ), a verb stays a verb, an adjective an adjective. Prefer the term Lao people already use for it; a loanword is right when that is what Lao speakers say (e.g. ໂທລະສັບ, ອິນເຕີເນັດ, ຟຣີແລນເຊີ), and never invent a new compound. Use the glossary terms above exactly.
+3. If the English word has no short, well-known Lao equivalent (it would take a sentence to explain), or you are not sure of its Lao meaning, set "skip" to true and "lao" to "". Never write the English sound in Lao letters; skip the word instead.
+4. Two different English words must never share a Lao meaning: when a word would get the same Lao as another word in this list or in the list of meanings already used, set "skip" to true on the later one.
+5. Return {"items":[{"id":"same id","lao":"","skip":false}]}: one entry per word, in the same order.`
 
-ALREADY IN THIS WEEK'S SET (do not repeat)
-${existing.map(item => `${item.english} = ${item.lao}`).join(', ') || '(none)'}`, { maxTokens: 2000 })
-  const raw = Array.isArray(result.items) ? repairLaoFields(result.items as Record<string, unknown>[]) : []
-  const issues: string[] = []
+// `taken` are the pairs already in the week's set, so a new word cannot reuse a Lao meaning.
+export const wordMatchTranslationPrompt = (words: { id: string; english: string }[], taken: WordMatchItem[] = []) => `${LAO_CONTENT_RULES}
+
+${WORD_MATCH_TRANSLATION_RULES}
+
+LAO MEANINGS ALREADY USED THIS WEEK (do not reuse): ${taken.map(item => `${item.english} = ${item.lao}`).join(', ') || '(none)'}
+
+WORDS (JSON)
+${JSON.stringify(words)}`
+
+// Keeps the words whose Lao passes every check; the reason for each dropped word goes to `issues`.
+export function checkWordMatchTranslations(words: { id: string; english: string }[], answer: unknown, taken: WordMatchItem[] = [], issues: string[] = []) {
+  const returned = Array.isArray(answer) ? repairLaoFields(answer as Record<string, unknown>[]) : []
   const kept: WordMatchItem[] = []
-  raw.forEach((value, index) => {
-    const english = typeof value?.english === 'string' ? value.english.trim() : ''
-    const lao = typeof value?.lao === 'string' ? value.lao.trim() : ''
-    if (typeof value?.id !== 'string' || !LATIN_WORD.test(english) || !LAO_SCRIPT.test(lao)) return void issues.push(`items[${index}]: wrong shape`)
+  words.forEach((word, index) => {
+    const found = returned.find(entry => entry?.id === word.id) ?? (returned.length === words.length ? returned[index] : undefined)
+    const lao = typeof found?.lao === 'string' ? found.lao.trim() : ''
+    if (found?.skip === true || !lao) return void issues.push(`"${word.english}": no short, well-known Lao equivalent`)
     // A long Lao phrase is an explanation, not a word to match.
-    if (lao.length > 24 || english.split(' ').length > 2) return void issues.push(`items[${index}]: "${english}" is not a short word pair`)
-    const item = { id: value.id, english, lao }
-    const itemIssues = collectLaoIssues(item, `items[${index}]`)
-    const pool = [...existing, ...kept]
-    if (pool.some(other => normalizeEnglish(other.english) === normalizeEnglish(english))) itemIssues.push(`items[${index}]: "${english}" is already in the set`)
-    else itemIssues.push(...wordMatchIssues([...pool, item]).filter(issue => issue.includes(`"${english}"`)))
+    if (!LAO_SCRIPT.test(lao) || lao.length > 24) return void issues.push(`"${word.english}": "${lao}" is not a short Lao word`)
+    const item = { id: word.id, english: word.english, lao }
+    const itemIssues = collectLaoIssues(item, word.english)
+    const pool = [...taken, ...kept]
+    if (pool.some(other => normalizeEnglish(other.english) === normalizeEnglish(word.english))) itemIssues.push(`"${word.english}" is already in the set`)
+    else itemIssues.push(...wordMatchIssues([...pool, item]).filter(issue => issue.includes(`"${word.english}"`)))
     if (itemIssues.length) return void issues.push(...itemIssues)
     kept.push(item)
   })
+  return kept
+}
+
+const WORD_MATCH_REVIEW_CONTEXT = 'Word Match: an English word and its Lao meaning for a matching game for Lao students. "lao" must be the common everyday Lao word for the English word (the word a Lao teacher would write on the board), the same part of speech (a noun stays a noun), 1-3 Lao words, in Lao script. Never a Lao spelling of the English sound. If there is no established Lao word for it, or you are not certain, reject the pair.'
+
+// Qwen writes the Lao, the checks run, then the reviewer reads what passed. A
+// word the reviewer rejects is dropped (the reviewer never rewrites Lao); the spare
+// words of the batch fill the gap. `review: false` shows the translator's own Lao (preview only).
+export async function translateWordMatch(words: { id: string; english: string }[], taken: WordMatchItem[] = [], issues: string[] = [], review = true) {
+  const result = await askQwen(wordMatchTranslationPrompt(words, taken), { maxTokens: 3000, model: TRANSLATE_MODEL, system: LAO_TRANSLATOR_SYSTEM, temperature: 0.2 })
+  const kept = checkWordMatchTranslations(words, result.items, taken, issues)
+  if (!review || !kept.length) return kept
+  const accepted: WordMatchItem[] = []
+  for (const entry of await reviewLao(WORD_MATCH_REVIEW_CONTEXT, kept)) {
+    if (entry.rejected.length) {
+      issues.push(...entry.rejected)
+      continue
+    }
+    const item = entry.value
+    const itemIssues = [
+      ...collectLaoIssues(item, item.english),
+      ...(LAO_SCRIPT.test(item.lao) && item.lao.length <= 24 ? [] : [`"${item.english}": "${item.lao}" is not a short Lao word`]),
+      ...wordMatchIssues([...taken, ...accepted, item]).filter(issue => issue.includes(`"${item.english}"`)),
+    ]
+    if (itemIssues.length) issues.push(...itemIssues)
+    else accepted.push(item)
+  }
+  return accepted
+}
+
+// Qwen chooses spare English words, then writes and the reviewer checks their
+// Lao. A word is dropped when it has no short Lao equivalent, the reviewer rejects it, repeats an English word of this week's
+// pool, or shares a Lao meaning with another word, so no word repeats in a day.
+export async function generateWordMatch(batchIndex: number, existing: WordMatchItem[] = []) {
+  const requested = WORD_MATCH_BATCH_SIZE + WORD_MATCH_SPARE_ITEMS
+  const result = await askQwen(`Prepare part ${batchIndex + 1} of ${WORD_MATCH_BATCHES} of a weekly Word Match set for secondary-school and university students in Laos. English only: another model gives each word its Lao meaning afterwards, so write no Lao.
+Theme of this part: ${WORD_MATCH_THEMES[batchIndex % WORD_MATCH_THEMES.length]}. Choose common, useful words at secondary-school level (single words preferred, at most 2-word phrases) that have one clear everyday meaning and a short, well-known Lao equivalent. Skip words with several unrelated meanings. Do not use study-routine words (homework, exam, essay, assignment, notebook, pen, pencil, mentor, coach, streak) or terms kept in English (AI, Prompt, Cloud, URL, PDF, email).
+Return {"items":[${requested} items]}. Each item: {"id":"unique-kebab-slug","english":"real English word or short phrase"}. English must use Latin script. Every English word must be different from the others and from the words already in this week's set. Be concise.
+
+ALREADY IN THIS WEEK'S SET (do not repeat)
+${existing.map(item => item.english).join(', ') || '(none)'}`, { maxTokens: 1500 })
+  const raw = Array.isArray(result.items) ? result.items as Record<string, unknown>[] : []
+  const issues: string[] = []
+  const words: { id: string; english: string }[] = []
+  raw.forEach((value, index) => {
+    const english = typeof value?.english === 'string' ? value.english.trim() : ''
+    if (!isFilled(value?.id) || !LATIN_WORD.test(english)) return void issues.push(`items[${index}]: wrong shape`)
+    if (english.split(' ').length > 2) return void issues.push(`items[${index}]: "${english}" is not a short word`)
+    if ([...existing, ...words].some(other => normalizeEnglish(other.english) === normalizeEnglish(english))) return void issues.push(`items[${index}]: "${english}" is already in the set`)
+    words.push({ id: String(value.id).trim(), english })
+  })
+  const kept = words.length >= WORD_MATCH_BATCH_SIZE ? await translateWordMatch(words, existing, issues) : []
   if (kept.length < WORD_MATCH_BATCH_SIZE) {
     throw new Error(`Word Match check failed: only ${kept.length} of ${raw.length} pairs passed (need ${WORD_MATCH_BATCH_SIZE}): ${issues.slice(0, 5).join('; ')}. Regenerate this batch.`)
   }
@@ -458,10 +730,13 @@ export async function writeBookChapter(plan: BookPlan, index: number) {
 Chapter heading: "${chapter.heading}". Points to cover: ${chapter.notes.join(' | ')}.
 Write an original synthesis in your own words: explain the author's argument, retell the book's stories and examples briefly, and say why it matters for a learner. Name the author's concepts accurately; never invent quotes, numbers or stories. Do not use Markdown.
 Return ${CHAPTER_SHAPE}. English only.`, { maxTokens: 2500 })))
-  const lao = await withRetry(`Chapter ${index + 1} (Lao)`, startedAt, async () => enforceLaoStandard(readChapter(await askQwen(`Write this book-summary chapter in natural Lao for students in Laos. Keep exactly the same structure, blocks and meaning; translate naturally, never word-for-word. Keep the author's name, the book title and well-known English concept names in English where Lao readers would expect it. ${LAO_CONTENT_RULES}
+  // The Lao reviewer reads the Lao chapter against the English one; a chapter it rejects is translated again with its reasons.
+  return writeReviewed(`chapter ${index + 1} of the reading summary of "${plan.title}"`, async problems => ({
+    english,
+    lao: await withRetry(`Chapter ${index + 1} (Lao)`, startedAt, async () => enforceLaoStandard(readChapter(await askQwen(`Write this book-summary chapter in natural Lao for students in Laos. Keep exactly the same structure, blocks and meaning; translate naturally, never word-for-word. Keep the author's name, the book title and well-known English concept names in English where Lao readers would expect it. ${LAO_CONTENT_RULES}${reviewFeedback(problems)}
 CHAPTER (JSON): ${JSON.stringify(english)}
-Return the same JSON shape with every text in Lao.`, { maxTokens: 8000 }))))
-  return { english, lao }
+Return the same JSON shape with every text in Lao.`, { maxTokens: 8000, model: TRANSLATE_MODEL })))),
+  }), startedAt)
 }
 
 export type BookFinish = {
@@ -502,39 +777,45 @@ Return {"summary_en":"one sentence: the book's core idea","key_takeaways_en":[5 
   })
   // Lao text costs many tokens, so the Lao version is written as two smaller
   // requests at the same time; all of it in one answer ran out of time.
-  const translate = (source: unknown, shape: string) => askQwen(`Translate this book-summary material into natural Lao for students in Laos. Keep the same structure and meaning; translate naturally, never word-for-word. Keep the author's name, the book title and well-known English concept names in English where Lao readers would expect it. ${LAO_CONTENT_RULES}
+  const translate = (source: unknown, shape: string, problems: string[]) => askQwen(`Translate this book-summary material into natural Lao for students in Laos. Keep the same structure and meaning; translate naturally, never word-for-word. Keep the author's name, the book title and well-known English concept names in English where Lao readers would expect it. ${LAO_CONTENT_RULES}${reviewFeedback(problems)}
 SOURCE (JSON): ${JSON.stringify(source)}
-Return ${shape} in the same order as the source. Be concise.`, { maxTokens: 5000 }).then(result => enforceLaoStandard(result))
-  const [intro, reference] = await Promise.all([
-    withRetry('Summary intro (Lao)', startedAt, async () => {
-      const result = await translate({ deck: plan.deck_en, summary: english.summary_en, key_takeaways: english.key_takeaways_en, reflection_questions: english.reflection_questions_en },
-        '{"deck_lo":"","summary_lo":"","key_takeaways_lo":[5],"reflection_questions_lo":[3]}')
-      return {
-        deck_lo: String(result.deck_lo ?? '').trim(), summary_lo: String(result.summary_lo ?? '').trim(),
-        key_takeaways_lo: strings(result.key_takeaways_lo, 5, 'Lao key takeaways'),
-        reflection_questions_lo: strings(result.reflection_questions_lo, 3, 'Lao reflection questions'),
-      }
-    }),
-    withRetry('Glossary and quiz (Lao)', startedAt, async () => {
-      const result = await translate({ glossary: english.glossary_en, quiz: english.quiz.map(({ answerIndex: _, ...item }) => item) },
-        '{"glossary_lo":[same terms {"term":"","body":""}],"quiz":[3 {"prompt":"","options":[4],"explanation":""}]}')
-      const glossary = terms(result.glossary_lo, 'Lao glossary')
-      if (glossary.length !== english.glossary_en.length) throw new Error('Wrong shape: the Lao glossary does not match the English one.')
-      const quiz = requireArray(result, 'quiz', 3).map(item => ({ prompt: String(item.prompt ?? ''), options: strings(item.options, 4, 'Lao quiz options'), explanation: String(item.explanation ?? '') }))
-      return { glossary_lo: glossary, quiz }
-    }),
-  ])
-  const lao = { ...intro, ...reference }
-  return {
-    summary_en: english.summary_en, summary_lo: lao.summary_lo, deck_lo: lao.deck_lo,
-    key_takeaways_en: english.key_takeaways_en, key_takeaways_lo: lao.key_takeaways_lo,
-    glossary_en: english.glossary_en, glossary_lo: lao.glossary_lo,
-    reflection_questions_en: english.reflection_questions_en, reflection_questions_lo: lao.reflection_questions_lo,
-    quiz: english.quiz.map((item, index) => ({
-      prompt_en: item.prompt, prompt_lo: lao.quiz[index].prompt, options_en: item.options, options_lo: lao.quiz[index].options,
-      correct_index: item.answerIndex, explanation_en: item.explanation, explanation_lo: lao.quiz[index].explanation,
-    })),
-  }
+Return ${shape} in the same order as the source. Be concise.`, { maxTokens: 5000, model: TRANSLATE_MODEL }).then(result => enforceLaoStandard(result))
+  // The Lao reviewer reads everything below beside its English (the book deck is
+  // written in the plan, so it is carried along); text it rejects is translated again with its reasons.
+  const { deck_en: _deck, ...finished } = await writeReviewed(`takeaways, glossary and quiz of the reading summary of "${plan.title}"`, async problems => {
+    const [intro, reference] = await Promise.all([
+      withRetry('Summary intro (Lao)', startedAt, async () => {
+        const result = await translate({ deck: plan.deck_en, summary: english.summary_en, key_takeaways: english.key_takeaways_en, reflection_questions: english.reflection_questions_en },
+          '{"deck_lo":"","summary_lo":"","key_takeaways_lo":[5],"reflection_questions_lo":[3]}', problems)
+        return {
+          deck_lo: String(result.deck_lo ?? '').trim(), summary_lo: String(result.summary_lo ?? '').trim(),
+          key_takeaways_lo: strings(result.key_takeaways_lo, 5, 'Lao key takeaways'),
+          reflection_questions_lo: strings(result.reflection_questions_lo, 3, 'Lao reflection questions'),
+        }
+      }),
+      withRetry('Glossary and quiz (Lao)', startedAt, async () => {
+        const result = await translate({ glossary: english.glossary_en, quiz: english.quiz.map(({ answerIndex: _, ...item }) => item) },
+          '{"glossary_lo":[same terms {"term":"","body":""}],"quiz":[3 {"prompt":"","options":[4],"explanation":""}]}', problems)
+        const glossary = terms(result.glossary_lo, 'Lao glossary')
+        if (glossary.length !== english.glossary_en.length) throw new Error('Wrong shape: the Lao glossary does not match the English one.')
+        const quiz = requireArray(result, 'quiz', 3).map(item => ({ prompt: String(item.prompt ?? ''), options: strings(item.options, 4, 'Lao quiz options'), explanation: String(item.explanation ?? '') }))
+        return { glossary_lo: glossary, quiz }
+      }),
+    ])
+    const lao = { ...intro, ...reference }
+    return {
+      deck_en: plan.deck_en,
+      summary_en: english.summary_en, summary_lo: lao.summary_lo, deck_lo: lao.deck_lo,
+      key_takeaways_en: english.key_takeaways_en, key_takeaways_lo: lao.key_takeaways_lo,
+      glossary_en: english.glossary_en, glossary_lo: lao.glossary_lo,
+      reflection_questions_en: english.reflection_questions_en, reflection_questions_lo: lao.reflection_questions_lo,
+      quiz: english.quiz.map((item, index) => ({
+        prompt_en: item.prompt, prompt_lo: lao.quiz[index].prompt, options_en: item.options, options_lo: lao.quiz[index].options,
+        correct_index: item.answerIndex, explanation_en: item.explanation, explanation_lo: lao.quiz[index].explanation,
+      })),
+    }
+  }, startedAt)
+  return finished
 }
 
 // ---------------------------------------------------------------------------
@@ -746,20 +1027,23 @@ export async function writeScholarship(research: ScholarshipResearch) {
     h_overview: 'Overview', h_eligibility: 'Who can apply', h_documents: 'What to prepare', h_benefits: 'Benefits', h_apply: 'How to apply',
     l_provider: 'Provider', l_country: 'Host country', l_level: 'Study level', l_deadline: 'Deadline', l_source: 'Official source',
   }
-  const lo = await withRetry('Scholarship (Lao)', startedAt, async () => {
-    const result = enforceLaoStandard(await askQwen(`Translate this scholarship information into natural Lao for students in Laos. Keep the same keys, list lengths and meaning; keep the scholarship name, organisation names, document names that applicants must use in English (e.g. IELTS, TOEFL, CV) and dates in a clear form. ${LAO_CONTENT_RULES}
+  // The Lao reviewer reads the scholarship beside its English; a rejected one is translated again with its reasons.
+  return writeReviewed(`scholarship "${research.name}"`, async problems => {
+    const lo = await withRetry('Scholarship (Lao)', startedAt, async () => {
+      const result = enforceLaoStandard(await askQwen(`Translate this scholarship information into natural Lao for students in Laos. Keep the same keys, list lengths and meaning; keep the scholarship name, organisation names, document names that applicants must use in English (e.g. IELTS, TOEFL, CV) and dates in a clear form. ${LAO_CONTENT_RULES}${reviewFeedback(problems)}
 SOURCE (JSON): ${JSON.stringify(en)}
-Return the same JSON keys with every value in Lao.`, { maxTokens: 8000 })) as Record<string, string | string[]>
-    for (const key of ['eligibility', 'documents', 'benefits', 'how_to_apply', 'takeaways'] as const) {
-      if (!Array.isArray(result[key]) || result[key].length !== en[key].length) throw new Error(`Wrong shape: the Lao ${key} list does not match the English one.`)
+Return the same JSON keys with every value in Lao.`, { maxTokens: 8000, model: TRANSLATE_MODEL })) as Record<string, string | string[]>
+      for (const key of ['eligibility', 'documents', 'benefits', 'how_to_apply', 'takeaways'] as const) {
+        if (!Array.isArray(result[key]) || result[key].length !== en[key].length) throw new Error(`Wrong shape: the Lao ${key} list does not match the English one.`)
+      }
+      return result
+    })
+    return {
+      title_en: en.title, title_lo: String(lo.title ?? en.title),
+      summary_en: en.summary, summary_lo: String(lo.summary ?? ''),
+      content_en: scholarshipSections(research, en), content_lo: scholarshipSections(research, lo),
+      key_takeaways_en: en.takeaways, key_takeaways_lo: lo.takeaways as string[],
+      application_deadline: research.deadline, source_url: research.official_url,
     }
-    return result
-  })
-  return {
-    title_en: en.title, title_lo: String(lo.title ?? en.title),
-    summary_en: en.summary, summary_lo: String(lo.summary ?? ''),
-    content_en: scholarshipSections(research, en), content_lo: scholarshipSections(research, lo),
-    key_takeaways_en: en.takeaways, key_takeaways_lo: lo.takeaways as string[],
-    application_deadline: research.deadline, source_url: research.official_url,
-  }
+  }, startedAt)
 }

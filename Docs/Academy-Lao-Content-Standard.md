@@ -6,6 +6,8 @@ The Bookstore is out of scope. Book titles, authors and descriptions stay as the
 
 **Enforced in code.** The same rules live in [`supabase/functions/_shared/lao-content-standard.ts`](../supabase/functions/_shared/lao-content-standard.ts). `generate-academy-week` and `premium-arcade-pool` put them in every AI prompt. They also reject any batch that breaks the checks at the end of this page and regenerate it. If you change a rule, change both files.
 
+**Who writes and checks the Lao.** One Qwen request writes the English (`QWEN_FAST_MODEL` / `QWEN_CONTENT_MODEL`). A second request writes the Lao as a translation of it (`QWEN_TRANSLATE_MODEL`, default `qwen3.8-max`; Brain Sprint, Word Match, lessons, book summaries, scholarships, role-play and prompts). `qwen3.8-max` is used only for Lao (translating and reviewing), never to write the English. Then the **Lao reviewer** (`QWEN_REVIEW_MODEL`, default `qwen3.8-max`) reads every English/Lao pair before anything is saved. The reviewer only judges: it never writes Lao. If the review cannot finish, the step fails, so unreviewed Lao is never saved. The older `qwen-plus` and `qwen-max` wrote Lao with mistakes and, as reviewers, missed them, so do not use them for these two jobs. The reviewer logic is in [`lao-review.ts`](../supabase/functions/generate-academy-week/lao-review.ts). To try it without a database, run `scripts/preview-arcade-lao.ts` (see the comment at its top).
+
 ---
 
 ## 1. Language
@@ -17,6 +19,8 @@ The Bookstore is out of scope. Book titles, authors and descriptions stay as the
 5. Use one Lao term per idea across the whole set (see the glossary).
 6. Keep these terms in English: AI, Prompt, AI Coach, XP, Pomodoro, Cornell, Outline, Mind Mapping, URL, PDF, Cloud, email, brand and product names, file names, passwords, code.
 7. Money is written as `80,000 ກີບ`. Use Arabic digits.
+8. **Never spell an English word in Lao letters** to copy its sound (apple, banana, carrot, orange, inversion are not ແອັບເປິ້ນ, ບານານາ, ແຄລອດ…). Use an everyday Lao word that Lao people really say, or keep the English word in Latin letters.
+9. **When unsure, keep the English.** If a word or phrase has no established Lao word, or you are not certain the Lao is correct and makes sense to a student, leave it in English inside the Lao sentence. Never invent a Lao word. Check that a Lao word means what the English means *here* (a table to put a book on is ໂຕະ, not ຕາຕະລາງ, which is a data table).
 
 ### Spelling
 
@@ -36,6 +40,7 @@ This covers grammar, vocabulary, prepositions, tenses, fill-in-the-blank, and "w
 
 - **Keep the English being tested in English** in both the `en` and `lo` versions, inside quotes.
 - **Only the instruction and the explanation are in Lao.**
+- This includes English words listed in the question without quotes (odd one out: `Which word does not belong: apple, banana, carrot?`). The Lao question lists them in English too.
 - For grammar, tense, preposition, fill-in-the-blank and "which English word…" questions, every option's `lo` must be the **same English text** as its `en`.
 - For "what does 'X' mean?" questions, the options may be Lao meanings. The English word and sentence still stay in English.
 
@@ -110,14 +115,23 @@ options.lo: ນາງໄປໂຮງຮຽນເມື່ອວານນີ້ /
 | domain name | ຊື່ໂດເມນ (domain name) | backup | ສຳຮອງ (backup) |
 | phishing | ການຫຼອກລວງ (phishing) | prompt (AI) | Prompt |
 
-## 6. Automatic checks
+## 6. Automatic checks and the Lao reviewer
+
+The **Lao reviewer** checks every English/Lao pair against rules 1-9 and the English-practice rules in section 2: meaning, sense, no made-up spelling of English sounds, tested English kept in English. For each pair it answers ok or reject, with the reason, and says whether the Lao or the English is at fault. It rejects only real errors, not near-synonyms or nuance. What happens to a rejection:
+
+- **Quiz question:** translated again with the reviewer's reason, and checked again. If the English is at fault, or it is rejected again, the question is dropped and a spare question is used.
+- **Word Match word:** dropped; a spare word is used.
+- **Lesson, book chapter, book summary extras, scholarship, role-play mission, prompt library entry:** translated again once with the reasons. A text the reviewer still rejects is **left in English** (never saved as Lao), so one sentence cannot stop the week's content. Look for "stay in English" in the Forge logs.
+
+The reviewer cannot see a text whose Lao is identical to its English (English kept on purpose), and it does not replace a native Lao speaker: spot-check as described at the end of this page.
 
 A generated batch is rejected and regenerated if any of the following is true:
 
 - A Lao field (`lo`, `lao`, `*_lo`) contains Thai or another non-Lao script.
 - A Lao field contains a known bad term: pasado, ຫາຣ, ປຸ່ຍ, ປື້ມ, ດິຈິຕອລ, ອອນໄລນ, ຖາດຕໍ່ໄປ, ຕົວປັກກິ່ງ, ກິລິຍາຊ່ອງ, and others.
 - A Brain Sprint question has duplicate options in either language.
-- A quoted English practice sentence (`'... ___ ...'`) is missing from the Lao prompt.
+- English quoted in an English-practice question (`'keep your cool'`, `'She turned on the light.'`, a sentence with a blank) is missing or changed in the Lao prompt. The same goes for English words listed in the question when they are also the options.
+- English quoted in the explanation that also appears in the question is missing or changed in the Lao explanation.
 - An English-practice question's Lao options differ from its English options.
 - Two Word Match entries share a Lao meaning.
 

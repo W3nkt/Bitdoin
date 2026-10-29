@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLocation, useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
@@ -48,6 +48,7 @@ interface ReadingSummaryLink {
 
 export function BookDetail() {
   const { id } = useParams<{ id: string }>()
+  const { key: locationKey } = useLocation()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { addItem } = useCart()
@@ -60,6 +61,14 @@ export function BookDetail() {
   const [loginOpen, setLoginOpen] = useState(false)
   const [coverOpen, setCoverOpen] = useState(false)
   const favorite = useBookFavorite(id, () => success(t('book.addedToFavorites')))
+
+  useLayoutEffect(() => {
+    // Each visit starts at the cover, including related books and Back/Forward.
+    // Override browser restoration and the site's smooth scrolling before paint.
+    window.history.scrollRestoration = 'manual'
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    return () => { window.history.scrollRestoration = 'auto' }
+  }, [id, locationKey])
 
   const { data: book, isLoading } = useQuery({
     queryKey: ['book', id],

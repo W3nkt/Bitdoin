@@ -13,6 +13,13 @@ export const LAO_CONTENT_RULES = `LAO LANGUAGE STANDARD (mandatory)
 7. Facts must be real and checkable. If unsure, choose a different question — never invent a fact, date, statistic or "official" declaration.
 8. Lao names: ແມ່ນ້ຳຂອງ, ນ້ຳງື່ມ, ນ້ຳເທີນ, ນ້ຳຊອງ, ເຊບັ້ງໄຟ, ນະຄອນຫຼວງວຽງຈັນ, ແຂວງຫຼວງພະບາງ, ແຂວງຊຽງຂວາງ, ບຸນປີໃໝ່ລາວ, ບຸນທາດຫຼວງ.
 
+NEVER GUESS, NEVER SPELL ENGLISH SOUNDS IN LAO
+A. Never spell an English word in Lao letters to copy its sound (apple, banana, carrot, orange, conditional, inversion are not ແອັບເປິ້ນ, ບານານາ, ແຄລອດ…). Use an everyday Lao word that Lao people really say (e.g. ໂທລະສັບ, ອິນເຕີເນັດ, ຄອມພິວເຕີ), or keep the English word in Latin letters.
+B. If you are not certain that a Lao word or sentence is correct, natural and makes sense to a Lao student, or there is no established Lao word for it, keep that word or phrase in English (Latin letters) inside the Lao sentence. English that stays is always better than Lao that is wrong or odd. Never invent a Lao word.
+C. Pick the right word for the right thing: check that a Lao word means what the English means in this sentence (a "table" to put a book on is ໂຕະ, not ຕາຕະລາງ, which is a data table).
+D. English being tested is never translated and never spelled in Lao letters, in the question, the options or the explanation.
+E. Technical and scientific terms: use the Lao term or the loanword Lao textbooks and Lao speakers use (ຮໍໂມນ, ໂມເລກຸນ, ອິນເຕີເນັດ), and put the English in brackets after it the first time, as in ເຣົາເຕີ (router) or ຊື່ໂດເມນ (domain name). That is allowed and expected: a Lao word with the English beside it is not a transliteration. Never leave a plain English word in the middle of a Lao sentence when a Lao word exists (use ເຄມີ, not "chemical"; ແສງ, not "light").
+
 ENGLISH-PRACTICE QUESTIONS (grammar, vocabulary, prepositions, tenses, fill-in-the-blank, "what does X mean")
 9. The English sentence being tested stays in English, inside quotes, in BOTH the English and Lao prompt. Example Lao prompt: ເລືອກຄຳບຸບພະບົດ (preposition) ທີ່ຖືກຕ້ອງ: 'She is good ___ math.'
 10. For grammar, tense, preposition, fill-in-the-blank and "which English word…" questions, every option's "lo" must be exactly the same English text as its "en". Never translate the options.
@@ -39,6 +46,8 @@ BEFORE YOU ANSWER, CHECK: no Thai letters; every Lao sentence makes sense on its
 const BANNED_LAO = [
   'pasado', 'ຫາຣ', 'ປຸ່ຍ', 'ຄາດເດັກ', 'ຕົວປັກກິ່ງ', 'ຖາດຕໍ່ໄປ', 'ປື້ມ', 'ອອນໄລນ', 'ດິຈິຕອລ', 'ບົດຄຳນຳທີ່ຖືກຕ້ອງ',
   'ຊີ້ນສັມພາດ', 'ຄວາມເປັນເອກະລາດໃນການສຶກສາ', 'ພິສູດອ່ານ', 'ມື້ນເປື', 'ກິລິຍາຊ່ອງ',
+  // English words spelled by sound (seen in Brain Sprint) and a garbled "half of" (seen in 24 × 15).
+  'ບານານາ', 'ດອກກາເລັດ', 'ອອເຣັງ', 'ອາກົດ', 'ເຄື່ອງລືນເຄື່ອງ', 'ເຄື່ອງຈັກເຄື່ອງນັ້ນ',
 ]
 
 const NON_LAO_SCRIPT = /[฀-๿඀-෿ក-៿က-႟一-鿿Ѐ-ӿ]/
@@ -74,9 +83,15 @@ type BrainItem = { prompt: Localized; options: Localized[]; answerIndex: number;
 const QUOTED_BLANK = /['‘’"“”]([^'‘’"“”]*_{2,}[^'‘’"“”]*)['‘’"“”]/
 const ENGLISH_PRACTICE = /\b(preposition|grammar|tense|verb|fill|blank|correct word|correct sentence|which word|synonym|antonym|means the same)\b/i
 
+// "What does 'take off' mean?", "The word 'robot' comes from a Czech word meaning what?": the
+// options are meanings, so a Lao student reads them in Lao even though the question is about English.
+export const isMeaningQuestion = (promptEn: string) =>
+  /\b(what (does|do|is the meaning of)\b.*\b(mean|means|meaning)|meaning of|mean when|mean in|meaning what|means what)\b/i.test(promptEn)
+
 // English-practice item whose options are plain English, so "lo" options must equal "en".
-const hasEnglishPracticeOptions = (item: BrainItem) =>
-  Boolean(item.prompt.en.match(QUOTED_BLANK) || ENGLISH_PRACTICE.test(item.prompt.en))
+export const hasEnglishPracticeOptions = (item: BrainItem) =>
+  !isMeaningQuestion(item.prompt.en)
+  && Boolean(item.prompt.en.match(QUOTED_BLANK) || ENGLISH_PRACTICE.test(item.prompt.en))
   && item.options.every(option => /^[\x20-\x7E’‘]+$/.test(option.en))
 
 export function brainSprintIssues(item: BrainItem, path = 'item'): string[] {
@@ -91,6 +106,51 @@ export function brainSprintIssues(item: BrainItem, path = 'item'): string[] {
   }
   if (hasEnglishPracticeOptions(item) && item.options.some(option => option.lo.trim() !== option.en.trim())) {
     issues.push(`${path}: English-practice options must be identical in "lo" and "en"`)
+  }
+  return issues
+}
+
+const normalizeQuotes = (text: string) => text.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ')
+
+// English between quotes, e.g. 'Keep your cool' in: What does 'Keep your cool' mean?
+// An apostrophe inside a word (Don't) does not close the quote.
+const QUOTED_ENGLISH = /(?<![\p{L}\p{N}])'((?:[^']|(?<=\p{L})'(?=\p{L}))+?)'(?![\p{L}\p{N}])|"([^"]+)"/gu
+
+export function quotedEnglish(text: string): string[] {
+  return [...normalizeQuotes(text).matchAll(QUOTED_ENGLISH)]
+    .map(match => (match[1] ?? match[2]).trim())
+    .filter(segment => /[A-Za-z]/.test(segment))
+}
+
+// The English a learner is tested on must reach the Lao text unchanged: if it
+// is translated, the question can no longer be answered (the Lao sentence no
+// longer holds the word the question asks about). Covers the quoted English of
+// the prompt, the quoted English of the explanation that comes from the prompt,
+// and English words that sit in the question as a list (odd one out) and are
+// also the options.
+export function quotedEnglishIssues(
+  item: { prompt: Localized; options: Localized[]; explanation: Localized },
+  { optionsStayEnglish }: { optionsStayEnglish: boolean },
+  path = 'item',
+): string[] {
+  const issues: string[] = []
+  const promptEn = normalizeQuotes(item.prompt.en)
+  for (const field of ['prompt', 'explanation'] as const) {
+    const lo = normalizeQuotes(item[field].lo)
+    for (const segment of quotedEnglish(item[field].en)) {
+      if (field === 'explanation' && !promptEn.toLowerCase().includes(segment.toLowerCase())) continue
+      if (!lo.includes(segment)) issues.push(`${path}: the quoted English "${segment}" must stay exactly as written in the Lao ${field}`)
+    }
+  }
+  if (optionsStayEnglish) {
+    const promptLo = normalizeQuotes(item.prompt.lo).toLowerCase()
+    for (const option of item.options) {
+      const word = option.en.trim()
+      const inPrompt = new RegExp(`(?<![\\p{L}\\p{N}])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'iu')
+      if (word && inPrompt.test(promptEn) && !promptLo.includes(word.toLowerCase())) {
+        issues.push(`${path}: the English word "${word}" is listed in the question and must stay in English in the Lao prompt`)
+      }
+    }
   }
   return issues
 }
