@@ -23,7 +23,7 @@ interface AuthContextValue {
   verifyOtp: (phone: string, token: string) => Promise<AuthResult>
   signInWithGoogle: (returnPath?: string) => Promise<void>
   /** In the app, Facebook opens the Facebook app; the error says what to tell the person. */
-  signInWithFacebook: (returnPath?: string) => Promise<{ error: 'no_email' | 'failed' | null }>
+  signInWithFacebook: (returnPath?: string) => Promise<{ error: 'no_email' | 'failed' | null; detail?: string }>
   signInWithApple: (returnPath?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -162,20 +162,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithProvider('google', returnPath)
   }
 
-  async function signInWithFacebook(returnPath = '/'): Promise<{ error: 'no_email' | 'failed' | null }> {
+  async function signInWithFacebook(returnPath = '/'): Promise<{ error: 'no_email' | 'failed' | null; detail?: string }> {
     if (__NATIVE_BUILD__) {
-      // Facebook's own login (it opens the Facebook app), when this build has the Facebook app
-      // settings; if it cannot start, fall through to the browser like Google and Apple.
+      // Facebook's own login SDK, when this build has the Facebook app settings (see nativeFacebook.ts).
+      // Otherwise Facebook uses the browser like Google and Apple.
       try {
-        const { facebookAppConfigured, signInWithFacebookApp, FACEBOOK_APP_UNAVAILABLE } = await import('@/lib/nativeFacebook')
+        const { facebookAppConfigured, signInWithFacebookApp } = await import('@/lib/nativeFacebook')
         if (facebookAppConfigured) {
           rememberOAuthReturnPath(returnPath)
-          const result = await signInWithFacebookApp()
-          if (result !== FACEBOOK_APP_UNAVAILABLE) return { error: null }
+          await signInWithFacebookApp()
+          return { error: null }
         }
       } catch (error) {
         console.error('[facebook-app]', error)
-        return { error: (error as { code?: string }).code === 'no_email' ? 'no_email' : 'failed' }
+        const { code, detail } = error as { code?: string; detail?: string }
+        return { error: code === 'no_email' ? 'no_email' : 'failed', detail }
       }
     }
     await signInWithProvider('facebook', returnPath)

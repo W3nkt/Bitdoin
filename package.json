@@ -39,6 +39,7 @@
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.43.4",
     "@tanstack/react-query": "^5.40.0",
+    "capacitor-plugin-app-tracking-transparency": "^3.0.0",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
     "html2canvas": "^1.4.1",

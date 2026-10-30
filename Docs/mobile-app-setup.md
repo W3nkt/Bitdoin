@@ -36,13 +36,20 @@ Google, Facebook and Apple sign-in opens the provider's page in the system brows
 
 No new Google, Facebook or Apple credentials are needed; the existing web providers are reused. Email and password sign-in needs nothing extra.
 
-## Facebook sign-in that opens the Facebook app
+## Facebook sign-in in the app
 
-Google and Apple open the browser. Facebook is different: with the settings below, **Continue with Facebook** uses Facebook's own login, which opens the Facebook app to authorize (when it is installed; otherwise Facebook's login page opens over the app) and then returns to Bitdoin signed in. Supabase's built-in Facebook login cannot check what that login returns, so a Bitdoin Edge Function (`facebook-native-login`) does: it asks Facebook whether the token is valid **and was issued to your app**, finds or creates the account, and gives the app a one-time token that becomes a normal Supabase session. The website's Facebook login is unchanged.
+In the apps, **Continue with Facebook** uses Facebook's own login SDK instead of the website's redirect flow. What happens next is decided by iOS, not by Bitdoin:
 
-**iOS first.** The Facebook app login is on for **iOS only** for now. Android keeps using the browser for Facebook, because Facebook only accepts an Android build signed with a registered key and there is no fixed signing key until the Play Console release is set up. When that is done: add the Android platform in Meta (below) and remove the `Capacitor.getPlatform() === 'ios'` check in `src/lib/nativeFacebook.ts`.
+- **The person has allowed tracking**: a classic login. Facebook can switch to the **Facebook app** to approve (when it is installed and signed in) and come straight back. The app shows iOS's "Allow Bitdoin to track your activity…" prompt **once, just before the first Facebook sign-in** (`src/lib/nativeFacebook.ts`).
+- **The person has not** (they tapped Don't Allow, or switched tracking off in iOS Settings): the Facebook SDK itself turns the login into **Limited Login**. It runs in the in-app browser, never in the Facebook app (Meta: "Limited Login does not support fast app switch"), and returns an ID token instead of an access token.
 
-Until you finish the steps, nothing breaks: without `FACEBOOK_APP_ID` in the build, Facebook sign-in in the apps keeps using the browser.
+Both give the app an ID token that Supabase verifies directly (`signInWithIdToken`, which supports Facebook), so sign-in works either way and needs no extra backend code. The `facebook-native-login` Edge Function (migration 171) is now only a fallback for a result that has an access token and no ID token; it can be removed if it is never needed. If sign-in fails, the message on screen ends with a short reason in brackets; send that.
+
+**The tracking prompt.** Its text is in `Info.plist` (`NSUserTrackingUsageDescription`): "Allowing this lets you sign in by opening the Facebook app. Bitdoin does not use it to show you ads." It is optional for the person: Don't Allow still signs in (in the browser sheet). The permission is used for nothing else: the Facebook SDK's automatic app events and advertiser ID collection are switched off. Bitdoin Academy has students under 18, so keep it that way. Before iOS 17 the Facebook SDK may still treat tracking as off even after Allow, so those phones get the browser sheet.
+
+**iOS first.** The Facebook SDK login is on for **iOS only** for now. Android keeps using the browser for Facebook, because Facebook only accepts an Android build signed with a registered key and there is no fixed signing key until the Play Console release is set up. When that is done: add the Android platform in Meta (below) and remove the `Capacitor.getPlatform() === 'ios'` check in `src/lib/nativeFacebook.ts`.
+
+Until you finish the steps, nothing breaks: without `FACEBOOK_APP_ID` in the build, Facebook sign-in in the apps uses the browser like Google and Apple. (If Google or Apple sign-in in the app shows an error, check Supabase > Authentication > URL Configuration > Redirect URLs contains `store.bitdoin.app://auth/callback`.)
 
 **1. Meta for Developers** (the Facebook app you already use for the website):
 - Settings > Basic: note the **App ID** and **App Secret**. Settings > Advanced: note the **Client token**.
@@ -57,11 +64,9 @@ Until you finish the steps, nothing breaks: without `FACEBOOK_APP_ID` in the bui
 
 **3. GitHub** (Settings > Secrets and variables > Actions): variable `FACEBOOK_APP_ID` and secret `FACEBOOK_CLIENT_TOKEN`. Set both or neither: the workflow stops if only one is set. It puts them into `Info.plist` and `strings.xml` before building (`scripts/apply-facebook-config.mjs`; the repo keeps placeholders), and passes the App ID to the app code as `VITE_FACEBOOK_APP_ID`. Never put the App Secret here.
 
-**How accounts are matched.** A person who has signed in with Facebook on the website is found by their Facebook ID. A new Facebook person whose Facebook email matches an existing Bitdoin account is signed into that account (Facebook confirms the email; Supabase does the same linking on the website). Otherwise an account is created, as the website does. Facebook must share an email: without one the person is told to use email or Google. If an email's account already belongs to a different Facebook profile, the sign-in is refused. Admin accounts still need their authenticator code as before.
+**How accounts are matched.** For Limited Login Supabase does the matching: a Facebook person is found by their Facebook ID, or linked to the existing account with the same email (Facebook confirms it, as on the website); otherwise an account is created. Facebook must share an email: without one the person is told to use email or Google. Admin accounts still need their authenticator code as before.
 
-**Store forms.** List Facebook Login (name, email, user ID; used for sign-in) in Apple's App Privacy answers and Google Play's Data safety form. The app turns off the Facebook SDK's automatic app events and advertiser ID collection, so the SDK is used only to sign in.
-
-**To test:** install a build, tap Facebook, and check that the Facebook app opens, you approve, and you land back in Bitdoin signed in. Then try with the Facebook app not installed, with a Facebook account that shares no email, and cancel from the Facebook screen (it should just return to the login screen).
+**Store forms.** List Facebook Login (name, email, user ID; used for sign-in) in Apple's App Privacy answers and Google Play's Data safety form. Because the app now shows iOS's tracking prompt, App Store Connect > App Privacy must be answered to match (follow Apple's wording on what counts as tracking; nothing is collected for ads). Apple's review may ask why the prompt is there: the answer is that it lets the Facebook app open for sign-in.
 
 ## How the apps look on a phone
 
@@ -70,7 +75,7 @@ Until you finish the steps, nothing breaks: without `FACEBOOK_APP_ID` in the bui
 - **App icon.** The Bitdoin mark only, no wordmark, on white (iOS has no transparency; Android uses it as an adaptive icon). The sources are the PNGs in `assets/`. After changing one, regenerate every size:
   `npx @capacitor/assets generate --ios --android --assetPath assets --iconBackgroundColor "#ffffff" --iconBackgroundColorDark "#ffffff" --splashBackgroundColor "#12294a" --splashBackgroundColorDark "#12294a"`
   `assets/brand-mark.png` is the mark with a transparent background; `src/assets/native-splash-mark.png` is a copy of it for the opening screen.
-- **Opening screen.** The native launch image (`assets/splash.png`: navy, white medallion with the mark) shows first. When the web app has painted its own copy of the same picture, it drops the native one and the animation plays (glow, rings, glint, name) for about two seconds before the app opens (`src/lib/nativeSplash.ts` and `.css`). Phones set to "reduce motion" get a still version. If that code ever fails, the native splash hides itself after 5 seconds (`capacitor.config.ts`).
+- **Opening screen.** The native launch image (`assets/splash.png`) is the plain navy gradient. The app then plays the opening (`src/lib/nativeSplash.ts` and `.css`): the bookstore's real covers fly through the screen as 3D books for about 4.4 seconds, gather into the middle, and the Bitdoin logo fades in at the centre, then its name; at 7.3 seconds the screen fades to the app. The covers are the newest active books, remembered on the phone so the next launch needs no waiting; if they cannot be loaded, six covers that ship with the app are used. Phones set to "reduce motion" get just the logo. If that code ever fails, the native splash hides itself after 5 seconds (`capacitor.config.ts`).
 - **Swipe back.** Swiping in from the left edge goes back one page (`src/lib/nativeBackSwipe.ts`). It does nothing on the first page the app opened, so it never leaves the app. Android's own back gesture works as well.
 
 ## Version numbers

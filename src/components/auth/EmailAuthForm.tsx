@@ -51,8 +51,8 @@ export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, vari
   const { error: showError, success } = useToast()
 
   async function handleFacebook() {
-    const { error } = await signInWithFacebook(returnPath)
-    if (error) showError(t(error === 'no_email' ? 'auth.facebookNoEmail' : 'auth.facebookFailed'))
+    const { error, detail } = await signInWithFacebook(returnPath)
+    if (error) showError(`${t(error === 'no_email' ? 'auth.facebookNoEmail' : 'auth.facebookFailed')}${detail ? ` (${detail})` : ''}`)
   }
 
   const [ownStep, setOwnStep] = useState<EmailStep>('signin')

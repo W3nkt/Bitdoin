@@ -1,17 +1,22 @@
 /*
- * The apps' opening screen. The native launch image (assets/splash.png: navy gradient, white medallion
- * with the Bitdoin mark) stays up until this is on screen, so it starts as the same picture and then
- * comes alive: a warm glow, rings spreading out, a glint across the medallion, the name rising in.
- * Sizes follow the longer screen side, the way the launch image is scaled to fill the screen.
+ * The apps' opening screen. The native launch image (assets/splash.png) is the plain navy gradient;
+ * this starts on the same gradient and plays, from the moment it gets the .ns-play class:
+ *
+ *    0 s     books from the bookstore (their real covers) fly up through the screen, in 3D
+ *    4.4 s   the books gather into the middle and vanish
+ *    4.75 s  the Bitdoin logo fades in at the centre, then its name
+ *    7.3 s   the screen fades away to the app (src/lib/nativeSplash.ts; keep the times in step)
+ *
+ * Everything is placed from the centre with inset:0 + margin:auto, so nothing can push the logo
+ * off-centre. (An earlier version used a grid whose column grew to fit an oversized glow, which
+ * moved the logo half off the right edge of the screen.)
  */
 #native-splash {
   --u: max(100vw, 100vh);
-  --medal: calc(var(--u) * 0.2526);
+  --medal: min(calc(var(--u) * 0.2526), 340px);
   position: fixed;
   inset: 0;
   z-index: 2147483000;
-  display: grid;
-  place-items: center;
   overflow: hidden;
   background: linear-gradient(180deg, #1d3d66, #0b1d33);
   color: #fff;
@@ -20,42 +25,138 @@
   user-select: none;
 }
 
-#native-splash > * { grid-area: 1 / 1; }
+#native-splash .ns-layer { position: absolute; inset: 0; }
 
+/* ── Ambient light and sparks behind the books ── */
 #native-splash .ns-glow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   width: calc(var(--u) * 0.95);
-  aspect-ratio: 1;
+  height: calc(var(--u) * 0.95);
   border-radius: 50%;
   background:
-    radial-gradient(circle, rgb(247 147 26 / .30) 0, rgb(247 147 26 / 0) 30%),
-    radial-gradient(circle, rgb(59 120 184 / .55) 0, rgb(59 120 184 / 0) 62%);
+    radial-gradient(circle, rgb(247 147 26 / .26) 0, rgb(247 147 26 / 0) 30%),
+    radial-gradient(circle, rgb(59 120 184 / .5) 0, rgb(59 120 184 / 0) 62%);
   opacity: 0;
+}
+
+#native-splash .ns-spark {
+  position: absolute;
+  left: var(--sx);
+  bottom: -8px;
+  width: var(--ss);
+  height: var(--ss);
+  border-radius: 50%;
+  background: rgb(255 218 160 / .9);
+  box-shadow: 0 0 6px 1px rgb(255 190 110 / .5);
+  opacity: 0;
+}
+
+/* ── Flying books: a real 3D box per book, the cover on the front ── */
+#native-splash .ns-book {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w);
+  height: var(--h);
+  margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+  perspective: calc(var(--w) * 6);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+#native-splash .ns-book-in {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+#native-splash .ns-face { position: absolute; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+
+#native-splash .ns-front {
+  inset: 0;
+  overflow: hidden;
+  border-radius: 2px 5px 5px 2px;
+  background: #e9e4d8;
+  transform: translateZ(calc(var(--t) / 2));
+  box-shadow: 0 10px 24px rgb(0 0 0 / .35);
+}
+#native-splash .ns-front img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* The hinge groove and a sheen across the cover. */
+#native-splash .ns-front::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / .3), rgb(255 255 255 / .2) 4%, rgb(0 0 0 / 0) 9%, rgb(255 255 255 / .08) 55%, rgb(0 0 0 / .16));
+}
+
+#native-splash .ns-back {
+  inset: 0;
+  border-radius: 5px 2px 2px 5px;
+  background: var(--c);
+  transform: rotateY(180deg) translateZ(calc(var(--t) / 2));
+}
+#native-splash .ns-spine {
+  left: calc((var(--w) - var(--t)) / 2);
+  top: 0;
+  width: var(--t);
+  height: 100%;
+  background: linear-gradient(90deg, var(--c), rgb(0 0 0 / .4));
+  transform: rotateY(-90deg) translateZ(calc(var(--w) / 2));
+}
+#native-splash .ns-pages-r {
+  left: calc((var(--w) - var(--t)) / 2);
+  top: 2px;
+  width: var(--t);
+  height: calc(100% - 4px);
+  background: repeating-linear-gradient(90deg, #f6f1e4 0 2px, #ddd4be 2px 3px);
+  transform: rotateY(90deg) translateZ(calc(var(--w) / 2));
+}
+#native-splash .ns-pages-t,
+#native-splash .ns-pages-b {
+  left: 2px;
+  top: calc((var(--h) - var(--t)) / 2);
+  width: calc(100% - 4px);
+  height: var(--t);
+  background: repeating-linear-gradient(0deg, #f6f1e4 0 2px, #ddd4be 2px 3px);
+}
+#native-splash .ns-pages-t { transform: rotateX(90deg) translateZ(calc(var(--h) / 2)); }
+#native-splash .ns-pages-b { transform: rotateX(-90deg) translateZ(calc(var(--h) / 2)); }
+
+/* ── The logo ── */
+#native-splash .ns-halo,
+#native-splash .ns-ring,
+#native-splash .ns-medal {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+#native-splash .ns-halo {
+  width: calc(var(--medal) * 2.6);
+  height: calc(var(--medal) * 2.6);
+  background: radial-gradient(circle, rgb(247 165 64 / .38) 0, rgb(247 165 64 / 0) 62%);
 }
 
 #native-splash .ns-ring {
   width: var(--medal);
-  aspect-ratio: 1;
-  border-radius: 50%;
+  height: var(--medal);
   border: 1.5px solid rgb(255 196 110 / .6);
-  opacity: 0;
 }
 
 #native-splash .ns-medal {
-  position: relative;
   display: grid;
   place-items: center;
   width: var(--medal);
-  aspect-ratio: 1;
-  border-radius: 50%;
+  height: var(--medal);
   overflow: hidden;
   background: radial-gradient(circle at 50% 42%, #fff, #f4efe7);
+  box-shadow: 0 0 calc(var(--u) * .05) calc(var(--u) * .008) rgb(247 170 60 / .3);
 }
-
-#native-splash .ns-medal img {
-  display: block;
-  width: calc(var(--u) * 0.2196);
-  aspect-ratio: 1;
-}
+#native-splash .ns-medal img { display: block; width: calc(var(--medal) * 0.87); height: calc(var(--medal) * 0.87); }
 
 /* A warm glint travelling across the medallion. */
 #native-splash .ns-shine {
@@ -67,13 +168,13 @@
 }
 
 #native-splash .ns-word {
-  align-self: start;
-  justify-self: center;
-  margin-top: calc(50vh + var(--medal) / 2 + 5.5vh);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + var(--medal) / 2 + 5.5vh);
   text-align: center;
   opacity: 0;
 }
-
 #native-splash .ns-word strong {
   display: block;
   font-size: calc(var(--u) * 0.0285);
@@ -82,7 +183,6 @@
   text-indent: .32em;
   text-transform: uppercase;
 }
-
 #native-splash .ns-word::after {
   content: '';
   display: block;
@@ -92,57 +192,84 @@
   background: linear-gradient(90deg, transparent, #f7a540, transparent);
 }
 
-#native-splash.ns-play .ns-glow { animation: ns-glow 1.9s ease-out both; }
-#native-splash.ns-play .ns-ring { animation: ns-ring 1.9s cubic-bezier(.2, .6, .3, 1) both; }
-#native-splash.ns-play .ns-r2 { animation-delay: .22s; }
-#native-splash.ns-play .ns-r3 { animation-delay: .44s; }
-#native-splash.ns-play .ns-medal { animation: ns-medal 1.8s cubic-bezier(.22, 1, .36, 1) both; }
-#native-splash.ns-play .ns-shine { animation: ns-shine 1.1s cubic-bezier(.4, 0, .2, 1) .35s both; }
-#native-splash.ns-play .ns-word { animation: ns-word 1s cubic-bezier(.22, 1, .36, 1) .7s both; }
-#native-splash.ns-play .ns-word::after { animation: ns-line 1s cubic-bezier(.22, 1, .36, 1) .95s both; }
+/* ── The timeline ── */
+#native-splash.ns-play .ns-glow { animation: ns-glow 4.4s ease-out both, ns-glow-logo 1.6s ease-out 4.75s forwards; }
+#native-splash.ns-play .ns-spark { animation: ns-spark var(--sd) var(--sl) linear both; }
+#native-splash.ns-play .ns-books { animation: ns-fade-in .6s ease-out both, ns-collapse .8s cubic-bezier(.6, 0, .9, .4) 4.4s forwards; }
+#native-splash.ns-play .ns-book { animation: ns-fly var(--dur) var(--delay) cubic-bezier(.45, .05, .55, .95) both; }
+#native-splash.ns-play .ns-book-in { animation: ns-spin var(--dur) var(--delay) ease-in-out both; }
+#native-splash.ns-play .ns-halo { animation: ns-fade-in 1.8s ease-out 4.75s forwards; }
+#native-splash.ns-play .ns-medal { animation: ns-logo-in 1.3s cubic-bezier(.22, 1, .36, 1) 4.75s forwards; }
+#native-splash.ns-play .ns-ring { animation: ns-ring 1.9s cubic-bezier(.2, .6, .3, 1) 5.3s both; }
+#native-splash.ns-play .ns-shine { animation: ns-shine 1.1s cubic-bezier(.4, 0, .2, 1) 5.8s both; }
+#native-splash.ns-play .ns-word { animation: ns-word 1s cubic-bezier(.22, 1, .36, 1) 5.6s forwards; }
+#native-splash.ns-play .ns-word::after { animation: ns-line 1s cubic-bezier(.22, 1, .36, 1) 5.9s forwards; }
+
+/* Reduced motion: no flying, just the logo and its name. */
+#native-splash.ns-calm .ns-halo { opacity: 1; }
+#native-splash.ns-calm .ns-medal { animation: ns-fade-in .6s ease-out forwards; }
+#native-splash.ns-calm .ns-word { opacity: 1; }
+#native-splash.ns-calm .ns-word::after { width: 3.2em; }
 
 /* Leaving: the screen opens toward the app. */
 #native-splash.ns-exit {
   opacity: 0;
-  transform: scale(1.08);
+  transform: scale(1.06);
   pointer-events: none;
   transition: opacity .5s ease, transform .5s cubic-bezier(.4, 0, .2, 1);
 }
-
-/* Reduced motion: no movement, just the name. */
-#native-splash.ns-calm .ns-word { opacity: 1; }
-#native-splash.ns-calm .ns-word::after { width: 3.2em; }
 #native-splash.ns-calm.ns-exit { transform: none; }
 
 @keyframes ns-glow {
-  0% { opacity: 0; transform: scale(.6); }
-  40% { opacity: 1; }
-  100% { opacity: .8; transform: scale(1.05); }
+  0% { opacity: 0; transform: scale(.7); }
+  100% { opacity: .75; transform: scale(1); }
+}
+@keyframes ns-glow-logo {
+  0% { opacity: .75; }
+  100% { opacity: .4; }
 }
 
+@keyframes ns-spark {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: .75; }
+  100% { opacity: 0; transform: translateY(-110vh); }
+}
+
+@keyframes ns-fly {
+  0% { transform: translate3d(var(--x0), var(--y0), 0); opacity: 0; }
+  10% { opacity: var(--o); }
+  50% { transform: translate3d(var(--xm), var(--ym), 0); }
+  90% { opacity: var(--o); }
+  100% { transform: translate3d(var(--x1), var(--y1), 0); opacity: 0; }
+}
+@keyframes ns-spin {
+  0% { transform: rotateX(var(--rx0)) rotateY(var(--ry0)) rotateZ(var(--rz0)); }
+  50% { transform: rotateX(var(--rxm)) rotateY(var(--rym)) rotateZ(var(--rzm)); }
+  100% { transform: rotateX(var(--rx1)) rotateY(var(--ry1)) rotateZ(var(--rz1)); }
+}
+@keyframes ns-collapse {
+  to { transform: scale(.03) rotate(18deg); opacity: 0; }
+}
+
+@keyframes ns-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ns-logo-in {
+  from { opacity: 0; transform: scale(.82); }
+  to { opacity: 1; transform: scale(1); }
+}
 @keyframes ns-ring {
   0% { opacity: 0; transform: scale(1); }
-  14% { opacity: .75; }
-  100% { opacity: 0; transform: scale(2.7); }
+  14% { opacity: .7; }
+  100% { opacity: 0; transform: scale(2.6); }
 }
-
-@keyframes ns-medal {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(247 170 60 / 0); }
-  32% { transform: scale(1.045); box-shadow: 0 0 calc(var(--u) * .07) calc(var(--u) * .012) rgb(247 170 60 / .5); }
-  100% { transform: scale(1); box-shadow: 0 0 calc(var(--u) * .05) calc(var(--u) * .008) rgb(247 170 60 / .28); }
-}
-
 @keyframes ns-shine {
-  0% { transform: translateX(-130%); }
-  100% { transform: translateX(130%); }
+  from { transform: translateX(-130%); }
+  to { transform: translateX(130%); }
 }
-
 @keyframes ns-word {
-  0% { opacity: 0; transform: translateY(16px); letter-spacing: .55em; }
+  0% { opacity: 0; transform: translateY(14px); letter-spacing: .55em; }
   100% { opacity: 1; transform: none; letter-spacing: .32em; }
 }
-
 @keyframes ns-line {
-  0% { width: 0; }
-  100% { width: 3.2em; }
+  from { width: 0; }
+  to { width: 3.2em; }
 }

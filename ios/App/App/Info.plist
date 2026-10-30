@@ -63,6 +63,9 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Shown once, before the first Facebook sign-in. Allowing it lets Facebook open the Facebook app; Bitdoin uses it for nothing else. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Allowing this lets you sign in by opening the Facebook app. Bitdoin does not use it to show you ads.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Bitdoin uses the camera to photograph score books, payment receipts and your profile picture.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
