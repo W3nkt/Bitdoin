@@ -13,7 +13,7 @@ export function AcademyPageHeader({ title, detail, back, actions }: {
 }) {
   const navigate = useNavigate()
   return (
-    <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
+    <header className="sticky top-[var(--academy-banner-h,0px)] z-30 pt-[var(--safe-top)] border-b border-slate-900/10 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/85">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:h-[72px] sm:gap-3">
         {back && <button
           type="button"

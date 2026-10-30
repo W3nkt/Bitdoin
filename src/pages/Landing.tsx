@@ -18,7 +18,7 @@ export function Landing() {
 
       <div className="relative flex min-h-screen flex-col">
         {/* ── Header ── */}
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
+        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 pb-6 pt-[calc(1.5rem+var(--safe-top))] sm:px-8">
           <img
             src={publicAsset('icons/Bitdoin-Logo.png')}
             alt={t('appName')}

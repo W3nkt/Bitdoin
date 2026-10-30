@@ -205,7 +205,7 @@ export function BrowseSidebar({
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}>
           {/* Drawer header */}
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 pb-3.5 pt-[calc(0.875rem+var(--safe-top))]">
             <div className="flex items-center gap-2">
               <OpenBook className="h-4 w-4 text-accent-400" />
               <span className="text-sm font-semibold">{t('sidebar.browse')}</span>
@@ -218,7 +218,7 @@ export function BrowseSidebar({
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="h-[calc(100%-3.5rem)] overflow-y-auto pb-8 scrollbar-hide">
+          <div className="h-[calc(100%-3.5rem-var(--safe-top))] overflow-y-auto pb-[calc(2rem+var(--safe-bottom))] scrollbar-hide">
             {sidebarBody}
           </div>
         </aside>

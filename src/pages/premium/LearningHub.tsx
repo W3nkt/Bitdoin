@@ -257,7 +257,7 @@ function LearningShell({ children, title, eyebrow, backTo = '/academy/learn', re
   return (
     <PremiumGate requireSubscription={requireSubscription}>
       <div className="premium-i18n min-h-screen bg-[#f7f8fb] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-        <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
+        <header className="sticky top-[var(--academy-banner-h,0px)] z-30 pt-[var(--safe-top)] border-b border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
           <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4">
             {backTo && <button onClick={() => navigate(backTo)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Go back">
               <ArrowLeft className="h-5 w-5" />

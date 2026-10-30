@@ -179,7 +179,7 @@ export function PremiumLearningAdmin() {
   const filteredLessons = (lessons.data ?? []).filter(item => `${item.title_en} ${item.title_lo} ${item.category?.name_en}`.toLowerCase().includes(search.toLowerCase()))
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-950 text-white">
+      <header className="border-b border-slate-800 bg-slate-950 pt-[var(--safe-top)] text-white">
         <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-4 px-4">
           <button onClick={() => navigate('/academy-admin')} aria-label="Back to Academy admin" className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-white/10"><ArrowLeft className="h-5 w-5" /></button>
           <div className="flex-1"><p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-300">Academy Admin</p><h1 className="text-xl font-black">Learning content</h1></div>

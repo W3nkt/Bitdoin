@@ -49,7 +49,7 @@ export function AcademyAdminHeader({ title, backTo }: { title?: ReactNode; backT
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-primary-900/95 pt-[var(--safe-top)] text-white shadow-lg shadow-primary-950/20 backdrop-blur supports-[backdrop-filter]:bg-primary-900/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 md:grid md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <div className="flex min-w-0 items-center gap-3">
             {backTo && (

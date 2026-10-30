@@ -344,7 +344,7 @@ export function TopCornerLab() {
     // data-lang drives the Lao-only label styles below: Noto Sans Lao instead of the monospace
     // font (it has no Lao letters), a slightly larger size, and no wide letter-spacing.
     <div data-lang={language} className="min-h-screen bg-[#f5f6f2] dark:bg-gray-950 text-slate-950 dark:text-slate-100">
-      <header className="sticky top-[var(--academy-banner-h,0px)] z-30 border-b border-slate-900/10 dark:border-white/10 bg-[#f5f6f2]/90 dark:bg-gray-950/90 backdrop-blur-xl">
+      <header className="sticky top-[var(--academy-banner-h,0px)] z-30 pt-[var(--safe-top)] border-b border-slate-900/10 dark:border-white/10 bg-[#f5f6f2]/90 dark:bg-gray-950/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 sm:px-6">
           <button type="button" onClick={goBack} className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-slate-900/5 dark:hover:bg-white/10" aria-label={text.back}>
             <ArrowLeft className="h-5 w-5" />

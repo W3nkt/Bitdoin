@@ -34,6 +34,14 @@
     --primary-950: 7 15 28;
   }
 
+  /* Device safe areas (notch, rounded corners, home indicator). Zero in a normal browser; the apps
+     build sets viewport-fit=cover, so they are real there. Bars pinned to a screen edge add them to
+     their own padding. The expiry banner sets --safe-top to 0 while it covers the top itself. */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;

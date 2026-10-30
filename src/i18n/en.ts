@@ -305,6 +305,8 @@ const en = {
     verifyOtp: 'Verify',
     continueWithGoogle: 'Continue with Google',
     continueWithFacebook: 'Continue with Facebook',
+    facebookFailed: 'Facebook sign-in did not work. Please try again, or use another way to sign in.',
+    facebookNoEmail: 'Facebook did not share an email address, so we cannot create your account. Please sign in with email or Google instead.',
     continueWithApple: 'Continue with Apple',
     or: 'or Sign In with',
     name: 'Full Name',

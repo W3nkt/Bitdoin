@@ -54,7 +54,7 @@ export function ImageLightbox({ open, onClose, src, alt, closeLabel }: ImageLigh
         type="button"
         onClick={onClose}
         aria-label={closeLabel}
-        className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-5 sm:top-5"
+        className="absolute right-3 top-[calc(0.75rem+var(--safe-top))] flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:right-5 sm:top-5"
       >
         <X className="h-5 w-5" />
       </button>

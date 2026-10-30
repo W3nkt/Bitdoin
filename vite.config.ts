@@ -19,9 +19,13 @@ export default defineConfig(({ mode }) => {
     react(),
     // The apps bundle their fonts (src/lib/nativeFonts.ts); the Google Fonts
     // links would only delay the first paint on a slow or offline connection.
+    // They also draw edge to edge (viewport-fit=cover), so the page's bars can
+    // reach under the status bar and notch and pad themselves with --safe-top.
     ...(native ? [{
       name: 'native-index-html',
-      transformIndexHtml: (html: string) => html.replace(/<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*/g, ''),
+      transformIndexHtml: (html: string) => html
+        .replace(/<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*/g, '')
+        .replace('content="width=device-width, initial-scale=1.0"', 'content="width=device-width, initial-scale=1.0, viewport-fit=cover"'),
     }] : []),
     ...(native ? [] : [VitePWA({
       registerType: 'autoUpdate',

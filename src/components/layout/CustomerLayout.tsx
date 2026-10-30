@@ -70,7 +70,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-30 glass border-b border-white/60 dark:border-gray-800/60 shadow-sm">
+      <header className="sticky top-0 z-30 glass border-b border-white/60 dark:border-gray-800/60 shadow-sm pt-[var(--safe-top)]">
         <div className="max-w-6xl mx-auto px-4 h-14 md:h-16 flex items-center gap-3">
 
           {/* Logo */}
@@ -169,7 +169,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Footer ── */}
       <footer data-bitty-avoid className="bg-primary-900 dark:bg-gray-900 dark:border-t dark:border-gray-800 text-white">
-        <div className="max-w-6xl mx-auto px-4 pt-8 pb-24 md:pb-8">
+        <div className="max-w-6xl mx-auto px-4 pt-8 pb-[calc(6rem+var(--safe-bottom))] md:pb-8">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             {/* Brand */}
             <div>
@@ -219,7 +219,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
       {/* ── Search overlay ── */}
       {searchOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-20">
+        <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[calc(5rem+var(--safe-top))]">
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeSearch} />
           {/* Modal */}
@@ -256,7 +256,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       )}
 
       {/* ── Mobile bottom tab bar — hidden on md+ ── */}
-      <nav data-bitty-avoid className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
+      <nav data-bitty-avoid className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 pb-[var(--safe-bottom)]">
         <div className="flex items-stretch h-14">
           {navLinks.map(({ to, icon: Icon, label, end, badge }) => (
             <NavLink

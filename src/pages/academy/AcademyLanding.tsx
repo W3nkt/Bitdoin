@@ -281,7 +281,7 @@ export function AcademyLanding() {
 
   return (
     <div className="min-h-screen bg-white pb-24 text-slate-900 dark:bg-gray-950 dark:text-white lg:pb-0">
-      <header className={cn('sticky top-0 z-40 border-b transition-colors duration-300', scrolled ? 'border-slate-900/10 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/80' : 'border-transparent')}>
+      <header className={cn('sticky top-0 z-40 border-b pt-[var(--safe-top)] transition-colors duration-300', scrolled ? 'border-slate-900/10 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-gray-950/80' : 'border-transparent')}>
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
           <Link to="/academy" aria-label="Bitdoin Academy" className={cn('flex flex-none items-center gap-2.5 rounded-2xl sm:gap-3', focusRing)}>
             <span className="grid h-10 w-10 flex-none place-items-center rounded-2xl bg-gradient-to-br from-[#fbb040] to-[#f7931a] text-[#1f1207] shadow-[0_8px_20px_-8px_rgba(247,147,26,0.8)] sm:h-11 sm:w-11"><GraduationCap className="h-6 w-6" /></span>

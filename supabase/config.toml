@@ -80,3 +80,8 @@ verify_jwt = false
 
 [functions.academic-ocr]
 verify_jwt = false
+
+# Sign-in from the app with the Facebook app. The caller is not signed in yet, so there is no
+# Supabase JWT to check: the function verifies the Facebook access token with Facebook instead.
+[functions.facebook-native-login]
+verify_jwt = false

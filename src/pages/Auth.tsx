@@ -92,7 +92,7 @@ export function Auth() {
   const copyright = t('auth.copyright', { year: new Date().getFullYear() })
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 py-8 dark:bg-gray-950">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 pb-[calc(2rem+var(--safe-bottom))] pt-[calc(2rem+var(--safe-top))] dark:bg-gray-950">
       <div className="w-full max-w-4xl">
         <div className="mb-4 flex items-center justify-between">
           <button

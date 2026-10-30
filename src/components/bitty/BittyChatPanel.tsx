@@ -162,7 +162,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
       }}
       className={cn(
         closing ? 'bitty-panel-exit' : entering && 'bitty-panel-enter',
-        'fixed inset-x-3 bottom-[4.5rem] z-50 flex h-[min(520px,72dvh)] flex-col overflow-hidden rounded-2xl border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-900 shadow-[0_24px_60px_-12px_rgba(15,31,53,0.45)] ring-4 ring-primary-700/10 dark:ring-primary-400/10 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[min(640px,calc(100vh-3rem))] sm:w-[400px]',
+        'fixed inset-x-3 bottom-[calc(4.5rem+var(--safe-bottom))] z-50 flex h-[min(520px,72dvh)] flex-col overflow-hidden rounded-2xl border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-900 shadow-[0_24px_60px_-12px_rgba(15,31,53,0.45)] ring-4 ring-primary-700/10 dark:ring-primary-400/10 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[min(640px,calc(100vh-3rem))] sm:w-[400px]',
       )}
     >
       <header className="bitty-header relative flex items-center gap-2 overflow-hidden bg-primary-700 px-3 py-2 text-white sm:gap-3 sm:px-4 sm:py-3">

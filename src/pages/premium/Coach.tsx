@@ -415,8 +415,8 @@ export function PremiumCoach() {
   if (!profile) return <Navigate to="/auth" replace />
 
   return (
-    <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-16 text-gray-950 dark:text-gray-100">
-      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 lg:right-[var(--academy-sidebar-w,0px)] h-16 border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
+    <main className="premium-i18n flex min-h-screen flex-col bg-[#f5f6f1] dark:bg-gray-950 pt-[calc(4rem+var(--safe-top))] text-gray-950 dark:text-gray-100">
+      <header className="fixed inset-x-0 top-[var(--academy-banner-h,0px)] z-50 lg:right-[var(--academy-sidebar-w,0px)] h-[calc(4rem+var(--safe-top))] pt-[var(--safe-top)] border-b border-black/5 dark:border-white/10 bg-white/90 dark:bg-gray-950/90 px-4 backdrop-blur md:px-8">
         <div className="relative flex h-full items-center justify-between gap-2">
           {/* In the flow (not absolutely centered) so the buttons beside it can never overlap it on narrow screens. */}
           <div className="flex min-w-0 flex-1 items-center justify-center gap-2">
@@ -443,15 +443,15 @@ export function PremiumCoach() {
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
-          className="fixed left-3 top-[calc(var(--academy-banner-h,0px)+5rem)] z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 dark:hover:text-primary-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
+          className="fixed left-3 top-[calc(var(--academy-banner-h,0px)+var(--safe-top)+5rem)] z-30 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:text-primary-700 dark:hover:text-primary-300 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 lg:hidden"
           aria-label="Open chat history"
         >
           <History className="h-5 w-5" />
         </button>
       )}
 
-      {historyOpen && <button type="button" className="fixed inset-0 top-[calc(var(--academy-banner-h,0px)+4rem)] z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
-      <aside className={`fixed bottom-0 left-0 top-[calc(var(--academy-banner-h,0px)+4rem)] z-40 flex w-72 flex-col border-r border-black/5 dark:border-white/10 bg-white dark:bg-gray-900 transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      {historyOpen && <button type="button" className="fixed inset-0 top-[calc(var(--academy-banner-h,0px)+var(--safe-top)+4rem)] z-30 bg-black/30 lg:hidden" onClick={() => setHistoryOpen(false)} aria-label="Close chat history" />}
+      <aside className={`fixed bottom-0 left-0 top-[calc(var(--academy-banner-h,0px)+var(--safe-top)+4rem)] z-40 flex w-72 flex-col border-r border-black/5 dark:border-white/10 bg-white dark:bg-gray-900 transition-transform duration-200 ${historyOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex items-center justify-between px-4 pb-3 pt-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Your mentor</p>
@@ -507,7 +507,7 @@ export function PremiumCoach() {
           {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white dark:bg-gray-900 px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
           <div ref={endRef} />
         </div>
-        <div className="sticky bottom-0 bg-[#f5f6f1] dark:bg-gray-950 pb-4 pt-5">
+        <div className="sticky bottom-0 bg-[#f5f6f1] dark:bg-gray-950 pb-[calc(1rem+var(--safe-bottom))] pt-5">
           {error && <p role="alert" className="mb-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">{error}{academic && (errorCode === 'COACH_BUSY' || errorCode === 'COACH_QUOTA') && <> <Link to="/academy/scores" className="underline">{ACADEMIC_TEXT.stillWorks[language]}</Link></>}</p>}
           <form onSubmit={send} className="flex items-end gap-2 rounded-3xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 p-2 shadow-lg shadow-black/5">
             <textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() } }} rows={1} maxLength={4000} placeholder="Ask your mentor…" className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none" aria-label="Message your mentor" />

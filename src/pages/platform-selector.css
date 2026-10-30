@@ -43,9 +43,9 @@
 /* The rest of the page eases between its light and dark colours alongside the sky. */
 .living-library, .library-benefits, .library-destinations, .library-academy, .library-footer, .library-section-description, .library-bookstore .library-eyebrow { transition: background-color 2s ease, color 2s ease, border-color 2s ease, box-shadow 2s ease; }
 .library-small-shelf img { transition: filter 2s ease; }
-.library-topbar { position: fixed; z-index: 60; inset: 0 0 auto 0; border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s, box-shadow .25s; }
+.library-topbar { position: fixed; z-index: 60; inset: 0 0 auto 0; padding-top: env(safe-area-inset-top, 0px); border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s, box-shadow .25s; }
 .library-topbar[data-scrolled=true] { background: rgb(7 17 30 / 82%); border-bottom-color: #ffffff1c; box-shadow: 0 12px 32px -20px #000d; -webkit-backdrop-filter: blur(16px) saturate(1.2); backdrop-filter: blur(16px) saturate(1.2); }
-.library-header-spacer { height: 108px; }
+.library-header-spacer { height: calc(108px + env(safe-area-inset-top, 0px)); }
 .library-header { height: 108px; display: flex; align-items: center; justify-content: space-between; gap: 24px; transition: height .25s; }
 .library-topbar[data-scrolled=true] .library-header { height: 76px; }
 .library-brand { display: flex; align-items: center; gap: 14px; }
@@ -173,7 +173,8 @@
 }
 @media (max-width: 959px) {
   .library-brand small { display: none; }
-  .library-header, .library-header-spacer { height: 90px; }
+  .library-header { height: 90px; }
+  .library-header-spacer { height: calc(90px + env(safe-area-inset-top, 0px)); }
   .library-topbar[data-scrolled=true] .library-header { height: 70px; }
   .library-nav { gap: 24px; }
   .library-hero-content { grid-template-columns: 48% 52%; }
@@ -205,7 +206,8 @@
   .library-shade::after { background: #030c1766; }
   /* The phone crop shows the shelves, not the window, so there is no sun to see: just the light and the tint change. */
   .library-sky-change svg { display: none; }
-  .library-header, .library-header-spacer { height: 84px; }
+  .library-header { height: 84px; }
+  .library-header-spacer { height: calc(84px + env(safe-area-inset-top, 0px)); }
   .library-header { gap: 10px; }
   .library-topbar[data-scrolled=true] .library-header { height: 66px; }
   .library-brand { gap: 9px; }

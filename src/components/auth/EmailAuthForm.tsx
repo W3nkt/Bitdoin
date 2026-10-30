@@ -50,6 +50,11 @@ export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, vari
   const { signInWithEmail, signUpWithEmail, signInWithGoogle, signInWithFacebook, signInWithApple } = useAuth()
   const { error: showError, success } = useToast()
 
+  async function handleFacebook() {
+    const { error } = await signInWithFacebook(returnPath)
+    if (error) showError(t(error === 'no_email' ? 'auth.facebookNoEmail' : 'auth.facebookFailed'))
+  }
+
   const [ownStep, setOwnStep] = useState<EmailStep>('signin')
   const emailStep = step ?? ownStep
   const setEmailStep = (next: EmailStep) => {
@@ -163,7 +168,7 @@ export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, vari
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Google', aria: t('auth.continueWithGoogle'), onClick: () => signInWithGoogle(returnPath), icon: <img src={GOOGLE_ICON} alt="" className="h-4 w-4" /> },
-            { label: 'Facebook', aria: t('auth.continueWithFacebook'), onClick: () => signInWithFacebook(returnPath), icon: <img src={publicAsset('icons/Facebook-Logosu.png')} alt="" className="h-9 w-9 max-w-none object-contain" /> },
+            { label: 'Facebook', aria: t('auth.continueWithFacebook'), onClick: handleFacebook, icon: <img src={publicAsset('icons/Facebook-Logosu.png')} alt="" className="h-9 w-9 max-w-none object-contain" /> },
             { label: 'Apple', aria: t('auth.continueWithApple'), onClick: () => signInWithApple(returnPath), icon: <FontAwesomeIcon icon={faApple} className="h-4 w-4 text-black dark:text-white" /> },
           ].map(provider => (
             <button
@@ -296,7 +301,7 @@ export function EmailAuthForm({ returnPath, onSignedIn, step, onStepChange, vari
 
         <button
           type="button"
-          onClick={() => signInWithFacebook(returnPath)}
+          onClick={handleFacebook}
           aria-label={t('auth.continueWithFacebook')}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
         >

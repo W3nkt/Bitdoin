@@ -32,6 +32,32 @@
 				<string>store.bitdoin.app</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>facebook</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb__FACEBOOK_APP_ID__</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Facebook sign-in in the app. The placeholders are filled in by scripts/apply-facebook-config.mjs. Automatic app events and advertiser ID collection stay off: only the login is used. -->
+	<key>FacebookAppID</key>
+	<string>__FACEBOOK_APP_ID__</string>
+	<key>FacebookClientToken</key>
+	<string>__FACEBOOK_CLIENT_TOKEN__</string>
+	<key>FacebookDisplayName</key>
+	<string>Bitdoin</string>
+	<key>FacebookAutoLogAppEventsEnabled</key>
+	<false/>
+	<key>FacebookAdvertiserIDCollectionEnabled</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

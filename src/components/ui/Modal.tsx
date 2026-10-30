@@ -76,7 +76,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
   // viewport — cropping the dialog off-screen. Portaling escapes that.
   return createPortal(
     // On mobile: bottom-sheet (items-end). On md+: centered dialog.
-    <div className="fixed inset-0 z-50 flex items-end justify-center pt-10 md:items-center md:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center pt-[calc(2.5rem+var(--safe-top))] md:items-center md:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div
         ref={dialogRef}
@@ -84,7 +84,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         className={cn(
-        'relative flex max-h-[calc(100vh-2.5rem)] w-full flex-col bg-white dark:bg-gray-900 shadow-xl animate-slide-up',
+        'relative flex max-h-[calc(100vh-2.5rem-var(--safe-top))] w-full flex-col bg-white dark:bg-gray-900 shadow-xl animate-slide-up',
         // Mobile: full width, rounded top corners, no max-height limit issues
         'rounded-t-2xl md:max-h-[85vh] md:rounded-2xl',
         sizes[size],
@@ -106,7 +106,7 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-[calc(1rem+var(--safe-bottom))] md:pb-4">
           {children}
         </div>
         {footer && (

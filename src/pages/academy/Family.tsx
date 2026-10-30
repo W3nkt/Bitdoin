@@ -128,7 +128,7 @@ export function Family() {
   const links = family.data?.links ?? []
   const notices = family.data?.notices ?? []
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+    <div className="min-h-screen bg-slate-50 pt-[var(--safe-top)] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
         <Link to="/academy" className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">
           <ArrowLeft aria-hidden className="h-4 w-4" />Academy
@@ -246,7 +246,7 @@ export function FamilyEmail() {
     : account && status === 'unsubscribed' ? t('family.email.result.unsubscribedAccount')
     : t(`family.email.result.${status}` as AcademicCopyKey)
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+    <div className="min-h-screen bg-slate-50 pt-[var(--safe-top)] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <div className="mx-auto max-w-md px-4 py-10">
         <section className={card}>
           <h1 className="flex items-center gap-2 text-xl font-black"><Mail aria-hidden className="h-5 w-5 text-indigo-600 dark:text-indigo-300" />{account ? t('family.email.accountTitle') : t('family.email.title')}</h1>
@@ -285,7 +285,7 @@ export function FamilyChild() {
   const lo = language === 'lo'
   const view: GuardianChildView | undefined = child.data
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+    <div className="min-h-screen bg-slate-50 pt-[var(--safe-top)] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
         <Link to="/academy/family" className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">
           <ArrowLeft aria-hidden className="h-4 w-4" />{t('family.backToFamily')}
@@ -446,7 +446,7 @@ export function FamilyReport() {
   const name = (item: { name_en: string; name_lo: string }) => (lo ? item.name_lo : item.name_en)
   const confidence = (value: string | null | undefined) => (value === 'high' || value === 'medium' || value === 'low' ? t(`family.report.confidence.${value}` as AcademicCopyKey) : '')
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-gray-950 dark:text-slate-100">
+    <div className="min-h-screen bg-slate-50 pt-[var(--safe-top)] text-slate-950 dark:bg-gray-950 dark:text-slate-100">
       <div className="mx-auto max-w-2xl space-y-5 px-4 py-6">
         <div className="flex items-center justify-between gap-3 print:hidden">
           <Link to={`/academy/family/${linkId}`} className="inline-flex items-center gap-2 text-sm font-black text-slate-700 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-slate-300">

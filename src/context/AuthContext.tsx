@@ -22,7 +22,8 @@ interface AuthContextValue {
   signInWithOtp: (phone: string) => Promise<{ error: string | null }>
   verifyOtp: (phone: string, token: string) => Promise<AuthResult>
   signInWithGoogle: (returnPath?: string) => Promise<void>
-  signInWithFacebook: (returnPath?: string) => Promise<void>
+  /** In the app, Facebook opens the Facebook app; the error says what to tell the person. */
+  signInWithFacebook: (returnPath?: string) => Promise<{ error: 'no_email' | 'failed' | null }>
   signInWithApple: (returnPath?: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -161,8 +162,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithProvider('google', returnPath)
   }
 
-  async function signInWithFacebook(returnPath = '/') {
+  async function signInWithFacebook(returnPath = '/'): Promise<{ error: 'no_email' | 'failed' | null }> {
+    if (__NATIVE_BUILD__) {
+      // Facebook's own login (it opens the Facebook app), when this build has the Facebook app
+      // settings; if it cannot start, fall through to the browser like Google and Apple.
+      try {
+        const { facebookAppConfigured, signInWithFacebookApp, FACEBOOK_APP_UNAVAILABLE } = await import('@/lib/nativeFacebook')
+        if (facebookAppConfigured) {
+          rememberOAuthReturnPath(returnPath)
+          const result = await signInWithFacebookApp()
+          if (result !== FACEBOOK_APP_UNAVAILABLE) return { error: null }
+        }
+      } catch (error) {
+        console.error('[facebook-app]', error)
+        return { error: (error as { code?: string }).code === 'no_email' ? 'no_email' : 'failed' }
+      }
+    }
     await signInWithProvider('facebook', returnPath)
+    return { error: null }
   }
 
   async function signInWithApple(returnPath = '/') {

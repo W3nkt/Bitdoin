@@ -71,7 +71,7 @@ export function FloatingOrbitMenu({
           open ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       />
-      <div data-no-premium-translate className="fixed bottom-5 right-5 z-50 h-12 w-12 sm:bottom-6 sm:right-6">
+      <div data-no-premium-translate className="fixed bottom-[calc(1.25rem+var(--safe-bottom))] right-5 z-50 h-12 w-12 sm:bottom-6 sm:right-6">
         <nav
           id={menuId}
           aria-label={menuLabel}

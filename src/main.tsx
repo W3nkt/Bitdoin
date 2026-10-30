@@ -8,11 +8,13 @@ import '@/lib/installPrompt'
 
 installLocalizedValidation()
 
-// App-only setup (bundled fonts, finishing sign-in when the browser returns);
-// the web build drops this branch entirely.
+// App-only setup (opening animation, bundled fonts, finishing sign-in when the browser returns,
+// swipe back); the web build drops this branch entirely.
 if (__NATIVE_BUILD__) {
+  void import('@/lib/nativeSplash').then(module => module.playNativeSplash())
   void import('@/lib/nativeFonts')
   void import('@/lib/nativeOAuth').then(module => module.installNativeOAuthListener())
+  void import('@/lib/nativeBackSwipe').then(module => module.installBackSwipe())
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

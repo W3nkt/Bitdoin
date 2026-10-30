@@ -9,6 +9,8 @@ import { cn, formatDate } from '@/lib/utils'
 // Academy headers pinned to the top (fixed or sticky) sit this far down so the
 // banner never covers them: top-[var(--academy-banner-h,0px)].
 const HEIGHT_VAR = '--academy-banner-h'
+// While the banner covers the top (including a phone's notch), headers below it need no safe-area padding of their own.
+const SAFE_TOP_VAR = '--safe-top'
 
 // The Academy home/membership page shows its own "expires soon" card with a
 // direct renew button, so this banner only covers the expired case there.
@@ -79,6 +81,7 @@ export function MembershipExpiryBanner() {
     const bar = barRef.current
     if (!visible || !bar) {
       root.style.removeProperty(HEIGHT_VAR)
+      root.style.removeProperty(SAFE_TOP_VAR)
       setHeight(0)
       return
     }
@@ -88,11 +91,13 @@ export function MembershipExpiryBanner() {
       setHeight(next)
     }
     update()
+    root.style.setProperty(SAFE_TOP_VAR, '0px')
     const observer = new ResizeObserver(update)
     observer.observe(bar)
     return () => {
       observer.disconnect()
       root.style.removeProperty(HEIGHT_VAR)
+      root.style.removeProperty(SAFE_TOP_VAR)
     }
   }, [visible])
 
@@ -125,7 +130,7 @@ export function MembershipExpiryBanner() {
     <div
       ref={barRef}
       role={expired ? 'alert' : 'status'}
-      className={cn('fixed inset-x-0 top-0 z-[60] text-white shadow-md', expired ? 'bg-red-600' : 'bg-amber-500')}
+      className={cn('fixed inset-x-0 top-0 z-[60] pt-[env(safe-area-inset-top)] text-white shadow-md', expired ? 'bg-red-600' : 'bg-amber-500')}
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-start gap-2.5">

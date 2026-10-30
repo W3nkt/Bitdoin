@@ -59,7 +59,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-primary-900 dark:bg-gray-900 dark:border-r dark:border-gray-800">
       {/* Logo area */}
-      <div className="flex items-center gap-3 px-5 h-16 border-b border-white/10 flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 h-[calc(4rem+var(--safe-top))] pt-[var(--safe-top)] border-b border-white/10 flex-shrink-0">
         <img
           src={publicAsset('icons/Bitdoin Logo H.png')}
           alt="Bitdoin"
@@ -140,7 +140,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* User footer */}
-      <div className="p-3 border-t border-white/10 flex-shrink-0 space-y-1">
+      <div className="p-3 pb-[calc(0.75rem+var(--safe-bottom))] border-t border-white/10 flex-shrink-0 space-y-1">
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/10">
           <button
             type="button"
@@ -197,7 +197,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <header className="md:hidden flex items-center gap-2 px-3 h-14 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm flex-shrink-0">
+        <header className="md:hidden flex items-center gap-2 px-3 h-[calc(3.5rem+var(--safe-top))] pt-[var(--safe-top)] bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             aria-label="Open admin navigation"
@@ -259,7 +259,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           )}
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-[calc(1rem+var(--safe-bottom))] md:p-6">
           {children}
         </main>
       </div>

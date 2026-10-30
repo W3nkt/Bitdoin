@@ -453,7 +453,7 @@ export function Catalog() {
       <div
         data-bitty-avoid
         className={cn(
-          'pointer-events-none fixed inset-x-0 bottom-[4.5rem] z-20 flex justify-center transition-all duration-200 md:bottom-6 lg:hidden',
+          'pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+var(--safe-bottom))] z-20 flex justify-center transition-all duration-200 md:bottom-6 lg:hidden',
           atFooter && 'translate-y-3 opacity-0',
         )}
       >

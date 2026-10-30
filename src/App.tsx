@@ -14,7 +14,7 @@ import { PullToRefresh } from '@/components/ui/PullToRefresh'
 import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedirect'
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { useSeoMeta } from '@/hooks/useSeoMeta'
-import { isThemedPath, useApplyTheme } from '@/lib/theme'
+import { isThemedPath, useApplyTheme, useTheme } from '@/lib/theme'
 import { syncPushSubscription } from '@/lib/webPush'
 import '@/i18n'
 
@@ -123,6 +123,16 @@ function ThemeController() {
   return null
 }
 
+// App only: the status bar's clock and icons follow the page's light/dark, not the phone's setting.
+function StatusBarController() {
+  const { pathname } = useLocation()
+  const theme = useTheme(state => state.theme)
+  useEffect(() => {
+    void import('@/lib/nativeChrome').then(module => module.syncStatusBar(pathname))
+  }, [pathname, theme])
+  return null
+}
+
 function GoogleAnalyticsTracker() {
   useGoogleAnalytics()
   return null
@@ -164,6 +174,7 @@ export function App() {
               <ToastProvider>
                 <PlatformTitle />
                 <ThemeController />
+                {__NATIVE_BUILD__ && <StatusBarController />}
                 <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
                 <PushSubscriptionSync />

@@ -297,6 +297,8 @@ const lo: Translations = {
     verifyOtp: 'ຢືນຢັນ',
     continueWithGoogle: 'ສືບຕໍ່ດ້ວຍ Google',
     continueWithFacebook: 'ສືບຕໍ່ດ້ວຍ Facebook',
+    facebookFailed: 'ເຂົ້າສູ່ລະບົບດ້ວຍ Facebook ບໍ່ສຳເລັດ. ກະລຸນາລອງໃໝ່ ຫຼື ໃຊ້ວິທີອື່ນ.',
+    facebookNoEmail: 'Facebook ບໍ່ໄດ້ແບ່ງປັນອີເມວ ເຮົາຈຶ່ງສ້າງບັນຊີໃຫ້ບໍ່ໄດ້. ກະລຸນາເຂົ້າສູ່ລະບົບດ້ວຍອີເມວ ຫຼື Google ແທນ.',
     continueWithApple: 'ສືບຕໍ່ດ້ວຍ Apple',
     or: 'ຫຼື ເຂົ້າສູ່ລະບົບດ້ວຍ',
     name: 'ຊື່ ແລະ ນາມສະກຸນ',

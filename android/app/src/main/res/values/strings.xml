@@ -4,4 +4,8 @@
     <string name="title_activity_main">Bitdoin</string>
     <string name="package_name">store.bitdoin.app</string>
     <string name="custom_url_scheme">store.bitdoin.app</string>
+    <!-- Facebook sign-in in the app; filled in by scripts/apply-facebook-config.mjs. -->
+    <string name="facebook_app_id">__FACEBOOK_APP_ID__</string>
+    <string name="fb_login_protocol_scheme">fb__FACEBOOK_APP_ID__</string>
+    <string name="facebook_client_token">__FACEBOOK_CLIENT_TOKEN__</string>
 </resources>

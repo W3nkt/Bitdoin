@@ -29,7 +29,7 @@ export function BookstorePriceEntry() {
   }, [token])
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8">
+    <div className="min-h-screen bg-gray-50 px-4 pb-8 pt-[calc(2rem+var(--safe-top))]">
       <div className="mx-auto max-w-3xl">
         <div className="mb-6 flex items-center gap-3">
           <img

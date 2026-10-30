@@ -33,6 +33,8 @@ env:
   VITE_ADMIN_MESSENGER: ${{ vars.VITE_ADMIN_MESSENGER || 'm.me/620472337804971' }}
   VITE_TELEGRAM_BOT_USERNAME: ${{ secrets.VITE_TELEGRAM_BOT_USERNAME || vars.VITE_TELEGRAM_BOT_USERNAME }}
   VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY || vars.VITE_VAPID_PUBLIC_KEY }}
+  # With the Facebook app settings (variable FACEBOOK_APP_ID + secret FACEBOOK_CLIENT_TOKEN), Facebook sign-in in the apps opens the Facebook app; without them it uses the browser.
+  VITE_FACEBOOK_APP_ID: ${{ vars.FACEBOOK_APP_ID }}
 
 jobs:
   # One web build (vite --mode native) shared by both apps.
@@ -83,6 +85,11 @@ jobs:
         with:
           name: dist-native
           path: dist-native
+      - name: Facebook app settings
+        env:
+          FACEBOOK_APP_ID: ${{ vars.FACEBOOK_APP_ID }}
+          FACEBOOK_CLIENT_TOKEN: ${{ secrets.FACEBOOK_CLIENT_TOKEN }}
+        run: node scripts/apply-facebook-config.mjs
       - run: npx cap sync android
       - name: Set version
         run: |
@@ -121,6 +128,11 @@ jobs:
         with:
           name: dist-native
           path: dist-native
+      - name: Facebook app settings
+        env:
+          FACEBOOK_APP_ID: ${{ vars.FACEBOOK_APP_ID }}
+          FACEBOOK_CLIENT_TOKEN: ${{ secrets.FACEBOOK_CLIENT_TOKEN }}
+        run: node scripts/apply-facebook-config.mjs
       - run: npx cap sync ios
       - name: Build for the simulator
         run: |
@@ -164,6 +176,11 @@ jobs:
         with:
           name: dist-native
           path: dist-native
+      - name: Facebook app settings
+        env:
+          FACEBOOK_APP_ID: ${{ vars.FACEBOOK_APP_ID }}
+          FACEBOOK_CLIENT_TOKEN: ${{ secrets.FACEBOOK_CLIENT_TOKEN }}
+        run: node scripts/apply-facebook-config.mjs
       - run: npx cap sync ios
       - name: Write the App Store Connect API key
         run: |
