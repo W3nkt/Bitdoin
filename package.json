@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "postbuild": "node scripts/prerender.js",
+    "build:native": "tsc && vite build --mode native",
+    "cap:sync": "npm run build:native && cap sync",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test:db": "node supabase/tests/db/run.mjs",
@@ -19,6 +21,16 @@
     "test:bundle": "node scripts/bundle-budget.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/noto-sans-lao": "^5.3.0",
+    "@fontsource/noto-sans-thai": "^5.3.0",
     "@fortawesome/fontawesome-svg-core": "^6.5.0",
     "@fortawesome/free-brands-svg-icons": "^6.5.0",
     "@fortawesome/free-solid-svg-icons": "^6.5.0",
@@ -48,6 +60,7 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@electric-sql/pglite": "^0.3.15",
     "@types/dompurify": "^3.0.5",
     "@types/react": "^18.3.3",

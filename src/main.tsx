@@ -8,6 +8,13 @@ import '@/lib/installPrompt'
 
 installLocalizedValidation()
 
+// App-only setup (bundled fonts, finishing sign-in when the browser returns);
+// the web build drops this branch entirely.
+if (__NATIVE_BUILD__) {
+  void import('@/lib/nativeFonts')
+  void import('@/lib/nativeOAuth').then(module => module.installNativeOAuthListener())
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

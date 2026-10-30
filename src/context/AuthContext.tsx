@@ -139,28 +139,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null, role: signedInProfile?.role ?? null }
   }
 
-  async function signInWithGoogle(returnPath = '/') {
+  async function signInWithProvider(provider: 'google' | 'facebook' | 'apple', returnPath: string) {
     rememberOAuthReturnPath(returnPath)
+    if (__NATIVE_BUILD__) {
+      // The app signs in through the system browser and returns by custom scheme.
+      try {
+        const { startNativeOAuth } = await import('@/lib/nativeOAuth')
+        await startNativeOAuth(provider)
+      } catch (error) {
+        console.error('[native-oauth]', error)
+      }
+      return
+    }
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: window.location.origin },
     })
+  }
+
+  async function signInWithGoogle(returnPath = '/') {
+    await signInWithProvider('google', returnPath)
   }
 
   async function signInWithFacebook(returnPath = '/') {
-    rememberOAuthReturnPath(returnPath)
-    await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: { redirectTo: window.location.origin },
-    })
+    await signInWithProvider('facebook', returnPath)
   }
 
   async function signInWithApple(returnPath = '/') {
-    rememberOAuthReturnPath(returnPath)
-    await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: window.location.origin },
-    })
+    await signInWithProvider('apple', returnPath)
   }
 
   async function signOut() {

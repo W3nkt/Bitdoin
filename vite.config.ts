@@ -3,15 +3,27 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
-export default defineConfig({
+// `vite build --mode native` builds the bundle that Capacitor ships inside the
+// iOS / Android apps: no service worker (the app updates through the stores)
+// and its own output folder so it never overwrites the web `dist`.
+export default defineConfig(({ mode }) => {
+  const native = mode === 'native'
+  return {
   base: '/',
   define: {
     // Reported with My Scores usage events (src/lib/academic/usageEvents.ts).
     __APP_BUILD__: JSON.stringify(new Date().toISOString().slice(0, 10).replace(/-/g, '.')),
+    __NATIVE_BUILD__: JSON.stringify(native),
   },
   plugins: [
     react(),
-    VitePWA({
+    // The apps bundle their fonts (src/lib/nativeFonts.ts); the Google Fonts
+    // links would only delay the first paint on a slow or offline connection.
+    ...(native ? [{
+      name: 'native-index-html',
+      transformIndexHtml: (html: string) => html.replace(/<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*/g, ''),
+    }] : []),
+    ...(native ? [] : [VitePWA({
       registerType: 'autoUpdate',
       // Register the service worker in `vite dev` too, so push notifications
       // can be turned on and tested on localhost.
@@ -52,12 +64,13 @@ export default defineConfig({
           }
         ]
       }
-    })
+    })]),
   ],
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') }
   },
   build: {
+    outDir: native ? 'dist-native' : 'dist',
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -74,5 +87,6 @@ export default defineConfig({
         },
       },
     },
+  }
   }
 })

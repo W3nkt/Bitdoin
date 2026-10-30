@@ -15,7 +15,7 @@ import { premiumEndedAt, type PremiumStatus, useMenuSubscription } from '@/lib/a
 import { cn, formatDate } from '@/lib/utils'
 import { useTheme } from '@/lib/theme'
 import { telegramRemindersAvailable } from '@/components/premium/TelegramReminderCard'
-import { pushConfigured } from '@/lib/webPush'
+import { webPushAvailable } from '@/lib/webPush'
 import { AvatarPhotoModal } from '@/components/premium/AvatarPhotoModal'
 
 interface MenuPersonalization {
@@ -525,7 +525,7 @@ export function PremiumProfileMenu({ variant = 'dark', showPreferences = true }:
             )}
           </div>
 
-          {profile && pushConfigured && (
+          {profile && webPushAvailable && (
             <button
               type="button"
               onClick={() => { setOpen(false); navigate('/academy/profile#notifications') }}

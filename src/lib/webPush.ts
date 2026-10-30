@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { isIos, isStandalone } from '@/lib/installPrompt'
+import { isNativeApp } from '@/lib/native'
 
 // Browser / home-screen notifications (Web Push). The service worker shows
 // them (public/push-sw.js); send-push (edge function) sends them; each
@@ -33,9 +34,11 @@ export interface DevicePushState {
 }
 
 export const pushConfigured = Boolean(VAPID_PUBLIC_KEY)
+/** Web Push needs the service worker, which the app build leaves out; native push replaces it later. */
+export const webPushAvailable = pushConfigured && !isNativeApp()
 
 export function getPushSupport(): PushSupport {
-  if (!pushConfigured) return 'unconfigured'
+  if (!webPushAvailable) return 'unconfigured'
   const capable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
   if (isIos() && !isStandalone()) return 'ios-install'
   if (!capable) return 'unsupported'

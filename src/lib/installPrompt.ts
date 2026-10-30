@@ -7,6 +7,8 @@
 //
 // Imported for its side effect in main.tsx so the event is caught early.
 
+import { isNativeApp } from '@/lib/native'
+
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -79,6 +81,8 @@ export function iosBrowser(): 'safari' | 'chrome' | 'edge' | 'firefox' | 'other'
 }
 
 export function isStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches
+  // The store app is already "installed": no install prompts, iOS push allowed.
+  return isNativeApp()
+    || window.matchMedia('(display-mode: standalone)').matches
     || (navigator as Navigator & { standalone?: boolean }).standalone === true
 }
