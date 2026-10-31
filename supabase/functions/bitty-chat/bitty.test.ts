@@ -849,3 +849,42 @@ Deno.test('a closing sentence is kept when the choices had to be asked for separ
   assertEquals(events.filter(e => e.type === 'replace_text'), [])
   assertEquals(events.filter(e => e.type === 'quick_replies'), [{ type: 'quick_replies', options: ['Money', 'History'] }])
 })
+
+// ─── A lead-in line between the question and its list ────────────────────────
+
+// Seen from the live function: the question, then "For example:", then the choices as bullets.
+const FOR_EXAMPLE_REPLY = "That's a wonderful goal! To help you find the best personal growth book, I'd like to ask: \n\nWhat’s your main reason for learning about personal growth? \n\nFor example: \n- Learning a skill \n- Career development \n- School or studies \n- Personal interest or self-improvement"
+
+Deno.test('a list after "For example:" that follows a question becomes quick replies', () => {
+  assertEquals(extractListedOptions(FOR_EXAMPLE_REPLY), {
+    text: "That's a wonderful goal! To help you find the best personal growth book, I'd like to ask: \n\nWhat’s your main reason for learning about personal growth?",
+    options: ['Learning a skill', 'Career development', 'School or studies', 'Personal interest or self-improvement'],
+  })
+  assertEquals(extractListedOptions('Which topic? For example:\n- Money\n- History'), { text: 'Which topic?', options: ['Money', 'History'] })
+  assertEquals(extractListedOptions('ທ່ານສົນໃຈຫົວຂໍ້ໃດ?\n\nເຊັ່ນ:\n- ການເງິນ\n- ການສື່ສານ'), { text: 'ທ່ານສົນໃຈຫົວຂໍ້ໃດ?', options: ['ການເງິນ', 'ການສື່ສານ'] })
+  assertEquals(extractListedOptions('Which level?\nOptions:\n1. Beginner\n2. Advanced'), { text: 'Which level?', options: ['Beginner', 'Advanced'] })
+})
+
+Deno.test('steps after a line that is not a lead-in to choices stay as text', () => {
+  for (const text of [
+    'Want to order?\nHere is how:\n1. Add to cart\n2. Checkout',
+    'Want to order? Here is how:\n1. Add to cart\n2. Checkout',
+    'Tips:\n- Read daily\n- Take notes',
+    'For example:\n- Read daily\n- Take notes',
+  ]) {
+    assertEquals(extractListedOptions(text), { text, options: [] }, text)
+  }
+})
+
+Deno.test('a reply with the question, "For example:" and bullets reaches the app as text plus buttons', async () => {
+  const model = scriptedModel([{ finishReason: 'stop', toolCalls: [] }], [[FOR_EXAMPLE_REPLY]])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(model.inputs.length, 1)
+  assertEquals(events.filter(e => e.type === 'quick_replies'), [
+    { type: 'quick_replies', options: ['Learning a skill', 'Career development', 'School or studies', 'Personal interest or self-improvement'] },
+  ])
+  const replaced = events.find(e => e.type === 'replace_text') as Extract<BittyEvent, { type: 'replace_text' }>
+  assert(replaced.text.endsWith('about personal growth?'))
+  assert(!replaced.text.includes('For example'))
+})

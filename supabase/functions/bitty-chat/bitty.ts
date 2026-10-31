@@ -706,6 +706,31 @@ export function cutAfterQuestion(text: string): string | null {
   return [...lines.slice(0, question), line].join('\n')
 }
 
+// A few words that only introduce a list of choices: "For example:", "Options:", "ເຊັ່ນ:".
+const CHOICES_LEAD_IN = '(?:e\\.g\\.|eg\\b\\.?|for example|for instance|such as|options?|choices?|choose(?: one| from)?|pick(?: one)?|ເຊັ່ນ|ຕົວຢ່າງ|ຕົວເລືອກ|ເລືອກ)'
+const LEAD_IN_LINE = new RegExp(`^\\s*${CHOICES_LEAD_IN}[^?？:：]{0,30}[:：]\\s*$`, 'i')
+const LEAD_IN_AFTER_QUESTION = new RegExp(`^(.*[?？])\\s*${CHOICES_LEAD_IN}[^?？:：]{0,30}[:：]\\s*$`, 'i')
+
+/**
+ * The text up to the question that a list of choices belongs to, or null when the list answers no question.
+ * Qwen often puts "For example:" between the question and its list; that line is not part of the question.
+ */
+function questionBeforeList(before: string): string | null {
+  const lines = before.split('\n')
+  const last = lines[lines.length - 1] ?? ''
+  if (QUESTION_END.test(last)) return before
+
+  // "Which topic? For example:" on one line.
+  const sameLine = last.match(LEAD_IN_AFTER_QUESTION)
+  if (sameLine) return [...lines.slice(0, -1), sameLine[1]].join('\n')
+
+  // "Which topic?" and "For example:" on lines of their own.
+  if (!LEAD_IN_LINE.test(last)) return null
+  const rest = lines.slice(0, -1)
+  while (rest.length > 0 && !rest[rest.length - 1].trim()) rest.pop()
+  return QUESTION_END.test(rest[rest.length - 1] ?? '') ? rest.join('\n').trimEnd() : null
+}
+
 /** An inline "(A / B / C)" or "(e.g. A, B, C)" closing the last line, after a question. */
 function extractInlineChoices(text: string): { text: string; options: string[] } {
   const lines = text.trimEnd().split('\n')
@@ -755,12 +780,12 @@ export function extractListedOptions(text: string): { text: string; options: str
     items.unshift(cleanOption(match[1]))
   }
   const before = lines.slice(0, i + 1).join('\n').trim()
-  // Only a list right after a question is a set of choices; how-to steps after "Here's how:" stay as text.
-  const asksRightBefore = QUESTION_END.test(before.split('\n').pop() ?? '')
-  if (items.length >= 2 && items.every(item => item && item.length <= MAX_QUICK_REPLY_CHARS) && asksRightBefore) {
+  // Only a list that answers a question is a set of choices; how-to steps after "Here's how:" stay as text.
+  const question = questionBeforeList(before)
+  if (items.length >= 2 && items.every(item => item && item.length <= MAX_QUICK_REPLY_CHARS) && question !== null) {
     // Drop a hint such as "(choose an option)" right after the question.
     return {
-      text: before.replace(/\?\s*\([^()]*\)\s*$/, '?'),
+      text: question.replace(/\?\s*\([^()]*\)\s*$/, '?'),
       options: sanitizeQuickReplies({ options: items }),
     }
   }
