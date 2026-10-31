@@ -1,5 +1,5 @@
-import { useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { type MouseEvent, useRef } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ShoppingCart } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
@@ -7,6 +7,7 @@ import { FavoriteHeartButton } from '@/components/ui/FavoriteHeartButton'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn, formatPrice } from '@/lib/utils'
 import { flyToCart } from '@/lib/flyToCart'
+import { openBookWithFlight, preloadBookPage } from '@/lib/bookFlight'
 import type { Book } from '@/types'
 
 export type CatalogView = 'list' | 'grid'
@@ -46,6 +47,7 @@ interface CatalogBookCardProps {
 export function CatalogBookCard({ book, view, favorite, onToggleFavorite, onAddToCart }: CatalogBookCardProps) {
   const { t } = useTranslation()
   const { language, currency } = useLanguage()
+  const navigate = useNavigate()
   const coverRef = useRef<HTMLDivElement>(null)
 
   const price = book.min_price ?? book.prices?.[0]?.final_price
@@ -61,15 +63,24 @@ export function CatalogBookCard({ book, view, favorite, onToggleFavorite, onAddT
     flyToCart(coverRef.current, book.cover_image_url)
   }
 
+  // Opening the book: its cover flies to the book page. Both links of the card do it.
+  const bookLink = {
+    to: href,
+    onClick: (event: MouseEvent<HTMLAnchorElement>) => openBookWithFlight(event, { book, cover: coverRef.current, navigate }),
+    onPointerEnter: preloadBookPage,
+    onTouchStart: preloadBookPage,
+  }
+
   const cover = (
     <div
       ref={coverRef}
+      data-book-cover={book.id}
       className={cn(
         'relative aspect-[2/3] overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700',
         isList && 'w-24 shrink-0 self-start',
       )}
     >
-      <Link to={href} tabIndex={isList ? -1 : undefined} aria-hidden={isList || undefined} className="block h-full w-full">
+      <Link {...bookLink} tabIndex={isList ? -1 : undefined} aria-hidden={isList || undefined} className="block h-full w-full">
         {book.cover_image_url ? (
           <img src={book.cover_image_url} alt={isList ? '' : book.title} loading="lazy" className="h-full w-full object-cover" />
         ) : (
@@ -106,7 +117,7 @@ export function CatalogBookCard({ book, view, favorite, onToggleFavorite, onAddT
     return (
       <article className={cn('flex min-w-0 flex-col', CARD_CHROME)}>
         {cover}
-        <Link to={href} className="mt-3 block px-0.5">
+        <Link {...bookLink} className="mt-3 block px-0.5">
           <h3 className="line-clamp-2 min-h-9 text-[13px] font-semibold leading-snug text-gray-900 dark:text-gray-100">{book.title}</h3>
         </Link>
         {book.author && <p className="mt-0.5 truncate px-0.5 text-xs text-gray-500 dark:text-gray-400">{book.author}</p>}
@@ -151,7 +162,7 @@ export function CatalogBookCard({ book, view, favorite, onToggleFavorite, onAddT
             className={cn(HEART_REACH, '-mr-1 shrink-0 bg-transparent shadow-none hover:scale-100 dark:bg-transparent')}
           />
         </div>
-        <Link to={href} className="mt-1 block">
+        <Link {...bookLink} className="mt-1 block">
           <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-gray-900 dark:text-gray-100">{book.title}</h3>
         </Link>
         {book.author && <p className="mt-0.5 truncate text-[13px] text-gray-500 dark:text-gray-400">{book.author}</p>}

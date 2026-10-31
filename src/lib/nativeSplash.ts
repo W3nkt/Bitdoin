@@ -14,6 +14,7 @@ const SPARKS = 16
 /** How long the opening waits for cover images before using the ones it has. */
 const COVER_WAIT_MS = 1500
 const CACHE_KEY = 'bitdoin_splash_covers'
+const PLAYED_KEY = 'bitdoin_splash_played'
 /** Used when the bookstore's covers cannot be loaded (first launch offline). */
 const FALLBACK_COVERS = ['bitcoin', 'richdad', 'pm', 'action', 'focus', 'language']
   .map(name => publicAsset(`images/landing/book-${name}.webp`))
@@ -32,6 +33,20 @@ function random(seed: number) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
+}
+
+/**
+ * Session storage lives as long as the app's WebView: it survives a page reload but not a fresh launch.
+ * So the opening plays once per launch, and never again when something reloads the page inside the app.
+ */
+function claimLaunch(): boolean {
+  try {
+    if (sessionStorage.getItem(PLAYED_KEY) === '1') return false
+    sessionStorage.setItem(PLAYED_KEY, '1')
+  } catch {
+    // Storage blocked: play it, as before.
+  }
+  return true
 }
 
 function readCachedCovers(): string[] {
@@ -152,8 +167,14 @@ function buildSparks(layer: HTMLElement, rand: () => number) {
  * launch image (the same navy gradient) stays up while this loads; once this is painted the native
  * one is dropped, with no visible change. If anything here fails, the native splash screen hides
  * itself after its safety timeout (capacitor.config.ts).
+ * It plays only when the app is opened; a reload while the app is running goes straight to the app.
  */
 export async function playNativeSplash(seed = Date.now()) {
+  if (!claimLaunch()) {
+    await SplashScreen.hide({ fadeOutDuration: 0 }).catch(() => undefined)
+    return
+  }
+
   const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
   const rand = random(seed)
 

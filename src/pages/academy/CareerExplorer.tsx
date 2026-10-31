@@ -252,9 +252,9 @@ function CareerDetailSheet({ open, onClose, career, language, locked }: { open: 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end lg:hidden" role="dialog" aria-modal="true">
+    <div className="above-keyboard fixed inset-0 z-50 flex items-end lg:hidden" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative max-h-[92vh] w-full overflow-y-auto rounded-t-[1.75rem] bg-white dark:bg-gray-900 shadow-2xl motion-safe:animate-slide-up">
+      <div className="relative max-h-[min(92vh,var(--visual-height))] w-full overflow-y-auto rounded-t-[1.75rem] bg-white dark:bg-gray-900 shadow-2xl motion-safe:animate-slide-up">
         <div className="sticky top-0 z-10 flex justify-center bg-slate-950 pb-1 pt-3">
           <div className="h-1 w-10 rounded-full bg-white/30" />
         </div>

@@ -507,7 +507,7 @@ export function PremiumCoach() {
           {sending && <div className="flex justify-start"><div className="rounded-3xl rounded-bl-md bg-white dark:bg-gray-900 px-5 py-4 shadow-sm"><span className="inline-flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:150ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary-500 [animation-delay:300ms]" /></span></div></div>}
           <div ref={endRef} />
         </div>
-        <div className="sticky bottom-0 bg-[#f5f6f1] dark:bg-gray-950 pb-[calc(1rem+var(--safe-bottom))] pt-5">
+        <div className="above-keyboard sticky bg-[#f5f6f1] dark:bg-gray-950 pb-[calc(1rem+var(--safe-bottom))] pt-5">
           {error && <p role="alert" className="mb-2 text-center text-xs font-semibold text-red-600 dark:text-red-400">{error}{academic && (errorCode === 'COACH_BUSY' || errorCode === 'COACH_QUOTA') && <> <Link to="/academy/scores" className="underline">{ACADEMIC_TEXT.stillWorks[language]}</Link></>}</p>}
           <form onSubmit={send} className="flex items-end gap-2 rounded-3xl border border-black/10 dark:border-white/10 bg-white dark:bg-gray-900 p-2 shadow-lg shadow-black/5">
             <textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() } }} rows={1} maxLength={4000} placeholder="Ask your mentor…" className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-3 text-sm outline-none" aria-label="Message your mentor" />

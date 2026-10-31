@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useLocation, useParams, useNavigate } from 'react-router-dom'
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import DOMPurify from 'dompurify'
@@ -7,9 +7,11 @@ import { ShoppingCart, Store, ChevronLeft, CheckCircle, AlertTriangle, ArrowRigh
 import { OpenBook } from '@/components/ui/OpenBook'
 import { supabase } from '@/lib/supabase'
 import type { Book } from '@/types'
-import { DetailSkeleton } from '@/components/ui/Skeleton'
+import { Busy, DetailSkeleton, Skeleton, TextSkeleton } from '@/components/ui/Skeleton'
 import { BookCard } from '@/components/ui/BookCard'
 import { CtaButton } from '@/components/ui/CtaButton'
+import { RatingStars } from '@/components/ui/RatingStars'
+import { BookReviews, makeSampleReviews, type BookRatingSummary, type BookReview } from '@/components/book/BookReviews'
 import { useCart } from '@/context/CartContext'
 import { useLanguage } from '@/context/LanguageContext'
 import { useAuth } from '@/context/AuthContext'
@@ -18,6 +20,7 @@ import { LoginModal } from '@/components/auth/LoginModal'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { rememberPendingFavorite, useBookFavorite } from '@/hooks/useBookFavorite'
 import { trackGoogleEvent } from '@/lib/googleAnalytics'
+import { closeBookWithFlight, type BookPreview } from '@/lib/bookFlight'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { flyToCart } from '@/lib/flyToCart'
 import { cn } from '@/lib/utils'
@@ -46,9 +49,34 @@ interface ReadingSummaryLink {
   has_access: boolean
 }
 
+// The cover overlaps the white sheet below it: --cover-w is its width, and the sheet is pulled up under the lower
+// 55% of it (0.55 x 1.5 x width). DetailSkeleton uses the same numbers.
+const COVER_VARS = '[--cover-w:10.5rem] sm:[--cover-w:12rem]'
+const COVER_OVERLAP = 'calc(var(--cover-w)*0.825)'
+
+/** A long description is folded to this height until Read more is tapped. */
+const FOLDED_PX = 176
+
+const COVER_FRAME ='aspect-[2/3] overflow-hidden rounded-2xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.6)] ring-1 ring-white/25'
+
+const DESCRIPTION_STYLES = cn(
+  'text-sm text-gray-600 dark:text-gray-300 leading-relaxed',
+  '[&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline',
+  '[&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5',
+  '[&_p]:mb-2 [&_div]:mb-1',
+  '[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-200 dark:[&_blockquote]:border-gray-700 [&_blockquote]:pl-3 [&_blockquote]:italic',
+  '[&_h1]:mb-1.5 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-gray-100',
+  '[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-gray-100',
+  '[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-gray-900 dark:[&_h3]:text-gray-100',
+  '[&_h4]:mb-1 [&_h4]:mt-2 [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-gray-900 dark:[&_h4]:text-gray-100',
+  '[&_h5]:mb-1 [&_h5]:mt-2 [&_h5]:text-sm [&_h5]:font-bold [&_h5]:text-gray-900 dark:[&_h5]:text-gray-100',
+  '[&_h6]:mb-1 [&_h6]:mt-2 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:text-gray-900 dark:[&_h6]:text-gray-100',
+)
+
 export function BookDetail() {
   const { id } = useParams<{ id: string }>()
-  const { key: locationKey } = useLocation()
+  const { key: locationKey, state: locationState } = useLocation()
+  const [searchParams] = useSearchParams()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { addItem } = useCart()
@@ -60,6 +88,9 @@ export function BookDetail() {
   const coverRef = useRef<HTMLDivElement>(null)
   const [loginOpen, setLoginOpen] = useState(false)
   const [coverOpen, setCoverOpen] = useState(false)
+  const [atFooter, setAtFooter] = useState(false)
+  // The cover flying in from the list is captured on the page's first frame, so no entrance fade then.
+  const [fadeIn] = useState(() => document.documentElement.dataset.flight !== 'cover')
   const favorite = useBookFavorite(id, () => success(t('book.addedToFavorites')))
 
   useLayoutEffect(() => {
@@ -69,6 +100,15 @@ export function BookDetail() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
     return () => { window.history.scrollRestoration = 'auto' }
   }, [id, locationKey])
+
+  // The floating Cart / Buy Now bar steps aside when the footer scrolls into view.
+  useEffect(() => {
+    const footer = document.querySelector('footer[data-bitty-avoid]')
+    if (!footer || !('IntersectionObserver' in window)) return
+    const observer = new IntersectionObserver(([entry]) => setAtFooter(entry.isIntersecting), { rootMargin: '0px 0px -150px 0px' })
+    observer.observe(footer)
+    return () => observer.disconnect()
+  }, [])
 
   const { data: book, isLoading } = useQuery({
     queryKey: ['book', id],
@@ -120,13 +160,26 @@ export function BookDetail() {
     })
   }, [book?.id])
 
-  if (isLoading) return <DetailSkeleton />
-  if (!book) return <div className="py-16 text-center text-gray-400">{t('book.notFound')}</div>
+  // Ratings and reviews come with the reviews feature; until then the section shows its invitation.
+  // In development, ?previewReviews=1 fills it with made-up data to preview the design.
+  const previewReviews = import.meta.env.DEV && searchParams.get('previewReviews') === '1'
+  const sample = previewReviews ? makeSampleReviews() : null
+  const ratingSummary: BookRatingSummary | null = sample?.summary ?? null
+  const reviews: BookReview[] = sample?.reviews ?? []
+
+  // The list that opened this page passes the book along, so the cover has somewhere to land while the rest loads.
+  const passed = (locationState as { bookPreview?: BookPreview } | null)?.bookPreview
+  const preview = passed && passed.id === id ? passed : undefined
+  const head: Pick<Book, 'id' | 'title' | 'cover_image_url'> & { author?: string | null } | undefined =
+    book ?? (preview && { ...preview, cover_image_url: preview.cover_image_url ?? undefined })
+
+  if (!isLoading && !book) return <div className="py-16 text-center text-gray-400">{t('book.notFound')}</div>
+  if (!head) return <DetailSkeleton />
 
   const isAdmin = profile?.role === 'ADMIN'
 
   // Customers always get the cheapest available price — store identity is admin-only.
-  const bestPriceIdx = book.prices?.length
+  const bestPriceIdx = book?.prices?.length
     ? book.prices.reduce((bestIdx, price, idx, arr) => {
         const best = arr[bestIdx]
         if (price.availability === 'AVAILABLE' && best.availability !== 'AVAILABLE') return idx
@@ -136,22 +189,23 @@ export function BookDetail() {
     : 0
 
   const effectivePriceIdx = isAdmin ? selectedPriceIdx : bestPriceIdx
-  const selectedPrice = book.prices?.[effectivePriceIdx]
+  const selectedPrice = book?.prices?.[effectivePriceIdx]
   const isAvailable = selectedPrice?.availability === 'AVAILABLE'
-  const languageValue = book.language === 'Lao'
+  const languageValue = !book ? '' : book.language === 'Lao'
     ? t('sidebar.lao')
     : book.language === 'English'
       ? t('sidebar.english')
       : book.language
+  const lo = language === 'lo'
 
   function addToCart() {
-    if (!selectedPrice) return false
+    if (!book || !selectedPrice) return false
     addItem({
-      id: `${book!.id}-${selectedPrice.bookstore_id}`,
-      book_id: book!.id,
+      id: `${book.id}-${selectedPrice.bookstore_id}`,
+      book_id: book.id,
       bookstore_id: selectedPrice.bookstore_id,
       quantity: 1,
-      book: book!,
+      book,
       bookstore: selectedPrice.bookstore,
       unit_price: selectedPrice.final_price,
       bookstore_price: selectedPrice.bookstore_price,
@@ -162,14 +216,14 @@ export function BookDetail() {
 
   function handleAddToCart() {
     if (!addToCart()) return
-    flyToCart(coverRef.current, book!.cover_image_url)
-    success(t('book.addToCart') + ': ' + book!.title)
+    flyToCart(coverRef.current, head?.cover_image_url)
+    success(t('book.addToCart') + ': ' + head?.title)
   }
 
   async function handleToggleFavorite() {
     if (!favorite.isSignedIn) {
       // Saved automatically once they sign in (see useBookFavorite).
-      rememberPendingFavorite(book!.id)
+      rememberPendingFavorite(id!)
       setLoginOpen(true)
       return
     }
@@ -182,6 +236,12 @@ export function BookDetail() {
     }
   }
 
+  function handleBack() {
+    // 'default' is the first page of the visit (a link opened directly): there is no list to fly back to.
+    if (locationKey === 'default') navigate(-1)
+    else void closeBookWithFlight({ bookId: head!.id, cover: coverRef.current, navigate })
+  }
+
   function closeLogin() {
     rememberPendingFavorite(null)
     setLoginOpen(false)
@@ -192,62 +252,65 @@ export function BookDetail() {
   }
 
   function handleOpenSummary() {
-    if (!readingSummary) return
+    if (!readingSummary || !book) return
     trackGoogleEvent('select_content', {
       content_type: 'academy_reading_summary',
-      item_id: book!.id,
-      item_name: book!.title,
+      item_id: book.id,
+      item_name: book.title,
     })
     navigate(
       readingSummary.has_access
         ? `/academy/lesson/${readingSummary.slug}`
-        : `/academy/subscription?book=${book!.id}&summary=${encodeURIComponent(readingSummary.slug)}`,
+        : `/academy/subscription?book=${book.id}&summary=${encodeURIComponent(readingSummary.slug)}`,
     )
   }
 
+  const availability = selectedPrice && {
+    label: selectedPrice.availability === 'AVAILABLE' ? t('book.available') :
+      selectedPrice.availability === 'LOW_STOCK' ? t('book.lowStock') : t('book.outOfStock'),
+    style: selectedPrice.availability === 'AVAILABLE' ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400' :
+      selectedPrice.availability === 'LOW_STOCK' ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' :
+      'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+  }
+
   return (
-    <div className="animate-fade-in">
+    <div className={cn('pb-24', fadeIn && 'animate-fade-in')}>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────────── */}
-      <div className="relative -mx-4 -mt-4 overflow-hidden h-[260px] sm:h-[300px] md:h-[340px]">
-        {/* Blurred background */}
-        {book.cover_image_url ? (
-          <img src={book.cover_image_url} alt="" aria-hidden
-               className="absolute inset-0 w-full h-full object-cover hero-blur" />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-primary-700" />
-        )}
-        {/* Gradient: light at top (for back button), heavy at bottom (for text legibility) */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/40 to-black/90" />
+      {/* ── Hero: the cover over its own blurred backdrop, resting on a white sheet ───────────────────────────── */}
+      <div className={cn('relative -mx-4 -mt-4 md:mx-auto md:mt-0 md:max-w-3xl', COVER_VARS)}>
+        <div className="relative pt-[4.5rem]">
+          <div className="absolute inset-x-0 top-0 h-[17rem] overflow-hidden bg-primary-900 md:rounded-3xl">
+            {head.cover_image_url ? (
+              <img src={head.cover_image_url} alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover hero-blur" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-900 to-primary-700" />
+            )}
+            {/* Brand navy, light at the top (for the buttons) and heavier below (so the cover stands out), whatever the cover's colours */}
+            <div className="absolute inset-0 bg-gradient-to-b from-primary-950/35 via-primary-900/45 to-primary-950/70" />
+          </div>
 
-        {/* Back button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="absolute top-4 left-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 active:scale-95 transition-all"
-          aria-label={t('common.back')}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-
-        {/* Favorite button */}
-        <button
-          type="button"
-          onClick={handleToggleFavorite}
-          disabled={favorite.isSaving}
-          aria-pressed={favorite.isFavorite}
-          aria-label={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
-          title={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
-          className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm text-white hover:bg-black/50 active:scale-90 transition-all"
-        >
-          <Heart className={cn('h-5 w-5 transition-colors', favorite.isFavorite && 'fill-rose-500 text-rose-500')} />
-        </button>
-
-        {/* Cover + title — anchored to bottom of hero */}
-        <div className="absolute bottom-0 inset-x-0 flex items-end gap-4 px-4 pb-5 max-w-5xl mx-auto">
+          <button
+            onClick={handleBack}
+            className="absolute left-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-all hover:bg-black/50 active:scale-95"
+            aria-label={t('common.back')}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleToggleFavorite}
+            disabled={favorite.isSaving}
+            aria-pressed={favorite.isFavorite}
+            aria-label={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
+            title={t(favorite.isFavorite ? 'book.removeFromFavorites' : 'book.addToFavorites')}
+            className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm transition-all hover:bg-black/50 active:scale-90"
+          >
+            <Heart className={cn('h-5 w-5 transition-colors', favorite.isFavorite && 'fill-rose-500 text-rose-500')} />
+          </button>
 
           {/* Book cover */}
-          <div className="flex-shrink-0 w-[100px] sm:w-[120px] md:w-[140px]">
-            {book.cover_image_url ? (
+          <div className="relative z-10 mx-auto w-[var(--cover-w)]">
+            {head.cover_image_url ? (
               <button
                 type="button"
                 onClick={() => setCoverOpen(true)}
@@ -255,247 +318,271 @@ export function BookDetail() {
                 title={t('book.enlargeCover')}
                 className="block w-full cursor-zoom-in rounded-2xl transition-transform hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
               >
-                <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
-                  <img src={book.cover_image_url} alt={book.title} className="w-full h-full object-cover" />
+                <div ref={coverRef} data-detail-cover={head.id} className={COVER_FRAME}>
+                  <img src={head.cover_image_url} alt={head.title} decoding="sync" className="h-full w-full object-cover" />
                 </div>
               </button>
             ) : (
-              <div ref={coverRef} className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl ring-2 ring-white/25">
-                <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-primary-800">
-                  <OpenBook className="h-10 w-10 text-primary-200" />
+              <div ref={coverRef} data-detail-cover={head.id} className={COVER_FRAME}>
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-primary-800">
+                  <OpenBook className="h-12 w-12 text-primary-200" />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Title + author */}
-          <div className="flex-1 min-w-0 pb-1">
-            {book.category && (
-              <span className="mb-2 inline-flex items-center rounded-full bg-accent-500/80 backdrop-blur-sm px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                {language === 'lo' ? book.category.name_lo : book.category.name_en}
-              </span>
-            )}
-            <h1 className="text-lg sm:text-2xl font-extrabold text-white leading-tight line-clamp-3">
-              {book.title}
-            </h1>
-            {book.author && (
-              <p className="mt-1 text-sm text-white/80 font-medium">{book.author}</p>
-            )}
-            {book.publisher && (
-              <p className="mt-0.5 text-xs text-white/55">{book.publisher}</p>
-            )}
-          </div>
-        </div>
-      </div>
+          {/* ── The sheet: title, rating, price and description ─────────────────────────────────────────────── */}
+          <div
+            className="relative rounded-[2rem] bg-white px-5 pb-6 shadow-[0_-14px_34px_-14px_rgba(0,0,0,0.35)] dark:bg-gray-900 md:rounded-3xl"
+            style={{ marginTop: `calc(${COVER_OVERLAP} * -1)`, paddingTop: `calc(${COVER_OVERLAP} + 1.25rem)` }}
+          >
+            <div className="text-center">
+              <h1 className={cn('text-xl font-extrabold text-gray-900 dark:text-gray-50 sm:text-2xl', lo ? 'leading-[1.45]' : 'leading-tight')}>
+                {head.title}
+              </h1>
+              {head.author && <p className="mt-1.5 text-sm font-medium text-gray-500 dark:text-gray-400">{head.author}</p>}
+              {book?.publisher && <p className="mt-0.5 text-xs text-gray-400">{book.publisher}</p>}
 
-      {/* ── White content area ────────────────────────────────────────────────── */}
-      <div className="space-y-4 mt-4 pb-8">
-
-        {/* Price + action card */}
-        {book.prices && book.prices.length > 0 && (
-          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
-            {/* Price row */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 pb-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                  {t('book.priceFrom')}
-                </p>
-                <p className="text-2xl font-black text-primary-700 dark:text-primary-300 leading-tight mt-0.5">
-                  {selectedPrice ? formatPrice(selectedPrice.final_price, currency) : '—'}
-                </p>
-                {selectedPrice && (
-                  <p className={cn(
-                    'mt-0.5 flex items-center gap-1 text-xs font-semibold',
-                    selectedPrice.availability === 'AVAILABLE' ? 'text-green-600 dark:text-green-400' :
-                    selectedPrice.availability === 'LOW_STOCK'  ? 'text-amber-500' : 'text-red-500',
-                  )}>
-                    {selectedPrice.availability === 'AVAILABLE' && <CheckCircle className="h-3 w-3" />}
-                    {selectedPrice.availability === 'LOW_STOCK'  && <AlertTriangle className="h-3 w-3" />}
-                    {selectedPrice.availability === 'AVAILABLE' ? t('book.available') :
-                     selectedPrice.availability === 'LOW_STOCK'  ? t('book.lowStock') : t('book.outOfStock')}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-shrink-0">
-                <button
-                  onClick={handleAddToCart}
-                  disabled={!isAvailable}
-                  className="flex h-11 items-center gap-2 rounded-xl border-2 border-primary-700 dark:border-primary-400 px-4 text-sm font-bold text-primary-700 dark:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/40 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <ShoppingCart className="h-4 w-4 flex-shrink-0" />
-                  <span className="hidden sm:inline">{t('book.addToCart')}</span>
-                </button>
-                <CtaButton onActivate={handleBuyNow} disabled={!isAvailable} className="flex-1 sm:flex-none">
-                  {t('book.buyNow')}
-                </CtaButton>
-              </div>
-            </div>
-
-            {/* Divider — store comparison is admin-only; customers just get the best price */}
-            {isAdmin && book.prices.length > 1 && (
-              <div className="border-t border-gray-100 dark:border-gray-800 px-4 py-3">
-                <p className="mb-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Store className="h-3 w-3" />
-                  {t('book.compareStores')}
-                </p>
-                <div className="space-y-2">
-                  {book.prices.map((price, idx) => (
-                    <button
-                      key={price.id}
-                      onClick={() => setSelectedPriceIdx(idx)}
-                      className={cn(
-                        'w-full flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
-                        selectedPriceIdx === idx
-                          ? 'border-primary-600 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40'
-                          : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800',
-                      )}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={cn(
-                          'h-2.5 w-2.5 rounded-full flex-shrink-0 ring-2 ring-offset-1 transition-colors',
-                          selectedPriceIdx === idx ? 'bg-primary-600 ring-primary-300' : 'bg-gray-300 dark:bg-gray-600 ring-gray-200 dark:ring-gray-700',
-                        )} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{price.bookstore?.name}</p>
-                          <p className={cn(
-                            'text-xs mt-0.5 flex items-center gap-1 font-medium',
-                            price.availability === 'AVAILABLE' ? 'text-green-600 dark:text-green-400' :
-                            price.availability === 'LOW_STOCK'  ? 'text-amber-500' : 'text-red-500',
-                          )}>
-                            {price.availability === 'AVAILABLE' && <CheckCircle className="h-2.5 w-2.5" />}
-                            {price.availability === 'AVAILABLE' ? t('book.available') :
-                             price.availability === 'LOW_STOCK'  ? t('book.lowStock') : t('book.outOfStock')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-3">
-                        <p className="text-sm font-bold text-primary-700 dark:text-primary-300">
-                          {formatPrice(price.final_price, currency)}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {readingSummary && (
-          <div className="overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-500/30 bg-gradient-to-br from-violet-50 dark:from-violet-500/10 via-white dark:via-gray-900 to-amber-50 dark:to-amber-500/10 shadow-sm">
-            <div className="flex items-center gap-4 p-4 sm:p-5">
-              <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-violet-700 text-white shadow-sm">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
-                  Bitdoin Academy
-                </p>
-                <h2 className="mt-1 text-sm font-black text-gray-950 dark:text-gray-100">
-                  {language === 'lo' ? 'ອ່ານສະຫຼຸບປຶ້ມນີ້' : 'Read this book summary'}
-                </h2>
-                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  {readingSummary.estimated_minutes} {language === 'lo'
-                    ? 'ນາທີ · ແນວຄິດສຳຄັນ ແລະ ບົດຮຽນນຳໃຊ້'
-                    : 'min · Key ideas and practical takeaways'}
-                </p>
-              </div>
               <button
                 type="button"
-                onClick={handleOpenSummary}
-                className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-violet-700 px-3.5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-800 active:scale-95 sm:px-4 sm:text-sm"
+                onClick={() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="mx-auto mt-3 flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800 dark:active:bg-gray-800"
               >
-                {readingSummary.has_access
-                  ? (language === 'lo' ? 'ອ່ານເລີຍ' : 'Read now')
-                  : (language === 'lo' ? 'ເປີດໃນ Academy' : 'Open in Academy')}
-                <ArrowRight className="h-4 w-4" />
+                <RatingStars
+                  value={ratingSummary?.average ?? 0}
+                  starClassName="h-[18px] w-[18px]"
+                  label={ratingSummary ? t('book.ratedOutOf', { value: ratingSummary.average.toFixed(1) }) : undefined}
+                />
+                {ratingSummary ? (
+                  <>
+                    <span className="text-sm font-bold text-gray-800 dark:text-gray-100">{ratingSummary.average.toFixed(1)}</span>
+                    <span className="text-xs text-gray-400">({ratingSummary.count})</span>
+                  </>
+                ) : (
+                  <span className="text-xs font-medium text-gray-400">{t('book.noRatingsYet')}</span>
+                )}
               </button>
             </div>
-            {!readingSummary.has_access && (
-              <p className="border-t border-violet-100 dark:border-violet-500/30 bg-white/60 dark:bg-gray-900/60 px-4 py-2 text-center text-[11px] font-semibold text-violet-700 dark:text-violet-300">
-                {language === 'lo'
-                  ? 'ສະໝັກ Academy ເພື່ອປົດລັອກສະຫຼຸບ ແລະ ບົດຮຽນທັງໝົດ'
-                  : 'Subscribe to Academy to unlock summaries and the full learning library'}
-              </p>
-            )}
-          </div>
-        )}
 
-        {/* Meta chips */}
-        <div className="grid grid-cols-4 gap-2">
-          {book.language && <MetaChip label={t('book.language')} value={languageValue} />}
-          {book.pages && <MetaChip label={t('book.pages')} value={String(book.pages)} />}
-          {book.isbn && <MetaChip label="ISBN" value={book.isbn} />}
-          {book.publication_date && (
-            <MetaChip label={t('book.published')} value={formatDate(book.publication_date, language)} />
-          )}
-        </div>
-
-        {/* Description */}
-        {book.description && (
-          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-4 py-4">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-2">{t('book.description')}</h2>
-            <div
-              className={cn(
-                'text-sm text-gray-600 dark:text-gray-300 leading-relaxed',
-                '[&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline',
-                '[&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:my-0.5',
-                '[&_p]:mb-2 [&_div]:mb-1',
-                '[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-200 dark:[&_blockquote]:border-gray-700 [&_blockquote]:pl-3 [&_blockquote]:italic',
-                '[&_h1]:mb-1.5 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-gray-100',
-                '[&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-gray-100',
-                '[&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-gray-900 dark:[&_h3]:text-gray-100',
-                '[&_h4]:mb-1 [&_h4]:mt-2 [&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-gray-900 dark:[&_h4]:text-gray-100',
-                '[&_h5]:mb-1 [&_h5]:mt-2 [&_h5]:text-sm [&_h5]:font-bold [&_h5]:text-gray-900 dark:[&_h5]:text-gray-100',
-                '[&_h6]:mb-1 [&_h6]:mt-2 [&_h6]:text-sm [&_h6]:font-bold [&_h6]:text-gray-900 dark:[&_h6]:text-gray-100',
-              )}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(book.description) }}
-            />
-          </div>
-        )}
-
-        {/* Single-store price note (when only 1 store) — store name is admin-only */}
-        {book.prices && book.prices.length === 1 && (
-          <div className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-4 py-4">
-            {isAdmin && (
+            {book ? (
               <>
-                <div className="flex items-center gap-2 mb-2">
-                  <Store className="h-4 w-4 text-primary-700 dark:text-primary-300 flex-shrink-0" />
-                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.compareStores')}</h2>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {book.category && (
+                    <span className="rounded-full bg-accent-50 px-3 py-1 text-xs font-bold text-accent-700 dark:bg-accent-500/15 dark:text-accent-400">
+                      {lo ? book.category.name_lo : book.category.name_en}
+                    </span>
+                  )}
+                  {book.language && (
+                    <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">
+                      {languageValue}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-700 dark:text-gray-200 font-medium">{book.prices[0].bookstore?.name}</span>
-                  <span className="font-bold text-primary-700 dark:text-primary-300">{formatPrice(book.prices[0].final_price, currency)}</span>
-                </div>
-              </>
-            )}
-            <p className={cn('text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-xl py-2', isAdmin && 'mt-2.5')}>
-              {t('cart.deliveryFeeNote')}
-            </p>
-          </div>
-        )}
 
-        {/* Related books — horizontal scroll */}
-        {relatedBooks && relatedBooks.length > 0 && (
-          <div>
-            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-3">{t('book.relatedBooks')}</h2>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
-              {relatedBooks.map(b => (
-                <div key={b.id} className="flex-shrink-0 w-28 sm:w-32">
-                  <BookCard book={b} />
+                {book.prices && book.prices.length > 0 && (
+                  <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-primary-50/70 px-4 py-3 dark:bg-primary-900/30">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{t('book.priceFrom')}</p>
+                      <p className="mt-0.5 text-2xl font-black leading-tight text-primary-700 dark:text-primary-300">
+                        {selectedPrice ? formatPrice(selectedPrice.final_price, currency) : '—'}
+                      </p>
+                    </div>
+                    {availability && (
+                      <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold', availability.style)}>
+                        {selectedPrice?.availability === 'AVAILABLE' && <CheckCircle className="h-3.5 w-3.5" />}
+                        {selectedPrice?.availability === 'LOW_STOCK' && <AlertTriangle className="h-3.5 w-3.5" />}
+                        {availability.label}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {book.description && (
+                  <div className="mt-5">
+                    <h2 className="mb-2 text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.description')}</h2>
+                    <Collapsible>
+                      <div className={DESCRIPTION_STYLES} dangerouslySetInnerHTML={{ __html: sanitizeHtml(book.description) }} />
+                    </Collapsible>
+                  </div>
+                )}
+              </>
+            ) : (
+              <SheetSkeleton />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Everything else ─────────────────────────────────────────────────────────────────────────────────── */}
+      {book && (
+        <div className="mx-auto mt-4 max-w-3xl space-y-4">
+
+          {readingSummary && (
+            <div className="overflow-hidden rounded-2xl border border-violet-200 dark:border-violet-500/30 bg-gradient-to-br from-violet-50 dark:from-violet-500/10 via-white dark:via-gray-900 to-amber-50 dark:to-amber-500/10 shadow-sm">
+              <div className="flex items-center gap-4 p-4 sm:p-5">
+                <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-violet-700 text-white shadow-sm">
+                  <GraduationCap className="h-6 w-6" />
                 </div>
-              ))}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+                    Bitdoin Academy
+                  </p>
+                  <h2 className="mt-1 text-sm font-black text-gray-950 dark:text-gray-100">
+                    {lo ? 'ອ່ານສະຫຼຸບປຶ້ມນີ້' : 'Read this book summary'}
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                    {readingSummary.estimated_minutes} {lo
+                      ? 'ນາທີ · ແນວຄິດສຳຄັນ ແລະ ບົດຮຽນນຳໃຊ້'
+                      : 'min · Key ideas and practical takeaways'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenSummary}
+                  className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-xl bg-violet-700 px-3.5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-800 active:scale-95 sm:px-4 sm:text-sm"
+                >
+                  {readingSummary.has_access
+                    ? (lo ? 'ອ່ານເລີຍ' : 'Read now')
+                    : (lo ? 'ເປີດໃນ Academy' : 'Open in Academy')}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              {!readingSummary.has_access && (
+                <p className="border-t border-violet-100 dark:border-violet-500/30 bg-white/60 dark:bg-gray-900/60 px-4 py-2 text-center text-[11px] font-semibold text-violet-700 dark:text-violet-300">
+                  {lo
+                    ? 'ສະໝັກ Academy ເພື່ອປົດລັອກສະຫຼຸບ ແລະ ບົດຮຽນທັງໝົດ'
+                    : 'Subscribe to Academy to unlock summaries and the full learning library'}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Details */}
+          <div className="rounded-2xl border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900">
+            <h2 className="mb-3 text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.details')}</h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {book.language && <MetaChip label={t('book.language')} value={languageValue} />}
+              {book.pages && <MetaChip label={t('book.pages')} value={String(book.pages)} />}
+              {book.isbn && <MetaChip label="ISBN" value={book.isbn} />}
+              {book.publication_date && (
+                <MetaChip label={t('book.published')} value={formatDate(book.publication_date, language)} />
+              )}
             </div>
           </div>
-        )}
-      </div>
-      {book.cover_image_url && (
+
+          {/* Compare stores — admin only; customers just get the best price */}
+          {isAdmin && book.prices && book.prices.length > 1 && (
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900">
+              <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <Store className="h-3 w-3" />
+                {t('book.compareStores')}
+              </p>
+              <div className="space-y-2">
+                {book.prices.map((price, idx) => (
+                  <button
+                    key={price.id}
+                    onClick={() => setSelectedPriceIdx(idx)}
+                    className={cn(
+                      'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all duration-150',
+                      selectedPriceIdx === idx
+                        ? 'border-primary-600 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/40'
+                        : 'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 hover:border-gray-200 dark:hover:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800',
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className={cn(
+                        'h-2.5 w-2.5 flex-shrink-0 rounded-full ring-2 ring-offset-1 transition-colors',
+                        selectedPriceIdx === idx ? 'bg-primary-600 ring-primary-300' : 'bg-gray-300 dark:bg-gray-600 ring-gray-200 dark:ring-gray-700',
+                      )} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{price.bookstore?.name}</p>
+                        <p className={cn(
+                          'mt-0.5 flex items-center gap-1 text-xs font-medium',
+                          price.availability === 'AVAILABLE' ? 'text-green-600 dark:text-green-400' :
+                          price.availability === 'LOW_STOCK'  ? 'text-amber-500' : 'text-red-500',
+                        )}>
+                          {price.availability === 'AVAILABLE' && <CheckCircle className="h-2.5 w-2.5" />}
+                          {price.availability === 'AVAILABLE' ? t('book.available') :
+                           price.availability === 'LOW_STOCK'  ? t('book.lowStock') : t('book.outOfStock')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="ml-3 flex-shrink-0 text-right">
+                      <p className="text-sm font-bold text-primary-700 dark:text-primary-300">
+                        {formatPrice(price.final_price, currency)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* The one store that sells it — admin only; customers just get the best price */}
+          {isAdmin && book.prices && book.prices.length === 1 && (
+            <div className="rounded-2xl border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-900">
+              <div className="mb-2 flex items-center gap-2">
+                <Store className="h-4 w-4 flex-shrink-0 text-primary-700 dark:text-primary-300" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.compareStores')}</h2>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-gray-700 dark:text-gray-200">{book.prices[0].bookstore?.name}</span>
+                <span className="font-bold text-primary-700 dark:text-primary-300">{formatPrice(book.prices[0].final_price, currency)}</span>
+              </div>
+            </div>
+          )}
+
+          <BookReviews summary={ratingSummary} reviews={reviews} sample={previewReviews} />
+
+          {/* Related books — horizontal scroll */}
+          {relatedBooks && relatedBooks.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-sm font-bold text-gray-900 dark:text-gray-100">{t('book.relatedBooks')}</h2>
+              <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+                {relatedBooks.map(b => (
+                  <div key={b.id} className="w-28 flex-shrink-0 sm:w-32">
+                    <BookCard book={b} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Cart and Buy Now float above the tab bar, within thumb reach ───────────────────────────────────────── */}
+      {book?.prices && book.prices.length > 0 && (
+        <div
+          data-bitty-avoid
+          className={cn(
+            'pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+var(--safe-bottom))] z-20 px-4 transition-all duration-200 md:bottom-6',
+            atFooter && 'translate-y-3 opacity-0',
+          )}
+        >
+          <div className={cn('mx-auto flex max-w-md gap-3', atFooter ? 'pointer-events-none' : 'pointer-events-auto')}>
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={!isAvailable}
+              className="flex h-12 min-w-0 flex-[1] items-center justify-center gap-1.5 rounded-2xl border-2 border-primary-700 bg-white/95 px-2 text-xs font-bold leading-tight text-primary-700 shadow-lg shadow-black/10 backdrop-blur transition-all hover:bg-primary-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:border-primary-400 dark:bg-gray-900/95 dark:text-primary-300 dark:hover:bg-primary-900/60 sm:text-sm"
+            >
+              <ShoppingCart className="h-4 w-4 flex-shrink-0" />
+              <span className="min-w-0 text-center">{t('book.addToCart')}</span>
+            </button>
+            {/* Buy Now is the main action: twice the width of Cart. */}
+            <CtaButton onActivate={handleBuyNow} disabled={!isAvailable} className="h-12 min-w-0 flex-[2] rounded-2xl">
+              {t('book.buyNow')}
+            </CtaButton>
+          </div>
+        </div>
+      )}
+
+      {head.cover_image_url && (
         <ImageLightbox
           open={coverOpen}
           onClose={() => setCoverOpen(false)}
-          src={book.cover_image_url}
-          alt={book.title}
+          src={head.cover_image_url}
+          alt={head.title}
           closeLabel={t('common.close')}
         />
       )}
@@ -503,18 +590,66 @@ export function BookDetail() {
         open={loginOpen}
         onClose={closeLogin}
         onSignedIn={() => setLoginOpen(false)}
-        returnPath={`/bookstore/books/${book.id}`}
+        returnPath={`/bookstore/books/${head.id}`}
         message={t('book.signInToFavorite')}
       />
     </div>
   )
 }
 
+/** Long text folded to a few lines, with a fade and a Read more button (when it is long enough to need them). */
+function Collapsible({ children }: { children: ReactNode }) {
+  const { t } = useTranslation()
+  const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const [long, setLong] = useState(false)
+
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const measure = () => setLong(element.scrollHeight > FOLDED_PX + 32)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [children])
+
+  const folded = long && !open
+  return (
+    <>
+      <div className="relative">
+        <div ref={ref} className="overflow-hidden" style={folded ? { maxHeight: FOLDED_PX } : undefined}>{children}</div>
+        {folded && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent dark:from-gray-900" />}
+      </div>
+      {long && (
+        <button
+          type="button"
+          onClick={() => setOpen(value => !value)}
+          aria-expanded={open}
+          className="mt-2 text-sm font-bold text-primary-700 transition hover:underline dark:text-primary-300"
+        >
+          {open ? t('book.showLess') : t('book.readMore')}
+        </button>
+      )}
+    </>
+  )
+}
+
+/** The sheet's lower half while the book's own data is still loading (the cover and title are already there). */
+function SheetSkeleton() {
+  return (
+    <Busy className="mt-5 space-y-4">
+      <Skeleton className="h-16 w-full rounded-2xl" />
+      <TextSkeleton lines={5} />
+    </Busy>
+  )
+}
+
 function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 px-2 py-2.5 text-center">
-      <p className="text-[9px] text-gray-400 uppercase tracking-wider font-semibold">{label}</p>
-      <p className="text-xs font-bold text-gray-800 dark:text-gray-100 mt-0.5 truncate" title={value}>{value}</p>
+    <div className="min-w-0 rounded-2xl border border-gray-100 bg-gray-50 px-2 py-2.5 text-center dark:border-gray-800 dark:bg-gray-800/50">
+      <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-bold text-gray-800 dark:text-gray-100" title={value}>{value}</p>
     </div>
   )
 }

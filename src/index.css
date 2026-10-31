@@ -40,6 +40,15 @@
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    /* Set by src/lib/keyboardAvoidance.ts while the on-screen keyboard is up: how much of the bottom
+       of the page it covers, and the height of what is left. Zero / the full height otherwise. */
+    --keyboard-inset: 0px;
+    --visual-height: 100dvh;
+  }
+
+  /* The keyboard covers the home-indicator area, so bars above it need no extra bottom padding. */
+  html.keyboard-open {
+    --safe-bottom: 0px;
   }
 
   html {
@@ -53,13 +62,6 @@
   @media (max-width: 389px) {
     /* iPhone SE 2nd/3rd gen, iPhone 8, 12/13 mini, most 360px Androids */
     html { font-size: 93.75%; }
-
-    /* iOS Safari zooms the page into any field under 16px; keep fields at 16px. */
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-    select,
-    textarea {
-      font-size: 16px;
-    }
   }
 
   @media (max-width: 349px) {
@@ -114,6 +116,11 @@
 }
 
 @layer utilities {
+  /* A full-screen overlay (or a bar pinned to the bottom) that stops at the top of the on-screen keyboard. */
+  .above-keyboard {
+    bottom: var(--keyboard-inset, 0px);
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -159,8 +166,8 @@
 
   /* Book cover hero background blur */
   .hero-blur {
-    filter: blur(24px) saturate(1.2);
-    transform: scale(1.15);
+    filter: blur(4px) saturate(1.2);
+    transform: scale(1.05);
   }
 
   /* Rich text editor placeholder */
@@ -524,6 +531,20 @@ label:has(input[data-invalid='true']) {
   html[data-flight=fade]::view-transition-old(root),
   html[data-flight=fade]::view-transition-new(root) { animation-duration: .35s; }
 }
+/* cover: a book's cover flies from the list into its place on the book page (src/lib/bookFlight.ts). The browser moves
+   and resizes the one element both pages name "book-cover"; the rest of the page cross-fades behind it. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-flight=cover]::view-transition-group(root),
+  html[data-flight=cover]::view-transition-old(root),
+  html[data-flight=cover]::view-transition-new(root) { animation-duration: .45s; }
+  html[data-flight=cover]::view-transition-group(book-cover) {
+    animation-duration: .65s;
+    animation-timing-function: cubic-bezier(.22, 1, .36, 1);
+  }
+  html[data-flight=cover]::view-transition-image-pair(book-cover) { border-radius: 1rem; overflow: clip; }
+  html[data-flight=cover]::view-transition-old(book-cover),
+  html[data-flight=cover]::view-transition-new(book-cover) { height: 100%; object-fit: cover; }
+}
 /* celebrate: the confetti burst from the clicked button, drawn above the page and animated from script. */
 .page-confetti { position: fixed; z-index: 2147483647; width: 0; height: 0; pointer-events: none; }
 .page-confetti i, .page-confetti b { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
@@ -559,4 +580,15 @@ label:has(input[data-invalid='true']) {
 
 @media (prefers-reduced-motion: reduce) {
   .sk::after { animation: none; display: none; }
+}
+
+/* iOS zooms the whole page in when a field under 16px is tapped, and a page cannot zoom itself back out.
+   So on touch screens every text field is at least 16px. This sits outside the Tailwind layers and uses
+   !important so that text-sm / text-xs on a field cannot undo it. It does not stop pinch-zoom on the website. */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([type='button']):not([type='submit']):not([type='reset']):not([type='image']):not([type='hidden']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

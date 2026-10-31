@@ -357,7 +357,7 @@ export function AdminKnowledge() {
 
       {/* ── Modal ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
+        <div className="above-keyboard fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-8 backdrop-blur-sm">
           <div className="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-900 shadow-2xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4">

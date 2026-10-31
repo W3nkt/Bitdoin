@@ -61,6 +61,12 @@
   to { transform: translateX(100%); }
 }
 
+/* ── With the keyboard up, the panel sits on top of it and fits what is left (see keyboardAvoidance.ts) ── */
+html.keyboard-open .bitty-panel {
+  bottom: calc(var(--keyboard-inset) + 0.5rem);
+  max-height: calc(var(--visual-height) - 1rem - var(--safe-top));
+}
+
 /* ── Messages cascade in on open; new messages pop in on their own ── */
 .bitty-msg {
   animation: bitty-msg-in 280ms ease-out backwards;

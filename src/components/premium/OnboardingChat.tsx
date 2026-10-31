@@ -260,9 +260,9 @@ export function OnboardingChat({ open, userId, onClose, onComplete }: Onboarding
   }
 
   return (
-    <div className="premium-i18n fixed inset-0 z-50 flex items-end justify-center md:items-center">
+    <div className="premium-i18n above-keyboard fixed inset-0 z-50 flex items-end justify-center md:items-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative flex max-h-[90vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white dark:bg-gray-900 shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-3xl">
+      <div className="relative flex max-h-[min(90vh,var(--visual-height))] w-full flex-col overflow-hidden rounded-t-3xl bg-white dark:bg-gray-900 shadow-2xl md:max-h-[85vh] md:max-w-lg md:rounded-3xl">
         {/* Progress bar */}
         <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800">
           <div

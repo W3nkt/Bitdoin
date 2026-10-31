@@ -3,10 +3,12 @@ import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import './index.css'
 import { installLocalizedValidation } from '@/lib/formValidation'
+import { installKeyboardAvoidance } from '@/lib/keyboardAvoidance'
 // Catch the browser's install prompt early for the "Add to Home Screen" button.
 import '@/lib/installPrompt'
 
 installLocalizedValidation()
+installKeyboardAvoidance()
 
 // App-only setup (opening animation, bundled fonts, finishing sign-in when the browser returns,
 // swipe back); the web build drops this branch entirely.

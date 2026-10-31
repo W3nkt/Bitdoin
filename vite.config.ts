@@ -21,11 +21,13 @@ export default defineConfig(({ mode }) => {
     // links would only delay the first paint on a slow or offline connection.
     // They also draw edge to edge (viewport-fit=cover), so the page's bars can
     // reach under the status bar and notch and pad themselves with --safe-top.
+    // And they cannot be zoomed: tapping a field must never zoom the page in, and an
+    // app has no way to zoom back out. (The website keeps pinch-zoom.)
     ...(native ? [{
       name: 'native-index-html',
       transformIndexHtml: (html: string) => html
         .replace(/<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*/g, '')
-        .replace('content="width=device-width, initial-scale=1.0"', 'content="width=device-width, initial-scale=1.0, viewport-fit=cover"'),
+        .replace('content="width=device-width, initial-scale=1.0"', 'content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"'),
     }] : []),
     ...(native ? [] : [VitePWA({
       registerType: 'autoUpdate',

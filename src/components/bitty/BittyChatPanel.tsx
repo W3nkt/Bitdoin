@@ -26,9 +26,10 @@ function initialMessages(): BittyMessage[] {
   return saved.length > 0 ? saved : [greetingMessage()]
 }
 
-// Bitty is asked for plain text, but strip stray markdown emphasis just in case.
+// Bitty is asked for plain text, but strip stray markdown emphasis just in case. Blank lines between
+// sentences make a short reply fill the small panel, so they are closed up.
 function plainText(text: string) {
-  return displayText(text).replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#+\s*/gm, '')
+  return displayText(text).replace(/\*\*(.+?)\*\*/g, '$1').replace(/^#+\s*/gm, '').replace(/\n\s*\n+/g, '\n')
 }
 
 interface BittyChatPanelProps {
@@ -57,9 +58,11 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
 
   useEffect(() => saveBittyMessages(messages), [messages])
 
+  // The answer buttons appear once the reply is complete (busy ends), after the last message update,
+  // so scroll again then; otherwise they sit below the fold of the small panel.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages])
+  }, [messages, busy])
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -161,6 +164,7 @@ export default function BittyChatPanel({ animateIn, closing, onClose, onExited }
         else setEntering(false)
       }}
       className={cn(
+        'bitty-panel',
         closing ? 'bitty-panel-exit' : entering && 'bitty-panel-enter',
         'fixed inset-x-3 bottom-[calc(4.5rem+var(--safe-bottom))] z-50 flex h-[min(520px,72dvh)] flex-col overflow-hidden rounded-2xl border border-primary-200 dark:border-primary-800 bg-white dark:bg-gray-900 shadow-[0_24px_60px_-12px_rgba(15,31,53,0.45)] ring-4 ring-primary-700/10 dark:ring-primary-400/10 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[min(640px,calc(100vh-3rem))] sm:w-[400px]',
       )}

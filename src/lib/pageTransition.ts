@@ -1,10 +1,15 @@
 import { startTransition } from 'react'
 
-export type Flight = 'fade' | 'celebrate'
+export type Flight = 'fade' | 'celebrate' | 'cover'
+
+/** The name a book's cover carries on both pages while it flies (see `html[data-flight=cover]` in index.css). */
+const COVER_NAME = 'book-cover'
 
 /**
  * Navigates with a short animation between pages:
  * - `fade`: the page cross-fades into the next one (View Transitions API, see `html[data-flight]` in index.css).
+ * - `cover`: like `fade`, and the book's cover (`from`) flies into its place on the next page (`landing`): from a list
+ *   to the book page, or back again (src/lib/bookFlight.ts).
  * - `celebrate`: the clicked element pops and bursts into confetti, the page fades out and the next one fades in
  *   (celebrateThen).
  *
@@ -12,14 +17,16 @@ export type Flight = 'fade' | 'celebrate'
  * Reduced-motion users just navigate.
  *
  * `ready` is the next page's code loading (usually done already: it is preloaded on hover). `leftPage` reports
- * when the old page is gone.
+ * when the old page is gone. `landing` (`cover` only) finds the element the cover lands on once the next page is
+ * on screen; by default the cover on the book page.
  */
-export async function flyToPage({ flight, from, navigate, leftPage, ready = Promise.resolve() }: {
+export async function flyToPage({ flight, from, navigate, leftPage, ready = Promise.resolve(), landing = findDetailCover }: {
   flight: Flight
   from: HTMLElement
   navigate: () => void
   leftPage: () => boolean
   ready?: Promise<unknown>
+  landing?: () => HTMLElement | null
 }) {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     navigate()
@@ -40,6 +47,10 @@ export async function flyToPage({ flight, from, navigate, leftPage, ready = Prom
   }
   const root = document.documentElement
   root.dataset.flight = flight
+  // The old page is captured when the transition starts, so the cover is named before it; the new page's cover
+  // is named once it is on screen. Only one element may carry the name at a time.
+  if (flight === 'cover') from.style.viewTransitionName = COVER_NAME
+  let landed: HTMLElement | null = null
   const transition = document.startViewTransition(() => new Promise<void>(resolve => {
     startTransition(navigate)
     // Rendering is paused while this callback runs, so watch the DOM rather than waiting for animation frames.
@@ -48,12 +59,30 @@ export async function flyToPage({ flight, from, navigate, leftPage, ready = Prom
     function done() {
       observer.disconnect()
       window.clearTimeout(timer)
+      if (flight === 'cover') {
+        // The old page is already captured. Free the name first: a card that is still on the new page (a related
+        // book clicked on a book page) must not share it with the landing cover.
+        from.style.viewTransitionName = ''
+        landed = landing()
+        landed?.style.setProperty('view-transition-name', COVER_NAME)
+      }
       resolve()
     }
     if (leftPage()) done()
     else observer.observe(document.body, { childList: true, subtree: true })
   }))
-  await transition.finished.catch(() => undefined).finally(() => { delete root.dataset.flight })
+  await transition.finished.catch(() => undefined).finally(() => {
+    delete root.dataset.flight
+    if (flight === 'cover') {
+      from.style.viewTransitionName = ''
+      if (landed) landed.style.viewTransitionName = ''
+    }
+  })
+}
+
+/** The cover on the book page. */
+function findDetailCover() {
+  return document.querySelector<HTMLElement>('[data-detail-cover]')
 }
 
 let celebrating = 0

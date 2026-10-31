@@ -24,14 +24,16 @@ interface BittyBookItemProps {
   onOpenDetails: () => void
 }
 
-/** One recommended book, shown as a bullet with a book icon and its actions underneath. */
+/** One recommended book: its cover beside the title, price and reason, with its actions underneath. */
 export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
   const { t } = useTranslation()
   const { currency } = useLanguage()
   const { addItem } = useCart()
   const toast = useToast()
   const [adding, setAdding] = useState(false)
-  const iconRef = useRef<HTMLSpanElement>(null)
+  // A cover that fails to load falls back to the book icon.
+  const [coverFailed, setCoverFailed] = useState(false)
+  const coverRef = useRef<HTMLAnchorElement>(null)
   const detailsUrl = `/bookstore/books/${book.id}`
 
   async function handleAddToCart() {
@@ -61,7 +63,7 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
         margin_percent: price.margin_percent,
       })
       // Same feedback as Add to Cart on the storefront: the cover flies into the cart icon.
-      flyToCart(iconRef.current, fullBook.cover_image_url ?? book.coverImageUrl)
+      flyToCart(coverRef.current, fullBook.cover_image_url ?? book.coverImageUrl)
       toast.success(`${t('bitty.added')}: ${fullBook.title}`)
     } catch {
       toast.error(t('bitty.errors.network'))
@@ -71,10 +73,28 @@ export function BittyBookItem({ book, onOpenDetails }: BittyBookItemProps) {
   }
 
   return (
-    <li className="flex gap-2 py-2.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-3">
-      <span ref={iconRef} className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 sm:h-8 sm:w-8" aria-hidden="true">
-        <OpenBook className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-      </span>
+    <li className="flex gap-2.5 py-2.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-3">
+      {/* The cover is what a customer judges a book by, so it leads the card; tapping it opens the book. */}
+      <Link
+        ref={coverRef}
+        to={detailsUrl}
+        onClick={onOpenDetails}
+        tabIndex={-1}
+        aria-hidden="true"
+        className="flex h-24 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-gradient-to-br from-slate-100 dark:from-slate-800 to-slate-200 dark:to-slate-700 text-slate-400 shadow-sm ring-1 ring-black/10 dark:ring-white/10"
+      >
+        {book.coverImageUrl && !coverFailed ? (
+          <img
+            src={book.coverImageUrl}
+            alt=""
+            loading="lazy"
+            onError={() => setCoverFailed(true)}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <OpenBook className="h-6 w-6" />
+        )}
+      </Link>
 
       <div className="min-w-0 flex-1">
         <Link

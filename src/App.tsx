@@ -1,5 +1,5 @@
 import { AcademyMenu } from '@/components/academy/AcademyMenu'
-import { Suspense, lazy, useEffect } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
@@ -164,6 +164,39 @@ function OAuthReturnHandler() {
   return null
 }
 
+// The skeleton shows at least this long, so a refresh on a fast connection is still seen to happen.
+const MIN_REFRESH_MS = 600
+// A slow or offline profile lookup must not keep the skeleton up.
+const MAX_REFRESH_MS = 4000
+
+const wait = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms))
+
+/**
+ * Pull-to-refresh. The store apps refresh in place: a page reload would restart the WebView and play the
+ * opening animation again, which belongs to opening the app only. The route's skeleton stands in while the
+ * page is taken down, then the page is built again and loads its data afresh, as a browser refresh does.
+ * The web app keeps the plain reload (PullToRefresh), which also picks up a new deployment.
+ */
+function RefreshBoundary({ children }: { children: React.ReactNode }) {
+  const { refreshProfile } = useAuth()
+  const [refreshing, setRefreshing] = useState(false)
+
+  async function refresh() {
+    setRefreshing(true)
+    // Cached lists are stale now; the rebuilt page refetches them as it mounts.
+    void qc.invalidateQueries({ refetchType: 'none' })
+    await Promise.all([wait(MIN_REFRESH_MS), Promise.race([refreshProfile().catch(() => undefined), wait(MAX_REFRESH_MS)])])
+    setRefreshing(false)
+  }
+
+  return (
+    <>
+      <PullToRefresh onRefresh={__NATIVE_BUILD__ ? refresh : undefined} />
+      {refreshing ? <PageLoader /> : children}
+    </>
+  )
+}
+
 export function App() {
   return (
     <QueryClientProvider client={qc}>
@@ -180,136 +213,137 @@ export function App() {
                 <PushSubscriptionSync />
                 <MembershipExpiryBanner />
                 <AcademyMenu />
-                <PullToRefresh />
-                <Suspense fallback={<PageLoader />}>
-                  <Routes>
-                    {/* Customer Routes */}
-                    <Route element={<CustomerLayout><Suspense fallback={<PageLoader />}><div /></Suspense></CustomerLayout>} path="__unused__" />
+                <RefreshBoundary>
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes>
+                      {/* Customer Routes */}
+                      <Route element={<CustomerLayout><Suspense fallback={<PageLoader />}><div /></Suspense></CustomerLayout>} path="__unused__" />
 
-                    <Route path="/" element={<PlatformSelector />} />
-                    <Route path="/welcome" element={<Landing />} />
+                      <Route path="/" element={<PlatformSelector />} />
+                      <Route path="/welcome" element={<Landing />} />
 
-                    {/* Bitdoin Bookstore */}
-                    <Route path="/bookstore" element={<CustomerLayout><Home /></CustomerLayout>} />
-                    <Route path="/bookstore/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
-                    <Route path="/bookstore/contacts" element={<CustomerLayout><Contacts /></CustomerLayout>} />
-                    <Route path="/bookstore/about" element={<CustomerLayout><About /></CustomerLayout>} />
-                    <Route path="/bookstore/faq" element={<CustomerLayout><Faq /></CustomerLayout>} />
-                    <Route path="/bookstore/knowledge" element={<CustomerLayout><Knowledge /></CustomerLayout>} />
-                    <Route path="/bookstore/knowledge/:id" element={<CustomerLayout><KnowledgeDetail /></CustomerLayout>} />
-                    <Route path="/bookstore/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
-                    <Route path="/bookstore/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
-                    <Route path="/bookstore/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
-                    <Route path="/bookstore/orders" element={<CustomerLayout><Orders /></CustomerLayout>} />
-                    <Route path="/bookstore/favorites" element={<CustomerLayout><Favorites /></CustomerLayout>} />
-                    <Route path="/bookstore/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
-                    <Route path="/bookstore/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
-                    <Route path="/bookstore/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
+                      {/* Bitdoin Bookstore */}
+                      <Route path="/bookstore" element={<CustomerLayout><Home /></CustomerLayout>} />
+                      <Route path="/bookstore/books" element={<CustomerLayout><Catalog /></CustomerLayout>} />
+                      <Route path="/bookstore/contacts" element={<CustomerLayout><Contacts /></CustomerLayout>} />
+                      <Route path="/bookstore/about" element={<CustomerLayout><About /></CustomerLayout>} />
+                      <Route path="/bookstore/faq" element={<CustomerLayout><Faq /></CustomerLayout>} />
+                      <Route path="/bookstore/knowledge" element={<CustomerLayout><Knowledge /></CustomerLayout>} />
+                      <Route path="/bookstore/knowledge/:id" element={<CustomerLayout><KnowledgeDetail /></CustomerLayout>} />
+                      <Route path="/bookstore/books/:id" element={<CustomerLayout><BookDetail /></CustomerLayout>} />
+                      <Route path="/bookstore/cart" element={<CustomerLayout><Cart /></CustomerLayout>} />
+                      <Route path="/bookstore/checkout" element={<CustomerLayout><Checkout /></CustomerLayout>} />
+                      <Route path="/bookstore/orders" element={<CustomerLayout><Orders /></CustomerLayout>} />
+                      <Route path="/bookstore/favorites" element={<CustomerLayout><Favorites /></CustomerLayout>} />
+                      <Route path="/bookstore/orders/:id" element={<CustomerLayout><OrderDetail /></CustomerLayout>} />
+                      <Route path="/bookstore/track" element={<CustomerLayout><TrackOrder /></CustomerLayout>} />
+                      <Route path="/bookstore/profile" element={<CustomerLayout><Profile /></CustomerLayout>} />
 
-                    {/* Bitdoin Academy */}
-                    <Route path="/academy" element={<AcademyLanding />} />
-                    <Route path="/academy/home" element={<Subscription page="home" />} />
-                    <Route path="/academy/play" element={<Subscription page="play" />} />
-                    <Route path="/academy/mentor" element={<Subscription page="mentor" />} />
-                    <Route path="/academy/community" element={<Subscription page="community" />} />
-                    <Route path="/academy/plans" element={<LegacyRedirect to="/academy/membership" />} />
-                    <Route path="/academy/membership" element={<Subscription page="membership" />} />
-                    <Route path="/academy/subscription" element={<Subscription />} />
-                    <Route path="/academy/coach" element={<PremiumCoach />} />
-                    <Route path="/academy/learn" element={<LearningHub />} />
-                    <Route path="/academy/learn/:categorySlug" element={<LearningCategoryPage />} />
-                    <Route path="/academy/lesson/:lessonSlug" element={<LessonReaderPage />} />
-                    <Route path="/academy/challenges" element={<WeeklyChallengesPage />} />
-                    <Route path="/academy/habits" element={<HabitTrackerPage />} />
-                    <Route path="/academy/progress" element={<LearningProgressPage />} />
-                    <Route path="/academy/prompts" element={<PromptLibraryPage />} />
-                    <Route path="/academy/profile" element={<AcademyProfile />} />
-                    <Route path="/academy/careers" element={<CareerExplorer />} />
-                    <Route path="/academy/family" element={<Family />} />
-                    <Route path="/academy/family/email" element={<FamilyEmail />} />
-                    <Route path="/academy/family/:linkId" element={<FamilyChild />} />
-                    <Route path="/academy/family/:linkId/reports/:reportId" element={<FamilyReport />} />
-                    <Route path="/academy/family/:linkId/career-reports/:reportId" element={<GuardianCareerReportPage />} />
-                    <Route path="/academy/scores/*" element={<MyScores />} />
-                    <Route path="/academy/top-corner-lab" element={<TopCornerLab />} />
+                      {/* Bitdoin Academy */}
+                      <Route path="/academy" element={<AcademyLanding />} />
+                      <Route path="/academy/home" element={<Subscription page="home" />} />
+                      <Route path="/academy/play" element={<Subscription page="play" />} />
+                      <Route path="/academy/mentor" element={<Subscription page="mentor" />} />
+                      <Route path="/academy/community" element={<Subscription page="community" />} />
+                      <Route path="/academy/plans" element={<LegacyRedirect to="/academy/membership" />} />
+                      <Route path="/academy/membership" element={<Subscription page="membership" />} />
+                      <Route path="/academy/subscription" element={<Subscription />} />
+                      <Route path="/academy/coach" element={<PremiumCoach />} />
+                      <Route path="/academy/learn" element={<LearningHub />} />
+                      <Route path="/academy/learn/:categorySlug" element={<LearningCategoryPage />} />
+                      <Route path="/academy/lesson/:lessonSlug" element={<LessonReaderPage />} />
+                      <Route path="/academy/challenges" element={<WeeklyChallengesPage />} />
+                      <Route path="/academy/habits" element={<HabitTrackerPage />} />
+                      <Route path="/academy/progress" element={<LearningProgressPage />} />
+                      <Route path="/academy/prompts" element={<PromptLibraryPage />} />
+                      <Route path="/academy/profile" element={<AcademyProfile />} />
+                      <Route path="/academy/careers" element={<CareerExplorer />} />
+                      <Route path="/academy/family" element={<Family />} />
+                      <Route path="/academy/family/email" element={<FamilyEmail />} />
+                      <Route path="/academy/family/:linkId" element={<FamilyChild />} />
+                      <Route path="/academy/family/:linkId/reports/:reportId" element={<FamilyReport />} />
+                      <Route path="/academy/family/:linkId/career-reports/:reportId" element={<GuardianCareerReportPage />} />
+                      <Route path="/academy/scores/*" element={<MyScores />} />
+                      <Route path="/academy/top-corner-lab" element={<TopCornerLab />} />
 
-                    {/* Legacy route compatibility */}
-                    <Route path="/books" element={<LegacyRedirect to="/bookstore/books" />} />
-                    <Route path="/books/:id" element={<LegacyRedirect to="/bookstore/books" appendParam="id" />} />
-                    <Route path="/contacts" element={<LegacyRedirect to="/bookstore/contacts" />} />
-                    <Route path="/about" element={<LegacyRedirect to="/bookstore/about" />} />
-                    <Route path="/faq" element={<LegacyRedirect to="/bookstore/faq" />} />
-                    <Route path="/knowledge" element={<LegacyRedirect to="/bookstore/knowledge" />} />
-                    <Route path="/knowledge/:id" element={<LegacyRedirect to="/bookstore/knowledge" appendParam="id" />} />
-                    <Route path="/cart" element={<LegacyRedirect to="/bookstore/cart" />} />
-                    <Route path="/checkout" element={<LegacyRedirect to="/bookstore/checkout" />} />
-                    <Route path="/orders" element={<LegacyRedirect to="/bookstore/orders" />} />
-                    <Route path="/orders/:id" element={<LegacyRedirect to="/bookstore/orders" appendParam="id" />} />
-                    <Route path="/track" element={<LegacyRedirect to="/bookstore/track" />} />
-                    <Route path="/profile" element={<LegacyRedirect to="/bookstore/profile" />} />
-                    <Route path="/subscription" element={<LegacyRedirect to="/academy/subscription" />} />
-                    <Route path="/premium/coach" element={<LegacyRedirect to="/academy/coach" />} />
-                    <Route path="/premium/learn" element={<LegacyRedirect to="/academy/learn" />} />
-                    <Route path="/premium/learn/:categorySlug" element={<LegacyRedirect to="/academy/learn" appendParam="categorySlug" />} />
-                    <Route path="/premium/lesson/:lessonSlug" element={<LegacyRedirect to="/academy/lesson" appendParam="lessonSlug" />} />
-                    <Route path="/premium/challenges" element={<LegacyRedirect to="/academy/challenges" />} />
-                    <Route path="/premium/habits" element={<LegacyRedirect to="/academy/habits" />} />
-                    <Route path="/premium/progress" element={<LegacyRedirect to="/academy/progress" />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/bookstore-pricing/:token" element={<BookstorePriceEntry />} />
+                      {/* Legacy route compatibility */}
+                      <Route path="/books" element={<LegacyRedirect to="/bookstore/books" />} />
+                      <Route path="/books/:id" element={<LegacyRedirect to="/bookstore/books" appendParam="id" />} />
+                      <Route path="/contacts" element={<LegacyRedirect to="/bookstore/contacts" />} />
+                      <Route path="/about" element={<LegacyRedirect to="/bookstore/about" />} />
+                      <Route path="/faq" element={<LegacyRedirect to="/bookstore/faq" />} />
+                      <Route path="/knowledge" element={<LegacyRedirect to="/bookstore/knowledge" />} />
+                      <Route path="/knowledge/:id" element={<LegacyRedirect to="/bookstore/knowledge" appendParam="id" />} />
+                      <Route path="/cart" element={<LegacyRedirect to="/bookstore/cart" />} />
+                      <Route path="/checkout" element={<LegacyRedirect to="/bookstore/checkout" />} />
+                      <Route path="/orders" element={<LegacyRedirect to="/bookstore/orders" />} />
+                      <Route path="/orders/:id" element={<LegacyRedirect to="/bookstore/orders" appendParam="id" />} />
+                      <Route path="/track" element={<LegacyRedirect to="/bookstore/track" />} />
+                      <Route path="/profile" element={<LegacyRedirect to="/bookstore/profile" />} />
+                      <Route path="/subscription" element={<LegacyRedirect to="/academy/subscription" />} />
+                      <Route path="/premium/coach" element={<LegacyRedirect to="/academy/coach" />} />
+                      <Route path="/premium/learn" element={<LegacyRedirect to="/academy/learn" />} />
+                      <Route path="/premium/learn/:categorySlug" element={<LegacyRedirect to="/academy/learn" appendParam="categorySlug" />} />
+                      <Route path="/premium/lesson/:lessonSlug" element={<LegacyRedirect to="/academy/lesson" appendParam="lessonSlug" />} />
+                      <Route path="/premium/challenges" element={<LegacyRedirect to="/academy/challenges" />} />
+                      <Route path="/premium/habits" element={<LegacyRedirect to="/academy/habits" />} />
+                      <Route path="/premium/progress" element={<LegacyRedirect to="/academy/progress" />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/bookstore-pricing/:token" element={<BookstorePriceEntry />} />
 
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={
-                      <AdminGuard><AdminLayout><AdminDashboard /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/books" element={
-                      <AdminGuard><AdminLayout><AdminBooks /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/book-intake" element={
-                      <AdminGuard><AdminLayout><AdminBookIntake /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/bookstores" element={
-                      <AdminGuard><AdminLayout><AdminBookstores /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/pricing" element={
-                      <AdminGuard><AdminLayout><AdminPricing /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/orders" element={
-                      <AdminGuard><AdminLayout><AdminOrders /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/payments" element={
-                      <AdminGuard><AdminLayout><AdminPayments /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/deliveries" element={
-                      <AdminGuard><AdminLayout><AdminDeliveries /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/analytics" element={
-                      <AdminGuard><AdminLayout><AdminAnalytics /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/settings" element={
-                      <AdminGuard><AdminLayout><AdminSettings /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/audit-logs" element={
-                      <AdminGuard><AdminLayout><AdminAuditLogs /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/admin/knowledge" element={
-                      <AdminGuard><AdminLayout><AdminKnowledge /></AdminLayout></AdminGuard>
-                    } />
-                    <Route path="/academy-admin" element={
-                      <AdminGuard><PremiumAdminDashboard /></AdminGuard>
-                    } />
-                    <Route path="/academy-admin/learning" element={
-                      <AdminGuard><PremiumLearningAdmin /></AdminGuard>
-                    } />
-                    <Route path="/academy-admin/scores" element={
-                      <AdminGuard><MyScoresAdmin /></AdminGuard>
-                    } />
-                    <Route path="/premium-admin" element={<LegacyRedirect to="/academy-admin" />} />
-                    <Route path="/premium-admin/learning" element={<LegacyRedirect to="/academy-admin/learning" />} />
+                      {/* Admin Routes */}
+                      <Route path="/admin" element={
+                        <AdminGuard><AdminLayout><AdminDashboard /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/books" element={
+                        <AdminGuard><AdminLayout><AdminBooks /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/book-intake" element={
+                        <AdminGuard><AdminLayout><AdminBookIntake /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/bookstores" element={
+                        <AdminGuard><AdminLayout><AdminBookstores /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/pricing" element={
+                        <AdminGuard><AdminLayout><AdminPricing /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/orders" element={
+                        <AdminGuard><AdminLayout><AdminOrders /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/payments" element={
+                        <AdminGuard><AdminLayout><AdminPayments /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/deliveries" element={
+                        <AdminGuard><AdminLayout><AdminDeliveries /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/analytics" element={
+                        <AdminGuard><AdminLayout><AdminAnalytics /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/settings" element={
+                        <AdminGuard><AdminLayout><AdminSettings /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/audit-logs" element={
+                        <AdminGuard><AdminLayout><AdminAuditLogs /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/admin/knowledge" element={
+                        <AdminGuard><AdminLayout><AdminKnowledge /></AdminLayout></AdminGuard>
+                      } />
+                      <Route path="/academy-admin" element={
+                        <AdminGuard><PremiumAdminDashboard /></AdminGuard>
+                      } />
+                      <Route path="/academy-admin/learning" element={
+                        <AdminGuard><PremiumLearningAdmin /></AdminGuard>
+                      } />
+                      <Route path="/academy-admin/scores" element={
+                        <AdminGuard><MyScoresAdmin /></AdminGuard>
+                      } />
+                      <Route path="/premium-admin" element={<LegacyRedirect to="/academy-admin" />} />
+                      <Route path="/premium-admin/learning" element={<LegacyRedirect to="/academy-admin/learning" />} />
 
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Suspense>
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Suspense>
+                </RefreshBoundary>
               </ToastProvider>
             </CartProvider>
           </LanguageProvider>

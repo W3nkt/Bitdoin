@@ -1,12 +1,13 @@
 import { useRef } from 'react'
 import { ShoppingCart } from 'lucide-react'
 import { OpenBook } from '@/components/ui/OpenBook'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import type { Book } from '@/types'
 import { useLanguage } from '@/context/LanguageContext'
 import { cn, formatPrice } from '@/lib/utils'
 import { flyToCart } from '@/lib/flyToCart'
+import { openBookWithFlight, preloadBookPage } from '@/lib/bookFlight'
 
 interface BookCardProps {
   book: Book
@@ -18,6 +19,7 @@ interface BookCardProps {
 export function BookCard({ book, onAddToCart, className, compact = false }: BookCardProps) {
   const { t } = useTranslation()
   const { currency } = useLanguage()
+  const navigate = useNavigate()
   const coverRef = useRef<HTMLDivElement>(null)
 
   const lowestPrice = book.min_price ?? book.prices?.[0]?.final_price
@@ -30,9 +32,16 @@ export function BookCard({ book, onAddToCart, className, compact = false }: Book
       compact ? 'rounded-xl p-2' : 'rounded-2xl p-3',
       className,
     )}>
-      <Link to={`/bookstore/books/${book.id}`} className="flex flex-1 flex-col">
+      <Link
+        to={`/bookstore/books/${book.id}`}
+        onClick={event => openBookWithFlight(event, { book, cover: coverRef.current, navigate })}
+        onPointerEnter={preloadBookPage}
+        onTouchStart={preloadBookPage}
+        className="flex flex-1 flex-col"
+      >
         <div
           ref={coverRef}
+          data-book-cover={book.id}
           className={cn(
             'relative aspect-[2/3] overflow-hidden bg-gradient-to-br from-slate-100 dark:from-slate-800 to-slate-200 dark:to-slate-700 transition-all duration-300',
             compact ? 'rounded-lg' : 'rounded-xl',

@@ -7,6 +7,7 @@ import {
   type BittyEvent,
   buildCatalog,
   classifyModelError,
+  cutAfterQuestion,
   extractInlineRecommendations,
   endsWithQuestion,
   extractListedOptions,
@@ -762,4 +763,89 @@ Deno.test('unusable page paths are ignored', () => {
   const parsed = parseBittyRequest({ ...VALID_BODY, page: { path: '/bookstore/faq' } })
   assert(typeof parsed !== 'string')
   assertEquals(parsed.pagePath, '/bookstore/faq')
+})
+
+// ─── A sentence after the choices ────────────────────────────────────────────
+
+// Replies seen in the app: the choices are followed by a sentence of their own, so they were never shown as buttons.
+const LEVEL_REPLY = 'ກະລຸນາບອກຂ້ອຍເຖິງ:\n\nລະດັບຄວາມຮູ້ປັດຈຸບັນຂອງທ່ານກ່ຽວກັບການພັດທະນາຕົວເອງ?\n(ເລີ່ມຕົ້ນ / ກາງ / ຂັ້ນສູງ)\n\nຂ້ອຍຈະສືບຕໍ່ດ້ວຍຄຳຖາມຕໍ່ໄປຫຼັງຈາກທ່ານຕອບຄຳຖາມນີ້.'
+const TOPIC_REPLY = 'ດີເລີດ! ທ່ານຢູ່ໃນລະດັບກາງ.\n\nຫົວຂໍ້ໃດທີ່ທ່ານສົນໃຈເປັນພິເສດ?\n(ຕົວຢ່າງ: ການຄິດ, ການຈັດການເວລາ, ການສື່ສານ, ການເຂົ້າໃຈຕົວເອງ, ການເຮັດວຽກ, ການເງິນ, ຫຼື ອື່ນໆ)\n\nຂ້ອຍຈະຖາມຄຳຖາມຕໍ່ໄປຫຼັງຈາກນີ້.'
+
+Deno.test('choices followed by a sentence still become quick replies, and the sentence is dropped', () => {
+  assertEquals(extractListedOptions(LEVEL_REPLY), {
+    text: 'ກະລຸນາບອກຂ້ອຍເຖິງ:\n\nລະດັບຄວາມຮູ້ປັດຈຸບັນຂອງທ່ານກ່ຽວກັບການພັດທະນາຕົວເອງ?',
+    options: ['ເລີ່ມຕົ້ນ', 'ກາງ', 'ຂັ້ນສູງ'],
+  })
+  assertEquals(extractListedOptions(TOPIC_REPLY), {
+    text: 'ດີເລີດ! ທ່ານຢູ່ໃນລະດັບກາງ.\n\nຫົວຂໍ້ໃດທີ່ທ່ານສົນໃຈເປັນພິເສດ?',
+    options: ['ການຄິດ', 'ການຈັດການເວລາ', 'ການສື່ສານ', 'ການເຂົ້າໃຈຕົວເອງ', 'ການເຮັດວຽກ', 'ການເງິນ'],
+  })
+  assertEquals(extractListedOptions('Which level are you at? (Beginner / Advanced) I will ask the next one after this.'), {
+    text: 'Which level are you at? (Beginner / Advanced) I will ask the next one after this.',
+    options: [],
+  })
+})
+
+Deno.test('a reply that asks with choices and a closing sentence is fixed in one model call', async () => {
+  const model = scriptedModel([{ finishReason: 'stop', toolCalls: [] }], [[LEVEL_REPLY]])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(model.inputs.length, 1)
+  assertEquals(events.filter(e => e.type !== 'text'), [
+    { type: 'replace_text', text: 'ກະລຸນາບອກຂ້ອຍເຖິງ:\n\nລະດັບຄວາມຮູ້ປັດຈຸບັນຂອງທ່ານກ່ຽວກັບການພັດທະນາຕົວເອງ?' },
+    { type: 'quick_replies', options: ['ເລີ່ມຕົ້ນ', 'ກາງ', 'ຂັ້ນສູງ'] },
+    { type: 'done' },
+  ])
+})
+
+Deno.test('cutAfterQuestion keeps the question and its choices and drops a short closing sentence', () => {
+  assertEquals(cutAfterQuestion('Which level?\n\nI will continue after you answer.'), 'Which level?')
+  assertEquals(cutAfterQuestion('Great.\nWhich level?\n(A / B)\n\nThanks.'), 'Great.\nWhich level? (A / B)')
+  assertEquals(cutAfterQuestion('Which level? (A / B)\nThanks.'), 'Which level? (A / B)')
+})
+
+Deno.test('cutAfterQuestion leaves real content alone', () => {
+  // Nothing follows the question.
+  assertEquals(cutAfterQuestion('Which level?'), null)
+  assertEquals(cutAfterQuestion('Which level?\n(A / B)'), null)
+  // How-to steps and bullet lists after a question are content.
+  assertEquals(cutAfterQuestion('Want to order? Here is how:\n1. Add books to your cart\n2. Go to checkout'), null)
+  assertEquals(cutAfterQuestion('Which level?\n- Beginner\n- Advanced'), null)
+  assertEquals(cutAfterQuestion('Is that clear?\n1. Add to cart'), null)
+  // Long or many lines after the question are an answer, not filler.
+  assertEquals(cutAfterQuestion(`Is that clear?\n${'Please contact support. '.repeat(20)}`), null)
+  assertEquals(cutAfterQuestion('Is that clear?\nOne.\nTwo.\nThree.\nFour.'), null)
+  assertEquals(cutAfterQuestion('No question here.'), null)
+})
+
+Deno.test('endsWithQuestion also sees a question followed by a short sentence', () => {
+  assert(endsWithQuestion('Which topic do you like?\nI will ask the next one after this.'))
+  assert(!endsWithQuestion('Happy reading!'))
+})
+
+Deno.test('a closing sentence after a question is removed when the model did call show_quick_replies', async () => {
+  const model = scriptedModel([{
+    finishReason: 'tool_calls',
+    toolCalls: [{ name: 'show_quick_replies', input: { question: 'Which level?', options: ['Beginner', 'Advanced'] } }],
+  }], [['Which level?\nI will continue after you answer.']])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(events.filter(e => e.type !== 'text'), [
+    { type: 'quick_replies', options: ['Beginner', 'Advanced'] },
+    { type: 'replace_text', text: 'Which level?' },
+    { type: 'done' },
+  ])
+})
+
+Deno.test('a closing sentence is kept when the choices had to be asked for separately', async () => {
+  // The follow-up sentence might be content ("Contact support at ..."), so only structured choices cut it.
+  const model = scriptedModel([
+    { finishReason: 'stop', toolCalls: [] },
+    { finishReason: 'tool_calls', toolCalls: [{ name: 'show_quick_replies', input: { question: 'Which topic?', options: ['Money', 'History'] } }] },
+  ], [['Which topic do you like?\nI will ask the next one after this.']])
+  const { deps } = makeDeps({ runModel: model.runModel })
+  const events = await readEvents(await createBittyHandler(deps)(post(VALID_BODY)))
+  assertEquals(model.inputs.length, 2)
+  assertEquals(events.filter(e => e.type === 'replace_text'), [])
+  assertEquals(events.filter(e => e.type === 'quick_replies'), [{ type: 'quick_replies', options: ['Money', 'History'] }])
 })

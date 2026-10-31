@@ -5,6 +5,7 @@ import { Package, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Order } from '@/types'
 import { OrderListSkeleton } from '@/components/ui/Skeleton'
+import { BackButton } from '@/components/ui/BackButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
 import { useLanguage } from '@/context/LanguageContext'
@@ -35,21 +36,42 @@ export function Orders() {
     return <TrackOrder />
   }
 
-  if (isLoading) return <OrderListSkeleton />
+  // The back arrow stays put while the list loads, so the page does not shift when it arrives.
+  const header = (
+    <div className="flex items-center gap-3">
+      <BackButton fallback="/bookstore/profile" />
+      <div className="min-w-0">
+        <h1 className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">{t('orders.title')}</h1>
+        {orders && orders.length > 0 && <p className="text-xs text-gray-400">{t('orders.count', { count: orders.length })}</p>}
+      </div>
+    </div>
+  )
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {header}
+        <OrderListSkeleton withTitle={false} />
+      </div>
+    )
+  }
 
   if (!orders || orders.length === 0) {
     return (
-      <EmptyState
-        icon={<Package className="h-16 w-16" />}
-        title={t('orders.empty')}
-        action={{ label: t('cart.continueShopping'), onClick: () => navigate('/bookstore/books') }}
-      />
+      <div className="space-y-4">
+        {header}
+        <EmptyState
+          icon={<Package className="h-16 w-16" />}
+          title={t('orders.empty')}
+          action={{ label: t('cart.continueShopping'), onClick: () => navigate('/bookstore/books') }}
+        />
+      </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('orders.title')}</h1>
+      {header}
 
       {orders.map(order => (
         <button

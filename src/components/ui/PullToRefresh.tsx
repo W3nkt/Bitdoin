@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { RefreshCw } from 'lucide-react'
 import { isStandalone } from '@/lib/installPrompt'
+import { publicAsset } from '@/lib/assets'
 import { cn } from '@/lib/utils'
 
-// Pull down from the top of the page to reload, like a browser refresh. Only
+// Pull down from the top of the page to refresh, like a browser refresh. Only
 // in the home-screen app: there is no address bar or native pull-to-refresh
-// there (iOS especially). A reload also picks up a newly deployed version.
+// there (iOS especially). By default it reloads the page, which also picks up a
+// newly deployed version. The store apps pass onRefresh instead: a reload would
+// restart the WebView, so the app refreshes in place (see RefreshBoundary).
 
 const THRESHOLD = 80 // px of (damped) pull needed to trigger a reload
 const MAX_PULL = 120
@@ -22,11 +24,22 @@ function blocksPull(target: EventTarget | null) {
   return false
 }
 
-export function PullToRefresh() {
+interface PullToRefreshProps {
+  /** Refreshes the page in place; the indicator spins until it settles. Without it the page reloads. */
+  onRefresh?: () => Promise<void>
+}
+
+export function PullToRefresh({ onRefresh }: PullToRefreshProps) {
   const [enabled] = useState(() => typeof window !== 'undefined' && isStandalone())
   const [pull, setPull] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const pullRef = useRef(0)
+  const refreshingRef = useRef(false)
+  const onRefreshRef = useRef(onRefresh)
+
+  useEffect(() => {
+    onRefreshRef.current = onRefresh
+  }, [onRefresh])
 
   useEffect(() => {
     if (!enabled) return
@@ -42,7 +55,7 @@ export function PullToRefresh() {
     const onStart = (event: TouchEvent) => {
       startY = null
       tracking = false
-      if (event.touches.length !== 1) return
+      if (event.touches.length !== 1 || refreshingRef.current) return
       // Modals lock the page with body overflow hidden.
       if (window.scrollY > 0 || document.body.style.overflow === 'hidden' || blocksPull(event.target)) return
       startY = event.touches[0].clientY
@@ -74,9 +87,19 @@ export function PullToRefresh() {
       tracking = false
       startY = null
       if (pullRef.current >= THRESHOLD) {
+        refreshingRef.current = true
         setRefreshing(true)
         set(THRESHOLD)
-        window.location.reload()
+        const refresh = onRefreshRef.current
+        if (!refresh) {
+          window.location.reload()
+          return
+        }
+        refresh().catch(() => undefined).finally(() => {
+          refreshingRef.current = false
+          setRefreshing(false)
+          set(0)
+        })
       } else {
         set(0)
       }
@@ -108,12 +131,10 @@ export function PullToRefresh() {
         className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-black/5 dark:bg-gray-800 dark:ring-white/10"
         style={{ opacity: Math.max(0.3, progress) }}
       >
-        <RefreshCw
-          className={cn(
-            'h-5 w-5',
-            progress >= 1 ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400',
-            refreshing && 'animate-spin',
-          )}
+        <img
+          src={publicAsset('icons/Bitdoin-Mark.png')}
+          alt=""
+          className={cn('h-6 w-6 object-contain', !refreshing && progress < 1 && 'grayscale', refreshing && 'animate-spin')}
           style={refreshing ? undefined : { transform: `rotate(${progress * 270}deg)` }}
         />
       </div>

@@ -88,10 +88,10 @@ export function ListSkeleton({ rows = 5, className }: { rows?: number; className
 }
 
 /** Order cards: a cover on the left and several lines (customer orders). */
-export function OrderListSkeleton({ rows = 3 }: { rows?: number }) {
+export function OrderListSkeleton({ rows = 3, withTitle = true }: { rows?: number; withTitle?: boolean }) {
   return (
     <Busy className="space-y-4">
-      <Skeleton className="h-6 w-32" />
+      {withTitle && <Skeleton className="h-6 w-32" />}
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex min-h-36 overflow-hidden rounded-2xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
           <Skeleton className="w-24 shrink-0 rounded-none sm:w-28" />
@@ -116,6 +116,32 @@ export function BookGridSkeleton({ count = 12, className }: { count?: number; cl
           <Skeleton className="mt-2 h-7 w-full rounded-md" />
         </div>
       ))}
+    </Busy>
+  )
+}
+
+/** The Favorites page: the header with its numbers, then small covers three across. */
+export function FavoritesSkeleton({ count = 6, className }: { count?: number; className?: string }) {
+  return (
+    <Busy className={cn('space-y-5', className)}>
+      <div className="rounded-3xl bg-gray-200/80 p-4 dark:bg-gray-800/70">
+        <Skeleton className="h-9 w-9 rounded-full" />
+        <Skeleton className="mt-4 h-3 w-24" />
+        <Skeleton className="mt-2 h-7 w-2/3" />
+        <div className="mt-5 grid grid-cols-[1fr_1fr_1.5fr] gap-2">
+          {[0, 1, 2].map(i => <Skeleton key={i} className="h-12 rounded-2xl" />)}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i}>
+            <Skeleton className="aspect-[2/3] w-full rounded-xl" />
+            <Skeleton className="mt-2 h-3 w-full" />
+            <Skeleton className="mt-1.5 h-3 w-2/3" />
+            <Skeleton className="mt-2 h-3.5 w-1/2" />
+          </div>
+        ))}
+      </div>
     </Busy>
   )
 }
@@ -159,16 +185,25 @@ export function DashboardSkeleton({ className }: { className?: string }) {
 }
 
 /** A product-style page: big image on one side, details on the other. */
+/** A book page: the backdrop, the cover overlapping the white sheet, then title, chips, price and text. Keep the sizes
+ *  in step with BookDetail (pages/customer/BookDetail.tsx). */
 export function DetailSkeleton({ className }: { className?: string }) {
   return (
-    <Busy className={cn('grid gap-8 py-2 md:grid-cols-[minmax(0,320px)_1fr]', className)}>
-      <Skeleton className="aspect-[2/3] w-full rounded-2xl" />
-      <div className="space-y-5">
-        <Skeleton className="h-8 w-4/5" /><Skeleton className="h-4 w-1/3" />
-        <div className="flex gap-2"><Skeleton className="h-6 w-20 rounded-full" /><Skeleton className="h-6 w-24 rounded-full" /></div>
-        <Skeleton className="h-9 w-40" />
-        <TextSkeleton lines={5} />
-        <div className="flex gap-3 pt-2"><Skeleton className="h-12 w-44 rounded-xl" /><Skeleton className="h-12 w-12 rounded-xl" /></div>
+    <Busy className={cn('-mx-4 -mt-4 [--cover-w:10.5rem] sm:[--cover-w:12rem] md:mx-auto md:mt-0 md:max-w-3xl', className)}>
+      <div className="relative pt-[4.5rem]">
+        <div className="absolute inset-x-0 top-0 h-[17rem] overflow-hidden md:rounded-3xl">
+          <Skeleton className="h-full w-full rounded-none" />
+        </div>
+        <div className="relative z-10 mx-auto w-[var(--cover-w)]">
+          <Skeleton className="aspect-[2/3] w-full rounded-2xl" />
+        </div>
+        <div className="relative -mt-[calc(var(--cover-w)*0.825)] space-y-4 rounded-[2rem] bg-white px-5 pb-6 pt-[calc(var(--cover-w)*0.825+1.25rem)] dark:bg-gray-900 md:rounded-3xl">
+          <Skeleton className="mx-auto h-6 w-3/4" />
+          <Skeleton className="mx-auto h-4 w-1/3" />
+          <div className="flex justify-center gap-2"><Skeleton className="h-7 w-20 rounded-full" /><Skeleton className="h-7 w-16 rounded-full" /></div>
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <TextSkeleton lines={5} />
+        </div>
       </div>
     </Busy>
   )
