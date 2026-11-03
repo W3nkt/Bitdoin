@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { membershipActivatedMessage } from '../_shared/membership-notify.ts'
 import {
   academyDailyMessage,
   newBooksMessage,
@@ -388,6 +389,32 @@ async function sendTest(admin: SupabaseClient, userId: string, platform: Platfor
 
 // ─── HTTP ────────────────────────────────────────────────────────────────────
 
+/**
+ * The congratulation after a PhaJay payment starts or extends a Premium membership (phajay-checkout and
+ * phajay-webhook call this). It goes to the member's devices that have Academy notifications on.
+ */
+async function sendMembershipActivated(admin: SupabaseClient, userId: string, endsAt: string, extendsPrevious: boolean) {
+  const { data: rows, error } = await admin
+    .from('push_subscriptions')
+    .select('id,user_id,endpoint,p256dh,auth')
+    .eq('user_id', userId)
+    .eq('academy_enabled', true)
+  if (error) throw error
+  if (!rows?.length) return { sent: 0, failed: 0, removed: 0 }
+  const users = await languagesFor(admin, [userId])
+  const message = membershipActivatedMessage(users.get(userId)?.lang ?? 'lo', endsAt, extendsPrevious)
+  return deliver(admin, rows as SubscriptionRow[], () => message, { ttl: 24 * 60 * 60 })
+}
+
+/** True only for a caller that presents the service role key: this action must never be reachable by a member. */
+function isServiceCall(req: Request) {
+  const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
+  if (!token || !SUPABASE_SERVICE_KEY || token.length !== SUPABASE_SERVICE_KEY.length) return false
+  let difference = 0
+  for (let i = 0; i < token.length; i++) difference |= token.charCodeAt(i) ^ SUPABASE_SERVICE_KEY.charCodeAt(i)
+  return difference === 0
+}
+
 async function signedInUser(req: Request) {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (!token) return null
@@ -403,7 +430,9 @@ Deno.serve(async req => {
 
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
-  const body = await req.json().catch(() => ({})) as { action?: string; id?: string; platform?: string; draft?: unknown }
+  const body = await req.json().catch(() => ({})) as {
+    action?: string; id?: string; platform?: string; draft?: unknown; user_id?: string; ends_at?: string; extends_previous?: boolean
+  }
 
   try {
     switch (body.action) {
@@ -413,6 +442,12 @@ Deno.serve(async req => {
         return json(req, await sendNewBooks(admin))
       case 'academic-reminders':
         return json(req, await sendAcademicReminders(admin))
+      case 'membership-activated': {
+        if (!isServiceCall(req)) return json(req, { error: 'Not allowed' }, 403)
+        const validId = typeof body.user_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.user_id)
+        if (!validId || typeof body.ends_at !== 'string' || Number.isNaN(Date.parse(body.ends_at))) return json(req, { error: 'Invalid request' }, 400)
+        return json(req, await sendMembershipActivated(admin, body.user_id as string, body.ends_at, body.extends_previous === true))
+      }
       case 'announcement': {
         const user = await signedInUser(req)
         if (!user) return json(req, { error: 'Please sign in.' }, 401)

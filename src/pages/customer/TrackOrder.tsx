@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { GuestPaymentPanel } from '@/components/order/GuestPaymentPanel'
+import { CancelOrder } from '@/components/order/CancelOrder'
 import { cn, formatDateTime, formatPrice, orderStatusColor, orderStatusLabel, paymentStatusColor, paymentStatusLabel } from '@/lib/utils'
 import type { Order } from '@/types'
 
@@ -115,9 +116,12 @@ export function TrackOrder() {
               <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', orderStatusColor(order.status))}>
                 {orderStatusLabel(order.status, language)}
               </span>
-              <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', paymentStatusColor(order.payment_status))}>
-                {paymentStatusLabel(order.payment_status, language)}
-              </span>
+              {/* "Pending" next to "Cancelled" is just noise: show the payment status of a cancelled order only if money came in. */}
+              {(order.status !== 'CANCELLED' || order.payment_status === 'VERIFIED' || order.payment_status === 'REFUNDED') && (
+                <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', paymentStatusColor(order.payment_status))}>
+                  {paymentStatusLabel(order.payment_status, language)}
+                </span>
+              )}
             </div>
           </section>
 
@@ -160,6 +164,8 @@ export function TrackOrder() {
             customerPhone={phone}
             onOrderChange={setOrder}
           />
+
+          <CancelOrder order={order} customerPhone={phone} onCancelled={setOrder} />
         </div>
       )}
     </div>

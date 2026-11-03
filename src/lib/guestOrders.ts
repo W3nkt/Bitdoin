@@ -114,6 +114,18 @@ export async function trackOrder(orderNumber: string, customerPhone: string) {
   return (data ?? null) as Order | null
 }
 
+export type CancelGuestOrderResult = { ok: true } | { ok: false; reason: 'not_found' | 'not_cancellable' }
+
+/** Cancels an order that is still waiting for payment. The order number and phone are the proof, as for tracking. */
+export async function cancelGuestOrder(orderNumber: string, customerPhone: string) {
+  const { data, error } = await supabase.rpc('cancel_guest_order', {
+    p_order_number: orderNumber.trim(),
+    p_customer_phone: customerPhone.trim(),
+  })
+  if (error) throw new Error(error.message)
+  return data as CancelGuestOrderResult
+}
+
 export async function issueReceiptToken(orderNumber: string, customerPhone: string) {
   const { data, error } = await supabase.rpc('issue_guest_receipt_token', {
     p_order_number: orderNumber,

@@ -86,7 +86,8 @@ eq('a QR can never settle an order that is not in kip', (await settle(usd.transa
 const resolveMember = async (fn, userId) => (await one(`select public.${fn}($1) as r`, [userId])).r
 const subscription = (id) => one(`select status, starts_at is not null as started, ends_at, cancelled_at, rejection_reason from premium_subscriptions where id = $1`, [id])
 const premiumPayment = (id) => one(`select status, reference, notes, reviewed_at is not null as reviewed from premium_payments where id = $1`, [id])
-const days = async (subscriptionId) => Math.round(Number((await one(`select extract(epoch from (ends_at - starts_at)) / 86400 as d from premium_subscriptions where id = $1`, [subscriptionId])).d))
+// The period is a calendar month or year from where it starts.
+const lasts = async (subscriptionId, span) => (await one(`select ends_at = starts_at + $2::interval as ok from premium_subscriptions where id = $1`, [subscriptionId, span])).ok
 
 const alice = await member(db)
 eq('a member with no Premium request has nothing to pay', await resolveMember('phajay_resolve_premium', alice), null)
@@ -106,7 +107,7 @@ const freePlan = (await one(`select id from premium_plans where slug = 'free'`))
 const oldFree = (await one(`insert into premium_subscriptions (user_id, plan_id, status) values ($1, $2, 'ACTIVE') returning id`, [alice, freePlan])).id
 const premiumTx = await makeQr('premium', monthly.paymentId, 39000)
 eq('a confirmed payment of the plan price starts the membership', await settle(premiumTx, 39000), { result: 'settled', subject_id: monthly.paymentId })
-eq('the membership is active, started now, for 30 days on a monthly plan', [(await subscription(monthly.subscriptionId)).status, (await subscription(monthly.subscriptionId)).started, await days(monthly.subscriptionId)], ['ACTIVE', true, 30])
+eq('the membership is active, started now, for a month on a monthly plan', [(await subscription(monthly.subscriptionId)).status, (await subscription(monthly.subscriptionId)).started, await lasts(monthly.subscriptionId, '1 month')], ['ACTIVE', true, true])
 eq('the payment is verified with PhaJay as the reference', await premiumPayment(monthly.paymentId), { status: 'VERIFIED', reference: premiumTx, notes: 'Paid by BCEL One QR through PhaJay', reviewed: true })
 eq('the leftover Free plan is superseded, exactly as the admin approval does', (await subscription(oldFree)).status, 'CANCELLED')
 eq('the member joins the activity group, with no approving admin', await one(`select subscription_id = $1 as current, is_active, approved_by_user_id from premium_activity_members where user_id = $2`, [monthly.subscriptionId, alice]),
@@ -116,7 +117,7 @@ eq('it is audited once, and repeating it changes nothing', [await settle(premium
 const bob = await member(db)
 const yearly = await premiumRequest(db, bob, { plan: 'premium-yearly' })
 await settle(await makeQr('premium', yearly.paymentId, 390000), 390000)
-eq('a yearly plan lasts a year (the admin button gives 30 days even for these)', await days(yearly.subscriptionId), 365)
+eq('a yearly plan lasts a year', await lasts(yearly.subscriptionId, '1 year'), true)
 
 const carol = await member(db)
 const carolReq = await premiumRequest(db, carol, { status: 'PAYMENT_REVIEW', paymentStatus: 'REQUIRES_REVIEW' })

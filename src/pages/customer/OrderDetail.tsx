@@ -138,9 +138,12 @@ export function OrderDetail() {
           <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', orderStatusColor(order.status))}>
             {orderStatusLabel(order.status, language)}
           </span>
-          <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', paymentStatusColor(order.payment_status))}>
-            {paymentStatusLabel(order.payment_status, language)}
-          </span>
+          {/* A cancelled order's payment reads "Rejected" in the database; to the buyer it is just cancelled. */}
+          {(order.status !== 'CANCELLED' || order.payment_status === 'VERIFIED' || order.payment_status === 'REFUNDED') && (
+            <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', paymentStatusColor(order.payment_status))}>
+              {paymentStatusLabel(order.payment_status, language)}
+            </span>
+          )}
         </div>
       </div>
 

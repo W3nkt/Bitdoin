@@ -80,7 +80,8 @@ export default function PhajayQrPayment({ target, onPaid, onUseOtherWay, onUnava
     handedOver.current = true
     const { onPaid: refresh, paidMessage: message, success: toastSuccess, showError: toastError, t: translate } = latest.current
     Promise.resolve(refresh())
-      .then(() => toastSuccess(message ?? translate('payment.phajayPaid')))
+      // An empty message means the caller shows its own confirmation instead of a toast.
+      .then(() => { if (message !== '') toastSuccess(message ?? translate('payment.phajayPaid')) })
       // The payment itself is already applied on the server; only the refresh failed.
       .catch(refreshError => toastError(refreshError instanceof Error ? refreshError.message : translate('common.error')))
   }, [paid])

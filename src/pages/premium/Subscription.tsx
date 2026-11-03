@@ -359,8 +359,21 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
   const [phajayMode, setPhajayMode] = useState<'auto' | 'manual' | 'unavailable'>('auto')
   const choosePhajayOtherWay = useCallback(() => setPhajayMode('manual'), [])
   const phajayUnavailable = useCallback(() => setPhajayMode('unavailable'), [])
+  // The BCEL One QR was on screen when this window opened: keep it there until it is paid. Without this the
+  // window would fall back to the bank-transfer page the moment the payment starts the membership, before the
+  // member is told.
+  const [phajayLatched, setPhajayLatched] = useState(false)
+  // The payment went through and the membership is active: show the congratulation instead of the payment.
+  const [congrats, setCongrats] = useState(false)
+  const congratulated = useRef(false)
   useEffect(() => {
-    if (qrPaymentOpen) setPhajayMode('auto')
+    if (qrPaymentOpen) {
+      setPhajayMode('auto')
+    } else {
+      setPhajayLatched(false)
+      setCongrats(false)
+      congratulated.current = false
+    }
   }, [qrPaymentOpen])
   const [nowMs, setNowMs] = useState(() => Date.now())
 
@@ -616,12 +629,31 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
   const showRejectedNotice = !!rejectedPayment && dismissedRejectionId !== rejectedPayment.id
   // The BCEL One QR is offered for a paid plan that is still waiting for payment and has no receipt yet.
   const phajayEligible = !!pendingPayment && subscription?.status === 'PENDING_PAYMENT' && (qrPlan?.price_lak ?? 0) > 0
-  const showPhajay = phajayEligible && phajayMode === 'auto'
-  // Payment confirmed: the server has started the membership. Refresh and close.
+  const showPhajay = (phajayEligible || phajayLatched) && phajayMode === 'auto'
+  useEffect(() => {
+    if (qrPaymentOpen && phajayEligible && phajayMode === 'auto') setPhajayLatched(true)
+  }, [qrPaymentOpen, phajayEligible, phajayMode])
+
+  function showCongratulations() {
+    if (congratulated.current) return
+    congratulated.current = true
+    setCongrats(true)
+    celebrate(null)
+  }
+  // Payment confirmed: the server has started (or extended) the membership. Refresh, then congratulate.
   async function phajayPaid() {
     await invalidatePremium()
+    showCongratulations()
+  }
+  // The membership became active while the QR was on screen (the webhook got there first): congratulate at once.
+  useEffect(() => {
+    if (qrPaymentOpen && phajayLatched && subscription?.status === 'ACTIVE' && !membershipExpired) showCongratulations()
+  }, [qrPaymentOpen, phajayLatched, subscription?.status, membershipExpired])
+  // OK on the congratulation: back to the Premium home page.
+  function finishCongratulations() {
     setQrPaymentOpen(false)
-    celebrate(null)
+    setCongrats(false)
+    navigate(academySectionPath('home') ?? '/academy/home')
   }
   const isPremiumActive = premiumMemberContentEnabled
   // The member home page (mentor, arcade, events, communities) is a benefit
@@ -1182,7 +1214,7 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
                 memberStats={memberProgress?.member}
                 leaderboard={memberProgress?.leaderboard ?? []}
                 personalization={onboarding?.responses ?? {}}
-                memberSince={subscription?.starts_at ?? subscription?.created_at}
+                memberSince={subscription?.starts_at && new Date(subscription.starts_at).getTime() <= nowMs ? subscription.starts_at : subscription?.created_at}
                 onSetGoal={() => setOnboardingOpen(true)}
               />
             </>
@@ -1696,11 +1728,17 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
 
       <Modal
         open={qrPaymentOpen}
-        onClose={() => { setQrPaymentOpen(false); setQrPreview(null) }}
-        title={qrPreview ? (language === 'lo' ? 'QR ສຳລັບຊຳລະ' : 'Payment QR') : (language === 'lo' ? 'ສະແກນເພື່ອຊຳລະ' : 'Scan to pay')}
+        onClose={() => { if (congrats) { finishCongratulations(); return } setQrPaymentOpen(false); setQrPreview(null) }}
+        title={congrats
+          ? (language === 'lo' ? 'ຂໍສະແດງຄວາມຍິນດີ!' : 'Congratulations!')
+          : qrPreview ? (language === 'lo' ? 'QR ສຳລັບຊຳລະ' : 'Payment QR') : (language === 'lo' ? 'ສະແກນເພື່ອຊຳລະ' : 'Scan to pay')}
         size="md"
         footer={
-          qrPreview ? (
+          congrats ? (
+            <Button type="button" fullWidth onClick={finishCongratulations}>
+              {language === 'lo' ? 'ຕົກລົງ' : 'OK'}
+            </Button>
+          ) : qrPreview ? (
             <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={() => setQrPreview(null)}>
                 {language === 'lo' ? 'ກັບຄືນ' : 'Back'}
@@ -1727,7 +1765,34 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
           )
         }
       >
-        {qrPreview ? (
+        {congrats ? (
+          <div className="py-4 text-center" data-no-premium-translate>
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-amber-100 dark:bg-amber-500/15">
+              <Crown className="h-10 w-10 text-amber-600 dark:text-amber-300" />
+            </div>
+            <h3 className="mt-4 text-xl font-black text-slate-900 dark:text-slate-100">
+              {language === 'lo' ? 'ພຣີມຽມຂອງທ່ານເປີດໃຊ້ງານແລ້ວ!' : 'Your Premium is active!'}
+            </h3>
+            <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+              {qrPlan?.name ?? (language === 'lo' ? 'ພຣີມຽມ' : 'Premium')}
+              {subscription?.ends_at && (
+                <> {language === 'lo' ? 'ໃຊ້ໄດ້ຮອດ' : 'is valid until'} <span className="font-black text-primary-700 dark:text-primary-300">{formatDate(subscription.ends_at, language)}</span></>
+              )}
+            </p>
+            {subscription?.starts_at && new Date(subscription.starts_at).getTime() > nowMs && (
+              <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                {language === 'lo'
+                  ? `ໄລຍະໃໝ່ເລີ່ມວັນທີ ${formatDate(subscription.starts_at, language)} ຕໍ່ເນື່ອງຈາກສະມາຊິກປັດຈຸບັນ, ບໍ່ເສຍມື້ທີ່ເຫຼືອ.`
+                  : `Your new period starts on ${formatDate(subscription.starts_at, language)}, right after your current one, so no days are lost.`}
+              </p>
+            )}
+            {profile?.email && (
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                {language === 'lo' ? 'ໃບຮັບເງິນກຳລັງສົ່ງຫາອີເມວຂອງທ່ານ.' : 'Your receipt is on its way to your e-mail.'}
+              </p>
+            )}
+          </div>
+        ) : qrPreview ? (
           <div className="flex flex-col items-center py-2 text-center" data-no-premium-translate>
             <div className="w-full rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-3 ring-1 ring-slate-200 dark:ring-slate-700 sm:p-5">
               <img src={qrPreview.url} alt={qrPreview.label} className="mx-auto max-h-[58vh] w-full object-contain" />
@@ -1747,7 +1812,7 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
                 onPaid={phajayPaid}
                 onUseOtherWay={choosePhajayOtherWay}
                 onUnavailable={phajayUnavailable}
-                paidMessage={language === 'lo' ? 'ເປີດໃຊ້ພຣີມຽມແລ້ວ!' : 'Premium is now active!'}
+                paidMessage=""
               />
             </Suspense>
           </div>

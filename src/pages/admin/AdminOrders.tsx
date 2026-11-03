@@ -424,12 +424,13 @@ export function AdminOrders() {
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', paymentStatusColor(order.payment_status))}>
-                      {paymentStatusLabel(order.payment_status, language)}
+                    {/* A cancelled order has nothing to pay: say "Cancelled" here and in Store Paid, not "Pending" or "0/1 paid". */}
+                    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', order.status === 'CANCELLED' ? orderStatusColor(order.status) : paymentStatusColor(order.payment_status))}>
+                      {order.status === 'CANCELLED' ? orderStatusLabel(order.status, language) : paymentStatusLabel(order.payment_status, language)}
                     </span>
                   </td>
                   <td className="px-4 py-3 hidden lg:table-cell">
-                    <StorePaymentProgress order={order} />
+                    <StorePaymentProgress order={order} language={language} />
                   </td>
                   <td className="px-4 py-3 text-right text-xs font-bold text-gray-900 dark:text-gray-100">
                     {formatPrice(order.total_amount, currency)}
@@ -805,7 +806,15 @@ function toDateTimeLocal(value: string) {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
-function StorePaymentProgress({ order }: { order: Order }) {
+function StorePaymentProgress({ order, language }: { order: Order; language: Parameters<typeof orderStatusLabel>[1] }) {
+  if (order.status === 'CANCELLED') {
+    return (
+      <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold', orderStatusColor(order.status))}>
+        {orderStatusLabel(order.status, language)}
+      </span>
+    )
+  }
+
   const total = new Set(order.items?.map(item => item.bookstore_id)).size
   const paid = new Set(order.bookstore_payments?.map(payment => payment.bookstore_id)).size
   const complete = total > 0 && paid === total

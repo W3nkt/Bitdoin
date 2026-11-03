@@ -119,6 +119,18 @@ export function GuestPaymentPanel({
 
   if (!payment) return null
 
+  // A cancelled order is not paid: no QR, no account, no receipt upload.
+  if (order.status === 'CANCELLED') {
+    return (
+      <StatusMessage
+        icon={<XCircle className="h-5 w-5" />}
+        className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+        title={t('tracking.cancelledTitle')}
+        detail={t('tracking.cancelledDetail')}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-primary-50 dark:bg-primary-900/40 px-4 py-3">

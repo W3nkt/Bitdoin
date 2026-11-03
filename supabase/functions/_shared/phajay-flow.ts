@@ -90,6 +90,11 @@ export function createPhajayFlow(deps: {
   provider: FlowProvider
   /** Secrets that may have signed a webhook. */
   webhookSecrets?: string[]
+  /**
+   * Called with the transaction id whenever a payment is found applied, by this call or by the other way of
+   * noticing it. It must itself make sure nothing is announced twice; a failure here never fails the payment.
+   */
+  afterPaid?: (transactionId: string) => void | Promise<void>
   log?: (message: string) => void
 }) {
   const { db, provider } = deps
@@ -117,12 +122,25 @@ export function createPhajayFlow(deps: {
     state: 'waiting', transactionId: qr.transaction_id, qrCode: qr.qr_code, link: qr.link, amount: Number(qr.amount),
   })
 
+  /** A payment is in: let the caller announce it (e-mail, push). Never fails the payment. */
+  async function announce(transactionId: string) {
+    try {
+      await deps.afterPaid?.(transactionId)
+    } catch (error) {
+      log(`after-paid step failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   /** PhaJay says it was paid: apply it, and say what the customer should see. */
   async function applyPayment(transactionId: string, fallbackAmount: number, live: PhajayTransaction) {
     // The status API reports the amount; if it ever leaves it out, our own record of what we asked for stands in.
     const outcome = await db.settle(transactionId, live.amount ?? fallbackAmount, live.paidAt)
     log(`settle ${transactionId}: ${outcome.result}`)
-    return outcome.result === 'settled' || outcome.result === 'already_settled' ? 'paid' as const : 'review' as const
+    if (outcome.result === 'settled' || outcome.result === 'already_settled') {
+      await announce(transactionId)
+      return 'paid' as const
+    }
+    return 'review' as const
   }
 
   /** Make (or find) the QR for this payment. */
@@ -197,6 +215,7 @@ export function createPhajayFlow(deps: {
     // A database failure throws, so the wrapper answers 5xx and PhaJay can send it again.
     const outcome = await db.settle(event.transactionId, event.amount, null)
     log(`webhook ${event.transactionId}: ${outcome.result}`)
+    if (outcome.result === 'settled' || outcome.result === 'already_settled') await announce(event.transactionId)
     return { status: 200, body: { ok: true, result: outcome.result } }
   }
 

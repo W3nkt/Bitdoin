@@ -100,11 +100,14 @@ const sign = (raw, secret = KEY) => createHmac('sha256', secret).update(raw).dig
 const db = await createShopDb()
 const phajay = fakePhajay()
 const logs = []
+// Every payment the flow found applied, as the e-mail and push step is told.
+const announced = []
 const providerConfig = { apiKey: KEY, baseUrl: 'https://phajay.test/v1/api/payment', fetcher: phajay.fetcher }
 const flow = createPhajayFlow({
   db: phajayDb({ rpc: pgRpc(db) }),
   provider: { generateQr: (input) => generateQr(providerConfig, input), fetchTransaction: (id) => fetchTransaction(providerConfig, id) },
   webhookSecrets: [KEY],
+  afterPaid: (transactionId) => { announced.push(transactionId) },
   log: (message) => logs.push(message),
 })
 const generates = () => phajay.requests.filter((r) => r.url.endsWith('/generate-bcel-qr')).length
@@ -250,6 +253,24 @@ eq('PhaJay sending it again changes nothing', [await hook(okEvent), await count(
 eq('and the open payment screen then sees paid, without asking PhaJay', await flow.check(forOrder(hookedOk)), { state: 'paid' })
 eq('a signed payment for a transaction this shop never made is acknowledged but applied to nothing',
   await hook(JSON.stringify({ transactionId: 'someone-elses', status: 'PAYMENT_COMPLETED', txnAmount: 70000 })), { status: 200, body: { ok: true, result: 'unknown_transaction' } })
+
+// ── Telling the member: only for payments that were really applied ──
+eq('every payment that was applied was announced, whichever way it was noticed', [first.transactionId, missedQr.transactionId, premiumQr.transactionId, webhookQr.transactionId, reportQr.transactionId, okQr.transactionId].map((id) => announced.includes(id)), Array(6).fill(true))
+eq('a payment that needs a person (wrong amount) is not announced', announced.includes(offQr.transactionId), false)
+eq('nor a transaction this shop never made, nor an unsigned or ignored event', [announced.includes('someone-elses'), announced.includes(hookedQr.transactionId)], [false, false])
+eq('PhaJay sending the same event again asks again (the database makes sure nobody is told twice)', announced.filter((id) => id === okQr.transactionId).length >= 2, true)
+
+const flowThatCannotAnnounce = createPhajayFlow({
+  db: phajayDb({ rpc: pgRpc(db) }),
+  provider: { generateQr: (input) => generateQr(providerConfig, input), fetchTransaction: (id) => fetchTransaction(providerConfig, id) },
+  afterPaid: () => { throw new Error('e-mail provider down') },
+  log: (message) => logs.push(message),
+})
+const brittle = await shopOrder(db, { total: 21000 })
+const brittleQr = await flowThatCannotAnnounce.start(forOrder(brittle))
+phajay.states[brittleQr.transactionId] = { status: 'PAYMENT_COMPLETED', isPaid: true, amount: 21000, paymentTime: null }
+eq('a failing announcement never fails the payment: the order is still paid', [await flowThatCannotAnnounce.check(forOrder(brittle)), (await state(brittle.orderId)).payment], [{ state: 'paid' }, 'VERIFIED'])
+eq('and the failure is logged without the payment details', logs.some((line) => line.includes('after-paid step failed: e-mail provider down')), true)
 
 eq('nothing secret was logged', logs.some((line) => line.includes(KEY) || line.includes('$2a$')), false)
 

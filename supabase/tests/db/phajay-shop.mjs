@@ -30,12 +30,13 @@ export const SHOP_SQL = `
 // The test bootstrap already has minimal premium_plans and premium_subscriptions; these add what settling writes.
 export const ACADEMY_SQL = `
   alter table public.premium_subscriptions
-    add column if not exists cancelled_at timestamptz, add column if not exists reviewed_at timestamptz, add column if not exists rejection_reason text;
+    add column if not exists cancelled_at timestamptz, add column if not exists reviewed_at timestamptz, add column if not exists rejection_reason text,
+    add column if not exists reviewed_by_user_id uuid;
   create table public.premium_payments (
     id uuid primary key default gen_random_uuid(), subscription_id uuid not null references public.premium_subscriptions(id) on delete cascade,
     user_id uuid not null references public.users(id), plan_id uuid, amount_lak integer not null, currency text not null default 'LAK',
     method text not null default 'MANUAL_TRANSFER', status text not null default 'PENDING', receipt_image_url text, reference text, notes text,
-    reviewed_at timestamptz, rejection_reason text, created_at timestamptz not null default now());
+    reviewed_at timestamptz, reviewed_by_user_id uuid, rejection_reason text, created_at timestamptz not null default now());
   create table public.premium_activity_members (
     id uuid primary key default gen_random_uuid(), user_id uuid not null unique references public.users(id), subscription_id uuid,
     approved_by_user_id uuid, approved_at timestamptz not null default now(), is_active boolean not null default true);
@@ -58,6 +59,7 @@ export async function createShopDb() {
   await ok(db, 'shop tables', SHOP_SQL)
   await ok(db, 'academy tables', ACADEMY_SQL)
   await db.exec(readMigration('172_phajay_payments.sql'))
+  await db.exec(readMigration('175_premium_renewal_period.sql'))
   return db
 }
 

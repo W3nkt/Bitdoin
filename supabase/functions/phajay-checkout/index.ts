@@ -13,6 +13,7 @@ import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { consumeAiQuota, requestSubject, userSubject } from '../_shared/ai-rate-limit.ts'
 import { fetchTransaction, generateQr } from '../_shared/phajay.ts'
+import { membershipNotifier } from '../_shared/membership-notify-runtime.ts'
 import { phajayDb } from '../_shared/phajay-db.ts'
 import { FlowError, createPhajayFlow } from '../_shared/phajay-flow.ts'
 import type { PaymentTarget } from '../_shared/phajay-flow.ts'
@@ -29,6 +30,7 @@ const flow = apiKey
       generateQr: input => generateQr({ apiKey }, input),
       fetchTransaction: transactionId => fetchTransaction({ apiKey }, transactionId),
     },
+    afterPaid: membershipNotifier(admin),
     log: message => console.log(`[phajay-checkout] ${message}`),
   })
   : null

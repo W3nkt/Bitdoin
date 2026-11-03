@@ -10,6 +10,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { fetchTransaction, generateQr } from '../_shared/phajay.ts'
+import { membershipNotifier } from '../_shared/membership-notify-runtime.ts'
 import { phajayDb } from '../_shared/phajay-db.ts'
 import { createPhajayFlow } from '../_shared/phajay-flow.ts'
 
@@ -26,6 +27,7 @@ const flow = secrets.length
       fetchTransaction: transactionId => fetchTransaction({ apiKey }, transactionId),
     },
     webhookSecrets: secrets,
+    afterPaid: membershipNotifier(admin),
     log: message => console.log(`[phajay-webhook] ${message}`),
   })
   : null

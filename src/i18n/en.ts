@@ -279,6 +279,16 @@ const en = {
     codNote: 'Pay the order amount when your delivery arrives.',
     delivery: 'Delivery details',
     viewTracking: 'View order tracking',
+    cancelOrder: 'Cancel order',
+    cancelPrompt: 'Changed your mind? You can cancel this order as long as it has not been paid.',
+    cancelConfirmTitle: 'Cancel this order?',
+    cancelConfirmBody: 'Order {{orderNumber}} will be cancelled. Please do not pay for it after this. This cannot be undone.',
+    cancelKeep: 'Keep order',
+    cancelYes: 'Yes, cancel order',
+    cancelDone: 'Your order was cancelled.',
+    cancelNotAllowed: 'This order can no longer be cancelled. Please contact us.',
+    cancelledTitle: 'This order was cancelled',
+    cancelledDetail: 'No payment is needed for it.',
   },
 
   favorites: {

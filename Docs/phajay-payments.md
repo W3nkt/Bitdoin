@@ -6,7 +6,7 @@ marked paid by itself. It covers three things:
 | What | Who pays | Applied like |
 |---|---|---|
 | Bookstore order | whoever has the order number and phone | the admin's **Verify** button on Payments |
-| Academy Premium plan | the signed-in member | the admin's **Approve** on Requests to review (a yearly plan lasts a year) |
+| Academy Premium plan | the signed-in member | the admin's **Approve** on Requests to review (a month or a year, see Renewals below) |
 | Career report (one-time) | the signed-in buyer | Finance's **Verify** (grants `career_report` for the months the price setting says) |
 
 Kip only: a dollar order keeps the bank-transfer QR and receipt upload. BCEL One only for now; anyone who
@@ -36,8 +36,10 @@ PhaJay ───────webhook────────▶ Edge Function pha
    `ALLOWED_ORIGINS` is already set for the other guest functions.
 2. **Release.** Commit and push (the site deploys from `main`). Then run the **Supabase migrations and
    functions** workflow for `production`: first a dry run, then with *Apply* ticked and
-   functions = `phajay-checkout phajay-webhook`. The dry run must list `172_phajay_payments.sql` and
-   nothing unexpected. It needs the Premium migrations (036 to 041, 072) and the career report (157),
+   functions = `phajay-checkout phajay-webhook send-push` (send-push sends the congratulation push). The dry run must
+   list `172_phajay_payments.sql`, `173_guest_cancel_order.sql` (the buyer's Cancel button on the tracking page),
+   `174_cancelled_order_payments.sql` (a cancelled order's payment leaves the review queue) and
+   `175_premium_renewal_period.sql` (renewals, receipt details), whichever of them are not applied yet, and nothing unexpected. It needs the Premium migrations (036 to 041, 072) and the career report (157),
    which production already has.
 3. **Webhook.** PhaJay portal → Settings → Webhook:
    `https://bzyvzftnfuuxcseuqrnj.supabase.co/functions/v1/phajay-webhook`
@@ -49,6 +51,26 @@ PhaJay ───────webhook────────▶ Edge Function pha
 
 Order of steps 1 and 2 does not matter for customers: until `PHAJAY_API_KEY` exists, or until the function is
 deployed, every payment screen falls back to the fixed QR by itself.
+
+## Renewals, the receipt e-mail and the congratulation
+
+- **Renewals.** A Premium plan paid while the member's paid membership is still running starts where that one ends and
+  lasts a calendar month (or year) from THAT date, so paying early never costs the days left. A membership that has
+  already ended starts now. The admin's Approve button follows the same rule (it used to give 30 days from the day of
+  approval, also for yearly plans, and dropped the days left).
+- **The screen.** When the payment is applied the payment window shows a congratulation with the new end date; OK goes
+  to the Academy home. It stays on the QR until it is paid, even if the membership turns active first (the webhook
+  can win the race).
+- **E-mail.** One receipt e-mail per payment, in the member's language: receipt number (PRM-XXXXXXXX), plan, period,
+  amount, BCEL One, paid time (Laos time) and the PhaJay reference, with a line that says whether it is a renewal.
+  It goes through Resend with the secrets the admin e-mails already use (`RESEND_API_KEY`, `FROM_EMAIL`;
+  `SITE_URL` is optional). A member with no e-mail address gets no e-mail.
+- **Push.** A congratulation push goes to the member's devices that have Academy notifications on (browser and home-screen
+  app, through send-push; it needs the VAPID secrets send-push already uses). No device, no push.
+- **Once.** The database hands out the details once per payment (`phajay_claim_notification`), whichever of the payment
+  screen and the webhook noticed the payment. If neither the e-mail nor the push could be sent, it is handed out again
+  at the next check; if one got through, nothing is repeated. Look for `membership ...: e-mail ..., push ...` in the
+  `phajay-webhook` and `phajay-checkout` logs.
 
 ## Switching off
 
@@ -102,4 +124,5 @@ Not covered by any automated test: PhaJay itself. The first real payment is the 
 
 - BCEL One only. Other Lao banks need their own QR endpoint (LDB, JDB, ... all pay from any Lao bank app).
 - No "payment received" email to the admin. Paid orders show as *Processing* in the admin lists.
+- The receipt e-mail and the push are for Premium plans only, not for shop orders or the career report.
 - Refunds are made in the PhaJay portal and the order or membership adjusted by hand.
