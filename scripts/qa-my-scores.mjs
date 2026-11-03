@@ -514,6 +514,14 @@ function backend(initial) {
       if (state.coachBusy) return json({ error: 'Coach is busy – try later. Your scores, charts and suggestions still work.', code: 'COACH_BUSY' }, 503)
       return json({ conversationId: '7d0c4a1e-1111-4222-8333-444455556666', messageId: '9a1b2c3d-1111-4222-8333-444455556666', answer: 'Mathematics went from **7** in September to **6** in October. Next step: try the short Mathematics quiz.' })
     }
+    if (url.pathname === '/functions/v1/phajay-checkout') {
+      const body = request.postDataJSON() ?? {}
+      state.phajayCalls = [...(state.phajayCalls ?? []), { ...body, authorization: request.headers().authorization ?? '' }]
+      // Off unless a scenario sets state.phajay, like production before the PHAJAY_API_KEY secret exists:
+      // the app then offers the fixed QR and the receipt upload, which the other purchase scenarios use.
+      if (!state.phajay) return json({ error: 'QR payment is not available', code: 'NOT_CONFIGURED' }, 503)
+      return json(state.phajay(body))
+    }
     if (url.pathname === '/functions/v1/academic-alerts') {
       const body = request.postDataJSON() ?? {}
       state.emailLinks = [...(state.emailLinks ?? []), body]
@@ -2016,6 +2024,43 @@ try {
     assert.deepEqual(parent.errors, [])
     await parent.context.close()
     pass('Career report: price and Premium inclusion shown, bought once by transfer with the accounts listed, a GIF refused before upload, receipt uploaded to the buyer\'s own folder and sent for review; once verified, the frozen report has options with reasons, latest scores, pathways with cut-off years, history, family guide, sources and disclaimer, no percentages; Lao report; a guardian buys or cancels from the child page and sees the child\'s reports only while career answers are shared; axe clean')
+  }
+
+  // Career report paid with the BCEL One QR (PhaJay): the QR is made for the report price, nothing is uploaded, and
+  // once the server says it is paid the report is unlocked on the page without a reload.
+  {
+    const { context, page, mock, errors } = await openAs(browser, { device: MOBILE, lang: 'en', step: 'ready', enrolment: 'e1' })
+    mock.state.career = { completed: true }
+    mock.state.careerLocked = true
+    let checks = 0
+    mock.state.phajay = body => {
+      if (body.action === 'start') return { state: 'waiting', transactionId: 'pj-1', qrCode: '00020101021133730004BCEL0106ONEPAY0216mch6542c0373ede30314202403271909590513CLOSEWHENDONE53034185405100005803VTE6002LA6253053', link: 'onepay://qr/1', amount: 49000 }
+      checks += 1
+      if (checks >= 2) {
+        Object.assign(mock.state, { reportEntitled: true, careerLocked: false })
+        Object.assign(mock.state.reportPurchase, { status: 'verified', reviewed_at: '2026-10-27T05:00:00Z', valid_until: '2027-10-27T05:00:00Z' })
+      }
+      return { state: checks >= 2 ? 'paid' : 'waiting' }
+    }
+    await page.goto(`${base}/academy/scores/careers`, { waitUntil: 'domcontentloaded' })
+    const report = page.locator('section', { has: page.getByRole('heading', { name: 'Career report' }) })
+    await report.getByRole('button', { name: 'Buy once for 49,000 kip' }).click()
+    await report.getByText('Pay with BCEL One').waitFor()
+    await report.getByText('49,000 KIP', { exact: true }).waitFor()
+    await report.getByRole('link', { name: 'Open BCEL One' }).waitFor()
+    assert.equal(await report.getByLabel('Upload receipt').count(), 0, 'no receipt upload beside the QR')
+    const [asked] = mock.state.phajayCalls
+    assert.deepEqual({ action: asked.action, kind: asked.kind }, { action: 'start', kind: 'career_report' })
+    assert.equal(Object.keys(asked).filter(key => !['action', 'kind', 'authorization'].includes(key)).length, 0, 'nothing but the kind is sent: the buyer comes from the session')
+    await shot(page, 'my-scores-career-report-5-bcel-qr-en-mobile')
+    await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
+    assert.deepEqual(await page.evaluate(async () => (await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] })).violations.flatMap(v => v.nodes.map(n => v.id + ' ' + n.target.join(' ')))), [])
+    await report.getByRole('button', { name: 'Make my report' }).waitFor({ timeout: 30000 })
+    assert.equal(mock.state.calls.some(call => call.fn === 'academic_submit_report_receipt'), false, 'no receipt was sent')
+    assert.equal(mock.state.phajayCalls.filter(call => call.action === 'start').length, 1, 'one QR for the purchase')
+    assert.deepEqual(errors, [])
+    await context.close()
+    pass('Career report paid by BCEL One QR (PhaJay): the QR is for the report price and only the kind is sent, no receipt upload beside it, axe clean; once paid the report unlocks on the page without a reload')
   }
 
   // Compare school years (DASH-007 #52): the same subject last year, aligned by month, as a share of each scale when

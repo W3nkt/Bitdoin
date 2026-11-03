@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -65,6 +65,9 @@ import { adminWhatsAppLink } from '@/lib/whatsapp'
 import { formatMemberCode, memberCodePrefix } from '@/lib/memberCode'
 import { WhatsAppIcon } from '@/components/ui/ContactIcons'
 import type { Language, PaymentAccount } from '@/types'
+
+// The BCEL One QR (PhaJay) that pays a Premium plan by itself; loaded only when someone is paying.
+const PhajayQrPayment = lazy(() => import('@/components/order/PhajayQrPayment'))
 
 type PremiumStatus = 'FREE' | 'PENDING_APPROVAL' | 'PENDING_PAYMENT' | 'PAYMENT_REVIEW' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED'
 type PremiumPaymentStatus = 'PENDING' | 'REQUIRES_REVIEW' | 'VERIFIED' | 'REJECTED' | 'REFUNDED'
@@ -351,6 +354,14 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
   const [qrPlan, setQrPlan] = useState<PremiumPlan | null>(null)
   const [qrPreview, setQrPreview] = useState<{ url: string; label: string } | null>(null)
   const [savingQr, setSavingQr] = useState(false)
+  // auto: the BCEL One QR, which activates Premium by itself. manual: the member chose the bank-transfer
+  // way (QR image or account, then proof for admin review). unavailable: QR payment is not switched on.
+  const [phajayMode, setPhajayMode] = useState<'auto' | 'manual' | 'unavailable'>('auto')
+  const choosePhajayOtherWay = useCallback(() => setPhajayMode('manual'), [])
+  const phajayUnavailable = useCallback(() => setPhajayMode('unavailable'), [])
+  useEffect(() => {
+    if (qrPaymentOpen) setPhajayMode('auto')
+  }, [qrPaymentOpen])
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   const { data: plans, isLoading: plansLoading } = useQuery({
@@ -603,6 +614,15 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
     ? payments?.find(payment => payment.subscription_id === subscription.id && payment.status === 'REJECTED')
     : undefined
   const showRejectedNotice = !!rejectedPayment && dismissedRejectionId !== rejectedPayment.id
+  // The BCEL One QR is offered for a paid plan that is still waiting for payment and has no receipt yet.
+  const phajayEligible = !!pendingPayment && subscription?.status === 'PENDING_PAYMENT' && (qrPlan?.price_lak ?? 0) > 0
+  const showPhajay = phajayEligible && phajayMode === 'auto'
+  // Payment confirmed: the server has started the membership. Refresh and close.
+  async function phajayPaid() {
+    await invalidatePremium()
+    setQrPaymentOpen(false)
+    celebrate(null)
+  }
   const isPremiumActive = premiumMemberContentEnabled
   // The member home page (mentor, arcade, events, communities) is a benefit
   // of ANY active membership, including the Free plan — that's the whole
@@ -1694,13 +1714,15 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
               <Button type="button" variant="outline" onClick={() => setQrPaymentOpen(false)}>
                 {language === 'lo' ? 'ຊຳລະພາຍຫຼັງ' : 'Pay later'}
               </Button>
-              <Button
-                type="button"
-                icon={<Upload className="h-4 w-4" />}
-                onClick={() => { setQrPaymentOpen(false); proofInputRef.current?.click() }}
-              >
-                {language === 'lo' ? 'ຊຳລະແລ້ວ — ອັບໂຫຼດຫຼັກຖານ' : 'I’ve paid — upload proof'}
-              </Button>
+              {!showPhajay && (
+                <Button
+                  type="button"
+                  icon={<Upload className="h-4 w-4" />}
+                  onClick={() => { setQrPaymentOpen(false); proofInputRef.current?.click() }}
+                >
+                  {language === 'lo' ? 'ຊຳລະແລ້ວ — ອັບໂຫຼດຫຼັກຖານ' : 'I’ve paid — upload proof'}
+                </Button>
+              )}
             </div>
           )
         }
@@ -1714,8 +1736,32 @@ export function Subscription({ page = 'membership' }: { page?: MemberPage }) {
               {language === 'lo' ? 'ສະແກນ QR ນີ້ເພື່ອຊຳລະ ຫຼື ບັນທຶກຮູບໄວ້ໃນເຄື່ອງ.' : 'Scan this QR to pay, or save the image to your device.'}
             </p>
           </div>
+        ) : showPhajay ? (
+          <div className="space-y-3" data-no-premium-translate>
+            <p className="text-sm font-bold text-primary-100">
+              {language === 'lo' ? 'ແຜນ' : 'Plan'}: {qrPlan?.name ?? (language === 'lo' ? 'ພຣີມຽມ' : 'Premium')}
+            </p>
+            <Suspense fallback={null}>
+              <PhajayQrPayment
+                target={{ kind: 'premium' }}
+                onPaid={phajayPaid}
+                onUseOtherWay={choosePhajayOtherWay}
+                onUnavailable={phajayUnavailable}
+                paidMessage={language === 'lo' ? 'ເປີດໃຊ້ພຣີມຽມແລ້ວ!' : 'Premium is now active!'}
+              />
+            </Suspense>
+          </div>
         ) : (
         <div className="space-y-4" data-no-premium-translate>
+          {phajayEligible && phajayMode === 'manual' && (
+            <button
+              type="button"
+              onClick={() => setPhajayMode('auto')}
+              className="w-full text-center text-xs font-bold text-primary-700 dark:text-primary-300 underline-offset-2 hover:underline"
+            >
+              {language === 'lo' ? 'ກັບໄປຊຳລະດ້ວຍ QR BCEL One' : 'Pay with the BCEL One QR instead'}
+            </button>
+          )}
           <div className="overflow-hidden rounded-2xl bg-primary-950 text-white shadow-lg shadow-primary-950/15 ring-1 ring-primary-800">
             <div className="bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.2),transparent_45%)] px-5 py-5 text-center">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-300">

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CheckCircle, Clock, Copy, CreditCard, Download, ImageUp, Smartphone, Upload, XCircle } from 'lucide-react'
@@ -13,6 +13,12 @@ import { StorageImage } from '@/components/ui/StorageImage'
 import { formatPrice } from '@/lib/utils'
 import type { Order, PaymentAccount } from '@/types'
 import type { ReactNode } from 'react'
+
+// Loaded on demand: the QR drawing code is only needed by customers paying an order with a QR.
+const PhajayQrPayment = lazy(() => import('./PhajayQrPayment'))
+
+// A kip order that is still waiting for money can be paid with a PhaJay BCEL One QR.
+const PHAJAY_ORDER_STATUSES: Order['status'][] = ['PENDING_PAYMENT', 'PAYMENT_REVIEW']
 
 interface GuestPaymentPanelProps {
   order: Order
@@ -34,10 +40,30 @@ export function GuestPaymentPanel({
   const { success, error } = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  // auto: the PhaJay QR. manual: the customer chose the bank-transfer way. unavailable: PhaJay is not
+  // switched on (no key, or the function is not deployed), so only the bank-transfer way is offered.
+  const [phajayMode, setPhajayMode] = useState<'auto' | 'manual' | 'unavailable'>('auto')
+  const chooseOtherWay = useCallback(() => setPhajayMode('manual'), [])
+  const phajayUnavailable = useCallback(() => setPhajayMode('unavailable'), [])
+  // The server has marked the order paid: load it, and finish the way a receipt upload does.
+  const handlePhajayPaid = useCallback(async () => {
+    const paidOrder = await trackOrder(order.order_number, customerPhone)
+    if (paidOrder) {
+      onOrderChange(paidOrder)
+      // Placed and settled, so checkout can clear the cart.
+      onPaymentSubmitted?.(paidOrder)
+    }
+    // Paid in full: nothing is left for the customer to come back and do.
+    clearActiveGuestOrder()
+  }, [order.order_number, customerPhone, onOrderChange, onPaymentSubmitted])
 
   const payment = order.payments?.[0]
   const isCOD = payment?.method === 'CASH_ON_DELIVERY'
-  const canUpload = payment && !isCOD && payment.verification_status !== 'VERIFIED' &&
+  const phajayEligible = payment?.method === 'QR_PAYMENT' && order.currency === 'LAK' &&
+    PHAJAY_ORDER_STATUSES.includes(order.status) &&
+    (payment.verification_status === 'PENDING' || payment.verification_status === 'REJECTED')
+  const usePhajay = phajayEligible && phajayMode === 'auto'
+  const canUpload = payment && !isCOD && !usePhajay && payment.verification_status !== 'VERIFIED' &&
     payment.verification_status !== 'REQUIRES_REVIEW'
 
   const { data: accounts = [], isLoading: loadingAccounts, error: accountsError } = useQuery({
@@ -144,8 +170,26 @@ export function GuestPaymentPanel({
           title={t('checkout.paymentMethods.CASH_ON_DELIVERY')}
           detail={t('tracking.codNote')}
         />
+      ) : usePhajay ? (
+        <Suspense fallback={null}>
+          <PhajayQrPayment
+            target={{ kind: 'shop_order', orderNumber: order.order_number, phone: customerPhone }}
+            onPaid={handlePhajayPaid}
+            onUseOtherWay={chooseOtherWay}
+            onUnavailable={phajayUnavailable}
+          />
+        </Suspense>
       ) : payment.verification_status !== 'VERIFIED' && (
         <>
+          {phajayEligible && phajayMode === 'manual' && (
+            <button
+              type="button"
+              onClick={() => setPhajayMode('auto')}
+              className="w-full text-center text-xs font-medium text-primary-700 dark:text-primary-300 underline-offset-2 hover:underline"
+            >
+              {t('payment.phajayBack')}
+            </button>
+          )}
           <div>
             <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t('payment.payNow')}</h3>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('payment.payThenUpload')}</p>

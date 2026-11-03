@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { lazy, Suspense, useCallback, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { ArrowLeft, FileText, Printer, Upload } from 'lucide-react'
@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useAuth } from '@/context/AuthContext'
 import { useAcademicCopy, type AcademicCopyKey } from '@/lib/academic/copy'
 import {
-  useCancelReportPurchase, useCareerReport, useCareerReports, useGuardianCareerReport, useGenerateCareerReport, usePaymentAccounts, useReportPurchase, useStartReportPurchase, useSubmitReportReceipt,
+  useCancelReportPurchase, useCareerReport, useCareerReports, useGuardianCareerReport, useGenerateCareerReport, usePaymentAccounts, useRefreshReportPurchase, useReportPurchase, useStartReportPurchase, useSubmitReportReceipt,
   type CareerReportContent,
 } from '@/lib/academic/api'
 import { formatDate } from '@/lib/academic/format'
@@ -18,6 +18,9 @@ import { CardTitle } from './visuals'
 // report is included in Academy Premium; otherwise it is bought once
 // (QR or bank transfer, receipt checked by Finance) and lasts 12 months. A
 // guardian's purchase covers every child linked to them.
+
+// The BCEL One QR (PhaJay) that pays for the report by itself; loaded only when someone is paying.
+const PhajayQrPayment = lazy(() => import('@/components/order/PhajayQrPayment'))
 
 const card = 'rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-gray-900 dark:ring-slate-800 sm:p-6'
 const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -34,6 +37,12 @@ export function ReportPurchase({ forGuardian = false }: { forGuardian?: boolean 
   const cancel = useCancelReportPurchase()
   const submit = useSubmitReportReceipt()
   const file = useRef<HTMLInputElement>(null)
+  const refresh = useRefreshReportPurchase()
+  // auto: the BCEL One QR, which grants the report by itself. manual: bank transfer and a receipt for Finance
+  // to check. unavailable: QR payment is not switched on.
+  const [qrMode, setQrMode] = useState<'auto' | 'manual' | 'unavailable'>('auto')
+  const chooseManual = useCallback(() => setQrMode('manual'), [])
+  const qrUnavailable = useCallback(() => setQrMode('unavailable'), [])
   const onError = (error: unknown) => toast.error(academicErrorText(t, error))
   if (!view.data) return null
   const { price, entitled, purchase } = view.data
@@ -57,8 +66,20 @@ export function ReportPurchase({ forGuardian = false }: { forGuardian?: boolean 
           <p role="status">{t('careers.report.review')}</p>
           <Button className="mt-2" size="sm" variant="ghost" loading={cancel.isPending} onClick={() => cancel.mutate(open.id, { onError })}>{t('careers.report.cancel')}</Button>
         </div>
+      ) : qrMode === 'auto' ? (
+        <div className="mt-3 space-y-2">
+          <Suspense fallback={null}>
+            <PhajayQrPayment target={{ kind: 'career_report' }} onPaid={refresh} onUseOtherWay={chooseManual} onUnavailable={qrUnavailable} />
+          </Suspense>
+          <Button size="sm" variant="ghost" loading={cancel.isPending} onClick={() => cancel.mutate(open.id, { onError })}>{t('careers.report.cancel')}</Button>
+        </div>
       ) : (
         <div className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm dark:bg-gray-800/60">
+          {qrMode === 'manual' && (
+            <button type="button" onClick={() => setQrMode('auto')} className="mb-2 block text-xs font-bold text-indigo-700 underline-offset-2 hover:underline dark:text-indigo-300">
+              {language === 'lo' ? 'ກັບໄປຊຳລະດ້ວຍ QR BCEL One' : 'Pay with the BCEL One QR instead'}
+            </button>
+          )}
           <p>{t('careers.report.pay', { price: kip(open.amount_lak) })}</p>
           <ul className="mt-2 grid gap-2">
             {(accounts.data ?? []).map(account => (

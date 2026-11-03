@@ -243,6 +243,21 @@ const lo: Translations = {
     transferDate: 'ວັນທີໂອນ',
     downloadReceipt: 'ບັນທຶກໃບຮັບເງິນ',
     trackingNote: 'ໃຊ້ລະຫັດນີ້ຕິດຕາມການຈັດສົ່ງ',
+    // PhaJay BCEL One QR (pays itself, no proof to upload)
+    phajayTitle: 'ຊຳລະດ້ວຍ BCEL One',
+    phajayHint: 'ສະແກນ QR ນີ້ດ້ວຍ BCEL One ຫຼື ກົດປຸ່ມເປີດແອັບໃນໂທລະສັບ. ໜ້ານີ້ຈະອັບເດດເອງຫຼັງຊຳລະສຳເລັດ.',
+    phajayOpenApp: 'ເປີດ BCEL One',
+    phajayCreating: 'ກຳລັງສ້າງ QR…',
+    phajayWaiting: 'ກຳລັງລໍຖ້າການຊຳລະ…',
+    phajayUpdating: 'ໄດ້ຮັບເງິນແລ້ວ. ກຳລັງອັບເດດຄຳສັ່ງຊື້…',
+    phajayPaid: 'ໄດ້ຮັບເງິນແລ້ວ. ຂອບໃຈ!',
+    phajayExpired: 'QR ນີ້ໝົດອາຍຸແລ້ວ. ສ້າງ QR ໃໝ່ເພື່ອຊຳລະ.',
+    phajayNewQr: 'ສ້າງ QR ໃໝ່',
+    phajayReview: 'ພວກເຮົາໄດ້ຮັບເງິນຂອງທ່ານແລ້ວ ແຕ່ຕ້ອງກວດຄຳສັ່ງຊື້ດ້ວຍຕົນເອງ. ທີມງານຈະຕິດຕໍ່ຫາທ່ານ.',
+    phajayUnavailable: 'ຕອນນີ້ຊຳລະດ້ວຍ QR ບໍ່ໄດ້.',
+    phajayRateLimited: 'ລອງຫຼາຍເກີນໄປ. ກະລຸນາລໍຖ້າຈັກຄາວ ແລ້ວລອງໃໝ່.',
+    phajayOtherWay: 'ຊຳລະດ້ວຍການໂອນ ຫຼື ທະນາຄານອື່ນແທນ',
+    phajayBack: 'ກັບໄປຊຳລະດ້ວຍ QR BCEL One',
   },
 
   tracking: {

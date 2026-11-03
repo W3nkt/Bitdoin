@@ -1380,6 +1380,12 @@ export function useReportPurchase() {
   return useQuery({ queryKey: purchaseKey, retry: shouldRetryAcademic, queryFn: () => callAcademicRpc<ReportPurchaseView>('academic_my_report_purchase') })
 }
 
+/** The report was paid by QR and granted on the server: reload the purchase and the guidance it unlocks. */
+export function useRefreshReportPurchase() {
+  const queryClient = useQueryClient()
+  return () => Promise.all([queryClient.invalidateQueries({ queryKey: purchaseKey }), queryClient.invalidateQueries({ queryKey: careerKey })])
+}
+
 function usePurchaseMutation<A, R>(fn: (args: A) => Promise<R>) {
   const queryClient = useQueryClient()
   return useMutation({

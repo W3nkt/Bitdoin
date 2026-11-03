@@ -85,3 +85,11 @@ verify_jwt = false
 # Supabase JWT to check: the function verifies the Facebook access token with Facebook instead.
 [functions.facebook-native-login]
 verify_jwt = false
+
+# PhaJay QR payments. The customer's payment screen is a guest (no Supabase JWT): the function checks
+# the order number and phone itself. The webhook is called by PhaJay and checks X-Signature instead.
+[functions.phajay-checkout]
+verify_jwt = false
+
+[functions.phajay-webhook]
+verify_jwt = false

@@ -249,6 +249,21 @@ const en = {
     transferDate: 'Transfer Date',
     downloadReceipt: 'Save Receipt as Image',
     trackingNote: 'Use this receipt number to track your delivery',
+    // PhaJay BCEL One QR (pays itself, no proof to upload)
+    phajayTitle: 'Pay with BCEL One',
+    phajayHint: 'Scan this QR with BCEL One, or tap the button on your phone. This page updates by itself once you have paid.',
+    phajayOpenApp: 'Open BCEL One',
+    phajayCreating: 'Creating your QR…',
+    phajayWaiting: 'Waiting for your payment…',
+    phajayUpdating: 'Payment received. Updating your order…',
+    phajayPaid: 'Payment received. Thank you!',
+    phajayExpired: 'This QR has expired. Create a new one to pay.',
+    phajayNewQr: 'Create a new QR',
+    phajayReview: 'We received your payment, but we need to check your order by hand. Our team will contact you.',
+    phajayUnavailable: 'QR payment is not available right now.',
+    phajayRateLimited: 'Too many tries. Please wait a moment and try again.',
+    phajayOtherWay: 'Pay by bank transfer or with another bank instead',
+    phajayBack: 'Pay with the BCEL One QR instead',
   },
 
   // ── Orders ────────────────────────────────────────────────────────────────────
