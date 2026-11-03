@@ -23,7 +23,7 @@ export type PhajayErrorCode =
   | 'RATE_LIMITED'
   | 'BAD_REQUEST'
   | 'SERVER_ERROR'
-  | 'NETWORK'
+  | 'NETWORK' // the request never got an answer: the function is not deployed yet (the browser blocks its failed preflight), offline, or CORS
 
 export class PhajayRequestError extends Error {
   constructor(readonly code: PhajayErrorCode, message: string) {
@@ -58,8 +58,12 @@ async function requestError(error: unknown) {
     const body = await response.json().catch(() => null) as { error?: string; code?: string } | null
     // The Supabase gateway itself answers NOT_FOUND when the function has not been deployed.
     const code = body?.code === 'NOT_FOUND' ? 'NOT_CONFIGURED' : body?.code
+    console.warn('[phajay] payment request refused:', response.status, code, body?.error)
     return new PhajayRequestError((code as PhajayErrorCode) || 'SERVER_ERROR', body?.error ?? `Payment request failed (${response.status})`)
   }
+  // No answer at all. Most often the function is not deployed: the gateway answers its preflight with a 404 and
+  // the browser then blocks the call, so the page only sees a network error. Say so in the console for developers.
+  console.warn('[phajay] payment request got no answer (function not deployed, offline or blocked by CORS):', error)
   return new PhajayRequestError('NETWORK', error instanceof Error ? error.message : 'Could not reach the payment service')
 }
 

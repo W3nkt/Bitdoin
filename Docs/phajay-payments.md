@@ -76,6 +76,20 @@ from phajay_transactions where status = 'WAITING' and created_at < now() - inter
 
 Opening the order's payment screen settles it if PhaJay has the payment.
 
+## Testing locally
+
+There is no local stand-in for the two Edge Functions, so a real payment needs them deployed first.
+
+- **Before deploying**, `npm run dev` shows the fixed QR (with a small "Pay with the BCEL One QR instead" link
+  above it), because the browser cannot reach the function: its CORS preflight gets a 404 from Supabase, so the
+  call fails with "Failed to fetch". The browser console says so (`[phajay] payment request got no answer`).
+- **The PhaJay key and the QR alone**, no database: `node scripts/phajay-local-test.mjs --key real` opens
+  http://127.0.0.1:8787 and makes a QR with your real key (capped at 999 kip unless you set
+  `PHAJAY_TEST_MAX_AMOUNT`). Use it to check the key, scan the QR with the logo in BCEL One, and watch the status.
+- **The whole flow**, after deploying: `npm run dev` on your machine talks to the deployed functions and the real
+  database (`http://localhost:5173` is allowed by `ALLOWED_ORIGINS`). Place an order for the cheapest book and pay
+  it from BCEL One. It is a real order and real money; there is no 1-kip mode.
+
 ## Tests
 
 `npm run test:phajay` runs the SQL and flow tests (the real migration on PGlite, the real function code, a fake

@@ -67,10 +67,13 @@ export default function PhajayQrPayment({ target, onPaid, onUseOtherWay, onUnava
   const expired = check.data?.state === 'expired'
   const startError = start.error instanceof PhajayRequestError ? start.error : null
 
-  // Not switched on for this payment: no point showing a broken panel.
+  // Not switched on for this payment: no point showing a broken panel. No answer at all usually means the
+  // function is not deployed yet; go to the other way too, which keeps a way back to the QR for a customer
+  // who was only offline for a moment.
   useEffect(() => {
     if (startError?.notAvailable) onUnavailable()
-  }, [startError, onUnavailable])
+    else if (startError?.code === 'NETWORK') onUseOtherWay()
+  }, [startError, onUnavailable, onUseOtherWay])
 
   useEffect(() => {
     if (!paid || handedOver.current) return

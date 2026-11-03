@@ -65,7 +65,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned: CLI 3 changed its defaults (database commands target a local stack unless --remote is
+          # given, hosted changes need --yes), and "latest" broke this workflow once already. Move it up on purpose.
+          version: 3.0.0
 
       - name: Check configuration
         shell: bash
@@ -83,14 +85,16 @@ jobs:
         run: supabase link --project-ref "$PROJECT_REF"
 
       - name: Migrations (local vs remote)
-        run: supabase migration list
+        run: supabase migration list --remote --password "$SUPABASE_DB_PASSWORD"
 
       - name: Pending migrations (dry run)
-        run: supabase db push --dry-run
+        run: supabase db push --dry-run --remote --password "$SUPABASE_DB_PASSWORD"
 
+      # --yes is the consent CLI 3 asks for before changing a hosted project. Here it is given by ticking
+      # "Apply" on a manual run (and by the reviewers on the production environment), never by default.
       - name: Apply migrations
         if: ${{ inputs.apply }}
-        run: supabase db push
+        run: supabase db push --remote --password "$SUPABASE_DB_PASSWORD" --yes
 
       - name: Deploy Edge Functions
         if: ${{ inputs.apply && inputs.functions != '' }}
@@ -98,6 +102,6 @@ jobs:
         run: |
           for fn in $FUNCTIONS; do
             echo "::group::$fn"
-            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+            supabase functions deploy "$fn" --remote="$PROJECT_REF" --yes
             echo "::endgroup::"
           done

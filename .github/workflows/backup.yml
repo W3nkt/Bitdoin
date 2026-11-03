@@ -60,7 +60,8 @@ jobs:
           node-version: 20
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned: a new "latest" (CLI 3) already broke this job once. Move it up on purpose, and re-run the drill.
+          version: 3.0.0
 
       - name: Check configuration
         run: |
@@ -135,7 +136,8 @@ jobs:
           node-version: 20
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned: a new "latest" (CLI 3) already broke this job once. Move it up on purpose, and re-run the drill.
+          version: 3.0.0
 
       - name: Check configuration
         run: |
