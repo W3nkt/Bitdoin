@@ -80,6 +80,10 @@ eq('helpers: count and rate thresholds', await one(`select public.academic_metri
 
 await ok(db, 'last month', `update academic_reporting_periods set start_date = (date_trunc('month', now()) - interval '1 month')::date,
   end_date = (date_trunc('month', now()) - interval '1 day')::date where id = '${period(1)}'`)
+// The seeded calendar has a period for every month from September to May. From November on, "last month" is one of
+// them too, and each student would be expected twice. Keep period 1 the only period that covers last month.
+await ok(db, 'other periods out of the way', `update academic_reporting_periods set start_date = start_date + interval '10 years',
+  end_date = end_date + interval '10 years' where id <> '${period(1)}'`)
 await db.exec(`create or replace function public.academic_today() returns date language sql stable set search_path = '' as $$ select current_date $$`)
 const users = range(22).map((i) => `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`)
 await ok(db, 'students', `insert into public.users (id, name) values ${users.map((u) => `('${u}', 'x')`).join(',')}`)

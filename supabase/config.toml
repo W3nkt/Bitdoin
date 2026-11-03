@@ -12,7 +12,8 @@ major_version = 15
 [studio]
 port = 54323
 
-[inbucket]
+# Called [inbucket] before Supabase CLI 3, which refuses the old name and stops every command.
+[local_smtp]
 port = 54324
 
 [storage]
