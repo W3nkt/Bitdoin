@@ -90,6 +90,16 @@ jobs:
           FACEBOOK_APP_ID: ${{ vars.FACEBOOK_APP_ID }}
           FACEBOOK_CLIENT_TOKEN: ${{ secrets.FACEBOOK_CLIENT_TOKEN }}
         run: node scripts/apply-facebook-config.mjs
+      - name: Firebase app settings (push notifications)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [[ -n "$GOOGLE_SERVICES_JSON" ]]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "google-services.json written: this build can receive push notifications."
+          else
+            echo "::warning::Secret GOOGLE_SERVICES_JSON is not set, so this APK cannot receive push notifications. See Docs/push-notifications-app.md."
+          fi
       - run: npx cap sync android
       - name: Set version
         run: |

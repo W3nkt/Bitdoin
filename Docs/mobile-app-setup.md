@@ -68,6 +68,10 @@ Until you finish the steps, nothing breaks: without `FACEBOOK_APP_ID` in the bui
 
 **Store forms.** List Facebook Login (name, email, user ID; used for sign-in) in Apple's App Privacy answers and Google Play's Data safety form. Because the app now shows iOS's tracking prompt, App Store Connect > App Privacy must be answered to match (follow Apple's wording on what counts as tracking; nothing is collected for ads). Apple's review may ask why the prompt is there: the answer is that it lets the Facebook app open for sign-in.
 
+## Push notifications
+
+The apps receive notifications through Apple and Google (daily quote, new books, My Scores reminders, and new streak / leaderboard / comeback reminders and well-being nudges). Setup (Apple push key, Firebase, Supabase secrets, migration 176, deploy) and the rules members are protected by are in `Docs/push-notifications-app.md`. Until that is done the switches work but nothing is sent.
+
 ## How the apps look on a phone
 
 - **Notch, status bar and home indicator.** The app build sets `viewport-fit=cover`, so pages draw edge to edge and `env(safe-area-inset-*)` is real. Two CSS variables carry it, `--safe-top` and `--safe-bottom` (`src/index.css`; both are `0px` in a normal browser, so the website is unchanged). Any new bar pinned to the top or bottom of the screen adds them to its own padding: `pt-[var(--safe-top)]` on a sticky header, `pb-[var(--safe-bottom)]` on a bottom bar, `bottom-[calc(4rem+var(--safe-bottom))]` for something that floats above one. The Academy expiry banner covers the notch itself and sets `--safe-top` to `0px` while it shows, so the headers under it don't pad twice.

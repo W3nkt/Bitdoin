@@ -2,10 +2,11 @@ import { supabase } from '@/lib/supabase'
 import { isIos, isStandalone } from '@/lib/installPrompt'
 import { isNativeApp } from '@/lib/native'
 
-// Browser / home-screen notifications (Web Push). The service worker shows
-// them (public/push-sw.js); send-push (edge function) sends them; each
-// device's per-platform switches live in push_subscriptions (migrations 102
-// and 120).
+// Browser / home-screen notifications (Web Push), and the same switches inside the
+// iOS / Android apps. The service worker shows the browser ones (public/push-sw.js);
+// the apps register with Apple / Google instead (src/lib/nativePush.ts, loaded only in
+// the app build). send-push (edge function) sends both; each device's per-platform
+// switches live in push_subscriptions (migrations 102, 120 and 176).
 
 const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined) ?? ''
 // Remembers this browser's endpoint so a replaced subscription can be moved
@@ -13,15 +14,18 @@ const VAPID_PUBLIC_KEY = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | unde
 const ENDPOINT_KEY = 'bitdoin.push.endpoint'
 
 export type PushPlatform = 'BOOKSTORE' | 'ACADEMY'
-/** A device switch: a platform's notifications, or My Scores reminders. */
-export type PushTarget = PushPlatform | 'MY_SCORES'
+/**
+ * A device switch: a platform's notifications, My Scores reminders, or (apps only)
+ * streak / leaderboard reminders and well-being nudges.
+ */
+export type PushTarget = PushPlatform | 'MY_SCORES' | 'ENGAGEMENT' | 'WELLBEING'
 export type ReminderSlot = 'MORNING' | 'AFTERNOON' | 'EVENING'
 
 /**
  * - unconfigured: no VAPID key in this build (cards stay hidden)
  * - unsupported:  this browser can't receive Web Push
  * - ios-install:  iPhone/iPad Safari; only works after Add to Home Screen
- * - denied:       the person blocked notifications for this site
+ * - denied:       the person blocked notifications for this site (or for the app, in the phone's settings)
  * - ready:        permission granted or not asked yet
  */
 export type PushSupport = 'unconfigured' | 'unsupported' | 'ios-install' | 'denied' | 'ready'
@@ -31,13 +35,40 @@ export interface DevicePushState {
   academy_enabled: boolean
   academy_slot: ReminderSlot
   my_scores_enabled: boolean
+  /** Apps only: streak at risk, leaderboard, "we saved your place". */
+  engagement_enabled: boolean
+  /** Apps only: take a break, time to put the phone down. */
+  wellbeing_enabled: boolean
 }
 
 export const pushConfigured = Boolean(VAPID_PUBLIC_KEY)
-/** Web Push needs the service worker, which the app build leaves out; native push replaces it later. */
+/** Web Push needs the service worker, which the app build leaves out. */
 export const webPushAvailable = pushConfigured && !isNativeApp()
+/** The iOS / Android app receives push through Apple / Google instead. */
+export const nativePushAvailable = isNativeApp()
+/** Notifications can be turned on here, in a browser or in the app. */
+export const pushAvailable = webPushAvailable || nativePushAvailable
+
+/** The app's lazy native push module; the web build never includes it. */
+async function native() {
+  if (__NATIVE_BUILD__) return import('@/lib/nativePush')
+  throw new Error('not-native')
+}
+
+// Set when the phone's permission is known to be denied. The OS only says so asynchronously, so
+// getPushSupport (synchronous) reads this; refreshPushSupport and failed enables keep it current.
+let nativeDenied = false
+
+/** Re-reads the phone's notification permission (the person may have changed it in Settings). */
+export async function refreshPushSupport(): Promise<PushSupport> {
+  if (nativePushAvailable) {
+    nativeDenied = (await (await native()).nativePermission().catch(() => 'prompt' as const)) === 'denied'
+  }
+  return getPushSupport()
+}
 
 export function getPushSupport(): PushSupport {
+  if (nativePushAvailable) return nativeDenied ? 'denied' : 'ready'
   if (!webPushAvailable) return 'unconfigured'
   const capable = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
   if (isIos() && !isStandalone()) return 'ios-install'
@@ -85,6 +116,10 @@ function subscriptionKeys(subscription: PushSubscription) {
 
 /** This device's saved switches for the signed-in user, or null if none. */
 export async function getDevicePushState(): Promise<DevicePushState | null> {
+  if (nativePushAvailable) {
+    const row = await (await native()).getNativeDeviceState()
+    return row ? deviceState(row) : null
+  }
   const subscription = await getBrowserSubscription()
   if (!subscription) return null
   // '*' so this keeps working if the frontend ships before migration 120.
@@ -103,6 +138,8 @@ function deviceState(row: Partial<DevicePushState>): DevicePushState {
     academy_enabled: Boolean(row.academy_enabled),
     academy_slot: (row.academy_slot ?? 'MORNING') as ReminderSlot,
     my_scores_enabled: Boolean(row.my_scores_enabled),
+    engagement_enabled: Boolean(row.engagement_enabled),
+    wellbeing_enabled: Boolean(row.wellbeing_enabled),
   }
 }
 
@@ -127,6 +164,14 @@ async function save(subscription: PushSubscription, platform: PushTarget, enable
  * Throws Error('denied') if the person says no.
  */
 export async function enablePush(platform: PushTarget, slot?: ReminderSlot) {
+  if (nativePushAvailable) {
+    try {
+      return deviceState(await (await native()).enableNativePush(platform, slot))
+    } catch (error) {
+      if (error instanceof Error && error.message === 'denied') nativeDenied = true
+      throw error
+    }
+  }
   if (getPushSupport() !== 'ready') throw new Error('unsupported')
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('denied')
@@ -146,6 +191,10 @@ export async function enablePush(platform: PushTarget, slot?: ReminderSlot) {
 
 /** Turns a switch off on this device; unsubscribes the browser when all are off. */
 export async function disablePush(platform: PushTarget) {
+  if (nativePushAvailable) {
+    const row = await (await native()).disableNativePush(platform)
+    return row ? deviceState(row) : null
+  }
   const subscription = await getBrowserSubscription()
   if (!subscription) return null
   const state = await save(subscription, platform, false)
@@ -157,6 +206,7 @@ export async function disablePush(platform: PushTarget) {
 }
 
 export async function setAcademyReminderSlot(slot: ReminderSlot) {
+  if (nativePushAvailable) return deviceState(await (await native()).setNativeAcademySlot(slot))
   const subscription = await getBrowserSubscription()
   if (!subscription) throw new Error('not-subscribed')
   return save(subscription, 'ACADEMY', true, slot)
@@ -175,6 +225,10 @@ export async function sendTestPush(platform: PushTarget) {
  * current one so the member keeps getting notifications. Never prompts.
  */
 export async function syncPushSubscription() {
+  if (nativePushAvailable) {
+    nativeDenied = await (await native()).syncNativePush()
+    return
+  }
   if (getPushSupport() !== 'ready' || Notification.permission !== 'granted') return
   const previous = readStoredEndpoint()
   if (!previous) return // Never turned on from this browser.

@@ -4,7 +4,7 @@ import { InstallAppButton } from '@/components/notifications/InstallAppButton'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useWebPush } from '@/hooks/useWebPush'
-import type { PushPlatform } from '@/lib/webPush'
+import { nativePushAvailable, type PushPlatform } from '@/lib/webPush'
 import { cn } from '@/lib/utils'
 
 // "Not now" hides the prompt for this long on this device.
@@ -19,6 +19,11 @@ const COPY = {
     title: { lo: 'ຮັບກຳລັງໃຈມື້ລະຄັ້ງ', en: 'A little inspiration every day' },
     body: { lo: 'ຮັບຂໍ້ຄິດປະຈຳວັນ ຫຼື ຄຳຄົມໃຫ້ກຳລັງໃຈເປັນພາສາລາວ. ປ່ຽນເວລາ ຫຼື ປິດໄດ້ໃນໂປຣໄຟລ໌.', en: 'A daily quote or motivational quote in Lao. Change the time or turn it off in your profile.' },
   },
+} as const
+
+const APP_ACADEMY_BODY = {
+  lo: 'ຂໍ້ຄິດປະຈຳວັນ, ເຕືອນມື້ຮຽນຕໍ່ເນື່ອງ ແລະ ອັນດັບ, ແລະ ເຕືອນໃຫ້ພັກຜ່ອນ. ປ່ຽນ ຫຼື ປິດແຕ່ລະຢ່າງໄດ້ໃນໂປຣໄຟລ໌.',
+  en: 'A daily quote, streak and leaderboard reminders, and nudges to take a break. Change or turn off each one in your profile.',
 } as const
 
 function snoozeKey(platform: PushPlatform) {
@@ -51,9 +56,12 @@ export function PushOptInPrompt({ platform, lo, className }: { platform: PushPla
   const push = useWebPush(platform)
   const [hidden, setHidden] = useState(() => isSnoozed(platform))
   const copy = COPY[platform]
+  // In the app, turning Academy notifications on also switches on streak / leaderboard reminders and well-being nudges: say so.
+  const body = nativePushAvailable && platform === 'ACADEMY' ? APP_ACADEMY_BODY : copy.body
   const academy = platform === 'ACADEMY'
 
-  const canAsk = push.support === 'ready' && typeof Notification !== 'undefined' && Notification.permission !== 'denied'
+  // The app has no browser Notification API (iOS's WebView has none); its own permission state is in push.support.
+  const canAsk = push.support === 'ready' && (nativePushAvailable || (typeof Notification !== 'undefined' && Notification.permission !== 'denied'))
   const visible = profile && !hidden && !push.loading && !push.enabled && (canAsk || push.support === 'ios-install')
   if (!visible) return null
 
@@ -101,7 +109,7 @@ export function PushOptInPrompt({ platform, lo, className }: { platform: PushPla
           </>
         ) : (
           <>
-            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{lo ? copy.body.lo : copy.body.en}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{lo ? body.lo : body.en}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"

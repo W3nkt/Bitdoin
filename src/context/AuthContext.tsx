@@ -188,6 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // The app: this phone stops getting the member's notifications (needs the session, so first).
+    if (__NATIVE_BUILD__) await import('@/lib/nativePush').then(module => module.removeNativeDevice()).catch(() => undefined)
     await supabase.auth.signOut()
     // Shared phones: My Scores drafts must not outlive the account session.
     clearAllDrafts()

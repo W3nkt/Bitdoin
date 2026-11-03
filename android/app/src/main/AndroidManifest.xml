@@ -33,6 +33,11 @@
         <meta-data android:name="com.facebook.sdk.AutoLogAppEventsEnabled" android:value="false" />
         <meta-data android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled" android:value="false" />
 
+        <!-- Push notifications (Firebase Cloud Messaging, through @capacitor/push-notifications): the status-bar icon, its colour, and the channel the app creates (src/lib/nativePush.ts). -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_bitdoin" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_color" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="bitdoin" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -45,6 +50,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ asks before showing notifications; the app asks after a tap on a notification switch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Photo upload inputs (score books, receipts, avatars) offer the camera. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />

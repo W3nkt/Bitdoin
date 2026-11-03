@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { CartProvider } from '@/context/CartContext'
 import { LanguageProvider } from '@/context/LanguageContext'
-import { ToastProvider } from '@/components/ui/Toast'
+import { ToastProvider, useToast } from '@/components/ui/Toast'
 import { CustomerLayout } from '@/components/layout/CustomerLayout'
 import { AdminLayout } from '@/components/layout/AdminLayout'
 import { PageLoader } from '@/components/ui/LoadingSpinner'
@@ -15,7 +15,7 @@ import { resolvePostLoginDestination, takeOAuthReturnPath } from '@/lib/authRedi
 import { useGoogleAnalytics } from '@/hooks/useGoogleAnalytics'
 import { useSeoMeta } from '@/hooks/useSeoMeta'
 import { isThemedPath, useApplyTheme, useTheme } from '@/lib/theme'
-import { syncPushSubscription } from '@/lib/webPush'
+import { refreshPushSupport, syncPushSubscription } from '@/lib/webPush'
 import '@/i18n'
 
 // Customer pages
@@ -149,6 +149,71 @@ function PushSubscriptionSync() {
   return null
 }
 
+// App only: shows a notification that arrives while the app is open (the phone shows nothing then), opens the
+// page a tapped notification points to, and tells the server when the app is open (the streak, comeback and
+// well-being nudges depend on it). Sends nothing and asks for nothing until the member has turned notifications on.
+const APP_OPEN_PING_MS = 5 * 60 * 1000
+
+function NativePushController() {
+  const { profile } = useAuth()
+  const { toast } = useToast()
+  const navigate = useNavigate()
+  const userId = profile?.id
+
+  useEffect(() => {
+    let cancelled = false
+    let remove: (() => void) | undefined
+    void import('@/lib/nativePush').then(async module => {
+      const off = await module.installNativePushHandlers({
+        onForeground: ({ title, body }) => toast([title, body].filter(Boolean).join(' — '), 'info', 8000),
+        onOpen: url => navigate(url),
+      })
+      if (cancelled) off()
+      else remove = off
+    })
+    return () => {
+      cancelled = true
+      remove?.()
+    }
+  }, [navigate, toast])
+
+  useEffect(() => {
+    if (!userId) return
+    let cancelled = false
+    let timer: number | undefined
+    let stopWatching: (() => void) | undefined
+
+    void import('@/lib/nativePush').then(async module => {
+      const ping = (force = false) => module.touchNativeDevice(force).catch(err => console.warn('[native-push] ping failed', err))
+      const startPinging = () => {
+        window.clearInterval(timer)
+        timer = window.setInterval(() => void ping(), APP_OPEN_PING_MS)
+      }
+      const off = await module.watchAppActive(active => {
+        if (active) {
+          void ping(true)
+          startPinging()
+          // The person may have allowed notifications in the phone's Settings.
+          void refreshPushSupport().then(() => qc.invalidateQueries({ queryKey: ['web-push'] }))
+        } else {
+          window.clearInterval(timer)
+        }
+      })
+      if (cancelled) return off()
+      stopWatching = off
+      if (document.visibilityState === 'visible') startPinging()
+    })
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+      stopWatching?.()
+    }
+  }, [userId])
+
+  return null
+}
+
 function OAuthReturnHandler() {
   const { profile, loading } = useAuth()
   const navigate = useNavigate()
@@ -211,6 +276,7 @@ export function App() {
                 <GoogleAnalyticsTracker />
                 <OAuthReturnHandler />
                 <PushSubscriptionSync />
+                {__NATIVE_BUILD__ && <NativePushController />}
                 <MembershipExpiryBanner />
                 <AcademyMenu />
                 <RefreshBoundary>

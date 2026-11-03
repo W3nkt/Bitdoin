@@ -5,8 +5,9 @@ import { InstallAppButton } from '@/components/notifications/InstallAppButton'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { useWebPush } from '@/hooks/useWebPush'
+import { NativePushExtras } from '@/components/notifications/NativePushExtras'
 import { snoozePushPrompt } from '@/components/notifications/PushOptInPrompt'
-import type { PushPlatform, ReminderSlot } from '@/lib/webPush'
+import { nativePushAvailable, type PushPlatform, type ReminderSlot } from '@/lib/webPush'
 import { cn } from '@/lib/utils'
 
 const SLOTS: Array<{ value: ReminderSlot; lo: string; en: string }> = [
@@ -110,9 +111,13 @@ export function PushNotificationCard({ platform, lo, className }: { platform: Pu
       ) : push.support === 'denied' ? (
         <p className="mt-5 flex items-start gap-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 p-4 text-sm text-slate-600 dark:text-slate-300">
           <BellOff className="mt-0.5 h-4 w-4 shrink-0" />
-          {lo
-            ? 'ການແຈ້ງເຕືອນຂອງ Bitdoin ຖືກບລັອກໄວ້. ເປີດໃນການຕັ້ງຄ່າຂອງບຣາວເຊີ ຫຼື ໂທລະສັບ, ແລ້ວໂຫຼດໜ້ານີ້ໃໝ່.'
-            : 'Notifications for Bitdoin are blocked. Allow them in your browser or phone settings, then reload this page.'}
+          {nativePushAvailable
+            ? (lo
+              ? 'ການແຈ້ງເຕືອນຂອງ Bitdoin ຖືກບລັອກໄວ້. ເປີດໃນການຕັ້ງຄ່າຂອງໂທລະສັບ (ການຕັ້ງຄ່າ > Bitdoin > ການແຈ້ງເຕືອນ) ແລ້ວກັບມາທີ່ແອັບ.'
+              : 'Notifications for Bitdoin are blocked. Allow them in your phone settings (Settings > Bitdoin > Notifications), then come back to the app.')
+            : (lo
+              ? 'ການແຈ້ງເຕືອນຂອງ Bitdoin ຖືກບລັອກໄວ້. ເປີດໃນການຕັ້ງຄ່າຂອງບຣາວເຊີ ຫຼື ໂທລະສັບ, ແລ້ວໂຫຼດໜ້ານີ້ໃໝ່.'
+              : 'Notifications for Bitdoin are blocked. Allow them in your browser or phone settings, then reload this page.')}
         </p>
       ) : push.support === 'unsupported' ? (
         <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
@@ -138,6 +143,8 @@ export function PushNotificationCard({ platform, lo, className }: { platform: Pu
               <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform', push.enabled ? 'translate-x-5' : 'translate-x-0')} />
             </button>
           </label>
+
+          {academy && nativePushAvailable && <NativePushExtras lo={lo} />}
 
           {academy && push.enabled && (
             <div>

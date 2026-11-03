@@ -116,6 +116,95 @@ export function scoreReminderMessage(lang: Lang, payload: ScoreReminderPayload):
   }
 }
 
+// ─── Engagement and well-being (migration 176) ───────────────────────────────
+
+export type EngagementKind = 'STREAK_AT_RISK' | 'XP_RIVAL' | 'DAILY_NOT_OPENED' | 'COMEBACK' | 'BREAK' | 'WINDDOWN'
+
+export const ENGAGEMENT_KINDS: EngagementKind[] = ['STREAK_AT_RISK', 'XP_RIVAL', 'DAILY_NOT_OPENED', 'COMEBACK', 'BREAK', 'WINDDOWN']
+
+/** The two messages that tell people to stop; everything else asks them to come in. */
+export const WELLBEING_KINDS: EngagementKind[] = ['BREAK', 'WINDDOWN']
+
+export interface EngagementParams {
+  streak?: number
+  gap?: number
+  rank?: number
+  days?: number
+}
+
+// Lock-screen text: short, kind, no pressure and no shaming about missed days. Lao follows the Academy Lao
+// content standard (ທ່ານ, ມື້ຮຽນຕໍ່ເນື່ອງ for streak, XP kept in Latin letters). Drafted for review by a Lao speaker.
+export function engagementMessage(kind: EngagementKind, lang: Lang, params: EngagementParams, laosDate: string): PushMessage {
+  const lo = lang === 'lo'
+  const count = (value: number | undefined, fallback: number) => {
+    const number = Math.round(Number(value))
+    return Number.isFinite(number) && number > 0 ? Math.min(number, 9999) : fallback
+  }
+  const tag = `engagement-${kind.toLowerCase().replace(/_/g, '-')}-${laosDate}`
+
+  switch (kind) {
+    case 'STREAK_AT_RISK': {
+      const days = count(params.streak, 1)
+      return {
+        title: lo ? `🔥 ມື້ຮຽນຕໍ່ເນື່ອງ ${days} ມື້ ກຳລັງຈະຂາດ` : `🔥 Your ${days}-day streak is on the line`,
+        body: lo
+          ? 'ເຮັດກິດຈະກຳຜູ້ແນະນຳມື້ນີ້ໃຫ້ຄົບ ເພື່ອຮັກສາມື້ຮຽນຕໍ່ເນື່ອງຂອງທ່ານໄວ້. ໃຊ້ເວລາບໍ່ເທົ່າໃດນາທີ.'
+          : "Finish today's mentor activities to keep it going. It only takes a few minutes.",
+        url: '/academy/home',
+        tag,
+      }
+    }
+    case 'XP_RIVAL': {
+      const gap = count(params.gap, 1)
+      const rank = count(params.rank, 1)
+      return {
+        title: lo ? `📈 ອີກ ${gap} XP ກໍຂຶ້ນອັນດັບ ${rank}` : `📈 Just ${gap} XP from rank ${rank}`,
+        body: lo
+          ? 'ເຮັດກິດຈະກຳມື້ນີ້ອີກໜ້ອຍໜຶ່ງ ກໍຂຶ້ນຕາຕະລາງອັນດັບໄດ້ແລ້ວ.'
+          : 'A little more today could move you up the leaderboard.',
+        url: '/academy/home',
+        tag,
+      }
+    }
+    case 'DAILY_NOT_OPENED':
+      return {
+        title: lo ? '☀️ ກິດຈະກຳປະຈຳວັນລໍຖ້າທ່ານຢູ່' : '☀️ Your daily activities are waiting',
+        body: lo ? 'ເຂົ້າມາເຮັດ 5 ນາທີ ເພື່ອເກັບ XP ຂອງມື້ນີ້.' : 'Spend 5 minutes today and collect your XP.',
+        url: '/academy/home',
+        tag,
+      }
+    case 'COMEBACK': {
+      const days = count(params.days, 3)
+      return {
+        title: lo ? '👋 ຄິດຮອດທ່ານແລ້ວ' : '👋 We saved your place',
+        body: lo
+          ? `ບໍ່ໄດ້ເຂົ້າມາ ${days} ມື້ແລ້ວ. ມື້ນີ້ລອງເລີ່ມໃໝ່ພຽງ 5 ນາທີ ກໍພໍ.`
+          : `It's been ${days} days. Five minutes today is enough to get back on track.`,
+        url: '/academy/home',
+        tag,
+      }
+    }
+    case 'BREAK':
+      return {
+        title: lo ? '☕ ພັກສາຍຕາແດ່' : '☕ Time for a short break',
+        body: lo
+          ? 'ທ່ານໃຊ້ໂທລະສັບມາດົນແລ້ວ. ວາງໄວ້ກ່ອນ ຢຽດເສັ້ນຢຽດສາຍ ແລະ ດື່ມນ້ຳ ແລ້ວຄ່ອຍກັບມາຮຽນຕໍ່.'
+          : "You've been on your phone for a while. Rest your eyes, stretch and drink some water, then come back.",
+        url: '/',
+        tag,
+      }
+    case 'WINDDOWN':
+      return {
+        title: lo ? '🌙 ເຖິງເວລາວາງໂທລະສັບແລ້ວ' : '🌙 Time to put the phone down',
+        body: lo
+          ? 'ນອນຫຼັບໃຫ້ພຽງພໍຈະຊ່ວຍໃຫ້ຈື່ສິ່ງທີ່ຮຽນໄດ້ດີຂຶ້ນ. ອ່ານປຶ້ມສອງສາມໜ້າ ຫຼື ພັກຜ່ອນ ແລ້ວພົບກັນໃໝ່ມື້ອື່ນ.'
+          : 'Good sleep helps you remember what you learned. Read a few pages of a book or relax, and see you tomorrow.',
+        url: '/',
+        tag,
+      }
+  }
+}
+
 // ─── Test message ────────────────────────────────────────────────────────────
 
 export function testMessage(lang: Lang, platform: 'BOOKSTORE' | 'ACADEMY'): PushMessage {

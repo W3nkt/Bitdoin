@@ -15,6 +15,7 @@ let package = Package(
         .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
         .package(name: "CapacitorBrowser", path: "../../../node_modules/@capacitor/browser"),
         .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
+        .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
         .package(name: "CapawesomeCapacitorFacebookSignIn", path: "../../../node_modules/@capawesome/capacitor-facebook-sign-in"),
         .package(name: "CapacitorPluginAppTrackingTransparency", path: "../../../node_modules/capacitor-plugin-app-tracking-transparency")
@@ -28,6 +29,7 @@ let package = Package(
                 .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorBrowser", package: "CapacitorBrowser"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
+                .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
                 .product(name: "CapawesomeCapacitorFacebookSignIn", package: "CapawesomeCapacitorFacebookSignIn"),
                 .product(name: "CapacitorPluginAppTrackingTransparency", package: "CapacitorPluginAppTrackingTransparency")

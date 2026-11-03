@@ -3,18 +3,25 @@ import webpush from 'npm:web-push@3.6.7'
 import { membershipActivatedMessage } from '../_shared/membership-notify.ts'
 import {
   academyDailyMessage,
+  engagementMessage,
+  ENGAGEMENT_KINDS,
   newBooksMessage,
   scoreReminderMessage,
   testMessage,
+  WELLBEING_KINDS,
+  type EngagementKind,
+  type EngagementParams,
   type ScoreReminderPayload,
   type Lang,
   type NewBook,
   type PushMessage,
 } from './messages.ts'
+import { createNativeSender, parseNativeEndpoint } from './native-push.ts'
 
-// Sends Web Push notifications (browser + home-screen app) for both platforms.
-// Devices and their per-platform switches live in push_subscriptions
-// (migration 102). Actions (POST JSON { action, ... }):
+// Sends push notifications for both platforms: Web Push (browser + home-screen app) and the
+// iOS / Android apps (native-push.ts: APNs and FCM). Devices and their per-platform switches
+// live in push_subscriptions (migrations 102, 120, 176); a phone's endpoint is native://ios/<token>
+// or native://android/<token>. Actions (POST JSON { action, ... }):
 //
 //   academy-daily  pg_cron, every 15 min. One reminder per device per day in
 //                  the member's slot (Laos time). Safe to call any number of
@@ -23,14 +30,22 @@ import {
 //                  the last digest; nothing is sent when there are none.
 //   announcement   Staff only. { id } of a PENDING push_announcements row.
 //   test           Signed-in user. Sends a test to the caller's own devices.
+//   engagement     pg_cron, every 15 min. Streak / leaderboard / comeback nudges and the two
+//                  well-being messages (take a break, put the phone down) to phones. The
+//                  database decides who gets what and applies the windows, caps and back-off
+//                  (push_claim_engagement, migration 176).
+//   test-engagement  Staff only. { kind } previews one of those messages on the caller's own devices.
 //   academic-reminders  pg_cron, every 15 min. Delivers My Scores reminders
 //                  claimed from academic_notifications (migration 118); the
 //                  database applies opt-in, quiet hours and caps.
 //
 // Dead subscriptions (404/410 from the push service) are deleted.
 //
-// Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:...),
+// Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:...)      browsers
+//          APNS_KEY_P8, APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, APNS_ENVIRONMENT   iPhone app
+//          FCM_SERVICE_ACCOUNT                                                  Android app
 //          ALLOWED_ORIGINS (optional, comma separated)
+// Each group is optional: a kind of device without its secrets is skipped, not failed.
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -38,6 +53,14 @@ const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY') ?? ''
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') ?? ''
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@bitdoin.store'
+const nativeSender = createNativeSender({
+  APNS_KEY_P8: Deno.env.get('APNS_KEY_P8'),
+  APNS_KEY_ID: Deno.env.get('APNS_KEY_ID'),
+  APNS_TEAM_ID: Deno.env.get('APNS_TEAM_ID'),
+  APNS_BUNDLE_ID: Deno.env.get('APNS_BUNDLE_ID'),
+  APNS_ENVIRONMENT: Deno.env.get('APNS_ENVIRONMENT'),
+  FCM_SERVICE_ACCOUNT: Deno.env.get('FCM_SERVICE_ACCOUNT'),
+})
 const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
   .map(origin => origin.trim())
@@ -100,6 +123,29 @@ async function languagesFor(admin: SupabaseClient, userIds: string[]) {
   return map
 }
 
+type SendOutcome = 'sent' | 'gone' | 'failed'
+
+/** One message to one device, browser or phone. */
+async function sendOne(row: SubscriptionRow, message: PushMessage, ttl: number): Promise<SendOutcome> {
+  const phone = parseNativeEndpoint(row.endpoint)
+  if (phone) return nativeSender.send(phone.channel, phone.token, message, ttl)
+  try {
+    await webpush.sendNotification(
+      { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
+      JSON.stringify(message),
+      // No Topic header: Apple rejects it (400 BadWebPushTopic). The
+      // payload's `tag` already replaces an older notification on device.
+      { TTL: ttl, urgency: 'normal' },
+    )
+    return 'sent'
+  } catch (error) {
+    const status = (error as { statusCode?: number }).statusCode
+    if (status === 404 || status === 410) return 'gone'
+    console.error('[send-push] delivery failed', status, (error as Error).message)
+    return 'failed'
+  }
+}
+
 /**
  * Sends one message per row. Returns counts; deletes subscriptions the push
  * service says are gone, and records the last successful delivery.
@@ -117,27 +163,16 @@ async function deliver<T extends SubscriptionRow>(
 
   for (let i = 0; i < rows.length; i += SEND_CONCURRENCY) {
     await Promise.all(rows.slice(i, i + SEND_CONCURRENCY).map(async row => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } },
-          JSON.stringify(messageFor(row)),
-          // No Topic header: Apple rejects it (400 BadWebPushTopic). The
-          // payload's `tag` already replaces an older notification on device.
-          { TTL: options.ttl, urgency: 'normal' },
-        )
+      const outcome = await sendOne(row, messageFor(row), options.ttl)
+      if (outcome === 'sent') {
         sent += 1
         delivered.push(row.id)
         options.onDelivered?.(row)
-      } catch (error) {
-        failed += 1
-        const status = (error as { statusCode?: number }).statusCode
-        if (status === 404 || status === 410) {
-          gone.push(row.id)
-        } else {
-          console.error('[send-push] delivery failed', status, (error as Error).message)
-          await options.onFailure?.(row)
-        }
+        return
       }
+      failed += 1
+      if (outcome === 'gone') gone.push(row.id)
+      else await options.onFailure?.(row)
     }))
   }
 
@@ -387,6 +422,86 @@ async function sendTest(admin: SupabaseClient, userId: string, platform: Platfor
   return deliver(admin, rows as SubscriptionRow[], () => message, { ttl: 60 * 60 })
 }
 
+// ─── engagement ──────────────────────────────────────────────────────────────
+
+interface EngagementPick {
+  user_id: string
+  kind: EngagementKind
+  language: string | null
+  params: EngagementParams | null
+}
+
+interface PhoneRow extends SubscriptionRow {
+  engagement_enabled: boolean
+  wellbeing_enabled: boolean
+}
+
+// A streak reminder that arrives after the evening is worse than none; a break nudge is only useful right away.
+const ENGAGEMENT_TTL: Record<EngagementKind, number> = {
+  STREAK_AT_RISK: 3 * 60 * 60,
+  XP_RIVAL: 3 * 60 * 60,
+  DAILY_NOT_OPENED: 3 * 60 * 60,
+  COMEBACK: 3 * 60 * 60,
+  BREAK: 30 * 60,
+  WINDDOWN: 60 * 60,
+}
+
+async function sendEngagement(admin: SupabaseClient) {
+  // The database picks who gets what and records it, so overlapping runs cannot double-send.
+  const { data: claimed, error } = await admin.rpc('push_claim_engagement', { p_limit: 500 })
+  if (error) throw error
+  const picks = (claimed ?? []) as EngagementPick[]
+  if (!picks.length) return { sent: 0, picked: 0 }
+
+  const userIds = [...new Set(picks.map(pick => pick.user_id))]
+  const phones: PhoneRow[] = []
+  for (let i = 0; i < userIds.length; i += 200) {
+    const { data, error: phonesError } = await admin
+      .from('push_subscriptions')
+      .select('id,user_id,endpoint,p256dh,auth,engagement_enabled,wellbeing_enabled')
+      .in('user_id', userIds.slice(i, i + 200))
+      .like('endpoint', 'native://%')
+    if (phonesError) throw phonesError
+    phones.push(...((data ?? []) as PhoneRow[]))
+  }
+
+  const date = laosNow().date
+  const totals = { sent: 0, failed: 0, removed: 0 }
+  const reached = new Set<string>()
+  for (const kind of ENGAGEMENT_KINDS) {
+    const wellbeing = WELLBEING_KINDS.includes(kind)
+    const rows = picks.filter(pick => pick.kind === kind).flatMap(pick => phones
+      .filter(phone => phone.user_id === pick.user_id && (wellbeing ? phone.wellbeing_enabled : phone.engagement_enabled))
+      .map(phone => ({ ...phone, pick })))
+    if (!rows.length) continue
+    const result = await deliver(admin, rows, row => engagementMessage(kind, asLang(row.pick.language), row.pick.params ?? {}, date), {
+      ttl: ENGAGEMENT_TTL[kind],
+      onDelivered: row => reached.add(`${row.pick.user_id}:${kind}`),
+    })
+    totals.sent += result.sent
+    totals.failed += result.failed
+    totals.removed += result.removed
+  }
+
+  // Nothing got through (no phone left, or a temporary failure): give the claim back so the next run tries again.
+  const unreached = picks.filter(pick => !reached.has(`${pick.user_id}:${pick.kind}`))
+  await Promise.all(unreached.map(pick => admin.rpc('push_release_engagement', { p_user_id: pick.user_id, p_kind: pick.kind })))
+  return { ...totals, picked: picks.length, released: unreached.length }
+}
+
+/** Staff preview of one engagement message on their own devices. */
+async function sendEngagementPreview(admin: SupabaseClient, userId: string, kind: EngagementKind) {
+  const { data: rows, error } = await admin
+    .from('push_subscriptions')
+    .select('id,user_id,endpoint,p256dh,auth')
+    .eq('user_id', userId)
+  if (error) throw error
+  if (!rows?.length) return { sent: 0, failed: 0, removed: 0 }
+  const users = await languagesFor(admin, [userId])
+  const message = engagementMessage(kind, users.get(userId)?.lang ?? 'lo', { streak: 5, gap: 40, rank: 3, days: 4 }, laosNow().date)
+  return deliver(admin, rows as SubscriptionRow[], () => message, { ttl: 60 * 60 })
+}
+
 // ─── HTTP ────────────────────────────────────────────────────────────────────
 
 /**
@@ -426,12 +541,14 @@ async function signedInUser(req: Request) {
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405)
-  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return json(req, { skipped: 'VAPID keys not set' })
+  const webReady = Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY)
+  if (!webReady && !nativeSender.configured.ios && !nativeSender.configured.android) return json(req, { skipped: 'No push keys set' })
 
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+  // Without VAPID keys browsers cannot be reached (their sends fail); phones still can.
+  if (webReady) webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
   const body = await req.json().catch(() => ({})) as {
-    action?: string; id?: string; platform?: string; draft?: unknown; user_id?: string; ends_at?: string; extends_previous?: boolean
+    action?: string; id?: string; platform?: string; draft?: unknown; user_id?: string; ends_at?: string; extends_previous?: boolean; kind?: string
   }
 
   try {
@@ -442,6 +559,17 @@ Deno.serve(async req => {
         return json(req, await sendNewBooks(admin))
       case 'academic-reminders':
         return json(req, await sendAcademicReminders(admin))
+      case 'engagement':
+        return json(req, await sendEngagement(admin))
+      case 'test-engagement': {
+        const user = await signedInUser(req)
+        if (!user) return json(req, { error: 'Please sign in.' }, 401)
+        const { data: profile } = await admin.from('users').select('role').eq('id', user.id).maybeSingle()
+        if (!STAFF_ROLES.includes(profile?.role ?? '')) return json(req, { error: 'Not allowed' }, 403)
+        const kind = ENGAGEMENT_KINDS.find(item => item === body.kind)
+        if (!kind) return json(req, { error: 'Unknown kind' }, 400)
+        return json(req, await sendEngagementPreview(admin, user.id, kind))
+      }
       case 'membership-activated': {
         if (!isServiceCall(req)) return json(req, { error: 'Not allowed' }, 403)
         const validId = typeof body.user_id === 'string' && /^[0-9a-f-]{36}$/i.test(body.user_id)

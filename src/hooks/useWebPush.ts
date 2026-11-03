@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -6,6 +6,8 @@ import {
   enablePush,
   getDevicePushState,
   getPushSupport,
+  nativePushAvailable,
+  refreshPushSupport,
   sendTestPush,
   setAcademyReminderSlot,
   type DevicePushState,
@@ -31,8 +33,24 @@ export function useWebPush(platform: PushTarget) {
     staleTime: 60_000,
   })
 
-  const enabled = Boolean(platform === 'ACADEMY' ? device?.academy_enabled
-    : platform === 'MY_SCORES' ? device?.my_scores_enabled : device?.bookstore_enabled)
+  // In the app the person may allow notifications in the phone's Settings and come back.
+  useEffect(() => {
+    if (!nativePushAvailable) return
+    const recheck = () => {
+      if (document.visibilityState === 'visible') void refreshPushSupport().then(setSupport)
+    }
+    recheck()
+    document.addEventListener('visibilitychange', recheck)
+    return () => document.removeEventListener('visibilitychange', recheck)
+  }, [])
+
+  const enabled = Boolean(
+    platform === 'ACADEMY' ? device?.academy_enabled
+      : platform === 'MY_SCORES' ? device?.my_scores_enabled
+        : platform === 'ENGAGEMENT' ? device?.engagement_enabled
+          : platform === 'WELLBEING' ? device?.wellbeing_enabled
+            : device?.bookstore_enabled,
+  )
 
   async function run(action: () => Promise<DevicePushState | null>): Promise<PushActionError | null> {
     setBusy(true)
